@@ -1,0 +1,287 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, Calendar, Share2, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format, parseISO } from "date-fns";
+
+interface ProjectRow {
+  id: string;
+  name: string;
+  cattle_type: string;
+  protocol: string;
+  head_count: number;
+  breeding_date: string | null;
+  breeding_time: string | null;
+  status: string;
+  notes: string | null;
+}
+
+interface EventRow {
+  id: string;
+  event_name: string;
+  event_date: string;
+  event_time: string | null;
+}
+
+interface BullRow {
+  id: string;
+  units: number;
+  custom_bull_name: string | null;
+  bull_catalog_id: string | null;
+  bulls_catalog: { bull_name: string; company: string } | null;
+}
+
+const statusColor: Record<string, string> = {
+  Tentative: "bg-warning/20 text-warning",
+  Confirmed: "bg-primary/20 text-primary",
+  Complete: "bg-success/20 text-success",
+};
+
+const ProjectDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [project, setProject] = useState<ProjectRow | null>(null);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [bulls, setBulls] = useState<BullRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const load = async () => {
+      const [pRes, eRes, bRes] = await Promise.all([
+        supabase.from("projects").select("*").eq("id", id).single(),
+        supabase
+          .from("protocol_events")
+          .select("*")
+          .eq("project_id", id)
+          .order("event_date", { ascending: true }),
+        supabase
+          .from("project_bulls")
+          .select("*, bulls_catalog(bull_name, company)")
+          .eq("project_id", id),
+      ]);
+
+      if (pRes.data) setProject(pRes.data as ProjectRow);
+      if (eRes.data) setEvents(eRes.data as EventRow[]);
+      if (bRes.data) setBulls(bRes.data as BullRow[]);
+      setLoading(false);
+    };
+
+    load();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Project not found.
+      </div>
+    );
+  }
+
+  const noTimeEvents = ["Return Heat", "Estimated Calving"];
+
+  const formatTime12 = (time: string) => {
+    const [h, m] = time.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+  };
+
+  const breedingDisplay = project.breeding_date
+    ? format(parseISO(project.breeding_date), "MMMM d, yyyy")
+    : "—";
+
+  const breedingTimeDisplay = project.breeding_time
+    ? formatTime12(project.breeding_time)
+    : "";
+
+  const calendarUrl = () => {
+    if (!project.breeding_date) return "#";
+    const dateStr = project.breeding_date.replace(/-/g, "");
+    const title = encodeURIComponent(project.name);
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}`;
+  };
+
+  return (
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+        {/* Top actions */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
+                <Calendar className="h-4 w-4 mr-1" /> Add to Google Calendar
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+              }}
+            >
+              <Share2 className="h-4 w-4 mr-1" /> Share
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              <Pencil className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="space-y-3">
+          <h1 className="text-3xl font-bold font-display text-foreground">
+            {project.name}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="bg-primary/20 text-primary border-primary/30">
+              {project.protocol}
+            </Badge>
+            <Badge
+              className={
+                project.cattle_type === "Cows"
+                  ? "bg-accent/20 text-accent border-accent/30"
+                  : "bg-info/20 text-info border-info/30"
+              }
+            >
+              {project.cattle_type}
+            </Badge>
+            <Badge
+              className={
+                statusColor[project.status] ??
+                "bg-muted text-muted-foreground"
+              }
+            >
+              {project.status}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {project.head_count} head
+            </span>
+            <span className="text-sm text-muted-foreground">
+              · {breedingDisplay}
+              {breedingTimeDisplay && ` at ${breedingTimeDisplay}`}
+            </span>
+          </div>
+        </div>
+
+        {/* Synchronization Schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Synchronization Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No protocol events found.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event Name</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((ev) => {
+                    const isNoTime = noTimeEvents.includes(ev.event_name);
+                    return (
+                      <TableRow key={ev.id}>
+                        <TableCell className="font-medium">
+                          {ev.event_name}
+                        </TableCell>
+                        <TableCell>
+                          {format(parseISO(ev.event_date), "EEEE, MMMM d, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          {isNoTime || !ev.event_time
+                            ? "—"
+                            : formatTime12(ev.event_time)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Bulls & Semen */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Bulls & Semen</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {bulls.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No bulls assigned.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Bull Name</TableHead>
+                    <TableHead className="text-right">Units</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bulls.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="font-medium">
+                        {b.bulls_catalog
+                          ? `${b.bulls_catalog.bull_name} (${b.bulls_catalog.company})`
+                          : b.custom_bull_name ?? "Unknown"}
+                      </TableCell>
+                      <TableCell className="text-right">{b.units}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        {project.notes && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-foreground whitespace-pre-wrap">
+                {project.notes}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProjectDetail;
