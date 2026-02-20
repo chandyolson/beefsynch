@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,6 +96,7 @@ interface NewProjectDialogProps {
 }
 
 const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: NewProjectDialogProps) => {
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [bulls, setBulls] = useState<BullRow[]>([]);
   const isEditing = !!editData;
@@ -164,8 +166,15 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
     try {
-      // Get the current user's ID to satisfy RLS policies
+      // Silently retrieve the authenticated user — abort if not found
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setSaving(false);
+        toast({ title: "Not authenticated", description: "Please sign in to create a project.", variant: "destructive" });
+        onOpenChange(false);
+        navigate("/auth");
+        return;
+      }
 
       const projectPayload = {
         name: values.name,
@@ -176,7 +185,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         breeding_time: values.breeding_time,
         status: values.status,
         notes: values.notes || null,
-        user_id: user?.id ?? null,
+        user_id: user.id,
       };
 
       let projectId: string;
