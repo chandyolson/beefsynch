@@ -134,6 +134,12 @@ const MasterCalendar = () => {
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-6xl space-y-4">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+        </div>
+
         {/* Month navigation */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
