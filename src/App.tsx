@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import ProjectDetail from "./pages/ProjectDetail";
 import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
+import BullReport from "./pages/BullReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/calendar" element={<MasterCalendar />} />
           <Route path="/bulls" element={<BullList />} />
+          <Route path="/bull-report" element={<BullReport />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
