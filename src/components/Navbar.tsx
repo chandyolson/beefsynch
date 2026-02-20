@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3 } from "lucide-react";
 
 interface NavbarProps {
   onNewProject?: () => void;
@@ -32,6 +32,13 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           >
             <CalendarDays className="h-4 w-4" />
             Calendar
+          </button>
+          <button
+            onClick={() => navigate("/bull-report")}
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Bull Report
           </button>
           <button
             onClick={onNewProject}
