@@ -1,6 +1,10 @@
 import { List, CalendarDays, Plus } from "lucide-react";
 
-const Navbar = () => {
+interface NavbarProps {
+  onNewProject?: () => void;
+}
+
+const Navbar = ({ onNewProject }: NavbarProps) => {
   return (
     <header className="border-b border-border/50 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
@@ -21,7 +25,10 @@ const Navbar = () => {
             <CalendarDays className="h-4 w-4" />
             Calendar
           </button>
-          <button className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+          <button
+            onClick={onNewProject}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
             <Plus className="h-4 w-4" />
             New Project
           </button>
