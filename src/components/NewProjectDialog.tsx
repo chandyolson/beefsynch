@@ -164,6 +164,9 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
     try {
+      // Get the current user's ID to satisfy RLS policies
+      const { data: { user } } = await supabase.auth.getUser();
+
       const projectPayload = {
         name: values.name,
         cattle_type: values.cattle_type,
@@ -173,6 +176,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         breeding_time: values.breeding_time,
         status: values.status,
         notes: values.notes || null,
+        user_id: user?.id ?? null,
       };
 
       let projectId: string;

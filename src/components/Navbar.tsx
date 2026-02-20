@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3 } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface NavbarProps {
   onNewProject?: () => void;
@@ -7,6 +9,13 @@ interface NavbarProps {
 
 const Navbar = ({ onNewProject }: NavbarProps) => {
   const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast({ title: "Signed out", description: "You have been signed out." });
+    navigate("/auth");
+  };
+
   return (
     <header className="border-b border-border/50 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
@@ -15,7 +24,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             Beef<span className="text-primary">Synch</span>
           </h1>
           <p className="text-xs text-muted-foreground tracking-wide">
-            Synchronization & Breeding Management
+            Synchronization &amp; Breeding Management
           </p>
         </div>
         <nav className="flex items-center gap-2">
@@ -46,6 +55,13 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           >
             <Plus className="h-4 w-4" />
             New Project
+          </button>
+          <button
+            onClick={handleSignOut}
+            title="Sign out"
+            className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
           </button>
         </nav>
       </div>
