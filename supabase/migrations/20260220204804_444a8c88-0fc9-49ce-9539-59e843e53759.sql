@@ -1,0 +1,1 @@
+ALTER TABLE public.bulls_catalog ADD COLUMN naab_code text DEFAULT null;
