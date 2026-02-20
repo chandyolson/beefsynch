@@ -70,8 +70,8 @@ const protocolSteps: Record<string, ProtocolStep[]> = {
     { name: "PGF", offset: -3, hasTime: true },
   ],
   "14 Day CIDR": [
-    { name: "MGA Start", offset: -32.75, hasTime: true },
-    { name: "MGA End", offset: -18.75, hasTime: true },
+    { name: "CIDR Insert", offset: -32.75, hasTime: true },
+    { name: "CIDR Removed", offset: -18.75, hasTime: true },
     { name: "PGF", offset: -2.75, hasTime: true },
   ],
 };
