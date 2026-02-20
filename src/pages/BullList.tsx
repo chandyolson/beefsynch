@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -19,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
@@ -34,6 +35,7 @@ type SortKey = "bull_name" | "registration_number" | "breed" | "company";
 type SortDir = "asc" | "desc";
 
 const BullList = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
@@ -99,6 +101,13 @@ const BullList = () => {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
+          <button
+            onClick={() => navigate("/")}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </button>
           <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
             Bull Catalog
           </h2>
