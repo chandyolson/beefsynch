@@ -194,7 +194,14 @@ const BullList = () => {
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className="text-xs"
+                        className={`text-xs ${
+                          ({
+                            ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                            "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                            "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                            Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                          } as Record<string, string>)[bull.company] ?? ""
+                        }`}
                       >
                         {bull.company}
                       </Badge>
