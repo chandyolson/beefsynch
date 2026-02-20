@@ -6,13 +6,13 @@
 
 @layer base {
   :root {
-    --background: 192 80% 8%;
+    --background: 237 60% 13%;
     --foreground: 0 0% 98%;
 
-    --card: 192 60% 12%;
+    --card: 240 20% 16%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 192 60% 12%;
+    --popover: 240 25% 14%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 168 60% 45%;
@@ -36,7 +36,7 @@
 
     --radius: 0.75rem;
 
-    --gradient-bg: linear-gradient(135deg, hsl(192 80% 8%) 0%, hsl(220 60% 12%) 100%);
+    --gradient-bg: linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%);
     --gradient-card: linear-gradient(145deg, hsl(192 50% 14%) 0%, hsl(210 50% 16%) 100%);
     --gradient-stat: linear-gradient(135deg, hsl(168 60% 45% / 0.15) 0%, hsl(200 60% 30% / 0.1) 100%);
 
@@ -61,13 +61,24 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply text-foreground font-sans;
     background: var(--gradient-bg);
+    background-attachment: fixed;
     min-height: 100vh;
     font-family: 'Inter', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .bg-card,
+  [data-slot="card"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(8px);
+  }
+
+  table {
+    background: transparent;
   }
 }
