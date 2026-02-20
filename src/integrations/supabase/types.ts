@@ -21,6 +21,7 @@ export type Database = {
           bull_name: string
           company: string
           id: string
+          naab_code: string | null
           registration_number: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           bull_name: string
           company: string
           id?: string
+          naab_code?: string | null
           registration_number: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           bull_name?: string
           company?: string
           id?: string
+          naab_code?: string | null
           registration_number?: string
         }
         Relationships: []
