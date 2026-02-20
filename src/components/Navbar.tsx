@@ -19,7 +19,10 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </p>
         </div>
         <nav className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+          <button
+            onClick={() => navigate("/bulls")}
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
             <List className="h-4 w-4" />
             Bull List
           </button>
