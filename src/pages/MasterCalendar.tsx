@@ -190,7 +190,7 @@ const MasterCalendar = () => {
                       className={`${getEventColor(ev.event_name)} text-[10px] leading-tight px-1.5 py-0.5 rounded truncate text-left hover:opacity-80 transition-opacity cursor-pointer`}
                       title={`${ev.event_name} — ${ev.project_name}`}
                     >
-                      {ev.event_name}
+                      {ev.project_name} — {ev.event_name}
                     </button>
                   ))}
                   {dayEvents.length > 3 && (
