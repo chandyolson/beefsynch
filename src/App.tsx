@@ -8,7 +8,10 @@ import ProjectDetail from "./pages/ProjectDetail";
 import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
 import BullReport from "./pages/BullReport";
+import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -19,11 +22,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/project/:id" element={<ProjectDetail />} />
-          <Route path="/calendar" element={<MasterCalendar />} />
-          <Route path="/bulls" element={<BullList />} />
-          <Route path="/bull-report" element={<BullReport />} />
+          {/* Public routes */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Protected routes */}
+          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
+          <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
+          <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
