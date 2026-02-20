@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, Share2, Pencil } from "lucide-react";
+import NewProjectDialog from "@/components/NewProjectDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,30 +56,31 @@ const ProjectDetail = () => {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [bulls, setBulls] = useState<BullRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const load = async () => {
+    if (!id) return;
+    const [pRes, eRes, bRes] = await Promise.all([
+      supabase.from("projects").select("*").eq("id", id).single(),
+      supabase
+        .from("protocol_events")
+        .select("*")
+        .eq("project_id", id)
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("project_bulls")
+        .select("*, bulls_catalog(bull_name, company)")
+        .eq("project_id", id),
+    ]);
+
+    if (pRes.data) setProject(pRes.data as ProjectRow);
+    if (eRes.data) setEvents(eRes.data as EventRow[]);
+    if (bRes.data) setBulls(bRes.data as BullRow[]);
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!id) return;
-
-    const load = async () => {
-      const [pRes, eRes, bRes] = await Promise.all([
-        supabase.from("projects").select("*").eq("id", id).single(),
-        supabase
-          .from("protocol_events")
-          .select("*")
-          .eq("project_id", id)
-          .order("event_date", { ascending: true }),
-        supabase
-          .from("project_bulls")
-          .select("*, bulls_catalog(bull_name, company)")
-          .eq("project_id", id),
-      ]);
-
-      if (pRes.data) setProject(pRes.data as ProjectRow);
-      if (eRes.data) setEvents(eRes.data as EventRow[]);
-      if (bRes.data) setBulls(bRes.data as BullRow[]);
-      setLoading(false);
-    };
-
     load();
   }, [id]);
 
@@ -145,7 +147,7 @@ const ProjectDetail = () => {
             >
               <Share2 className="h-4 w-4 mr-1" /> Share
             </Button>
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4 mr-1" /> Edit
             </Button>
           </div>
@@ -280,6 +282,28 @@ const ProjectDetail = () => {
           </Card>
         )}
       </div>
+
+      <NewProjectDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onProjectCreated={() => load()}
+        editData={project ? {
+          id: project.id,
+          name: project.name,
+          cattle_type: project.cattle_type,
+          protocol: project.protocol,
+          head_count: project.head_count,
+          breeding_date: project.breeding_date,
+          breeding_time: project.breeding_time,
+          status: project.status,
+          notes: project.notes,
+          bulls: bulls.map((b) => ({
+            name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "",
+            catalogId: b.bull_catalog_id,
+            units: b.units,
+          })),
+        } : null}
+      />
     </div>
   );
 };
