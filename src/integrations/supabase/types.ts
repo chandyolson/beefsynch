@@ -14,7 +14,143 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bulls_catalog: {
+        Row: {
+          active: boolean
+          breed: string
+          bull_name: string
+          company: string
+          id: string
+          registration_number: string
+        }
+        Insert: {
+          active?: boolean
+          breed: string
+          bull_name: string
+          company: string
+          id?: string
+          registration_number: string
+        }
+        Update: {
+          active?: boolean
+          breed?: string
+          bull_name?: string
+          company?: string
+          id?: string
+          registration_number?: string
+        }
+        Relationships: []
+      }
+      project_bulls: {
+        Row: {
+          bull_catalog_id: string | null
+          custom_bull_name: string | null
+          id: string
+          project_id: string
+          units: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          custom_bull_name?: string | null
+          id?: string
+          project_id: string
+          units?: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          custom_bull_name?: string | null
+          id?: string
+          project_id?: string
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_bulls_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_bulls_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          breeding_date: string | null
+          breeding_time: string | null
+          cattle_type: string
+          created_at: string
+          head_count: number
+          id: string
+          name: string
+          notes: string | null
+          protocol: string
+          status: string
+        }
+        Insert: {
+          breeding_date?: string | null
+          breeding_time?: string | null
+          cattle_type: string
+          created_at?: string
+          head_count?: number
+          id?: string
+          name: string
+          notes?: string | null
+          protocol: string
+          status?: string
+        }
+        Update: {
+          breeding_date?: string | null
+          breeding_time?: string | null
+          cattle_type?: string
+          created_at?: string
+          head_count?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          protocol?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      protocol_events: {
+        Row: {
+          event_date: string
+          event_name: string
+          event_time: string | null
+          id: string
+          project_id: string
+        }
+        Insert: {
+          event_date: string
+          event_name: string
+          event_time?: string | null
+          id?: string
+          project_id: string
+        }
+        Update: {
+          event_date?: string
+          event_name?: string
+          event_time?: string | null
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
