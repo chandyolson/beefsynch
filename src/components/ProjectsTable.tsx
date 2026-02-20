@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { BreedingProject } from "@/data/mockData";
-import { ArrowUpDown, Search, Filter } from "lucide-react";
+import { ArrowUpDown, Search, Filter, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 interface ProjectsTableProps {
@@ -22,6 +23,7 @@ const typeStyles: Record<string, string> = {
 };
 
 const ProjectsTable = ({ projects }: ProjectsTableProps) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
@@ -123,6 +125,7 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                   </span>
                 </th>
               ))}
+              <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
           <tbody>
@@ -147,6 +150,15 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{project.location}</td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => navigate(`/project/${project.id}`)}
+                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="View project"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
