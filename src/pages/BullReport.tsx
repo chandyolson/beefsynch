@@ -354,6 +354,29 @@ const BullReport = () => {
     setHasRun(false);
   };
 
+  const handleExportCsv = () => {
+    const headers = ["Bull Name", "Company", "Registration Number", "Units Committed", "Projects", "Project Names", "Breeding Date(s)", "Cattle Type"];
+    const escape = (v: string | number) => {
+      const s = String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      headers.map(escape).join(","),
+      ...reportRows.map((r) =>
+        [r.bullName, r.company, r.registrationNumber, r.totalUnits, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
+          .map(escape)
+          .join(",")
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `BeefSynch_Bull_Report_${appliedFrom}_to_${appliedTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = () => {
     setPdfRows(reportRows);
     generateBullReportPdf(reportRows, stats, {
@@ -411,10 +434,16 @@ const BullReport = () => {
               </p>
             </div>
             {hasRun && reportRows.length > 0 && (
-              <Button onClick={handleExport} className="gap-2">
-                <FileDown className="h-4 w-4" />
-                Export Report
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={handleExportCsv} className="gap-2">
+                  <FileDown className="h-4 w-4" />
+                  Export CSV
+                </Button>
+                <Button onClick={handleExport} className="gap-2">
+                  <FileDown className="h-4 w-4" />
+                  Export PDF
+                </Button>
+              </div>
             )}
           </div>
         </div>
