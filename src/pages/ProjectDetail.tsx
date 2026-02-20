@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, Share2, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Pencil } from "lucide-react";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import { generateProjectPdf } from "@/lib/generateProjectPdf";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,10 +144,11 @@ const ProjectDetail = () => {
               variant="outline"
               size="sm"
               onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
+                generateProjectPdf(project, events, bulls);
+                toast({ title: "PDF downloaded", description: `${project.name} report saved.` });
               }}
             >
-              <Share2 className="h-4 w-4 mr-1" /> Share
+              <FileDown className="h-4 w-4 mr-1" /> Share PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4 mr-1" /> Edit
