@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,15 +74,30 @@ interface BullRow {
   units: number;
 }
 
+interface EditProjectData {
+  id: string;
+  name: string;
+  cattle_type: string;
+  protocol: string;
+  head_count: number;
+  breeding_date: string | null;
+  breeding_time: string | null;
+  status: string;
+  notes: string | null;
+  bulls: { name: string; catalogId: string | null; units: number }[];
+}
+
 interface NewProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectCreated: () => void;
+  editData?: EditProjectData | null;
 }
 
-const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDialogProps) => {
+const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: NewProjectDialogProps) => {
   const [saving, setSaving] = useState(false);
   const [bulls, setBulls] = useState<BullRow[]>([]);
+  const isEditing = !!editData;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -96,6 +111,26 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
       notes: "",
     },
   });
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editData && open) {
+      form.reset({
+        name: editData.name,
+        cattle_type: editData.cattle_type as "Heifers" | "Cows",
+        protocol: editData.protocol,
+        head_count: editData.head_count,
+        breeding_date: editData.breeding_date ? new Date(editData.breeding_date + "T12:00:00") : undefined,
+        breeding_time: editData.breeding_time?.slice(0, 5) || "10:00",
+        status: editData.status as "Tentative" | "Confirmed" | "Complete",
+        notes: editData.notes || "",
+      });
+      setBulls(editData.bulls);
+    } else if (!editData && open) {
+      form.reset();
+      setBulls([]);
+    }
+  }, [editData, open]);
 
   const cattleType = form.watch("cattle_type");
   const protocol = form.watch("protocol");
@@ -129,7 +164,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
     try {
-      const { data: project, error } = await supabase.from("projects").insert({
+      const projectPayload = {
         name: values.name,
         cattle_type: values.cattle_type,
         protocol: values.protocol,
@@ -138,15 +173,35 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
         breeding_time: values.breeding_time,
         status: values.status,
         notes: values.notes || null,
-      }).select("id").single();
+      };
 
-      if (error) throw error;
+      let projectId: string;
+
+      if (isEditing && editData) {
+        // Update existing project
+        const { error } = await supabase.from("projects").update(projectPayload).eq("id", editData.id);
+        if (error) throw error;
+        projectId = editData.id;
+
+        // Delete old events, then re-insert
+        const { error: delErr } = await supabase.from("protocol_events").delete().eq("project_id", projectId);
+        if (delErr) throw delErr;
+
+        // Delete old bulls, then re-insert
+        const { error: delBullErr } = await supabase.from("project_bulls").delete().eq("project_id", projectId);
+        if (delBullErr) throw delBullErr;
+      } else {
+        // Insert new project
+        const { data: project, error } = await supabase.from("projects").insert(projectPayload).select("id").single();
+        if (error) throw error;
+        projectId = project.id;
+      }
 
       // Insert protocol events
       const events = calculateProtocolEvents(values.protocol, values.cattle_type, values.breeding_date, values.breeding_time);
       if (events.length > 0) {
         const rows = events.map((e) => ({
-          project_id: project.id,
+          project_id: projectId,
           event_name: e.event_name,
           event_date: e.event_date,
           event_time: e.event_time,
@@ -159,7 +214,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
       const validBulls = bulls.filter((b) => b.name.trim());
       if (validBulls.length > 0) {
         const bullRows = validBulls.map((b) => ({
-          project_id: project.id,
+          project_id: projectId,
           bull_catalog_id: b.catalogId,
           custom_bull_name: b.catalogId ? null : b.name.trim(),
           units: b.units,
@@ -168,7 +223,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
         if (bullError) throw bullError;
       }
 
-      toast({ title: "Project created", description: `"${values.name}" has been saved.` });
+      toast({ title: isEditing ? "Project updated" : "Project created", description: `"${values.name}" has been saved.` });
       form.reset();
       setBulls([]);
       onOpenChange(false);
@@ -184,7 +239,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">New Breeding Project</DialogTitle>
+          <DialogTitle className="font-display text-xl">{isEditing ? "Edit Breeding Project" : "New Breeding Project"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -355,7 +410,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated }: NewProjectDi
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Project"}</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving..." : isEditing ? "Update Project" : "Save Project"}</Button>
             </div>
           </form>
         </Form>
