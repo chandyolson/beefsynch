@@ -95,6 +95,7 @@ export type Database = {
           notes: string | null
           protocol: string
           status: string
+          user_id: string | null
         }
         Insert: {
           breeding_date?: string | null
@@ -107,6 +108,7 @@ export type Database = {
           notes?: string | null
           protocol: string
           status?: string
+          user_id?: string | null
         }
         Update: {
           breeding_date?: string | null
@@ -119,6 +121,7 @@ export type Database = {
           notes?: string | null
           protocol?: string
           status?: string
+          user_id?: string | null
         }
         Relationships: []
       }
