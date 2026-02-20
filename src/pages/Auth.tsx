@@ -212,7 +212,7 @@ const Auth = () => {
                 </button>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full h-11 text-sm font-semibold">
+              <Button type="submit" disabled={loading} className="w-full h-11 text-sm font-semibold text-white">
                 {loading ? "Signing in…" : "Sign In"}
               </Button>
 
