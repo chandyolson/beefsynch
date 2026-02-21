@@ -37,9 +37,6 @@ const StatCard = ({ title, value, customContent, subtitle, delay = 0, index = 0,
         <p className="text-xs font-semibold tracking-widest uppercase text-white/70">
           {title}
         </p>
-        <div className="rounded-lg bg-white/5 p-2">
-          <Icon className="h-5 w-5 text-white/25" />
-        </div>
       </div>
       <div className="mt-3">
         {customContent ? (
