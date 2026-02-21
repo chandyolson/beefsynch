@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, FileDown, Download, Pencil } from "lucide-react";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
+import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -140,6 +141,24 @@ const ProjectDetail = () => {
               <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
                 <Calendar className="h-4 w-4 mr-1" /> Add to Google Calendar
               </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const bullsForIcs = bulls.map((b) => ({
+                  bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                  registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
+                  units: b.units,
+                }));
+                const icsEvents = buildProjectIcsEvents(project, events, bullsForIcs);
+                const icsContent = generateIcsFile(icsEvents, `${project.name} — BeefSynch`);
+                const safeName = project.name.replace(/\s+/g, "_");
+                downloadIcsFile(icsContent, `${safeName}_BeefSynch.ics`);
+                toast({ title: "Calendar downloaded", description: `${project.name} .ics file saved.` });
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" /> Download .ics
             </Button>
             <Button
               variant="outline"

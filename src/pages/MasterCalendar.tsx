@@ -1,8 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   startOfMonth,
   endOfMonth,
@@ -17,6 +23,12 @@ import {
   parseISO,
 } from "date-fns";
 import Navbar from "@/components/Navbar";
+import {
+  generateIcsFile,
+  buildProjectIcsEvents,
+  downloadIcsFile,
+  type IcsEvent,
+} from "@/lib/generateIcs";
 
 interface CalendarEvent {
   id: string;
@@ -46,7 +58,6 @@ const EVENT_COLORS: Record<string, string> = {
 const DEFAULT_COLOR = "bg-indigo-500/80 text-white";
 
 const getEventColor = (eventName: string) => {
-  // Check exact match first, then partial
   if (EVENT_COLORS[eventName]) return EVENT_COLORS[eventName];
   for (const key of Object.keys(EVENT_COLORS)) {
     if (eventName.includes(key)) return EVENT_COLORS[key];
@@ -56,10 +67,23 @@ const getEventColor = (eventName: string) => {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+interface ProjectMeta {
+  id: string;
+  name: string;
+  protocol: string;
+  cattle_type: string;
+  head_count: number;
+  breeding_date: string | null;
+  breeding_time: string | null;
+  status: string;
+}
+
 const MasterCalendar = () => {
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [projectMap, setProjectMap] = useState<Map<string, ProjectMeta>>(new Map());
+  const [bullMap, setBullMap] = useState<Map<string, { bull_name: string; registration_number: string; units: number }[]>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,18 +93,48 @@ const MasterCalendar = () => {
 
       const { data, error } = await supabase
         .from("protocol_events")
-        .select("id, event_name, event_date, event_time, project_id, projects(name)")
+        .select("id, event_name, event_date, event_time, project_id, projects(id, name, protocol, cattle_type, head_count, breeding_date, breeding_time, status)")
         .gte("event_date", start)
         .lte("event_date", end)
         .order("event_date", { ascending: true });
 
       if (data) {
-        setEvents(
-          data.map((d: any) => ({
+        const pMap = new Map<string, ProjectMeta>();
+        const evts = data.map((d: any) => {
+          const proj = d.projects;
+          if (proj && !pMap.has(proj.id)) {
+            pMap.set(proj.id, proj as ProjectMeta);
+          }
+          return {
             ...d,
-            project_name: d.projects?.name ?? "Unknown",
-          }))
-        );
+            project_name: proj?.name ?? "Unknown",
+          };
+        });
+        setEvents(evts);
+        setProjectMap(pMap);
+
+        // Fetch bulls for all visible projects
+        const projectIds = [...pMap.keys()];
+        if (projectIds.length > 0) {
+          const { data: bullData } = await supabase
+            .from("project_bulls")
+            .select("project_id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name, registration_number)")
+            .in("project_id", projectIds);
+
+          if (bullData) {
+            const bMap = new Map<string, { bull_name: string; registration_number: string; units: number }[]>();
+            for (const b of bullData as any[]) {
+              const pid = b.project_id;
+              if (!bMap.has(pid)) bMap.set(pid, []);
+              bMap.get(pid)!.push({
+                bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
+                units: b.units,
+              });
+            }
+            setBullMap(bMap);
+          }
+        }
       }
       setLoading(false);
     };
@@ -128,6 +182,28 @@ const MasterCalendar = () => {
     return items;
   }, [events]);
 
+  const handleDownloadIcs = () => {
+    // Group events by project, then build ICS events
+    const byProject = new Map<string, CalendarEvent[]>();
+    for (const ev of events) {
+      if (!byProject.has(ev.project_id)) byProject.set(ev.project_id, []);
+      byProject.get(ev.project_id)!.push(ev);
+    }
+
+    const allIcsEvents: IcsEvent[] = [];
+    for (const [pid, projEvents] of byProject) {
+      const proj = projectMap.get(pid);
+      if (!proj) continue;
+      const bulls = bullMap.get(pid) ?? [];
+      const icsEvents = buildProjectIcsEvents(proj, projEvents, bulls);
+      allIcsEvents.push(...icsEvents);
+    }
+
+    const icsContent = generateIcsFile(allIcsEvents, "BeefSynch Breeding Calendar");
+    const filename = `BeefSynch_Calendar_${format(currentMonth, "MMMMyyyy")}.ics`;
+    downloadIcsFile(icsContent, filename);
+  };
+
   const today = new Date();
 
   return (
@@ -138,6 +214,18 @@ const MasterCalendar = () => {
           <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Back
           </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={handleDownloadIcs} disabled={events.length === 0}>
+                  <Download className="h-4 w-4 mr-1" /> Download Calendar
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Downloads visible events as a .ics calendar file</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Month navigation */}
