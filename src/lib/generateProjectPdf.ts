@@ -52,7 +52,7 @@ export function generateProjectPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(100);
-  doc.text("Synchronization and Breeding Management", margin, y);
+  doc.text("Synchronization Planner", margin, y);
   doc.setTextColor(0);
   y += 6;
 
