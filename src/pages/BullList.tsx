@@ -27,6 +27,7 @@ import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star } from 
 import { Toggle } from "@/components/ui/toggle";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { toast } from "@/hooks/use-toast";
+import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { format } from "date-fns";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
@@ -87,65 +88,7 @@ const BullList = () => {
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-
-  // Fetch favorites from DB
-  const { data: favData } = useQuery({
-    queryKey: ["bull_favorites"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from("bull_favorites")
-        .select("bull_catalog_id")
-        .eq("user_id", user.id);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  useEffect(() => {
-    if (favData) {
-      setFavoritedIds(new Set(favData.map((f: any) => f.bull_catalog_id)));
-    }
-  }, [favData]);
-
-  const toggleFavorite = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const isFav = favoritedIds.has(id);
-
-    // Optimistic update
-    setFavoritedIds((prev) => {
-      const next = new Set(prev);
-      if (isFav) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = isFav
-      ? await supabase
-          .from("bull_favorites")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("bull_catalog_id", id)
-      : await supabase
-          .from("bull_favorites")
-          .insert({ user_id: user.id, bull_catalog_id: id });
-
-    if (error) {
-      // Revert optimistic update
-      setFavoritedIds((prev) => {
-        const next = new Set(prev);
-        if (isFav) next.add(id);
-        else next.delete(id);
-        return next;
-      });
-      toast({ title: "Could not save favorite — please try again.", variant: "destructive" });
-    }
-  };
+  const { favoritedIds, toggleFavorite } = useBullFavorites();
 
   const { data: bulls = [], isLoading } = useQuery({
     queryKey: ["bulls_catalog"],

@@ -43,10 +43,12 @@ import {
   BarChart3,
   Mail,
   Download,
+  Star,
 } from "lucide-react";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { generateBullReportPdf, BullReportRow } from "@/lib/generateBullReportPdf";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
+import { useBullFavorites } from "@/hooks/useBullFavorites";
 
 const PROTOCOLS = [
   "Select Synch CIDR",
@@ -97,6 +99,7 @@ interface ProjectBullJoin {
 }
 
 const BullReport = () => {
+  const { favoritedIds, toggleFavorite } = useBullFavorites();
   const navigate = useNavigate();
 
   // Filters
@@ -640,6 +643,7 @@ const BullReport = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                      <TableHead className="w-8"></TableHead>
                       <TableHead
                         className="cursor-pointer select-none"
                         onClick={() => toggleSort("bullName")}
@@ -668,6 +672,25 @@ const BullReport = () => {
                   <TableBody>
                     {reportRows.map((row, i) => (
                       <TableRow key={i}>
+                        <TableCell className="w-8">
+                          <button onClick={(e) => {
+                            // Find the bull_catalog_id for this row
+                            const match = rawRows.find((r) => {
+                              const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
+                              return name === row.bullName && r.bull_catalog_id;
+                            });
+                            if (match?.bull_catalog_id) toggleFavorite(match.bull_catalog_id, e);
+                          }}>
+                            {(() => {
+                              const match = rawRows.find((r) => {
+                                const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
+                                return name === row.bullName && r.bull_catalog_id;
+                              });
+                              const isFav = match?.bull_catalog_id ? favoritedIds.has(match.bull_catalog_id) : false;
+                              return <Star className={`h-4 w-4 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />;
+                            })()}
+                          </button>
+                        </TableCell>
                         <TableCell className="font-medium text-foreground">
                           {row.bullName}
                         </TableCell>
