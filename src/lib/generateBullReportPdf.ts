@@ -6,6 +6,7 @@ export interface BullReportRow {
   bullName: string;
   company: string;
   registrationNumber: string;
+  breed: string;
   totalUnits: number;
   projectCount: number;
   projectNames: string;

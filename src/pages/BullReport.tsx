@@ -75,6 +75,7 @@ interface ProjectBullJoin {
     bull_name: string;
     company: string;
     registration_number: string;
+    breed: string;
   } | null;
   project_id: string;
   projects: {
@@ -126,7 +127,7 @@ const BullReport = () => {
           custom_bull_name,
           bull_catalog_id,
           project_id,
-          bulls_catalog (bull_name, company, registration_number),
+          bulls_catalog (bull_name, company, registration_number, breed),
           projects!inner (id, name, breeding_date, cattle_type, protocol, head_count, status)
         `);
 
@@ -169,6 +170,7 @@ const BullReport = () => {
         : row.custom_bull_name ?? "Unknown";
       const co = isCatalog ? row.bulls_catalog!.company : "";
       const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
+      const breed = isCatalog ? row.bulls_catalog!.breed : "";
 
       // Company filter (applied after grouping logic since custom bulls have no company)
       if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
@@ -182,6 +184,7 @@ const BullReport = () => {
           bullName,
           company: co,
           registrationNumber: regNum,
+          breed,
           totalUnits: 0,
           projectCount: 0,
           projectNames: "",
@@ -256,6 +259,7 @@ const BullReport = () => {
         bullName: entry.bullName,
         company: entry.company,
         registrationNumber: entry.registrationNumber,
+        breed: entry.breed,
         totalUnits: entry.totalUnits,
         projectCount: entry.projectCount,
         projectNames: names.join(", "),
@@ -352,7 +356,7 @@ const BullReport = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Bull Name", "Company", "Registration Number", "Units Committed", "Projects", "Project Names", "Breeding Date(s)", "Cattle Type"];
+    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "Units Committed", "Project Count", "Project Names", "Breeding Dates", "Cattle Type"];
     const escape = (v: string | number) => {
       const s = String(v);
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
@@ -360,7 +364,7 @@ const BullReport = () => {
     const lines = [
       headers.map(escape).join(","),
       ...reportRows.map((r) =>
-        [r.bullName, r.company, r.registrationNumber, r.totalUnits, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
+        [r.bullName, r.registrationNumber, r.company, r.breed, r.totalUnits, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
           .map(escape)
           .join(",")
       ),

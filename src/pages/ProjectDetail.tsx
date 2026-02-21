@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil } from "lucide-react";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
+import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,7 @@ interface BullRow {
   units: number;
   custom_bull_name: string | null;
   bull_catalog_id: string | null;
-  bulls_catalog: { bull_name: string; company: string } | null;
+  bulls_catalog: { bull_name: string; company: string; registration_number: string } | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -71,7 +72,7 @@ const ProjectDetail = () => {
         .order("event_date", { ascending: true }),
       supabase
         .from("project_bulls")
-        .select("*, bulls_catalog(bull_name, company)")
+        .select("*, bulls_catalog(bull_name, company, registration_number)")
         .eq("project_id", id),
     ]);
 
@@ -139,6 +140,16 @@ const ProjectDetail = () => {
               <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
                 <Calendar className="h-4 w-4 mr-1" /> Add to Google Calendar
               </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                generateProjectCsv(project, events, bulls);
+                toast({ title: "CSV downloaded", description: `${project.name} CSV saved.` });
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" /> Download CSV
             </Button>
             <Button
               variant="outline"
