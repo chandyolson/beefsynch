@@ -330,11 +330,6 @@ const BullList = () => {
                     >
                       {bull.company}
                     </Badge>
-                    {bull.active ? (
-                      <Check className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <X className="h-3.5 w-3.5 text-destructive" />
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 pl-6">
@@ -377,19 +372,19 @@ const BullList = () => {
                     <SortIcon col={key} />
                   </TableHead>
                 ))}
-                <TableHead className="text-center">Active</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                 <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                      Loading bulls...
                    </TableCell>
                  </TableRow>
                ) : filtered.length === 0 ? (
                  <TableRow>
-                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     No bulls found.
                   </TableCell>
                 </TableRow>
@@ -433,13 +428,6 @@ const BullList = () => {
                       >
                         {bull.company}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bull.active ? (
-                        <Check className="h-4 w-4 text-primary mx-auto" />
-                      ) : (
-                        <X className="h-4 w-4 text-destructive mx-auto" />
-                      )}
                     </TableCell>
                   </TableRow>
                 ))
