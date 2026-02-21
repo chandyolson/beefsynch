@@ -52,7 +52,7 @@ export function generateProjectPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(100);
-  doc.text("Synchronization & Breeding Management", margin, y);
+  doc.text("Synchronization and Breeding Management", margin, y);
   doc.setTextColor(0);
   y += 6;
 
@@ -102,7 +102,7 @@ export function generateProjectPdf(
   if (bulls.length > 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("Bulls & Semen", margin, y);
+    doc.text("Bulls and Semen", margin, y);
     y += 16;
     doc.setFontSize(10);
     for (const b of bulls) {
@@ -113,7 +113,7 @@ export function generateProjectPdf(
       doc.text(`${name} — ${b.units} units`, margin + 10, y);
       y += 14;
     }
-    y += 10;
+    y += 20;
   }
 
   // ── Notes ──
@@ -133,7 +133,7 @@ export function generateProjectPdf(
   if (events.length > 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("Synchronization & Breeding Schedule", margin, y);
+    doc.text("Synchronization and Breeding Schedule", margin, y);
     y += 8;
 
     const tableBody = events.map((ev) => {
@@ -158,7 +158,7 @@ export function generateProjectPdf(
 
   // ── Synchronization Product Directions ──
   const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
-  let dirY = finalY + 20;
+  let dirY = finalY + 36;
 
   const pageHeight = doc.internal.pageSize.getHeight();
   const boxH = 120; // fixed height for the section
