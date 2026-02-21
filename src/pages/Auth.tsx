@@ -215,7 +215,7 @@ const Auth = () => {
           <p className="text-sm text-white/50 tracking-wide">
             Synchronization Planner
           </p>
-          <img src={beefsynchBadge} alt="BeefSynch badge" className="h-24 w-24 mx-auto" />
+          
         </div>
 
         {/* ── Landing Choice Screen ─────────────────────────────────── */}
