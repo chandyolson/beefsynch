@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -82,6 +83,7 @@ const BullList = () => {
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [breedFilter, setBreedFilter] = useState("all");
+  const [starredOnly, setStarredOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -175,7 +177,8 @@ const BullList = () => {
         companyFilter === "all" || b.company === companyFilter;
       const matchesBreed =
         breedFilter === "all" || b.breed === breedFilter;
-      return matchesSearch && matchesCompany && matchesBreed;
+      const matchesStarred = !starredOnly || favoritedIds.has(b.id);
+      return matchesSearch && matchesCompany && matchesBreed && matchesStarred;
     });
 
     list.sort((a, b) => {
@@ -187,7 +190,7 @@ const BullList = () => {
     });
 
     return list;
-  }, [bulls, search, companyFilter, breedFilter, sortKey, sortDir]);
+  }, [bulls, search, companyFilter, breedFilter, starredOnly, favoritedIds, sortKey, sortDir]);
 
   // Clear selection when filters change
   const clearSelection = useCallback(() => {
@@ -200,7 +203,7 @@ const BullList = () => {
   useEffect(() => {
     clearSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, companyFilter, breedFilter]);
+  }, [search, companyFilter, breedFilter, starredOnly]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -440,6 +443,16 @@ const BullList = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <Toggle
+                pressed={starredOnly}
+                onPressedChange={setStarredOnly}
+                variant="outline"
+                size="sm"
+                className="gap-1.5 data-[state=on]:bg-teal-600/20 data-[state=on]:text-teal-400 data-[state=on]:border-teal-500/40"
+              >
+                <Star className={`h-3.5 w-3.5 ${starredOnly ? "fill-teal-400" : ""}`} />
+                Starred Only
+              </Toggle>
               <Button
                 variant="outline"
                 size="sm"
