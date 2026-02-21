@@ -3,9 +3,8 @@ import { Calendar, Users, Beef, LucideIcon } from "lucide-react";
 
 interface StatCardProps {
   title: string;
-  value?: number;
-  customContent?: ReactNode;
-  subtitle?: string;
+  value?: number | string;
+  breakdown?: ReactNode;
   delay?: number;
   index?: number;
   icon?: LucideIcon;
@@ -20,36 +19,32 @@ const gradients = [
   "linear-gradient(135deg, #0d8a8a 0%, #0da3a3 100%)",
 ];
 
-const StatCard = ({ title, value, customContent, subtitle, delay = 0, index = 0, icon }: StatCardProps) => {
+const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatCardProps) => {
   const Icon = icon || defaultIcons[index % defaultIcons.length];
 
   return (
     <div
-      className="rounded-xl p-5 opacity-0 animate-fade-in relative overflow-hidden min-h-[120px] flex flex-col justify-between"
+      className="opacity-0 animate-fade-in relative overflow-hidden flex flex-col justify-between"
       style={{
         animationDelay: `${delay}ms`,
         background: gradients[index % gradients.length],
         borderRadius: "12px",
         boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        padding: "16px",
       }}
     >
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-semibold tracking-widest uppercase text-white/70">
-          {title}
-        </p>
-      </div>
-      <div className="mt-3">
-        {customContent ? (
-          customContent
-        ) : (
-          <p className="text-3xl font-bold font-display text-white">
-            {(value ?? 0).toLocaleString()}
-          </p>
-        )}
-        {subtitle && (
-          <p className="text-xs text-white/50 mt-1">{subtitle}</p>
-        )}
-      </div>
+      <Icon className="absolute top-3 right-3 h-7 w-7 text-white/20" />
+      <p style={{ fontSize: "10px", letterSpacing: "0.1em" }} className="font-semibold uppercase text-white/70">
+        {title}
+      </p>
+      <p style={{ fontSize: "28px" }} className="font-bold font-display text-white leading-tight mt-1">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+      {breakdown && (
+        <div className="mt-1 space-y-0.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
+          {breakdown}
+        </div>
+      )}
     </div>
   );
 };
