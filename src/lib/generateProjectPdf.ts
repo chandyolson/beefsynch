@@ -156,7 +156,63 @@ export function generateProjectPdf(
     });
   }
 
-  // ── Footer ──
+  // ── Synchronization Product Directions ──
+  const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
+  let dirY = finalY + 20;
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const boxH = 120; // fixed height for the section
+  if (dirY + boxH > pageHeight - 50) {
+    doc.addPage();
+    dirY = 50;
+  }
+
+  const boxX = margin;
+  const boxW = pageWidth - margin * 2;
+  const boxStartY = dirY - 4;
+
+  // Draw background box first
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.5);
+  doc.setFillColor(248, 248, 248);
+  doc.roundedRect(boxX, boxStartY, boxW, boxH, 3, 3, "FD");
+
+  // Section title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.text("Synchronization Product Directions", boxX + 10, dirY + 16);
+  dirY += 30;
+
+  // GnRH subsection
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("GnRH Products:", boxX + 10, dirY);
+  doc.setFont("helvetica", "normal");
+  doc.text(" Cystorelin, Factorel, Fertagyl", boxX + 10 + doc.getTextWidth("GnRH Products: "), dirY);
+  dirY += 14;
+  doc.setFont("helvetica", "bold");
+  doc.text("Directions:", boxX + 10, dirY);
+  doc.setFont("helvetica", "normal");
+  doc.text(" Give 2 cc's (mls) Intramuscularly in the neck.", boxX + 10 + doc.getTextWidth("Directions: "), dirY);
+  dirY += 20;
+
+  // PGF subsection
+  doc.setFont("helvetica", "bold");
+  doc.text("PGF Products:", boxX + 10, dirY);
+  doc.setFont("helvetica", "normal");
+  doc.text(" Lutalyse, Synchsure, Estrumate", boxX + 10 + doc.getTextWidth("PGF Products: "), dirY);
+  dirY += 14;
+  doc.setFont("helvetica", "bold");
+  doc.text("Directions:", boxX + 10, dirY);
+  doc.setFont("helvetica", "normal");
+  doc.text(" Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse) Intramuscularly in the neck.", boxX + 10 + doc.getTextWidth("Directions: "), dirY);
+  dirY += 20;
+
+  // Safety note
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.text("\u26A0 Please wear gloves when handling these products.", boxX + 10, dirY);
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
