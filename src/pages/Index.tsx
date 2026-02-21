@@ -124,11 +124,11 @@ const Index = () => {
       <div className="space-y-1">
         <div>
           <p className="text-xs text-white/70 font-medium">First Breed:</p>
-          <p className="text-lg font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
+          <p className="text-sm font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
         </div>
         <div>
           <p className="text-xs text-white/70 font-medium">Last Breed:</p>
-          <p className="text-lg font-bold font-display text-white">{format(parseISO(breedingDateRange.last), "MMM d, yyyy")}</p>
+          <p className="text-sm font-bold font-display text-white">{format(parseISO(breedingDateRange.last), "MMM d, yyyy")}</p>
         </div>
       </div>
     )
