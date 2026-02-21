@@ -11,10 +11,10 @@ interface StatCardProps {
 const icons = [Calendar, Users, Baby, Beef];
 
 const gradients = [
-  "linear-gradient(135deg, #217791 0%, #236e87 100%)",
-  "linear-gradient(135deg, #236e87 0%, #279ab8 100%)",
-  "linear-gradient(135deg, #279ab8 0%, #2dc0e0 100%)",
-  "linear-gradient(135deg, #2dc0e0 0%, #31d0f7 100%)",
+  "linear-gradient(135deg, #155e6e 0%, #1a7a8a 100%)",
+  "linear-gradient(135deg, #1a7a8a 0%, #1f9aaa 100%)",
+  "linear-gradient(135deg, #1f9aaa 0%, #14c4cc 100%)",
+  "linear-gradient(135deg, #14c4cc 0%, #11eded 100%)",
 ];
 
 const StatCard = ({ title, value, subtitle, delay = 0, index = 0 }: StatCardProps) => {
