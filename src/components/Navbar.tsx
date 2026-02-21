@@ -73,8 +73,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="z-50 w-48 bg-popover border border-border shadow-lg">
+              <DropdownMenuItem onClick={() => go("/")} className="cursor-pointer gap-2">
+                <List className="h-4 w-4" /> Dashboard
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
-                <List className="h-4 w-4" /> Bull List
+                <List className="h-4 w-4" /> Bull Catalog
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/calendar")} className="cursor-pointer gap-2">
                 <CalendarDays className="h-4 w-4" /> Calendar
@@ -139,8 +142,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
       {/* Mobile dropdown panel */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-popover/95 backdrop-blur-md px-4 py-3 space-y-1 animate-fade-in">
+          <button onClick={() => go("/")} className={navBtnClass}>
+            <List className="h-4 w-4" /> Dashboard
+          </button>
           <button onClick={() => go("/bulls")} className={navBtnClass}>
-            <List className="h-4 w-4" /> Bull List
+            <List className="h-4 w-4" /> Bull Catalog
           </button>
           <button onClick={() => go("/calendar")} className={navBtnClass}>
             <CalendarDays className="h-4 w-4" /> Calendar
