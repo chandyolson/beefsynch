@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import GuestBanner from "@/components/GuestBanner";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,7 +12,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    // Set up listener first, then check current session
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
     });
@@ -23,7 +23,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Still loading
   if (session === undefined) {
     return (
       <div
@@ -39,7 +38,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <GuestBanner />
+      {children}
+    </>
+  );
 };
 
 export default ProtectedRoute;
