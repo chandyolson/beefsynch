@@ -105,6 +105,7 @@ const BullReport = () => {
   const [cattleType, setCattleType] = useState("All");
   const [protocol, setProtocol] = useState("All Protocols");
   const [company, setCompany] = useState("All Companies");
+  const [breed, setBreed] = useState("All Breeds");
   const [search, setSearch] = useState("");
   const [hasRun, setHasRun] = useState(false);
 
@@ -114,6 +115,7 @@ const BullReport = () => {
   const [appliedCattle, setAppliedCattle] = useState("All");
   const [appliedProtocol, setAppliedProtocol] = useState("All Protocols");
   const [appliedCompany, setAppliedCompany] = useState("All Companies");
+  const [appliedBreed, setAppliedBreed] = useState("All Breeds");
   const [appliedSearch, setAppliedSearch] = useState("");
 
   // Sorting
@@ -123,6 +125,20 @@ const BullReport = () => {
   // Share dialog
   const [shareOpen, setShareOpen] = useState(false);
   const [pdfRows, setPdfRows] = useState<BullReportRow[]>([]);
+
+  // Fetch distinct breeds for filter
+  const { data: breeds = [] } = useQuery({
+    queryKey: ["breeds_distinct"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bulls_catalog")
+        .select("breed")
+        .order("breed");
+      if (error) throw error;
+      const set = new Set((data ?? []).map((d) => d.breed));
+      return [...set].sort();
+    },
+  });
 
   const { data: rawRows = [], isLoading, refetch } = useQuery({
     queryKey: ["bull_report", appliedFrom, appliedTo, appliedCattle, appliedProtocol, appliedCompany],
@@ -179,8 +195,11 @@ const BullReport = () => {
       const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
       const breed = isCatalog ? row.bulls_catalog!.breed : "";
 
-      // Company filter (applied after grouping logic since custom bulls have no company)
+      // Company filter
       if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+
+      // Breed filter
+      if (appliedBreed !== "All Breeds" && breed !== appliedBreed) continue;
 
       // Search filter
       const q = appliedSearch.toLowerCase();
@@ -295,7 +314,7 @@ const BullReport = () => {
     });
 
     return result;
-  }, [rawRows, appliedSearch, appliedCompany, sortKey, sortDir]);
+  }, [rawRows, appliedSearch, appliedCompany, appliedBreed, sortKey, sortDir]);
 
   // Stats
   const stats = useMemo(() => {
@@ -317,8 +336,10 @@ const BullReport = () => {
       const bull = row.bulls_catalog;
       const bullName = bull ? bull.bull_name : row.custom_bull_name ?? "";
       const co = bull ? bull.company : "";
+      const br = bull ? bull.breed : "";
       const q = appliedSearch.toLowerCase();
       if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+      if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
       if (q && !bullName.toLowerCase().includes(q) && !row.projects.name.toLowerCase().includes(q)) continue;
       projectIds.add(row.projects.id);
     }
@@ -334,7 +355,7 @@ const BullReport = () => {
       totalProjects: projectIds.size,
       totalHead,
     };
-  }, [reportRows, rawRows, appliedSearch, appliedCompany]);
+  }, [reportRows, rawRows, appliedSearch, appliedCompany, appliedBreed]);
 
   const handleGenerate = () => {
     setAppliedFrom(fromDate);
@@ -342,6 +363,7 @@ const BullReport = () => {
     setAppliedCattle(cattleType);
     setAppliedProtocol(protocol);
     setAppliedCompany(company);
+    setAppliedBreed(breed);
     setAppliedSearch(search);
     setHasRun(true);
   };
@@ -352,12 +374,14 @@ const BullReport = () => {
     setCattleType("All");
     setProtocol("All Protocols");
     setCompany("All Companies");
+    setBreed("All Breeds");
     setSearch("");
     setAppliedFrom(DEFAULT_FROM);
     setAppliedTo(DEFAULT_TO);
     setAppliedCattle("All");
     setAppliedProtocol("All Protocols");
     setAppliedCompany("All Companies");
+    setAppliedBreed("All Breeds");
     setAppliedSearch("");
     setHasRun(false);
   };
@@ -476,7 +500,7 @@ const BullReport = () => {
 
         {/* Filters */}
         <div className="rounded-lg border border-border bg-card p-3 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
             {/* Date Range */}
             <div className="space-y-0.5">
               <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">From</label>
@@ -547,6 +571,24 @@ const BullReport = () => {
                   {COMPANIES.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Breed */}
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Breed</label>
+              <Select value={breed} onValueChange={setBreed}>
+                <SelectTrigger className="h-8 text-xs bg-white text-gray-900 border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Breeds">All Breeds</SelectItem>
+                  {breeds.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
                     </SelectItem>
                   ))}
                 </SelectContent>
