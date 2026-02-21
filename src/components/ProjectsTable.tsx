@@ -99,7 +99,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     return (
       <div className="space-y-0.5">
         {visible.map((b, i) => (
-          <div key={i} className="text-sm text-foreground whitespace-nowrap">
+          <div key={i} className="text-xs text-foreground whitespace-nowrap">
             {b.name} ({b.units} units)
           </div>
         ))}
