@@ -117,14 +117,23 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </DropdownMenu>
         </nav>
 
-        {/* Mobile hamburger toggle */}
-        <button
-          onClick={() => setMobileOpen((o) => !o)}
-          className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile actions */}
+        <div className="md:hidden flex items-center gap-1">
+          <button
+            onClick={() => onNewProject?.()}
+            className="inline-flex items-center justify-center rounded-md p-2 text-primary hover:bg-secondary transition-colors"
+            aria-label="New Project"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setMobileOpen((o) => !o)}
+            className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile dropdown panel */}
