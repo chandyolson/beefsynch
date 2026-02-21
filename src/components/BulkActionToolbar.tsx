@@ -53,6 +53,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete }: BulkAction
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const count = selectedProjects.length;
 
   // Determine cattle types among selected
@@ -218,7 +219,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete }: BulkAction
           </Select>
         </div>
 
-        <Popover>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" disabled={busy}>
               <CalendarIcon className="h-3 w-3" /> Change Date
@@ -227,7 +228,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete }: BulkAction
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              onSelect={(d) => d && handleDateChange(d)}
+              onSelect={(d) => { if (d) { handleDateChange(d); setDatePickerOpen(false); } }}
               className="p-3 pointer-events-auto"
             />
           </PopoverContent>
