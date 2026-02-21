@@ -158,9 +158,6 @@ const BullList = () => {
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-xs text-foreground truncate min-w-0">
                     {bull.bull_name}
-                    {bull.naab_code && (
-                      <span className="ml-1 text-xs text-muted-foreground">({bull.naab_code})</span>
-                    )}
                   </p>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Badge
@@ -185,6 +182,9 @@ const BullList = () => {
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <ClickableRegNumber registrationNumber={bull.registration_number} />
+                  {bull.naab_code && (
+                    <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
+                  )}
                   <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
                 </div>
               </div>
