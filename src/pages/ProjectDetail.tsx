@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star } from "lucide-react";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
+import { useBullFavorites } from "@/hooks/useBullFavorites";
 
 interface ProjectRow {
   id: string;
@@ -61,6 +62,7 @@ const statusColor: Record<string, string> = {
 };
 
 const ProjectDetail = () => {
+  const { favoritedIds, toggleFavorite } = useBullFavorites();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -366,6 +368,7 @@ const ProjectDetail = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8"></TableHead>
                     <TableHead>Bull Name</TableHead>
                     <TableHead className="text-right">Units</TableHead>
                   </TableRow>
@@ -373,6 +376,13 @@ const ProjectDetail = () => {
                 <TableBody>
                   {bulls.map((b) => (
                     <TableRow key={b.id}>
+                      <TableCell className="w-8">
+                        {b.bull_catalog_id && (
+                          <button onClick={(e) => toggleFavorite(b.bull_catalog_id!, e)}>
+                            <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(b.bull_catalog_id!) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+                          </button>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {b.bulls_catalog
                           ? `${b.bulls_catalog.bull_name} (${b.bulls_catalog.company})`
