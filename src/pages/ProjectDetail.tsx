@@ -186,8 +186,8 @@ const ProjectDetail = () => {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="hidden lg:inline-flex">
-                  <MoreVertical className="h-4 w-4 mr-1" /> Export
+                <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Export">
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
@@ -238,20 +238,18 @@ const ProjectDetail = () => {
             </Button>
             <Button
               variant="outline"
-              size="sm"
-              className="hidden lg:inline-flex"
+              size="icon"
+              className="hidden lg:inline-flex h-9 w-9"
+              title="Share PDF"
               onClick={() => {
                 generateProjectPdf(project, events, bulls);
                 toast({ title: "PDF downloaded", description: `${project.name} report saved.` });
               }}
             >
-              <FileDown className="h-4 w-4 mr-1" /> Share PDF
+              <FileDown className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" className="lg:hidden" title="Edit" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" className="hidden lg:inline-flex" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4 mr-1" /> Edit
             </Button>
           </div>
         </div>
