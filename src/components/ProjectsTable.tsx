@@ -9,6 +9,7 @@ interface ProjectsTableProps {
   projects: BreedingProject[];
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
+  bullsByProject?: Record<string, { name: string; units: number }[]>;
 }
 
 type SortKey = keyof BreedingProject;
@@ -25,12 +26,13 @@ const typeStyles: Record<string, string> = {
   Cow: "bg-accent/20 text-accent",
 };
 
-const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTableProps) => {
+const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {} }: ProjectsTableProps) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expandedBulls, setExpandedBulls] = useState<Set<string>>(new Set());
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -86,6 +88,39 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
     if (next.has(id)) next.delete(id);
     else next.add(id);
     onSelectionChange(next);
+  };
+
+  const renderBulls = (projectId: string) => {
+    const bulls = bullsByProject[projectId] || [];
+    if (bulls.length === 0) return <span className="text-muted-foreground">—</span>;
+    const isExpanded = expandedBulls.has(projectId);
+    const visible = isExpanded ? bulls : bulls.slice(0, 2);
+    const remaining = bulls.length - 2;
+    return (
+      <div className="space-y-0.5">
+        {visible.map((b, i) => (
+          <div key={i} className="text-sm text-foreground whitespace-nowrap">
+            {b.name} ({b.units} units)
+          </div>
+        ))}
+        {!isExpanded && remaining > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpandedBulls((prev) => new Set(prev).add(projectId)); }}
+            className="text-xs text-primary hover:underline"
+          >
+            +{remaining} more
+          </button>
+        )}
+        {isExpanded && bulls.length > 2 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpandedBulls((prev) => { const n = new Set(prev); n.delete(projectId); return n; }); }}
+            className="text-xs text-primary hover:underline"
+          >
+            Show less
+          </button>
+        )}
+      </div>
+    );
   };
 
   const columns: { key: SortKey; label: string }[] = [
@@ -158,6 +193,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
                   </span>
                 </th>
               ))}
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                Bulls &amp; Units
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -198,12 +236,12 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
                     {project.status}
                   </span>
                 </td>
-                
+                <td className="px-4 py-3">{renderBulls(project.id)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                   No projects found.
                 </td>
               </tr>
@@ -246,6 +284,8 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
                   <span className="font-medium text-foreground">{project.headCount} head</span>
                   <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
                 </div>
+
+                <div className="mt-1">{renderBulls(project.id)}</div>
 
               </div>
             </div>
