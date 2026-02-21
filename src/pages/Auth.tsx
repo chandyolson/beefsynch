@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import cowLogo from "@/assets/cow-logo.png";
+import beefsynchLogo from "@/assets/beefsynch-logo.png";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,7 +206,8 @@ const Auth = () => {
       style={{ background: "rgba(255,255,255,0.07)" }}>
 
         {/* Logo / Branding */}
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-3">
+          <img src={beefsynchLogo} alt="BeefSynch logo" className="h-24 w-24 mx-auto object-contain" />
           <h1 className="text-3xl font-bold font-display text-white tracking-tight">
             Beef<span className="text-primary">Synch</span>
           </h1>
