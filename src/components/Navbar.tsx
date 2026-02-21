@@ -55,7 +55,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               Beef<span className="text-primary">Synch</span>
             </h1>
             <p className="text-xs text-muted-foreground tracking-wide">
-              Synchronization &amp; Breeding Management
+              Synchronization planning from Chuteside Resources
             </p>
           </div>
         </div>
