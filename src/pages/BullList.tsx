@@ -20,7 +20,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
+import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, ExternalLink } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
@@ -165,65 +171,91 @@ const BullList = () => {
                   </TableHead>
                 ))}
                 <TableHead className="text-center">Active</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    Loading bulls...
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                     Loading bulls...
+                   </TableCell>
+                 </TableRow>
+               ) : filtered.length === 0 ? (
+                 <TableRow>
+                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     No bulls found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((bull) => (
-                  <TableRow
-                    key={bull.id}
-                    className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
-                  >
-                    <TableCell className="font-medium text-foreground">
-                      {bull.bull_name}
-                      {bull.naab_code && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          ({bull.naab_code})
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">
-                      {bull.registration_number}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {bull.breed}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${
-                          ({
-                            ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                            "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                            "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                            Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                          } as Record<string, string>)[bull.company] ?? ""
-                        }`}
-                      >
-                        {bull.company}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bull.active ? (
-                        <Check className="h-4 w-4 text-primary mx-auto" />
-                      ) : (
-                        <X className="h-4 w-4 text-destructive mx-auto" />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((bull) => {
+                  const searchQuery = encodeURIComponent(
+                    `${bull.bull_name}${bull.registration_number ? ` ${bull.registration_number}` : ""} beef bull sire`
+                  );
+                  const searchUrl = `https://www.google.com/search?q=${searchQuery}`;
+
+                  return (
+                    <TooltipProvider key={bull.id} delayDuration={400}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <TableRow
+                            className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} cursor-pointer hover:bg-muted/70 transition-colors`}
+                            onClick={() => {
+                              const a = document.createElement("a");
+                              a.href = searchUrl;
+                              a.target = "_blank";
+                              a.rel = "noopener noreferrer";
+                              a.click();
+                            }}
+                          >
+                            <TableCell className="font-medium text-foreground">
+                              {bull.bull_name}
+                              {bull.naab_code && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ({bull.naab_code})
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground font-mono text-xs">
+                              {bull.registration_number}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {bull.breed}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={`text-xs ${
+                                  ({
+                                    ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                                    "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                                    "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                                    Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                                  } as Record<string, string>)[bull.company] ?? ""
+                                }`}
+                              >
+                                {bull.company}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {bull.active ? (
+                                <Check className="h-4 w-4 text-primary mx-auto" />
+                              ) : (
+                                <X className="h-4 w-4 text-destructive mx-auto" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground mx-auto" />
+                            </TableCell>
+                          </TableRow>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>Search for {bull.bull_name} online</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })
               )}
             </TableBody>
           </Table>
