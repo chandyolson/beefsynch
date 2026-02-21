@@ -207,7 +207,7 @@ const Auth = () => {
 
         {/* Logo / Branding */}
         <div className="text-center space-y-3">
-          <img src={beefsynchLogo} alt="BeefSynch logo" className="h-24 w-24 mx-auto object-contain" />
+          
           <h1 className="text-3xl font-bold font-display text-white tracking-tight">
             Beef<span className="text-primary">Synch</span>
           </h1>
