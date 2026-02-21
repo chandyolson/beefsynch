@@ -65,16 +65,25 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
         </div>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-2">
-          <button onClick={() => go("/bulls")} className={navBtnClass}>
-            <List className="h-4 w-4" /> Bull List
-          </button>
-          <button onClick={() => go("/calendar")} className={navBtnClass}>
-            <CalendarDays className="h-4 w-4" /> Calendar
-          </button>
-          <button onClick={() => go("/bull-report")} className={navBtnClass}>
-            <BarChart3 className="h-4 w-4" /> Bull Report
-          </button>
+         <nav className="hidden md:flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={navBtnClass}>
+                <Menu className="h-4 w-4" /> Menu
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="z-50 w-48 bg-popover border border-border shadow-lg">
+              <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
+                <List className="h-4 w-4" /> Bull List
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/calendar")} className="cursor-pointer gap-2">
+                <CalendarDays className="h-4 w-4" /> Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/bull-report")} className="cursor-pointer gap-2">
+                <BarChart3 className="h-4 w-4" /> Bull Report
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={() => { onNewProject?.(); setMobileOpen(false); }}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
