@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { BreedingProject } from "@/data/mockData";
 import { ArrowUpDown, Search, Filter, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProjectsTableProps {
   projects: BreedingProject[];
+  selectedIds: Set<string>;
+  onSelectionChange: (ids: Set<string>) => void;
 }
 
 type SortKey = keyof BreedingProject;
@@ -22,7 +25,7 @@ const typeStyles: Record<string, string> = {
   Cow: "bg-accent/20 text-accent",
 };
 
-const ProjectsTable = ({ projects }: ProjectsTableProps) => {
+const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTableProps) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
@@ -63,6 +66,28 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
         : String(bVal).localeCompare(String(aVal));
     });
   }, [projects, search, filterType, sortKey, sortDir]);
+
+  const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
+  const allVisibleSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+
+  const toggleAll = () => {
+    if (allVisibleSelected) {
+      const next = new Set(selectedIds);
+      filtered.forEach((p) => next.delete(p.id));
+      onSelectionChange(next);
+    } else {
+      const next = new Set(selectedIds);
+      filtered.forEach((p) => next.add(p.id));
+      onSelectionChange(next);
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectionChange(next);
+  };
 
   const columns: { key: SortKey; label: string }[] = [
     { key: "name", label: "Project Name" },
@@ -114,6 +139,13 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
+              <th className="px-4 py-3 w-10">
+                <Checkbox
+                  checked={allVisibleSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all"
+                />
+              </th>
               <th className="px-4 py-3 w-10"></th>
               {columns.map((col) => (
                 <th
@@ -135,6 +167,14 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                 key={project.id}
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
+                <td className="px-4 py-3">
+                  <Checkbox
+                    checked={selectedIds.has(project.id)}
+                    onCheckedChange={() => toggleOne(project.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select ${project.name}`}
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate(`/project/${project.id}`); }}
@@ -164,7 +204,7 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                   No projects found.
                 </td>
               </tr>
@@ -178,32 +218,41 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
         {filtered.map((project) => (
           <div
             key={project.id}
-            onClick={() => navigate(`/project/${project.id}`)}
             className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70 space-y-2"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
-              <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedIds.has(project.id)}
+                onCheckedChange={() => toggleOne(project.id)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Select ${project.name}`}
+              />
+              <div className="flex-1 min-w-0" onClick={() => navigate(`/project/${project.id}`)}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
+                  <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
-                {project.animalType}
-              </span>
-              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
-                {project.status}
-              </span>
-              <span className="text-xs text-muted-foreground">{project.protocol}</span>
-            </div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
+                    {project.animalType}
+                  </span>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
+                    {project.status}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{project.protocol}</span>
+                </div>
 
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{project.headCount} head</span>
-              <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
-            </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                  <span className="font-medium text-foreground">{project.headCount} head</span>
+                  <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
+                </div>
 
-            {project.location && (
-              <p className="text-xs text-muted-foreground truncate">{project.location}</p>
-            )}
+                {project.location && (
+                  <p className="text-xs text-muted-foreground truncate mt-1">{project.location}</p>
+                )}
+              </div>
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (
