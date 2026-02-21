@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Star } from "lucide-react";
 
 interface CatalogBull {
   id: string;
@@ -19,7 +20,23 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
   const [results, setResults] = useState<CatalogBull[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Fetch user favorites on mount
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("bull_favorites")
+        .select("bull_catalog_id")
+        .eq("user_id", user.id);
+      if (data) {
+        setFavoriteIds(new Set(data.map((f) => f.bull_catalog_id).filter(Boolean) as string[]));
+      }
+    })();
+  }, []);
 
   // Sync external value changes
   useEffect(() => { setQuery(value); }, [value]);
@@ -43,12 +60,20 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
         .select("id, bull_name, company")
         .eq("active", true)
         .ilike("bull_name", `%${query}%`)
-        .limit(10);
-      setResults(data ?? []);
+        .limit(20);
+      const raw = data ?? [];
+      // Sort: favorites first, then alphabetical
+      raw.sort((a, b) => {
+        const aFav = favoriteIds.has(a.id);
+        const bFav = favoriteIds.has(b.id);
+        if (aFav !== bFav) return aFav ? -1 : 1;
+        return a.bull_name.localeCompare(b.bull_name);
+      });
+      setResults(raw);
       setLoading(false);
     }, 200);
     return () => clearTimeout(timeout);
-  }, [query]);
+  }, [query, favoriteIds]);
 
   const handleSelect = (bull: CatalogBull) => {
     onChange(bull.bull_name, bull.id);
@@ -58,7 +83,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
 
   const handleInputChange = (val: string) => {
     setQuery(val);
-    onChange(val, null); // custom entry
+    onChange(val, null);
     setOpen(true);
   };
 
@@ -86,7 +111,12 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
               onClick={() => handleSelect(bull)}
               className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
             >
-              <span className="text-foreground">{bull.bull_name}</span>
+              <span className="flex items-center gap-1.5 text-foreground">
+                {favoriteIds.has(bull.id) && (
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
+                )}
+                {bull.bull_name}
+              </span>
               <span className="text-xs text-muted-foreground">{bull.company}</span>
             </button>
           ))}
