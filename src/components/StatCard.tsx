@@ -33,7 +33,7 @@ const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatC
         padding: "16px",
       }}
     >
-      <Icon className="absolute top-3 right-3 h-7 w-7 text-white/20" />
+      
       <p style={{ fontSize: "10px", letterSpacing: "0.1em" }} className="font-semibold uppercase text-white/70">
         {title}
       </p>
