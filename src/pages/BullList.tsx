@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
+import ClickableRegNumber from "@/components/ClickableRegNumber";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
@@ -194,8 +195,8 @@ const BullList = () => {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">
-                      {bull.registration_number}
+                    <TableCell>
+                      <ClickableRegNumber registrationNumber={bull.registration_number} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {bull.breed}
