@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,8 +22,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
+import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
+import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
@@ -35,6 +39,42 @@ const COMPANY_COLORS: Record<string, string> = {
 type SortKey = "bull_name" | "registration_number" | "breed" | "company";
 type SortDir = "asc" | "desc";
 
+interface CatalogBull {
+  id: string;
+  bull_name: string;
+  registration_number: string;
+  breed: string;
+  company: string;
+  naab_code: string | null;
+  active: boolean;
+}
+
+const buildCsv = (bulls: CatalogBull[]): string => {
+  const header = "Bull Name,Registration Number,Breed,Company,Active";
+  const rows = bulls.map((b) => {
+    const name = `"${b.bull_name.replace(/"/g, '""')}"`;
+    const reg = b.registration_number || "";
+    const breed = `"${b.breed.replace(/"/g, '""')}"`;
+    const company = `"${b.company.replace(/"/g, '""')}"`;
+    const active = b.active ? "Yes" : "No";
+    return `${name},${reg},${breed},${company},${active}`;
+  });
+  return [header, ...rows].join("\n");
+};
+
+const downloadCsv = (csv: string) => {
+  const date = format(new Date(), "MMddyyyy");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `BeefSynch_Bulls_${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 const BullList = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -42,6 +82,7 @@ const BullList = () => {
   const [breedFilter, setBreedFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: bulls = [], isLoading } = useQuery({
     queryKey: ["bulls_catalog"],
@@ -87,6 +128,19 @@ const BullList = () => {
     return list;
   }, [bulls, search, companyFilter, breedFilter, sortKey, sortDir]);
 
+  // Clear selection when filters change
+  const clearSelection = useCallback(() => {
+    if (selectedIds.size > 0) {
+      setSelectedIds(new Set());
+      toast({ title: "Selection cleared — filters updated." });
+    }
+  }, [selectedIds.size]);
+
+  useEffect(() => {
+    clearSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, companyFilter, breedFilter]);
+
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -105,6 +159,36 @@ const BullList = () => {
     );
   };
 
+  // Selection helpers
+  const allVisibleSelected = filtered.length > 0 && filtered.every((b) => selectedIds.has(b.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleAll = () => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((b) => b.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleExportSelected = () => {
+    const selected = filtered.filter((b) => selectedIds.has(b.id));
+    if (selected.length === 0) return;
+    downloadCsv(buildCsv(selected));
+  };
+
+  const handleExportAllVisible = () => {
+    if (filtered.length === 0) return;
+    downloadCsv(buildCsv(filtered));
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -117,12 +201,26 @@ const BullList = () => {
             <ArrowLeft className="h-3 w-3" />
             Back to Dashboard
           </button>
-          <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
-            Bull Catalog
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {filtered.length} of {bulls.length} bulls
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
+                Bull Catalog
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {filtered.length} of {bulls.length} bulls
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportAllVisible}
+              disabled={filtered.length === 0}
+              className="hidden sm:inline-flex"
+            >
+              <Download className="h-4 w-4 mr-1.5" />
+              Export All Visible
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -162,7 +260,37 @@ const BullList = () => {
               ))}
             </SelectContent>
           </Select>
+          {/* Mobile export button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportAllVisible}
+            disabled={filtered.length === 0}
+            className="sm:hidden"
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            Export All Visible
+          </Button>
         </div>
+
+        {/* Bulk action toolbar */}
+        {someSelected && (
+          <div className="flex items-center gap-3 mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+            <span className="text-sm font-medium text-foreground">
+              {selectedIds.size} bull{selectedIds.size !== 1 ? "s" : ""} selected
+            </span>
+            <Button size="sm" onClick={handleExportSelected}>
+              <Download className="h-4 w-4 mr-1.5" />
+              Export Selected as CSV
+            </Button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-muted-foreground hover:text-foreground underline ml-auto"
+            >
+              Clear Selection
+            </button>
+          </div>
+        )}
 
         {/* Mobile card view */}
         <div className="lg:hidden space-y-3">
@@ -177,9 +305,17 @@ const BullList = () => {
                 className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-xs text-foreground truncate min-w-0">
-                    {bull.bull_name}
-                  </p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Checkbox
+                      checked={selectedIds.has(bull.id)}
+                      onCheckedChange={() => toggleOne(bull.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    />
+                    <p className="font-medium text-xs text-foreground truncate min-w-0">
+                      {bull.bull_name}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Badge
                       variant="secondary"
@@ -201,7 +337,7 @@ const BullList = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 pl-6">
                   <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
                   {bull.naab_code && (
                     <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
@@ -218,6 +354,12 @@ const BullList = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected && filtered.length > 0}
+                    onCheckedChange={toggleAll}
+                  />
+                </TableHead>
                 {(
                   [
                     ["bull_name", "Bull Name"],
@@ -241,13 +383,13 @@ const BullList = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                 <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                      Loading bulls...
                    </TableCell>
                  </TableRow>
                ) : filtered.length === 0 ? (
                  <TableRow>
-                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     No bulls found.
                   </TableCell>
                 </TableRow>
@@ -255,8 +397,14 @@ const BullList = () => {
                 filtered.map((bull) => (
                   <TableRow
                     key={bull.id}
-                    className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+                    className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
                   >
+                    <TableCell className="w-10">
+                      <Checkbox
+                        checked={selectedIds.has(bull.id)}
+                        onCheckedChange={() => toggleOne(bull.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium text-foreground">
                       {bull.bull_name}
                       {bull.naab_code && (
