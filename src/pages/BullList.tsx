@@ -156,7 +156,7 @@ const BullList = () => {
                 className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-sm text-foreground truncate min-w-0">
+                  <p className="font-medium text-xs text-foreground truncate min-w-0">
                     {bull.bull_name}
                     {bull.naab_code && (
                       <span className="ml-1 text-xs text-muted-foreground">({bull.naab_code})</span>
