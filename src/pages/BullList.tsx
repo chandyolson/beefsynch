@@ -85,14 +85,53 @@ const BullList = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
-  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+  // Fetch favorites from DB
+  const { data: favData } = useQuery({
+    queryKey: ["bull_favorites"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("bull_favorites")
+        .select("bull_catalog_id")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (favData) {
+      setFavoritedIds(new Set(favData.map((f: any) => f.bull_catalog_id)));
+    }
+  }, [favData]);
+
+  const toggleFavorite = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const isFav = favoritedIds.has(id);
+
+    // Optimistic update
     setFavoritedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
+      if (isFav) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (isFav) {
+      await supabase
+        .from("bull_favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("bull_catalog_id", id);
+    } else {
+      await supabase
+        .from("bull_favorites")
+        .insert({ user_id: user.id, bull_catalog_id: id });
+    }
   };
 
   const { data: bulls = [], isLoading } = useQuery({
