@@ -133,8 +133,8 @@ const Index = () => {
             delay={0}
             index={0}
             breakdown={<>
-              <p>🐮 Heifers: {heiferProjects.length} projects</p>
-              <p>🐄 Cows: {cowProjects.length} projects</p>
+              <p>Heifers {heiferProjects.length} projects</p>
+              <p>Cows {cowProjects.length} projects</p>
             </>}
           />
           <StatCard
@@ -143,8 +143,8 @@ const Index = () => {
             delay={100}
             index={1}
             breakdown={<>
-              <p>🐮 Heifers: {heiferHead} head</p>
-              <p>🐄 Cows: {cowHead} head</p>
+              <p>Heifers {heiferHead} head</p>
+              <p>Cows {cowHead} head</p>
             </>}
           />
           <StatCard
@@ -154,8 +154,8 @@ const Index = () => {
             index={2}
             icon={Beef}
             breakdown={<>
-              <p>Catalog Bulls: {bullStats.catalogCount}</p>
-              <p>Total Units: {bullStats.totalUnits}</p>
+              <p>Catalog Bulls {bullStats.catalogCount}</p>
+              <p>Total Units {bullStats.totalUnits}</p>
             </>}
           />
           <StatCard
@@ -166,10 +166,10 @@ const Index = () => {
             icon={Calendar}
             breakdown={breedingSeason ? (
               breedingSeason.same ? (
-                <p>Date: {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
+                <p>Date {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
               ) : (<>
-                <p>First: {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
-                <p>Last: {format(parseISO(breedingSeason.last), "MMM d, yyyy")}</p>
+                <p>First {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
+                <p>Last {format(parseISO(breedingSeason.last), "MMM d, yyyy")}</p>
               </>)
             ) : undefined}
           />
