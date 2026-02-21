@@ -209,10 +209,6 @@ export function generateProjectPdf(
   doc.text(" Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse) Intramuscularly in the neck.", boxX + 10 + doc.getTextWidth("Directions: "), dirY);
   dirY += 20;
 
-  // Safety note
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.text("\u26A0 Please wear gloves when handling these products.", boxX + 10, dirY);
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
