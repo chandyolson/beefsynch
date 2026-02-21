@@ -211,7 +211,7 @@ const Auth = () => {
             Beef<span className="text-primary">Synch</span>
           </h1>
           <p className="text-sm text-white/50 tracking-wide">
-            Synchronization &amp; Breeding Management
+            Synchronization Planner
           </p>
         </div>
 
