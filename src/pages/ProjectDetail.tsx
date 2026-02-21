@@ -145,7 +145,47 @@ const ProjectDetail = () => {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="icon" className="lg:hidden h-9 w-9" title="Export">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                  <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
+                    <Calendar className="h-4 w-4" /> Add to Google Calendar
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={() => {
+                    const bullsForIcs = bulls.map((b) => ({
+                      bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                      registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
+                      units: b.units,
+                    }));
+                    const icsEvents = buildProjectIcsEvents(project, events, bullsForIcs);
+                    const icsContent = generateIcsFile(icsEvents, `${project.name} — BeefSynch`);
+                    const safeName = project.name.replace(/\s+/g, "_");
+                    downloadIcsFile(icsContent, `${safeName}_BeefSynch.ics`);
+                    toast({ title: "Calendar downloaded", description: `${project.name} .ics file saved.` });
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Download .ics
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={() => {
+                    generateProjectCsv(project, events, bulls);
+                    toast({ title: "CSV downloaded", description: `${project.name} CSV saved.` });
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Download CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="hidden lg:inline-flex">
                   <MoreVertical className="h-4 w-4 mr-1" /> Export
                 </Button>
               </DropdownMenuTrigger>
@@ -186,6 +226,19 @@ const ProjectDetail = () => {
             <Button
               variant="outline"
               size="sm"
+              className="lg:hidden"
+              title="Share PDF"
+              onClick={() => {
+                generateProjectPdf(project, events, bulls);
+                toast({ title: "PDF downloaded", description: `${project.name} report saved.` });
+              }}
+            >
+              <FileDown className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden lg:inline-flex"
               onClick={() => {
                 generateProjectPdf(project, events, bulls);
                 toast({ title: "PDF downloaded", description: `${project.name} report saved.` });
@@ -193,7 +246,10 @@ const ProjectDetail = () => {
             >
               <FileDown className="h-4 w-4 mr-1" /> Share PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" size="sm" className="lg:hidden" title="Edit" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="hidden lg:inline-flex" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4 mr-1" /> Edit
             </Button>
           </div>
