@@ -112,9 +112,9 @@ const BullList = () => {
         <div className="mb-6">
           <button
             onClick={() => navigate("/")}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3 w-3" />
             Back to Dashboard
           </button>
           <h2 className="text-2xl font-bold font-display text-foreground tracking-tight">
