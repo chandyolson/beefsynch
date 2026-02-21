@@ -463,6 +463,16 @@ const BullReport = () => {
           </div>
         </div>
 
+        {/* Stat Cards */}
+        {hasRun && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Total Bulls in Use" value={stats.totalBulls} delay={0} />
+            <StatCard title="Total Semen Units" value={stats.totalUnits} delay={100} />
+            <StatCard title="Total Projects in Range" value={stats.totalProjects} delay={200} />
+            <StatCard title="Total Head in Range" value={stats.totalHead} delay={300} />
+          </div>
+        )}
+
         {/* Filters */}
         <div className="rounded-lg border border-border bg-card p-3 space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -575,14 +585,6 @@ const BullReport = () => {
         {/* Results */}
         {hasRun && (
           <>
-            {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Total Bulls in Use" value={stats.totalBulls} delay={0} />
-              <StatCard title="Total Semen Units" value={stats.totalUnits} delay={100} />
-              <StatCard title="Total Projects in Range" value={stats.totalProjects} delay={200} />
-              <StatCard title="Total Head in Range" value={stats.totalHead} delay={300} />
-            </div>
-
             {/* Table */}
             <div className="rounded-lg border border-border overflow-hidden">
               {isLoading ? (
