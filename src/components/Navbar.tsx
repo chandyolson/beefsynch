@@ -169,7 +169,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                 <UserPlus className="h-4 w-4" /> Create Account
               </button>
             )}
-            <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-secondary transition-colors w-full">
+            <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-pink-400 hover:bg-secondary transition-colors w-full">
               <LogOut className="h-4 w-4" /> Sign Out
             </button>
           </div>
