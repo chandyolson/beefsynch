@@ -30,7 +30,7 @@ const GuestBanner = () => {
         <Button
           size="sm"
           variant="secondary"
-          className="h-7 text-xs font-semibold"
+          className="h-7 text-xs font-semibold text-white"
           onClick={() => navigate("/auth?convert=true")}
         >
           <UserPlus className="h-3.5 w-3.5 mr-1" />
