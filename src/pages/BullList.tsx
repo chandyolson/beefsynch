@@ -39,6 +39,7 @@ const BullList = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [breedFilter, setBreedFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -54,6 +55,11 @@ const BullList = () => {
     },
   });
 
+  const breeds = useMemo(() => {
+    const set = new Set(bulls.map((b) => b.breed));
+    return [...set].sort();
+  }, [bulls]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     let list = bulls.filter((b) => {
@@ -65,7 +71,9 @@ const BullList = () => {
         (b.naab_code && b.naab_code.toLowerCase().includes(q));
       const matchesCompany =
         companyFilter === "all" || b.company === companyFilter;
-      return matchesSearch && matchesCompany;
+      const matchesBreed =
+        breedFilter === "all" || b.breed === breedFilter;
+      return matchesSearch && matchesCompany && matchesBreed;
     });
 
     list.sort((a, b) => {
@@ -77,7 +85,7 @@ const BullList = () => {
     });
 
     return list;
-  }, [bulls, search, companyFilter, sortKey, sortDir]);
+  }, [bulls, search, companyFilter, breedFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -137,6 +145,19 @@ const BullList = () => {
               {COMPANIES.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={breedFilter} onValueChange={setBreedFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Breeds" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Breeds</SelectItem>
+              {breeds.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
                 </SelectItem>
               ))}
             </SelectContent>
