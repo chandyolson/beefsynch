@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,8 +73,17 @@ function PasswordInput({ value, onChange, placeholder = "Password", ...rest }: R
 // ── Auth Page ────────────────────────────────────────────────────────────
 const Auth = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>("login");
+  const [searchParams] = useSearchParams();
+  const isConvert = searchParams.get("convert") === "true";
+  const [mode, setMode] = useState<Mode>(isConvert ? "signup" : "login");
   const [loading, setLoading] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAnonymous(data.session?.user?.is_anonymous === true);
+    });
+  }, []);
 
   // Login form
   const loginForm = useForm<LoginValues>({
@@ -122,6 +131,27 @@ const Auth = () => {
 
   const handleSignup = async (values: SignupValues) => {
     setLoading(true);
+
+    // Guest conversion: update the existing anonymous user in place
+    if (isAnonymous) {
+      const { error } = await supabase.auth.updateUser({
+        email: values.email,
+        password: values.password,
+      });
+      setLoading(false);
+      if (error) {
+        toast({ title: "Account conversion failed", description: error.message, variant: "destructive" });
+      } else {
+        toast({
+          title: "Account created!",
+          description: "All your projects have been saved.",
+        });
+        navigate("/");
+      }
+      return;
+    }
+
+    // Normal signup
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,

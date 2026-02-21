@@ -97,7 +97,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                 {isAnonymous ? "Guest User" : email ?? ""}
               </div>
               {isAnonymous && (
-                <DropdownMenuItem onClick={() => navigate("/auth")} className="cursor-pointer gap-2">
+                <DropdownMenuItem onClick={() => navigate("/auth?convert=true")} className="cursor-pointer gap-2">
                   <UserPlus className="h-4 w-4" /> Create Account
                 </DropdownMenuItem>
               )}
@@ -141,7 +141,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               {isAnonymous ? "Guest User" : email ?? ""}
             </div>
             {isAnonymous && (
-              <button onClick={() => go("/auth")} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors w-full">
+              <button onClick={() => go("/auth?convert=true")} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors w-full">
                 <UserPlus className="h-4 w-4" /> Create Account
               </button>
             )}
