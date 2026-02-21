@@ -113,6 +113,7 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
+              <th className="px-4 py-3 w-10"></th>
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -125,7 +126,6 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                   </span>
                 </th>
               ))}
-              <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
           <tbody>
@@ -134,6 +134,15 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                 key={project.id}
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
+                <td className="px-4 py-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/project/${project.id}`); }}
+                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="View project"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </td>
                 <td className="px-4 py-3 font-medium text-foreground">{project.name}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
@@ -150,15 +159,6 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{project.location}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => navigate(`/project/${project.id}`)}
-                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                    title="View project"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
