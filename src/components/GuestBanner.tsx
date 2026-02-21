@@ -31,7 +31,7 @@ const GuestBanner = () => {
           size="sm"
           variant="secondary"
           className="h-7 text-xs font-semibold"
-          onClick={() => navigate("/auth")}
+          onClick={() => navigate("/auth?convert=true")}
         >
           <UserPlus className="h-3.5 w-3.5 mr-1" />
           Create Account
