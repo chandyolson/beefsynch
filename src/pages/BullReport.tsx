@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { generateBullReportPdf, BullReportRow } from "@/lib/generateBullReportPdf";
+import ClickableRegNumber from "@/components/ClickableRegNumber";
 
 const PROTOCOLS = [
   "Select Synch CIDR",
@@ -640,8 +641,8 @@ const BullReport = () => {
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {row.registrationNumber || "—"}
+                        <TableCell>
+                          <ClickableRegNumber registrationNumber={row.registrationNumber || null} />
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {row.totalUnits}

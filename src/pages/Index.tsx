@@ -27,7 +27,7 @@ const Index = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number }[]>>({});
+  const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string }[]>>({});
 
   const fetchProjects = useCallback(async () => {
     const { data } = await supabase
@@ -55,16 +55,17 @@ const Index = () => {
       if (projectIds.length > 0) {
         const { data: bullsData } = await supabase
           .from("project_bulls")
-          .select("project_id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name)")
+          .select("project_id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name, registration_number)")
           .in("project_id", projectIds);
 
         if (bullsData) {
-          const map: Record<string, { name: string; units: number }[]> = {};
+          const map: Record<string, { name: string; units: number; registrationNumber?: string }[]> = {};
           for (const b of bullsData as any[]) {
             const pid = b.project_id;
             if (!map[pid]) map[pid] = [];
             const name = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
-            map[pid].push({ name, units: b.units });
+            const regNum = b.bulls_catalog?.registration_number || undefined;
+            map[pid].push({ name, units: b.units, registrationNumber: regNum });
           }
           setBullsByProject(map);
         }

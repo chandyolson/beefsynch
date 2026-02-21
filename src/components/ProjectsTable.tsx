@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { BreedingProject } from "@/data/mockData";
 import { ArrowUpDown, Search, Filter, Eye } from "lucide-react";
+import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { format, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -9,7 +10,7 @@ interface ProjectsTableProps {
   projects: BreedingProject[];
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
-  bullsByProject?: Record<string, { name: string; units: number }[]>;
+  bullsByProject?: Record<string, { name: string; units: number; registrationNumber?: string }[]>;
 }
 
 type SortKey = keyof BreedingProject;
@@ -99,8 +100,11 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     return (
       <div className="space-y-0.5">
         {visible.map((b, i) => (
-          <div key={i} className="text-xs text-foreground whitespace-nowrap">
-            {b.name} ({b.units} units)
+          <div key={i} className="text-xs text-foreground whitespace-nowrap flex items-center gap-1">
+            <span>{b.name} ({b.units} units)</span>
+            {b.registrationNumber && (
+              <ClickableRegNumber registrationNumber={b.registrationNumber} />
+            )}
           </div>
         ))}
         {!isExpanded && remaining > 0 && (

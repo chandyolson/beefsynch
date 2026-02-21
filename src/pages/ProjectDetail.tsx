@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
+import ClickableRegNumber from "@/components/ClickableRegNumber";
 
 interface ProjectRow {
   id: string;
@@ -378,6 +379,11 @@ const ProjectDetail = () => {
                         {b.bulls_catalog
                           ? `${b.bulls_catalog.bull_name} (${b.bulls_catalog.company})`
                           : b.custom_bull_name ?? "Unknown"}
+                        {b.bulls_catalog?.registration_number && (
+                          <div className="mt-0.5">
+                            <ClickableRegNumber registrationNumber={b.bulls_catalog.registration_number} />
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">{b.units}</TableCell>
                     </TableRow>
