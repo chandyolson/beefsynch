@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Menu, X } from "lucide-react";
-import cowLogo from "@/assets/cow-logo.png";
+import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -53,7 +53,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <img src={cowLogo} alt="BeefSynch logo" className="h-9 w-9 object-contain" />
+          <img src={beefsynchIcon} alt="BeefSynch logo" className="h-9 w-9 object-contain rounded" />
           <div>
             <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
               Beef<span className="text-primary">Synch</span>
