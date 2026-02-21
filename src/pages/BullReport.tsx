@@ -546,7 +546,7 @@ const BullReport = () => {
 
           {/* Actions row */}
           <div className="flex items-center gap-2">
-            <Button onClick={handleGenerate} size="sm" className="text-xs h-8 px-4">
+            <Button onClick={handleGenerate} size="sm" className="text-xs h-8 px-4 text-white">
               Generate Report
             </Button>
             <button
