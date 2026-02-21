@@ -11,10 +11,10 @@ interface StatCardProps {
 const icons = [Calendar, Users, Baby, Beef];
 
 const gradients = [
-  "linear-gradient(135deg, #0F4D52 0%, #1A6B6A 100%)",
-  "linear-gradient(135deg, #117A72 0%, #15958A 100%)",
-  "linear-gradient(135deg, #14A49A 0%, #18BFB2 100%)",
-  "linear-gradient(135deg, #17C9BA 0%, #1DE4D4 100%)",
+  "linear-gradient(135deg, #1a2a2a 0%, #1a3a38 100%)",
+  "linear-gradient(135deg, #1a3a3a 0%, #1a5a52 100%)",
+  "linear-gradient(135deg, #1a5a52 0%, #1a7a6a 100%)",
+  "linear-gradient(135deg, #1a7a6a 0%, #20a090 100%)",
 ];
 
 const StatCard = ({ title, value, subtitle, delay = 0, index = 0 }: StatCardProps) => {
@@ -26,14 +26,16 @@ const StatCard = ({ title, value, subtitle, delay = 0, index = 0 }: StatCardProp
       style={{
         animationDelay: `${delay}ms`,
         background: gradients[index % gradients.length],
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
       }}
     >
       <div className="flex items-start justify-between">
         <p className="text-xs font-semibold tracking-widest uppercase text-white/70">
           {title}
         </p>
-        <div className="rounded-lg bg-white/10 p-2">
-          <Icon className="h-4 w-4 text-white/60" />
+        <div className="rounded-lg bg-white/5 p-2">
+          <Icon className="h-5 w-5 text-white/25" />
         </div>
       </div>
       <div className="mt-3">
