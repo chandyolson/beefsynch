@@ -143,8 +143,61 @@ const BullList = () => {
           </Select>
         </div>
 
-        {/* Table */}
-        <div className="rounded-lg border border-border overflow-hidden">
+        {/* Mobile card view */}
+        <div className="lg:hidden space-y-3">
+          {isLoading ? (
+            <p className="text-center py-12 text-muted-foreground">Loading bulls...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">No bulls found.</p>
+          ) : (
+            filtered.map((bull) => (
+              <div
+                key={bull.id}
+                className={`rounded-lg border border-border bg-card p-4 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {bull.bull_name}
+                      {bull.naab_code && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">({bull.naab_code})</span>
+                      )}
+                    </p>
+                    <div className="mt-1">
+                      <ClickableRegNumber registrationNumber={bull.registration_number} />
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {bull.active ? (
+                      <Check className="h-4 w-4 text-primary" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-muted-foreground">{bull.breed}</span>
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs ${
+                      ({
+                        ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                        "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                        "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                        Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                      } as Record<string, string>)[bull.company] ?? ""
+                    }`}
+                  >
+                    {bull.company}
+                  </Badge>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden lg:block rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
