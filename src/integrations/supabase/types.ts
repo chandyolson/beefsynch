@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      bull_favorites: {
+        Row: {
+          bull_catalog_id: string | null
+          created_at: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bull_favorites_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bulls_catalog: {
         Row: {
           active: boolean

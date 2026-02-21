@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download } from "lucide-react";
+import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -83,6 +83,17 @@ const BullList = () => {
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavoritedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const { data: bulls = [], isLoading } = useQuery({
     queryKey: ["bulls_catalog"],
@@ -306,6 +317,9 @@ const BullList = () => {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
+                    <button onClick={(e) => toggleFavorite(bull.id, e)} className="shrink-0">
+                      <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+                    </button>
                     <Checkbox
                       checked={selectedIds.has(bull.id)}
                       onCheckedChange={() => toggleOne(bull.id)}
@@ -332,7 +346,7 @@ const BullList = () => {
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 pl-6">
+                <div className="flex items-center gap-2 mt-0.5 pl-10">
                   <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
                   {bull.naab_code && (
                     <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
@@ -349,6 +363,7 @@ const BullList = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                <TableHead className="w-8"></TableHead>
                 <TableHead className="w-10">
                   <Checkbox
                     checked={allVisibleSelected && filtered.length > 0}
@@ -378,13 +393,13 @@ const BullList = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                 <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                      Loading bulls...
                    </TableCell>
                  </TableRow>
                ) : filtered.length === 0 ? (
                  <TableRow>
-                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     No bulls found.
                   </TableCell>
                 </TableRow>
@@ -394,6 +409,11 @@ const BullList = () => {
                     key={bull.id}
                     className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
                   >
+                    <TableCell className="w-8">
+                      <button onClick={(e) => toggleFavorite(bull.id, e)}>
+                        <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+                      </button>
+                    </TableCell>
                     <TableCell className="w-10">
                       <Checkbox
                         checked={selectedIds.has(bull.id)}
