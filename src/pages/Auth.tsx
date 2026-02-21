@@ -223,7 +223,7 @@ const Auth = () => {
               
               <div className="text-center space-y-1">
                 <h2 className="text-xl font-semibold text-white/90">Welcome to BeefSynch</h2>
-                <p className="text-sm text-white/50">Synchronization planning from Chuteside Resources</p>
+                
               </div>
             </div>
 
