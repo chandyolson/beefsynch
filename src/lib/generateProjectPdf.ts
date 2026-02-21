@@ -161,7 +161,7 @@ export function generateProjectPdf(
   let dirY = finalY + 36;
 
   const pageHeight = doc.internal.pageSize.getHeight();
-  const boxH = 120; // fixed height for the section
+  const boxH = 145; // fixed height for the section
   if (dirY + boxH > pageHeight - 50) {
     doc.addPage();
     dirY = 50;
@@ -171,42 +171,49 @@ export function generateProjectPdf(
   const boxW = pageWidth - margin * 2;
   const boxStartY = dirY - 4;
 
-  // Draw background box first
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(boxX, boxStartY, boxW, boxH, 3, 3, "FD");
+  // Draw border box (no fill)
+  doc.setDrawColor(0);
+  doc.setLineWidth(1);
+  doc.rect(boxX, boxStartY, boxW, boxH);
 
-  // Section title
+  // Section title (bold, underlined)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(0);
-  doc.text("Synchronization Product Directions", boxX + 10, dirY + 16);
-  dirY += 30;
+  const titleText = "Synchronization Product Directions";
+  doc.text(titleText, boxX + 14, dirY + 16);
+  const titleWidth = doc.getTextWidth(titleText);
+  doc.setLineWidth(0.5);
+  doc.line(boxX + 14, dirY + 18, boxX + 14 + titleWidth, dirY + 18);
+  dirY += 34;
 
   // GnRH subsection
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("GnRH Products:", boxX + 10, dirY);
+  doc.text("GnRH Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Cystorelin, Factorel, Fertagyl", boxX + 10 + doc.getTextWidth("GnRH Products: "), dirY);
-  dirY += 14;
-  doc.setFont("helvetica", "bold");
-  doc.text("Directions:", boxX + 10, dirY);
-  doc.setFont("helvetica", "normal");
-  doc.text(" Give 2 cc's (mls) Intramuscularly in the neck.", boxX + 10 + doc.getTextWidth("Directions: "), dirY);
-  dirY += 20;
+  doc.text(" Cystorelin, Factrel, Fertagyl, Ovacyst", boxX + 14 + doc.getTextWidth("GnRH Products: "), dirY);
+  dirY += 15;
+  doc.setFont("helvetica", "bolditalic");
+  doc.text("Directions:", boxX + 14, dirY);
+  doc.setFont("helvetica", "italic");
+  doc.text(" Give 2 cc's intramuscularly in the neck.", boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  dirY += 24;
 
   // PGF subsection
   doc.setFont("helvetica", "bold");
-  doc.text("PGF Products:", boxX + 10, dirY);
+  doc.setFontSize(10);
+  doc.text("PGF Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Lutalyse, Synchsure, Estrumate", boxX + 10 + doc.getTextWidth("PGF Products: "), dirY);
-  dirY += 14;
-  doc.setFont("helvetica", "bold");
-  doc.text("Directions:", boxX + 10, dirY);
-  doc.setFont("helvetica", "normal");
-  doc.text(" Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse) Intramuscularly in the neck.", boxX + 10 + doc.getTextWidth("Directions: "), dirY);
+  doc.text(" Lutalyse, Prostamate, Synchsure, Estrumate", boxX + 14 + doc.getTextWidth("PGF Products: "), dirY);
+  dirY += 15;
+  doc.setFont("helvetica", "bolditalic");
+  doc.text("Directions:", boxX + 14, dirY);
+  doc.setFont("helvetica", "italic");
+  const pgfDirText = " Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse, Prostamate)";
+  doc.text(pgfDirText, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  dirY += 13;
+  doc.text("intramuscularly in the neck.", boxX + 14, dirY);
   dirY += 20;
 
   const pageCount = doc.getNumberOfPages();
