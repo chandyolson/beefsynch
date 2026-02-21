@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import beefsynchLogo from "@/assets/beefsynch-logo.png";
+import beefsynchBadge from "@/assets/beefsynch-badge.png";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,6 +215,7 @@ const Auth = () => {
           <p className="text-sm text-white/50 tracking-wide">
             Synchronization Planner
           </p>
+          <img src={beefsynchBadge} alt="BeefSynch badge" className="h-24 w-24 mx-auto" />
         </div>
 
         {/* ── Landing Choice Screen ─────────────────────────────────── */}
