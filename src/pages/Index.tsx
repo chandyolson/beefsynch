@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Beef, Calendar } from "lucide-react";
+import { Beef, Calendar, Star } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import StatCard from "@/components/StatCard";
@@ -9,6 +10,8 @@ import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/data/mockData";
+import { useBullFavorites } from "@/hooks/useBullFavorites";
+import { useQuery } from "@tanstack/react-query";
 
 interface DbProject {
   id: string;
@@ -22,10 +25,36 @@ interface DbProject {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAnonymous, setIsAnonymous] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsAnonymous(!user || !!user.is_anonymous);
+    });
+  }, []);
+
+  const { favoritedIds } = useBullFavorites();
+
+  // Fetch catalog bulls for favorite chips
+  const { data: catalogBulls = [] } = useQuery({
+    queryKey: ["bulls_catalog_all"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bulls_catalog")
+        .select("id, bull_name, company")
+        .eq("active", true);
+      return data ?? [];
+    },
+  });
+
+  const favoriteBulls = useMemo(() => {
+    return catalogBulls.filter((b) => favoritedIds.has(b.id));
+  }, [catalogBulls, favoritedIds]);
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
 
@@ -176,6 +205,33 @@ const Index = () => {
             ) : undefined}
           />
         </div>
+
+        {/* My Favorite Bulls */}
+        {!isAnonymous && (
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">My Favorite Bulls</h3>
+            {favoriteBulls.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">
+                Star bulls in the Bull List to see your favorites here.
+              </p>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {favoriteBulls.map((b) => (
+                  <button
+                    key={b.id}
+                    onClick={() => navigate(`/bulls?search=${encodeURIComponent(b.bull_name)}`)}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">{b.bull_name}</span>
+                    <span className="text-muted-foreground">· {b.company}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {selectedProjects.length > 0 && (
           <BulkActionToolbar
             selectedProjects={selectedProjects}
