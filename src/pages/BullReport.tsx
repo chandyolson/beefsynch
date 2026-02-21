@@ -35,9 +35,6 @@ import {
   Search,
   FileDown,
   BarChart3,
-  Syringe,
-  FolderKanban,
-  Users,
   Mail,
   Download,
 } from "lucide-react";
@@ -560,10 +557,10 @@ const BullReport = () => {
           <>
             {/* Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Total Bulls in Use" value={stats.totalBulls} icon={BarChart3} delay={0} />
-              <StatCard title="Total Semen Units" value={stats.totalUnits} icon={Syringe} delay={100} />
-              <StatCard title="Total Projects in Range" value={stats.totalProjects} icon={FolderKanban} delay={200} />
-              <StatCard title="Total Head in Range" value={stats.totalHead} icon={Users} delay={300} />
+              <StatCard title="Total Bulls in Use" value={stats.totalBulls} delay={0} />
+              <StatCard title="Total Semen Units" value={stats.totalUnits} delay={100} />
+              <StatCard title="Total Projects in Range" value={stats.totalProjects} delay={200} />
+              <StatCard title="Total Head in Range" value={stats.totalHead} delay={300} />
             </div>
 
             {/* Table */}
