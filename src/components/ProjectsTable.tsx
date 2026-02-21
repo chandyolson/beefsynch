@@ -51,8 +51,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
       list = list.filter(
         (p) =>
           p.name.toLowerCase().includes(s) ||
-          p.protocol.toLowerCase().includes(s) ||
-          p.location.toLowerCase().includes(s)
+          p.protocol.toLowerCase().includes(s)
       );
     }
     return [...list].sort((a, b) => {
@@ -97,7 +96,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
     { key: "startDate", label: "Start Date" },
     { key: "breedDate", label: "Breed Date" },
     { key: "status", label: "Status" },
-    { key: "location", label: "Location" },
+    
   ];
 
   return (
@@ -199,12 +198,12 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
                     {project.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{project.location}</td>
+                
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                   No projects found.
                 </td>
               </tr>
@@ -248,9 +247,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange }: ProjectsTab
                   <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
                 </div>
 
-                {project.location && (
-                  <p className="text-xs text-muted-foreground truncate mt-1">{project.location}</p>
-                )}
               </div>
             </div>
           </div>
