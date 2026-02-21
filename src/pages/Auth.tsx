@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import cowLogo from "@/assets/cow-logo.png";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 type SignupValues = z.infer<typeof signupSchema>;
 type ForgotValues = z.infer<typeof forgotSchema>;
 
-type Mode = "login" | "signup" | "forgot";
+type Mode = "landing" | "login" | "signup" | "forgot";
 
 // ── Shared password input ────────────────────────────────────────────────
 function PasswordInput({ value, onChange, placeholder = "Password", ...rest }: React.ComponentProps<"input">) {
@@ -75,7 +76,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isConvert = searchParams.get("convert") === "true";
-  const [mode, setMode] = useState<Mode>(isConvert ? "signup" : "login");
+  const [mode, setMode] = useState<Mode>(isConvert ? "signup" : "landing");
   const [loading, setLoading] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
 
@@ -213,6 +214,40 @@ const Auth = () => {
             Synchronization &amp; Breeding Management
           </p>
         </div>
+
+        {/* ── Landing Choice Screen ─────────────────────────────────── */}
+        {mode === "landing" && (
+          <div className="space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <img src={cowLogo} alt="BeefSynch logo" className="h-16 w-16 object-contain" />
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-semibold text-white/90">Welcome to BeefSynch</h2>
+                <p className="text-sm text-white/50">Synchronization planning from Chuteside Resources</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => setMode("login")}
+                className="flex-1 h-12 text-sm font-semibold text-white"
+              >
+                Sign In / Create Account
+              </Button>
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={handleGuestLogin}
+                className="flex-1 h-12 text-sm font-semibold border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              >
+                {loading ? "Signing in…" : "Try as Guest — No Account Needed"}
+              </Button>
+            </div>
+
+            <p className="text-center text-xs text-white/40">
+              Guest projects are temporary and will not be saved after your session ends.
+            </p>
+          </div>
+        )}
 
         {/* ── Login Form ──────────────────────────────────────────── */}
         {mode === "login" && (
