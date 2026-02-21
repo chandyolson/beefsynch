@@ -121,16 +121,25 @@ const BullList = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    if (isFav) {
-      await supabase
-        .from("bull_favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("bull_catalog_id", id);
-    } else {
-      await supabase
-        .from("bull_favorites")
-        .insert({ user_id: user.id, bull_catalog_id: id });
+    const { error } = isFav
+      ? await supabase
+          .from("bull_favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("bull_catalog_id", id)
+      : await supabase
+          .from("bull_favorites")
+          .insert({ user_id: user.id, bull_catalog_id: id });
+
+    if (error) {
+      // Revert optimistic update
+      setFavoritedIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+      toast({ title: "Could not save favorite — please try again.", variant: "destructive" });
     }
   };
 
