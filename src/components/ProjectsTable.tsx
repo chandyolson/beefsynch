@@ -110,7 +110,7 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
       </div>
 
       {/* ── Desktop table ── */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -174,7 +174,7 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
       </div>
 
       {/* ── Mobile card view ── */}
-      <div className="md:hidden divide-y divide-border">
+      <div className="lg:hidden divide-y divide-border">
         {filtered.map((project) => (
           <div
             key={project.id}
