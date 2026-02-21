@@ -450,38 +450,40 @@ const BullReport = () => {
         </div>
 
         {/* Filters */}
-        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {/* Date Range */}
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">From Breeding Date</label>
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">From</label>
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
+                className="h-8 text-xs bg-white text-gray-900 border-border"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">To Breeding Date</label>
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">To</label>
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
+                className="h-8 text-xs bg-white text-gray-900 border-border"
               />
             </div>
 
             {/* Cattle Type */}
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Cattle Type</label>
-              <div className="flex rounded-md border border-input overflow-hidden h-10">
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Cattle Type</label>
+              <div className="flex rounded-md border border-border overflow-hidden h-8">
                 {["All", "Heifers", "Cows"].map((type) => (
                   <button
                     key={type}
                     onClick={() => setCattleType(type)}
-                    className={`flex-1 text-sm font-medium transition-colors ${
+                    className={`flex-1 text-xs font-medium transition-colors ${
                       cattleType === type
                         ? "bg-primary text-primary-foreground"
-                        : "bg-background text-muted-foreground hover:bg-secondary"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
                     {type}
@@ -491,10 +493,10 @@ const BullReport = () => {
             </div>
 
             {/* Protocol */}
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Protocol</label>
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Protocol</label>
               <Select value={protocol} onValueChange={setProtocol}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs bg-white text-gray-900 border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -509,10 +511,10 @@ const BullReport = () => {
             </div>
 
             {/* Company */}
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Company</label>
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Company</label>
               <Select value={company} onValueChange={setCompany}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs bg-white text-gray-900 border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -527,32 +529,32 @@ const BullReport = () => {
             </div>
 
             {/* Search */}
-            <div className="space-y-1 sm:col-span-2">
-              <label className="text-xs text-muted-foreground font-medium">Search</label>
+            <div className="space-y-0.5">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Search</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <Input
-                  placeholder="Search by bull name or project name..."
+                  placeholder="Bull or project name..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
+                  className="h-8 text-xs pl-7 bg-white text-gray-900 border-border"
                   onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
                 />
               </div>
             </div>
+          </div>
 
-            {/* Actions */}
-            <div className="flex items-end gap-3">
-              <Button onClick={handleGenerate} className="flex-1">
-                Generate Report
-              </Button>
-              <button
-                onClick={handleReset}
-                className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors whitespace-nowrap"
-              >
-                Reset Filters
-              </button>
-            </div>
+          {/* Actions row */}
+          <div className="flex items-center gap-2">
+            <Button onClick={handleGenerate} size="sm" className="text-xs h-8 px-4">
+              Generate Report
+            </Button>
+            <button
+              onClick={handleReset}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Reset
+            </button>
           </div>
         </div>
 
