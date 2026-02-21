@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
@@ -77,6 +78,7 @@ const downloadCsv = (csv: string) => {
 
 const BullList = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [breedFilter, setBreedFilter] = useState("all");
@@ -248,6 +250,110 @@ const BullList = () => {
     downloadCsv(buildCsv(filtered));
   };
 
+  // Derive favorite bulls from the full catalog
+  const favoriteBulls = useMemo(() => {
+    return bulls.filter((b) => favoritedIds.has(b.id));
+  }, [bulls, favoritedIds]);
+
+  // Shared row renderer for both desktop table and mobile cards
+  const renderMobileCard = (bull: CatalogBull) => (
+    <div
+      key={bull.id}
+      className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={(e) => toggleFavorite(bull.id, e)} className="shrink-0">
+            <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+          </button>
+          {activeTab === "all" && (
+            <Checkbox
+              checked={selectedIds.has(bull.id)}
+              onCheckedChange={() => toggleOne(bull.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            />
+          )}
+          <p className="font-medium text-xs text-foreground truncate min-w-0">
+            {bull.bull_name}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge
+            variant="secondary"
+            className={`text-[10px] px-1.5 py-0 ${
+              ({
+                ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+              } as Record<string, string>)[bull.company] ?? ""
+            }`}
+          >
+            {bull.company}
+          </Badge>
+        </div>
+      </div>
+      <div className={`flex items-center gap-2 mt-0.5 ${activeTab === "all" ? "pl-10" : "pl-6"}`}>
+        <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+        {bull.naab_code && (
+          <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
+        )}
+        <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
+      </div>
+    </div>
+  );
+
+  const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean) => (
+    <TableRow
+      key={bull.id}
+      className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
+    >
+      <TableCell className="w-8">
+        <button onClick={(e) => toggleFavorite(bull.id, e)}>
+          <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+        </button>
+      </TableCell>
+      {showCheckbox && (
+        <TableCell className="w-10">
+          <Checkbox
+            checked={selectedIds.has(bull.id)}
+            onCheckedChange={() => toggleOne(bull.id)}
+          />
+        </TableCell>
+      )}
+      <TableCell className="font-medium text-foreground">
+        {bull.bull_name}
+        {bull.naab_code && (
+          <span className="ml-2 text-xs text-muted-foreground">
+            ({bull.naab_code})
+          </span>
+        )}
+      </TableCell>
+      <TableCell>
+        <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {bull.breed}
+      </TableCell>
+      <TableCell>
+        <Badge
+          variant="secondary"
+          className={`text-xs ${
+            ({
+              ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+              "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+              "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+              Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+            } as Record<string, string>)[bull.company] ?? ""
+          }`}
+        >
+          {bull.company}
+        </Badge>
+      </TableCell>
+    </TableRow>
+  );
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -266,243 +372,208 @@ const BullList = () => {
                 Bull Catalog
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {filtered.length} of {bulls.length} bulls
+                {activeTab === "all"
+                  ? `${filtered.length} of ${bulls.length} bulls`
+                  : `${favoriteBulls.length} favorite${favoriteBulls.length !== 1 ? "s" : ""}`}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportAllVisible}
-              disabled={filtered.length === 0}
-              className="hidden sm:inline-flex"
-            >
-              <Download className="h-4 w-4 mr-1.5" />
-              Export All Visible
-            </Button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, registration, NAAB code, or company..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Select value={companyFilter} onValueChange={setCompanyFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Companies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {COMPANIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={breedFilter} onValueChange={setBreedFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Breeds" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Breeds</SelectItem>
-              {breeds.map((b) => (
-                <SelectItem key={b} value={b}>
-                  {b}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* Mobile export button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportAllVisible}
-            disabled={filtered.length === 0}
-            className="sm:hidden"
-          >
-            <Download className="h-4 w-4 mr-1.5" />
-            Export All Visible
-          </Button>
-        </div>
-
-        {/* Bulk action toolbar */}
-        {someSelected && (
-          <div className="flex items-center gap-3 mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-            <span className="text-sm font-medium text-foreground">
-              {selectedIds.size} bull{selectedIds.size !== 1 ? "s" : ""} selected
-            </span>
-            <Button size="sm" onClick={handleExportSelected}>
-              <Download className="h-4 w-4 mr-1.5" />
-              Export Selected as CSV
-            </Button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="text-xs text-muted-foreground hover:text-foreground underline ml-auto"
-            >
-              Clear Selection
-            </button>
-          </div>
-        )}
-
-        {/* Mobile card view */}
-        <div className="lg:hidden space-y-3">
-          {isLoading ? (
-            <p className="text-center py-12 text-muted-foreground">Loading bulls...</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-center py-12 text-muted-foreground">No bulls found.</p>
-          ) : (
-            filtered.map((bull) => (
-              <div
-                key={bull.id}
-                className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+            {activeTab === "all" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportAllVisible}
+                disabled={filtered.length === 0}
+                className="hidden sm:inline-flex"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <button onClick={(e) => toggleFavorite(bull.id, e)} className="shrink-0">
-                      <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
-                    </button>
-                    <Checkbox
-                      checked={selectedIds.has(bull.id)}
-                      onCheckedChange={() => toggleOne(bull.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0"
-                    />
-                    <p className="font-medium text-xs text-foreground truncate min-w-0">
-                      {bull.bull_name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] px-1.5 py-0 ${
-                        ({
-                          ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                          "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                          "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                          Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                        } as Record<string, string>)[bull.company] ?? ""
-                      }`}
-                    >
-                      {bull.company}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 pl-10">
-                  <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
-                  {bull.naab_code && (
-                    <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
-                  )}
-                  <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
-                </div>
-              </div>
-            ))
-          )}
+                <Download className="h-4 w-4 mr-1.5" />
+                Export All Visible
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Desktop table */}
-        <div className="hidden lg:block rounded-lg border border-border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary/50 hover:bg-secondary/50">
-                <TableHead className="w-8"></TableHead>
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={allVisibleSelected && filtered.length > 0}
-                    onCheckedChange={toggleAll}
-                  />
-                </TableHead>
-                {(
-                  [
-                    ["bull_name", "Bull Name"],
-                    ["registration_number", "Reg. Number"],
-                    ["breed", "Breed"],
-                    ["company", "Company"],
-                  ] as [SortKey, string][]
-                ).map(([key, label]) => (
-                  <TableHead
-                    key={key}
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleSort(key)}
-                  >
-                    {label}
-                    <SortIcon col={key} />
-                  </TableHead>
-                ))}
-                
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="all">All Bulls</TabsTrigger>
+            <TabsTrigger value="favorites">
+              <Star className="h-3.5 w-3.5 mr-1.5" />
+              My Favorites
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ===== ALL BULLS TAB ===== */}
+          <TabsContent value="all" className="mt-4 space-y-6">
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, registration, NAAB code, or company..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Companies" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {COMPANIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={breedFilter} onValueChange={setBreedFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Breeds" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Breeds</SelectItem>
+                  {breeds.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportAllVisible}
+                disabled={filtered.length === 0}
+                className="sm:hidden"
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Export All Visible
+              </Button>
+            </div>
+
+            {/* Bulk action toolbar */}
+            {someSelected && (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedIds.size} bull{selectedIds.size !== 1 ? "s" : ""} selected
+                </span>
+                <Button size="sm" onClick={handleExportSelected}>
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export Selected as CSV
+                </Button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-xs text-muted-foreground hover:text-foreground underline ml-auto"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            )}
+
+            {/* Mobile card view */}
+            <div className="lg:hidden space-y-3">
               {isLoading ? (
-                <TableRow>
-                 <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                     Loading bulls...
-                   </TableCell>
-                 </TableRow>
-               ) : filtered.length === 0 ? (
-                 <TableRow>
-                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                    No bulls found.
-                  </TableCell>
-                </TableRow>
+                <p className="text-center py-12 text-muted-foreground">Loading bulls...</p>
+              ) : filtered.length === 0 ? (
+                <p className="text-center py-12 text-muted-foreground">No bulls found.</p>
               ) : (
-                filtered.map((bull) => (
-                  <TableRow
-                    key={bull.id}
-                    className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
-                  >
-                    <TableCell className="w-8">
-                      <button onClick={(e) => toggleFavorite(bull.id, e)}>
-                        <Star className={`h-4 w-4 transition-colors ${favoritedIds.has(bull.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
-                      </button>
-                    </TableCell>
-                    <TableCell className="w-10">
-                      <Checkbox
-                        checked={selectedIds.has(bull.id)}
-                        onCheckedChange={() => toggleOne(bull.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {bull.bull_name}
-                      {bull.naab_code && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          ({bull.naab_code})
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {bull.breed}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${
-                          ({
-                            ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                            "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                            "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                            Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                          } as Record<string, string>)[bull.company] ?? ""
-                        }`}
-                      >
-                        {bull.company}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((bull) => renderMobileCard(bull))
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allVisibleSelected && filtered.length > 0}
+                        onCheckedChange={toggleAll}
+                      />
+                    </TableHead>
+                    {(
+                      [
+                        ["bull_name", "Bull Name"],
+                        ["registration_number", "Reg. Number"],
+                        ["breed", "Breed"],
+                        ["company", "Company"],
+                      ] as [SortKey, string][]
+                    ).map(([key, label]) => (
+                      <TableHead
+                        key={key}
+                        className="cursor-pointer select-none"
+                        onClick={() => toggleSort(key)}
+                      >
+                        {label}
+                        <SortIcon col={key} />
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        Loading bulls...
+                      </TableCell>
+                    </TableRow>
+                  ) : filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        No bulls found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((bull) => renderDesktopRow(bull, true))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          {/* ===== MY FAVORITES TAB ===== */}
+          <TabsContent value="favorites" className="mt-4">
+            {/* Mobile card view */}
+            <div className="lg:hidden space-y-3">
+              {favoriteBulls.length === 0 ? (
+                <p className="text-center py-12 text-muted-foreground">
+                  No favorites yet — star a bull to add it here.
+                </p>
+              ) : (
+                favoriteBulls.map((bull) => renderMobileCard(bull))
+              )}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden lg:block rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead>Bull Name</TableHead>
+                    <TableHead>Reg. Number</TableHead>
+                    <TableHead>Breed</TableHead>
+                    <TableHead>Company</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {favoriteBulls.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                        No favorites yet — star a bull to add it here.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    favoriteBulls.map((bull) => renderDesktopRow(bull, false))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
