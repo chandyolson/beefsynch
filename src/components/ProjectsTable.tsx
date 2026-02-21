@@ -109,7 +109,8 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* ── Desktop table ── */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -163,13 +164,53 @@ const ProjectsTable = ({ projects }: ProjectsTableProps) => {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                   No projects found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Mobile card view ── */}
+      <div className="md:hidden divide-y divide-border">
+        {filtered.map((project) => (
+          <div
+            key={project.id}
+            onClick={() => navigate(`/project/${project.id}`)}
+            className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
+              <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
+                {project.animalType}
+              </span>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
+                {project.status}
+              </span>
+              <span className="text-xs text-muted-foreground">{project.protocol}</span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{project.headCount} head</span>
+              <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
+            </div>
+
+            {project.location && (
+              <p className="text-xs text-muted-foreground truncate">{project.location}</p>
+            )}
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+            No projects found.
+          </div>
+        )}
       </div>
     </div>
   );
