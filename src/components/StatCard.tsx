@@ -37,7 +37,7 @@ const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatC
       <p style={{ fontSize: "10px", letterSpacing: "0.1em" }} className="font-semibold uppercase text-white/70">
         {title}
       </p>
-      <p style={{ fontSize: "28px" }} className="font-bold font-display text-white leading-tight mt-1">
+      <p style={{ fontSize: "28px", color: "#5de8d0" }} className="font-bold font-display leading-tight mt-3">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
       {breakdown && (
