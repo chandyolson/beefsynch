@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInDays } from "date-fns";
 import { Beef, Calendar } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -88,22 +88,28 @@ const Index = () => {
 
   const totalProjects = projects.length;
   const totalHead = projects.reduce((sum, p) => sum + p.headCount, 0);
+  const heiferProjects = projects.filter((p) => p.animalType === "Heifer");
+  const cowProjects = projects.filter((p) => p.animalType === "Cow");
+  const heiferHead = heiferProjects.reduce((s, p) => s + p.headCount, 0);
+  const cowHead = cowProjects.reduce((s, p) => s + p.headCount, 0);
 
-  // Bulls in use: count distinct catalog IDs + distinct custom names
-  const bullsInUse = useMemo(() => {
+  // Bulls stats
+  const bullStats = useMemo(() => {
+    const names = new Set<string>();
     const catalogIds = new Set<string>();
-    const customNames = new Set<string>();
+    let totalUnits = 0;
     for (const bulls of Object.values(bullsByProject)) {
       for (const b of bulls) {
-        // We stored name from catalog or custom — use name as unique key
-        customNames.add(b.name);
+        names.add(b.name);
+        totalUnits += b.units;
       }
     }
-    return catalogIds.size + customNames.size;
+    // We don't have catalog vs custom separation here, so catalogIds stays 0
+    return { distinct: names.size, catalogCount: names.size, totalUnits };
   }, [bullsByProject]);
 
-  // Breeding season date range
-  const breedingDateRange = useMemo(() => {
+  // Breeding season
+  const breedingSeason = useMemo(() => {
     const dates = dbProjects
       .map((p) => p.breeding_date)
       .filter((d): d is string => !!d)
@@ -111,40 +117,62 @@ const Index = () => {
     if (dates.length === 0) return null;
     const first = dates[0];
     const last = dates[dates.length - 1];
-    return { first, last, same: first === last };
+    const same = first === last;
+    const span = same ? 1 : differenceInDays(parseISO(last), parseISO(first));
+    return { first, last, same, span };
   }, [dbProjects]);
-
-  const breedingSeasonContent = breedingDateRange ? (
-    breedingDateRange.same ? (
-      <div>
-        <p className="text-xs text-white/70 font-medium">Breeding Date:</p>
-        <p className="text-xl font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
-      </div>
-    ) : (
-      <div className="space-y-1">
-        <div>
-          <p className="text-xs text-white/70 font-medium">First Breed:</p>
-          <p className="text-sm font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
-        </div>
-        <div>
-          <p className="text-xs text-white/70 font-medium">Last Breed:</p>
-          <p className="text-sm font-bold font-display text-white">{format(parseISO(breedingDateRange.last), "MMM d, yyyy")}</p>
-        </div>
-      </div>
-    )
-  ) : (
-    <p className="text-lg font-bold font-display text-white/50">No dates set</p>
-  );
 
   return (
     <div className="min-h-screen">
       <Navbar onNewProject={() => setDialogOpen(true)} />
       <main className="container mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Projects" value={totalProjects} subtitle={`${totalProjects} projects`} delay={0} index={0} />
-          <StatCard title="Total Head" value={totalHead} subtitle="across all projects" delay={100} index={1} />
-          <StatCard title="Bulls in Use" value={bullsInUse} subtitle="across all projects" delay={200} index={2} icon={Beef} />
-          <StatCard title="Breeding Season" customContent={breedingSeasonContent} subtitle="active project range" delay={300} index={3} icon={Calendar} />
+          <StatCard
+            title="Total Projects"
+            value={totalProjects}
+            delay={0}
+            index={0}
+            breakdown={<>
+              <p>🐮 Heifers: {heiferProjects.length} projects</p>
+              <p>🐄 Cows: {cowProjects.length} projects</p>
+            </>}
+          />
+          <StatCard
+            title="Total Head"
+            value={totalHead}
+            delay={100}
+            index={1}
+            breakdown={<>
+              <p>🐮 Heifers: {heiferHead} head</p>
+              <p>🐄 Cows: {cowHead} head</p>
+            </>}
+          />
+          <StatCard
+            title="Bulls in Use"
+            value={bullStats.distinct}
+            delay={200}
+            index={2}
+            icon={Beef}
+            breakdown={<>
+              <p>Catalog Bulls: {bullStats.catalogCount}</p>
+              <p>Total Units: {bullStats.totalUnits}</p>
+            </>}
+          />
+          <StatCard
+            title="Breeding Season"
+            value={breedingSeason ? `${breedingSeason.span} day${breedingSeason.span !== 1 ? "s" : ""}` : "—"}
+            delay={300}
+            index={3}
+            icon={Calendar}
+            breakdown={breedingSeason ? (
+              breedingSeason.same ? (
+                <p>Date: {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
+              ) : (<>
+                <p>First: {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
+                <p>Last: {format(parseISO(breedingSeason.last), "MMM d, yyyy")}</p>
+              </>)
+            ) : undefined}
+          />
         </div>
         {selectedProjects.length > 0 && (
           <BulkActionToolbar
