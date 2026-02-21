@@ -133,8 +133,8 @@ const Index = () => {
             delay={0}
             index={0}
             breakdown={<>
-              <p>Heifers {heiferProjects.length} projects</p>
-              <p>Cows {cowProjects.length} projects</p>
+              <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferProjects.length} projects</span></p>
+              <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowProjects.length} projects</span></p>
             </>}
           />
           <StatCard
@@ -143,8 +143,8 @@ const Index = () => {
             delay={100}
             index={1}
             breakdown={<>
-              <p>Heifers {heiferHead} head</p>
-              <p>Cows {cowHead} head</p>
+              <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferHead} head</span></p>
+              <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowHead} head</span></p>
             </>}
           />
           <StatCard
@@ -154,8 +154,8 @@ const Index = () => {
             index={2}
             icon={Beef}
             breakdown={<>
-              <p>Catalog Bulls {bullStats.catalogCount}</p>
-              <p>Total Units {bullStats.totalUnits}</p>
+              <p className="flex justify-between">Catalog Bulls <span style={{ color: "#5de8d0" }}>{bullStats.catalogCount}</span></p>
+              <p className="flex justify-between">Total Units <span style={{ color: "#5de8d0" }}>{bullStats.totalUnits}</span></p>
             </>}
           />
           <StatCard
@@ -166,10 +166,10 @@ const Index = () => {
             icon={Calendar}
             breakdown={breedingSeason ? (
               breedingSeason.same ? (
-                <p>Date {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
+                <p className="flex justify-between">Date <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
               ) : (<>
-                <p>First {format(parseISO(breedingSeason.first), "MMM d, yyyy")}</p>
-                <p>Last {format(parseISO(breedingSeason.last), "MMM d, yyyy")}</p>
+                <p className="flex justify-between">First <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
+                <p className="flex justify-between">Last <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.last), "MMM d, yyyy")}</span></p>
               </>)
             ) : undefined}
           />
