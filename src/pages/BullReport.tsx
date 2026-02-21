@@ -15,6 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -435,16 +441,24 @@ const BullReport = () => {
               </p>
             </div>
             {hasRun && reportRows.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={handleExportCsv} className="gap-2">
-                  <FileDown className="h-4 w-4" />
-                  Export CSV
-                </Button>
-                <Button onClick={handleExport} className="gap-2">
-                  <FileDown className="h-4 w-4" />
-                  Export PDF
-                </Button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white text-gray-900 border z-50">
+                  <DropdownMenuItem onClick={handleExportCsv} className="cursor-pointer gap-2">
+                    <FileDown className="h-4 w-4" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExport} className="cursor-pointer gap-2">
+                    <FileDown className="h-4 w-4" />
+                    Export PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
