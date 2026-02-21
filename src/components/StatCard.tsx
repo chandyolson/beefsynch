@@ -1,14 +1,17 @@
-import { Calendar, Users, Baby, Beef } from "lucide-react";
+import { ReactNode } from "react";
+import { Calendar, Users, Beef, LucideIcon } from "lucide-react";
 
 interface StatCardProps {
   title: string;
-  value: number;
+  value?: number;
+  customContent?: ReactNode;
   subtitle?: string;
   delay?: number;
   index?: number;
+  icon?: LucideIcon;
 }
 
-const icons = [Calendar, Users, Baby, Beef];
+const defaultIcons: LucideIcon[] = [Calendar, Users, Beef, Calendar];
 
 const gradients = [
   "linear-gradient(135deg, #102175 0%, #1a3285 100%)",
@@ -17,8 +20,8 @@ const gradients = [
   "linear-gradient(135deg, #0d8a8a 0%, #0da3a3 100%)",
 ];
 
-const StatCard = ({ title, value, subtitle, delay = 0, index = 0 }: StatCardProps) => {
-  const Icon = icons[index % icons.length];
+const StatCard = ({ title, value, customContent, subtitle, delay = 0, index = 0, icon }: StatCardProps) => {
+  const Icon = icon || defaultIcons[index % defaultIcons.length];
 
   return (
     <div
@@ -39,9 +42,13 @@ const StatCard = ({ title, value, subtitle, delay = 0, index = 0 }: StatCardProp
         </div>
       </div>
       <div className="mt-3">
-        <p className="text-3xl font-bold font-display text-white">
-          {value.toLocaleString()}
-        </p>
+        {customContent ? (
+          customContent
+        ) : (
+          <p className="text-3xl font-bold font-display text-white">
+            {(value ?? 0).toLocaleString()}
+          </p>
+        )}
         {subtitle && (
           <p className="text-xs text-white/50 mt-1">{subtitle}</p>
         )}

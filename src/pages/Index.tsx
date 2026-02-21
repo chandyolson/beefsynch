@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { format, parseISO } from "date-fns";
+import { Beef, Calendar } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import StatCard from "@/components/StatCard";
@@ -86,8 +88,53 @@ const Index = () => {
 
   const totalProjects = projects.length;
   const totalHead = projects.reduce((sum, p) => sum + p.headCount, 0);
-  const heiferProjects = projects.filter((p) => p.animalType === "Heifer").length;
-  const cowProjects = projects.filter((p) => p.animalType === "Cow").length;
+
+  // Bulls in use: count distinct catalog IDs + distinct custom names
+  const bullsInUse = useMemo(() => {
+    const catalogIds = new Set<string>();
+    const customNames = new Set<string>();
+    for (const bulls of Object.values(bullsByProject)) {
+      for (const b of bulls) {
+        // We stored name from catalog or custom — use name as unique key
+        customNames.add(b.name);
+      }
+    }
+    return catalogIds.size + customNames.size;
+  }, [bullsByProject]);
+
+  // Breeding season date range
+  const breedingDateRange = useMemo(() => {
+    const dates = dbProjects
+      .map((p) => p.breeding_date)
+      .filter((d): d is string => !!d)
+      .sort();
+    if (dates.length === 0) return null;
+    const first = dates[0];
+    const last = dates[dates.length - 1];
+    return { first, last, same: first === last };
+  }, [dbProjects]);
+
+  const breedingSeasonContent = breedingDateRange ? (
+    breedingDateRange.same ? (
+      <div>
+        <p className="text-xs text-white/70 font-medium">Breeding Date:</p>
+        <p className="text-xl font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
+      </div>
+    ) : (
+      <div className="space-y-1">
+        <div>
+          <p className="text-xs text-white/70 font-medium">First Breed:</p>
+          <p className="text-lg font-bold font-display text-white">{format(parseISO(breedingDateRange.first), "MMM d, yyyy")}</p>
+        </div>
+        <div>
+          <p className="text-xs text-white/70 font-medium">Last Breed:</p>
+          <p className="text-lg font-bold font-display text-white">{format(parseISO(breedingDateRange.last), "MMM d, yyyy")}</p>
+        </div>
+      </div>
+    )
+  ) : (
+    <p className="text-lg font-bold font-display text-white/50">No dates set</p>
+  );
 
   return (
     <div className="min-h-screen">
@@ -96,8 +143,8 @@ const Index = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Projects" value={totalProjects} subtitle={`${totalProjects} projects`} delay={0} index={0} />
           <StatCard title="Total Head" value={totalHead} subtitle="across all projects" delay={100} index={1} />
-          <StatCard title="Heifer Projects" value={heiferProjects} subtitle={`${heiferProjects} projects`} delay={200} index={2} />
-          <StatCard title="Cow Projects" value={cowProjects} subtitle={`${cowProjects} projects`} delay={300} index={3} />
+          <StatCard title="Bulls in Use" value={bullsInUse} subtitle="across all projects" delay={200} index={2} icon={Beef} />
+          <StatCard title="Breeding Season" customContent={breedingSeasonContent} subtitle="active project range" delay={300} index={3} icon={Calendar} />
         </div>
         {selectedProjects.length > 0 && (
           <BulkActionToolbar
