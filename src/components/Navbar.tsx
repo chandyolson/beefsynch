@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { List, CalendarDays, Plus, BarChart3, LogOut, User, Menu, X } from "lucide-react";
+import cowLogo from "@/assets/cow-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -47,13 +48,16 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
     <header className="border-b border-border/50 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         {/* Logo */}
-        <div>
-          <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
-            Beef<span className="text-primary">Synch</span>
-          </h1>
-          <p className="text-xs text-muted-foreground tracking-wide">
-            Synchronization &amp; Breeding Management
-          </p>
+        <div className="flex items-center gap-3">
+          <img src={cowLogo} alt="BeefSynch logo" className="h-9 w-9 object-contain" />
+          <div>
+            <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
+              Beef<span className="text-primary">Synch</span>
+            </h1>
+            <p className="text-xs text-muted-foreground tracking-wide">
+              Synchronization &amp; Breeding Management
+            </p>
+          </div>
         </div>
 
         {/* Desktop nav */}
