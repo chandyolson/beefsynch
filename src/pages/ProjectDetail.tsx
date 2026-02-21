@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical } from "lucide-react";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
@@ -10,6 +10,12 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -137,39 +143,46 @@ const ProjectDetail = () => {
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
-                <Calendar className="h-4 w-4 mr-1" /> Add to Google Calendar
-              </a>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const bullsForIcs = bulls.map((b) => ({
-                  bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
-                  registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
-                  units: b.units,
-                }));
-                const icsEvents = buildProjectIcsEvents(project, events, bullsForIcs);
-                const icsContent = generateIcsFile(icsEvents, `${project.name} — BeefSynch`);
-                const safeName = project.name.replace(/\s+/g, "_");
-                downloadIcsFile(icsContent, `${safeName}_BeefSynch.ics`);
-                toast({ title: "Calendar downloaded", description: `${project.name} .ics file saved.` });
-              }}
-            >
-              <Download className="h-4 w-4 mr-1" /> Download .ics
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                generateProjectCsv(project, events, bulls);
-                toast({ title: "CSV downloaded", description: `${project.name} CSV saved.` });
-              }}
-            >
-              <Download className="h-4 w-4 mr-1" /> Download CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreVertical className="h-4 w-4 mr-1" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
+                <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                  <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
+                    <Calendar className="h-4 w-4" /> Add to Google Calendar
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={() => {
+                    const bullsForIcs = bulls.map((b) => ({
+                      bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                      registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
+                      units: b.units,
+                    }));
+                    const icsEvents = buildProjectIcsEvents(project, events, bullsForIcs);
+                    const icsContent = generateIcsFile(icsEvents, `${project.name} — BeefSynch`);
+                    const safeName = project.name.replace(/\s+/g, "_");
+                    downloadIcsFile(icsContent, `${safeName}_BeefSynch.ics`);
+                    toast({ title: "Calendar downloaded", description: `${project.name} .ics file saved.` });
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Download .ics
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={() => {
+                    generateProjectCsv(project, events, bulls);
+                    toast({ title: "CSV downloaded", description: `${project.name} CSV saved.` });
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Download CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               size="sm"
