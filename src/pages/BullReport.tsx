@@ -684,7 +684,7 @@ const BullReport = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <ClickableRegNumber registrationNumber={row.registrationNumber || null} />
+                          <ClickableRegNumber registrationNumber={row.registrationNumber || null} breed={row.breed} />
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           {row.totalUnits}

@@ -202,7 +202,7 @@ const BullList = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <ClickableRegNumber registrationNumber={bull.registration_number} />
+                  <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
                   {bull.naab_code && (
                     <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
                   )}
@@ -266,7 +266,7 @@ const BullList = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <ClickableRegNumber registrationNumber={bull.registration_number} />
+                      <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {bull.breed}

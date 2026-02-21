@@ -51,7 +51,7 @@ interface BullRow {
   units: number;
   custom_bull_name: string | null;
   bull_catalog_id: string | null;
-  bulls_catalog: { bull_name: string; company: string; registration_number: string } | null;
+  bulls_catalog: { bull_name: string; company: string; registration_number: string; breed: string } | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -80,7 +80,7 @@ const ProjectDetail = () => {
         .order("event_date", { ascending: true }),
       supabase
         .from("project_bulls")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
         .eq("project_id", id),
     ]);
 
@@ -381,7 +381,7 @@ const ProjectDetail = () => {
                           : b.custom_bull_name ?? "Unknown"}
                         {b.bulls_catalog?.registration_number && (
                           <div className="mt-0.5">
-                            <ClickableRegNumber registrationNumber={b.bulls_catalog.registration_number} />
+                            <ClickableRegNumber registrationNumber={b.bulls_catalog.registration_number} breed={b.bulls_catalog.breed} />
                           </div>
                         )}
                       </TableCell>

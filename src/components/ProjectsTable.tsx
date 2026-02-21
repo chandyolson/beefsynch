@@ -10,7 +10,7 @@ interface ProjectsTableProps {
   projects: BreedingProject[];
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
-  bullsByProject?: Record<string, { name: string; units: number; registrationNumber?: string }[]>;
+  bullsByProject?: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>;
 }
 
 type SortKey = keyof BreedingProject;
@@ -103,7 +103,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
           <div key={i} className="text-xs text-foreground whitespace-nowrap flex items-center gap-1">
             <span>{b.name} ({b.units} units)</span>
             {b.registrationNumber && (
-              <ClickableRegNumber registrationNumber={b.registrationNumber} />
+              <ClickableRegNumber registrationNumber={b.registrationNumber} breed={b.breed} />
             )}
           </div>
         ))}
