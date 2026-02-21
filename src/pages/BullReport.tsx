@@ -443,8 +443,8 @@ const BullReport = () => {
             {hasRun && reportRows.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Download className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs text-muted-foreground font-normal">
+                    <Download className="h-3.5 w-3.5" />
                     Export
                   </Button>
                 </DropdownMenuTrigger>
