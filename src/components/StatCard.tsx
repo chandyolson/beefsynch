@@ -13,11 +13,11 @@ interface StatCardProps {
 const defaultIcons: LucideIcon[] = [Calendar, Users, Beef, Calendar];
 
 const gradients = [
-  "linear-gradient(135deg, #102175 0%, #1a3285 100%)",
-  "linear-gradient(135deg, #1a3285 0%, #1a5a8a 100%)",
-  "linear-gradient(135deg, #1a5a8a 0%, #0d8a8a 100%)",
-  "linear-gradient(135deg, #0d8a8a 0%, #0da3a3 100%)",
-];
+"linear-gradient(135deg, #102175 0%, #1a3285 100%)",
+"linear-gradient(135deg, #1a3285 0%, #1a5a8a 100%)",
+"linear-gradient(135deg, #1a5a8a 0%, #0d8a8a 100%)",
+"linear-gradient(135deg, #0d8a8a 0%, #0da3a3 100%)"];
+
 
 const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatCardProps) => {
   const Icon = icon || defaultIcons[index % defaultIcons.length];
@@ -30,23 +30,23 @@ const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatC
         background: gradients[index % gradients.length],
         borderRadius: "12px",
         boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-        padding: "16px",
-      }}
-    >
+        padding: "16px"
+      }}>
+
       
       <p style={{ fontSize: "10px", letterSpacing: "0.1em" }} className="font-semibold uppercase text-white/70">
         {title}
       </p>
-      <p style={{ fontSize: "28px", color: "#5de8d0" }} className="font-bold font-display leading-tight mt-3">
+      <p style={{ fontSize: "28px" }} className="font-bold font-display leading-tight mt-1 text-destructive-foreground">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
-      {breakdown && (
-        <div className="mt-1 space-y-0.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
+      {breakdown &&
+      <div className="mt-1 space-y-0.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
           {breakdown}
         </div>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 };
 
 export default StatCard;
