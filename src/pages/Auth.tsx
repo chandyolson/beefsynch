@@ -226,7 +226,7 @@ const Auth = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <Button
                 onClick={() => setMode("login")}
                 className="flex-1 h-12 text-sm font-semibold text-white"
