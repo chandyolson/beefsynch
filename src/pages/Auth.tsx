@@ -242,7 +242,7 @@ const Auth = () => {
               onClick={handleGuestLogin}
               className="flex-1 h-12 text-sm font-semibold border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">
 
-                {loading ? "Signing in…" : "Try as Guest — No Account Needed"}
+                {loading ? "Signing in…" : "Try as Guest"}
               </Button>
             </div>
 
