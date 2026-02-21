@@ -95,6 +95,17 @@ const Auth = () => {
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInAnonymously();
+    setLoading(false);
+    if (error) {
+      toast({ title: "Guest sign in failed", description: error.message, variant: "destructive" });
+    } else {
+      navigate("/");
+    }
+  };
+
   const handleLogin = async (values: LoginValues) => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
@@ -214,6 +225,23 @@ const Auth = () => {
 
               <Button type="submit" disabled={loading} className="w-full h-11 text-sm font-semibold text-white">
                 {loading ? "Signing in…" : "Sign In"}
+              </Button>
+
+              {/* Or divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/20" />
+                <span className="text-xs text-white/40">or</span>
+                <div className="flex-1 h-px bg-white/20" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading}
+                onClick={handleGuestLogin}
+                className="w-full h-11 text-sm font-semibold border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              >
+                {loading ? "Signing in…" : "Continue as Guest"}
               </Button>
 
               <p className="text-center text-sm text-white/50">

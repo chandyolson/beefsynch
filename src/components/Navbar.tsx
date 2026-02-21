@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, Menu, X } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Menu, X } from "lucide-react";
 import cowLogo from "@/assets/cow-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -23,12 +23,16 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
   const [email, setEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
+      setIsAnonymous(data.user?.is_anonymous === true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user?.email ?? null);
+      setIsAnonymous(session?.user?.is_anonymous === true);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -83,14 +87,19 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             <DropdownMenuTrigger asChild>
               <button className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <User className="h-4 w-4 shrink-0" />
-                {email && (
-                  <span className="hidden lg:inline max-w-[160px] truncate">{email}</span>
-                )}
+                <span className="hidden lg:inline max-w-[160px] truncate">
+                  {isAnonymous ? "Guest User" : email ?? ""}
+                </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
-              {email && (
-                <div className="px-3 py-2 text-xs text-muted-foreground truncate border-b border-border">{email}</div>
+              <div className="px-3 py-2 text-xs text-muted-foreground truncate border-b border-border">
+                {isAnonymous ? "Guest User" : email ?? ""}
+              </div>
+              {isAnonymous && (
+                <DropdownMenuItem onClick={() => navigate("/auth")} className="cursor-pointer gap-2">
+                  <UserPlus className="h-4 w-4" /> Create Account
+                </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4" /> Sign Out
@@ -128,8 +137,13 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             <Plus className="h-4 w-4" /> New Project
           </button>
           <div className="border-t border-border/50 pt-2 mt-2 space-y-1">
-            {email && (
-              <div className="px-3 py-1 text-xs text-muted-foreground truncate">{email}</div>
+            <div className="px-3 py-1 text-xs text-muted-foreground truncate">
+              {isAnonymous ? "Guest User" : email ?? ""}
+            </div>
+            {isAnonymous && (
+              <button onClick={() => go("/auth")} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors w-full">
+                <UserPlus className="h-4 w-4" /> Create Account
+              </button>
             )}
             <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-secondary transition-colors w-full">
               <LogOut className="h-4 w-4" /> Sign Out
