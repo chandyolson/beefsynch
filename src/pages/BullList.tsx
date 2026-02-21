@@ -153,43 +153,39 @@ const BullList = () => {
             filtered.map((bull) => (
               <div
                 key={bull.id}
-                className={`rounded-lg border border-border bg-card p-4 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+                className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">
-                      {bull.bull_name}
-                      {bull.naab_code && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">({bull.naab_code})</span>
-                      )}
-                    </p>
-                    <div className="mt-1">
-                      <ClickableRegNumber registrationNumber={bull.registration_number} />
-                    </div>
-                  </div>
-                  <div className="shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-sm text-foreground truncate min-w-0">
+                    {bull.bull_name}
+                    {bull.naab_code && (
+                      <span className="ml-1 text-xs text-muted-foreground">({bull.naab_code})</span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className={`text-[10px] px-1.5 py-0 ${
+                        ({
+                          ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                          "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                          "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                          Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                        } as Record<string, string>)[bull.company] ?? ""
+                      }`}
+                    >
+                      {bull.company}
+                    </Badge>
                     {bull.active ? (
-                      <Check className="h-4 w-4 text-primary" />
+                      <Check className="h-3.5 w-3.5 text-primary" />
                     ) : (
-                      <X className="h-4 w-4 text-destructive" />
+                      <X className="h-3.5 w-3.5 text-destructive" />
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-muted-foreground">{bull.breed}</span>
-                  <Badge
-                    variant="secondary"
-                    className={`text-xs ${
-                      ({
-                        ABS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                        "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                        "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                        Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                      } as Record<string, string>)[bull.company] ?? ""
-                    }`}
-                  >
-                    {bull.company}
-                  </Badge>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <ClickableRegNumber registrationNumber={bull.registration_number} />
+                  <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
                 </div>
               </div>
             ))
