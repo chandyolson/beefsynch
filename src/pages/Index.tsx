@@ -72,10 +72,10 @@ const Index = () => {
       <Navbar onNewProject={() => setDialogOpen(true)} />
       <main className="container mx-auto px-4 py-8 space-y-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Projects" value={totalProjects} delay={0} />
-          <StatCard title="Total Head" value={totalHead} delay={100} />
-          <StatCard title="Heifer Projects" value={heiferProjects} delay={200} />
-          <StatCard title="Cow Projects" value={cowProjects} delay={300} />
+          <StatCard title="Total Projects" value={totalProjects} subtitle={`${totalProjects} projects`} delay={0} index={0} />
+          <StatCard title="Total Head" value={totalHead} subtitle="across all projects" delay={100} index={1} />
+          <StatCard title="Heifer Projects" value={heiferProjects} subtitle={`${heiferProjects} projects`} delay={200} index={2} />
+          <StatCard title="Cow Projects" value={cowProjects} subtitle={`${cowProjects} projects`} delay={300} index={3} />
         </div>
         {selectedProjects.length > 0 && (
           <BulkActionToolbar
