@@ -77,7 +77,48 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Only owners and admins can invite members" }, 403);
     }
 
-    // Step 3 — Check for duplicate invite
+    // Step 2.5 — Handle ghost users from previous failed invites
+    const { data: { users: existingAuthUsers } } = await adminClient.auth.admin.listUsers();
+    const existingAuthUser = existingAuthUsers?.find(
+      (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (existingAuthUser) {
+      if (existingAuthUser.email_confirmed_at) {
+        // Real confirmed user — check if already in this org
+        const { data: existingMemberByUid } = await adminClient
+          .from("organization_members")
+          .select("id, accepted")
+          .eq("user_id", existingAuthUser.id)
+          .eq("organization_id", organization_id)
+          .maybeSingle();
+
+        if (existingMemberByUid?.accepted) {
+          return jsonResponse({ error: "This person is already a member of your organization." }, 409);
+        }
+        // They exist but are not yet a member — continue to send invite
+      } else {
+        // Ghost user from a previous failed invite — delete them so we can re-invite cleanly
+        await adminClient.auth.admin.deleteUser(existingAuthUser.id);
+        console.log("Deleted ghost user:", existingAuthUser.id);
+
+        // Also clean up any stale org member / pending invite rows for this email
+        await adminClient
+          .from("organization_members")
+          .delete()
+          .eq("invited_email", email)
+          .eq("organization_id", organization_id)
+          .eq("accepted", false);
+        await adminClient
+          .from("pending_invites")
+          .delete()
+          .eq("invited_email", email)
+          .eq("organization_id", organization_id)
+          .eq("accepted", false);
+      }
+    }
+
+    // Step 3 — Check for duplicate pending invite
     const { data: existingInvite } = await adminClient
       .from("pending_invites")
       .select("id")
@@ -95,24 +136,7 @@ Deno.serve(async (req) => {
       .eq("accepted", true)
       .maybeSingle();
 
-    // Also check by user_id if user exists
-    const { data: { users: matchedUsers } } = await adminClient.auth.admin.listUsers({
-      filter: `email.eq.${email}`,
-    });
-    const matchedUser = matchedUsers?.[0] ?? null;
-    let memberByUserId = null;
-    if (matchedUser) {
-      const { data } = await adminClient
-        .from("organization_members")
-        .select("id")
-        .eq("organization_id", organization_id)
-        .eq("user_id", matchedUser.id)
-        .eq("accepted", true)
-        .maybeSingle();
-      memberByUserId = data;
-    }
-
-    if (existingInvite || existingMember || memberByUserId) {
+    if (existingInvite || existingMember) {
       return jsonResponse({
         error: "An invitation has already been sent to this email address or they are already a member.",
       }, 409);
