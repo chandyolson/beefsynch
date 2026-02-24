@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
+import TeamManagement from "./pages/TeamManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
           <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
           <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
+          <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

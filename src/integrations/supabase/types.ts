@@ -265,6 +265,10 @@ export type Database = {
     }
     Functions: {
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
+      get_org_role: {
+        Args: { _organization_id: string; _user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

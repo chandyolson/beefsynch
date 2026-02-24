@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Menu, X } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +23,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const { role: orgRole } = useOrgRole();
+  const canManageTeam = orgRole === "owner" || orgRole === "admin";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -113,6 +115,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                   <UserPlus className="h-4 w-4" /> Create Account
                 </DropdownMenuItem>
               )}
+              {canManageTeam && (
+                <DropdownMenuItem onClick={() => go("/team")} className="cursor-pointer gap-2">
+                  <Users className="h-4 w-4" /> Manage Team
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4" /> Sign Out
               </DropdownMenuItem>
@@ -169,7 +176,12 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                 <UserPlus className="h-4 w-4" /> Create Account
               </button>
             )}
-            <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-pink-400 hover:bg-secondary transition-colors w-full">
+            {canManageTeam && (
+              <button onClick={() => go("/team")} className={navBtnClass}>
+                <Users className="h-4 w-4" /> Manage Team
+              </button>
+            )}
+            <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-secondary transition-colors w-full">
               <LogOut className="h-4 w-4" /> Sign Out
             </button>
           </div>
