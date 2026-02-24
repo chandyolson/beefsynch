@@ -87,11 +87,19 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
     }
   };
 
+  // Map display labels to DB values
+  const statusDisplayToDb: Record<string, string> = {
+    Tentative: "Tentative",
+    Confirmed: "Confirmed",
+    Complete: "Complete",
+  };
+
   const handleStatusChange = async (status: string) => {
+    const dbStatus = statusDisplayToDb[status] || status;
     setBusy(true);
     const failed: string[] = [];
     for (const p of selectedProjects) {
-      const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
+      const { error } = await supabase.from("projects").update({ status: dbStatus }).eq("id", p.id);
       if (error) failed.push(p.name);
     }
     setBusy(false);
