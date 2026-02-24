@@ -85,7 +85,11 @@ export function generateIcsFile(events: IcsEvent[], calName: string): string {
   return lines.join("\r\n");
 }
 
-const NO_TIME_EVENTS = ["Return Heat", "Estimated Calving"];
+const isNoTimeEvent = (name: string) => {
+  const exact = ["Return Heat", "Estimated Calving"];
+  const contains = ["CIDR Insert", "GnRH"];
+  return exact.includes(name) || contains.some((k) => name.includes(k));
+};
 
 const formatTime12 = (time: string) => {
   const [h, m] = time.split(":").map(Number);
@@ -147,7 +151,7 @@ export function buildProjectIcsEvents(
   const description = descParts.join("\n");
 
   return events.map((ev) => {
-    const isAllDay = NO_TIME_EVENTS.includes(ev.event_name);
+    const isAllDay = isNoTimeEvent(ev.event_name);
     return {
       uid: `${project.id}-${ev.id}@beefsynch`,
       summary: `${project.name} — ${ev.event_name}`,

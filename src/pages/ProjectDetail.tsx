@@ -116,7 +116,11 @@ const ProjectDetail = () => {
     );
   }
 
-  const noTimeEvents = ["Return Heat", "Estimated Calving"];
+  const isNoTimeEvent = (name: string) => {
+    const exact = ["Return Heat", "Estimated Calving"];
+    const contains = ["CIDR Insert", "GnRH"];
+    return exact.includes(name) || contains.some((k) => name.includes(k));
+  };
 
   const formatTime12 = (time: string) => {
     const [h, m] = time.split(":").map(Number);
@@ -312,7 +316,7 @@ const ProjectDetail = () => {
                 {/* Mobile condensed view */}
                 <div className="lg:hidden divide-y divide-border">
                   {events.map((ev) => {
-                    const isNoTime = noTimeEvents.includes(ev.event_name);
+                    const isNoTime = isNoTimeEvent(ev.event_name);
                     const time = isNoTime || !ev.event_time ? "" : ` · ${formatTime12(ev.event_time)}`;
                     return (
                       <div key={ev.id} className="flex items-center justify-between py-2 gap-2">
@@ -335,7 +339,7 @@ const ProjectDetail = () => {
                   </TableHeader>
                   <TableBody>
                     {events.map((ev) => {
-                      const isNoTime = noTimeEvents.includes(ev.event_name);
+                      const isNoTime = isNoTimeEvent(ev.event_name);
                       return (
                         <TableRow key={ev.id}>
                           <TableCell className="font-medium">

@@ -50,7 +50,7 @@ const EVENT_COLORS: Record<string, string> = {
   "Bulls In": "bg-sky-500/80 text-white",
   "MGA Start": "bg-violet-500/80 text-white",
   "MGA End": "bg-fuchsia-500/80 text-white",
-  "Breeding": "bg-amber-500/80 text-white",
+  "Timed Breeding": "bg-amber-500/80 text-white",
   "Return Heat": "bg-teal-500/80 text-white",
   "Estimated Calving": "bg-pink-400/80 text-white",
 };

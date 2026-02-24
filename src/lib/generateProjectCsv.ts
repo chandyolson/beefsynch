@@ -24,7 +24,11 @@ interface BullData {
   bulls_catalog: { bull_name: string; company: string; registration_number: string } | null;
 }
 
-const noTimeEvents = ["Return Heat", "Estimated Calving"];
+const isNoTimeEvent = (name: string) => {
+  const exact = ["Return Heat", "Estimated Calving"];
+  const contains = ["CIDR Insert", "GnRH"];
+  return exact.includes(name) || contains.some((k) => name.includes(k));
+};
 
 const formatTime12 = (time: string) => {
   const [h, m] = time.split(":").map(Number);
@@ -81,7 +85,7 @@ export function generateProjectCsv(
 
   // Event rows
   for (const ev of events) {
-    const isNoTime = noTimeEvents.includes(ev.event_name);
+    const isNoTime = isNoTimeEvent(ev.event_name);
     const eventFields = [
       ev.event_name,
       format(parseISO(ev.event_date), "M/d/yyyy"),
