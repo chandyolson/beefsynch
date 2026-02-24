@@ -59,6 +59,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   const needsOnboarding = !isAnonymous && userOrgs.length === 0;
 
+  if (!needsOnboarding && location.pathname === "/onboarding") {
+    return <Navigate to="/" replace />;
+  }
+
   if (needsOnboarding && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
