@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Check, X, Trash2, Send, ArrowLeft } from "lucide-react";
+import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw } from "lucide-react";
 
 interface Member {
   id: string;
@@ -29,6 +29,7 @@ interface Member {
   invited_email: string | null;
   role: string;
   accepted: boolean | null;
+  email: string | null;
 }
 
 const TeamManagement = () => {
@@ -43,24 +44,22 @@ const TeamManagement = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const canManage = myRole === "owner" || myRole === "admin";
 
-  // Fetch org info + members
+  // Fetch org info + members (using RPC for real emails)
   const fetchData = useCallback(async () => {
     if (!orgId) return;
     const [orgRes, membersRes] = await Promise.all([
       supabase.from("organizations").select("name, invite_code").eq("id", orgId).single(),
-      supabase
-        .from("organization_members")
-        .select("id, user_id, invited_email, role, accepted")
-        .eq("organization_id", orgId),
+      supabase.rpc("get_org_members", { _organization_id: orgId }),
     ]);
     if (orgRes.data) {
       setOrgName(orgRes.data.name);
       setInviteCode(orgRes.data.invite_code ?? "");
     }
-    if (membersRes.data) setMembers(membersRes.data);
+    if (membersRes.data) setMembers(membersRes.data as Member[]);
   }, [orgId]);
 
   useEffect(() => {
@@ -117,26 +116,63 @@ const TeamManagement = () => {
     }
   };
 
-  // Invite member
+  // Copy invite code
+  const copyInviteCode = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+      toast({ title: "Invite code copied to clipboard" });
+    } catch {
+      toast({ title: "Could not copy", variant: "destructive" });
+    }
+  };
+
+  // Regenerate invite code (owner only)
+  const regenerateInviteCode = async () => {
+    if (!orgId) return;
+    setRegenerating(true);
+    const newCode = crypto.randomUUID().slice(0, 8);
+    const { error } = await supabase
+      .from("organizations")
+      .update({ invite_code: newCode })
+      .eq("id", orgId);
+    setRegenerating(false);
+    if (error) {
+      toast({ title: "Could not regenerate code", description: error.message, variant: "destructive" });
+    } else {
+      setInviteCode(newCode);
+      toast({ title: "Invite code regenerated" });
+    }
+  };
+
+  // Invite member (with try/catch for unreachable function)
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !orgId) return;
     setSending(true);
 
-    const res = await supabase.functions.invoke("invite-member", {
-      body: { email: inviteEmail.trim(), organization_id: orgId, redirect_url: window.location.origin },
-    });
+    try {
+      const res = await supabase.functions.invoke("invite-member", {
+        body: { email: inviteEmail.trim(), organization_id: orgId, redirect_url: window.location.origin },
+      });
 
-    setSending(false);
-    if (res.error || res.data?.error) {
+      setSending(false);
+      if (res.error || res.data?.error) {
+        toast({
+          title: "Invite failed",
+          description: res.data?.error || res.error?.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Invitation sent to ${inviteEmail.trim()}` });
+        setInviteEmail("");
+        fetchData();
+      }
+    } catch {
+      setSending(false);
       toast({
         title: "Invite failed",
-        description: res.data?.error || res.error?.message,
+        description: "Invitation service unavailable — please try again shortly.",
         variant: "destructive",
       });
-    } else {
-      toast({ title: `Invitation sent to ${inviteEmail.trim()}` });
-      setInviteEmail("");
-      fetchData();
     }
   };
 
@@ -205,7 +241,26 @@ const TeamManagement = () => {
         {canManage && inviteCode && (
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground mb-1">Organization Invite Code</p>
-            <p className="font-mono text-sm text-foreground select-all">{inviteCode}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-mono text-sm text-foreground select-all">{inviteCode}</p>
+              <button
+                onClick={copyInviteCode}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Copy invite code"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              {myRole === "owner" && (
+                <button
+                  onClick={regenerateInviteCode}
+                  disabled={regenerating}
+                  className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  title="Regenerate invite code"
+                >
+                  <RefreshCw className={`h-4 w-4 ${regenerating ? "animate-spin" : ""}`} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -223,8 +278,7 @@ const TeamManagement = () => {
             <TableBody>
               {members.map((m) => {
                 const isOwner = m.role === "owner";
-                const isSelf = m.user_id !== null; // will refine below
-                const displayEmail = m.invited_email || m.user_id || "—";
+                const displayEmail = m.email || m.invited_email || m.user_id || "—";
 
                 return (
                   <TableRow key={m.id}>
@@ -248,7 +302,6 @@ const TeamManagement = () => {
                     {canManage && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {/* Role change — owner can change anyone, admin can't change owner */}
                           {!(myRole === "admin" && isOwner) && (
                             <Select
                               value={m.role}
@@ -266,8 +319,6 @@ const TeamManagement = () => {
                               </SelectContent>
                             </Select>
                           )}
-
-                          {/* Remove — admin can't remove owner */}
                           {!(myRole === "admin" && isOwner) && (
                             <button
                               onClick={() => removeMember(m.id, m.role)}
