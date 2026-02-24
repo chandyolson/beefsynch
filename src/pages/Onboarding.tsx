@@ -115,6 +115,22 @@ const Onboarding = () => {
       return;
     }
 
+    // Check if user is already a member of this org
+    const { data: existing } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("organization_id", org.id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      await refresh();
+      toast({ title: `Already a member`, description: `You're already part of ${org.name}.` });
+      setLoading(false);
+      navigate("/");
+      return;
+    }
+
     const { error: memberError } = await supabase
       .from("organization_members")
       .insert({ user_id: user.id, organization_id: org.id, role: "member", accepted: true });
