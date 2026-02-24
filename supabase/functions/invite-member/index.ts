@@ -11,51 +11,76 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  let body: any;
+  try {
+    body = await req.json();
+    console.log("Received request body:", JSON.stringify(body));
+  } catch (e) {
+    console.error("Failed to parse request body:", e);
+    return new Response(JSON.stringify({ error: "Invalid request body" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.error("Missing or invalid Authorization header");
       return new Response(JSON.stringify({ error: "Missing auth" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    // Verify caller
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing env vars — SUPABASE_URL:", !!supabaseUrl, "SUPABASE_SERVICE_ROLE_KEY:", !!serviceRoleKey);
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Admin client with service role key
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Verify caller via token
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+    if (userError || !userData?.user) {
+      console.error("Auth verification failed:", userError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const userId = userData.user.id;
+    console.log("Authenticated user:", userId);
 
-    const { email, organization_id, redirect_url } = await req.json();
+    const { email, organization_id, redirect_url } = body;
     if (!email || !organization_id) {
+      console.error("Missing required fields:", { email, organization_id });
       return new Response(JSON.stringify({ error: "Missing email or organization_id" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
     // Check caller is owner or admin
-    const { data: callerMembership } = await adminClient
+    const { data: callerMembership, error: memberErr } = await adminClient
       .from("organization_members")
       .select("role")
       .eq("user_id", userId)
       .eq("organization_id", organization_id)
       .eq("accepted", true)
       .single();
+
+    console.log("Caller membership:", callerMembership, "error:", memberErr?.message);
 
     if (!callerMembership || !["owner", "admin"].includes(callerMembership.role)) {
       return new Response(JSON.stringify({ error: "Only owners and admins can invite members" }), {
@@ -64,13 +89,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if already a member (by email match on accepted members or pending invites)
-    const { data: existingByEmail } = await adminClient
+    // Check if already invited by email
+    const { data: existingByEmail, error: existErr } = await adminClient
       .from("organization_members")
       .select("id")
       .eq("organization_id", organization_id)
       .eq("invited_email", email)
       .maybeSingle();
+
+    console.log("Existing by invited_email:", existingByEmail, "error:", existErr?.message);
 
     if (existingByEmail) {
       return new Response(JSON.stringify({ error: "This person is already a member of your organization." }), {
@@ -79,7 +106,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Also check if user already exists and is already an accepted member
+    // Check if user already exists and is a member
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
     const matchedUser = existingUsers?.users?.find(
       (u: any) => u.email?.toLowerCase() === email.toLowerCase()
@@ -92,6 +119,7 @@ Deno.serve(async (req) => {
         .eq("user_id", matchedUser.id)
         .maybeSingle();
       if (existingMember) {
+        console.log("User already a member by user_id:", matchedUser.id);
         return new Response(JSON.stringify({ error: "This person is already a member of your organization." }), {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -99,21 +127,25 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send invite email via Supabase Auth
+    // Send invite email
     const redirectTo = redirect_url
       ? `${redirect_url}/onboarding`
       : `${supabaseUrl.replace(".supabase.co", ".lovable.app")}/onboarding`;
 
-    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    console.log("Sending invite to:", email, "redirectTo:", redirectTo);
+
+    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo,
     });
 
     if (inviteError) {
+      console.error("inviteUserByEmail failed:", inviteError.message);
       return new Response(JSON.stringify({ error: `Failed to send invitation: ${inviteError.message}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("Invite sent successfully, user id:", inviteData?.user?.id);
 
     // Insert pending member record
     const { error: insertError } = await adminClient
@@ -127,18 +159,21 @@ Deno.serve(async (req) => {
       });
 
     if (insertError) {
+      console.error("Insert member record failed:", insertError.message);
       return new Response(JSON.stringify({ error: insertError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    console.log("Invitation complete for:", email);
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error("Unhandled error in invite-member:", err);
+    return new Response(JSON.stringify({ error: err.message || "An unexpected error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
