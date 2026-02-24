@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type OrgRole = "owner" | "admin" | "member" | null;
@@ -17,6 +17,7 @@ interface OrgRoleContextValue {
   loading: boolean;
   userOrgs: UserOrg[];
   switchOrg: (orgId: string) => void;
+  refresh: () => Promise<void>;
 }
 
 const OrgRoleContext = createContext<OrgRoleContextValue>({
@@ -27,6 +28,7 @@ const OrgRoleContext = createContext<OrgRoleContextValue>({
   loading: true,
   userOrgs: [],
   switchOrg: () => {},
+  refresh: async () => {},
 });
 
 export function OrgRoleProvider({ children }: { children: ReactNode }) {
@@ -46,37 +48,46 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    const fetchRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.is_anonymous) {
-        setUserId(user?.id ?? null);
-        setLoading(false);
-        return;
-      }
-      setUserId(user.id);
-      const { data } = await supabase
-        .from("organization_members")
-        .select("role, organization_id, organizations(name)")
-        .eq("user_id", user.id)
-        .eq("accepted", true);
-
-      if (data && data.length > 0) {
-        const orgs: UserOrg[] = data.map((d: any) => ({
-          orgId: d.organization_id,
-          orgName: d.organizations?.name ?? "Unknown",
-          role: d.role as OrgRole,
-        }));
-        setUserOrgs(orgs);
-        // Use first org as default (or keep current if still valid)
-        const current = orgs.find((o) => o.orgId === orgId) ?? orgs[0];
-        setRole(current.role);
-        setOrgId(current.orgId);
-        setOrgName(current.orgName);
-      }
+  const fetchRole = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.is_anonymous) {
+      setUserId(user?.id ?? null);
       setLoading(false);
-    };
+      return;
+    }
+    setUserId(user.id);
+    const { data } = await supabase
+      .from("organization_members")
+      .select("role, organization_id, organizations(name)")
+      .eq("user_id", user.id)
+      .eq("accepted", true);
 
+    if (data && data.length > 0) {
+      const orgs: UserOrg[] = data.map((d: any) => ({
+        orgId: d.organization_id,
+        orgName: d.organizations?.name ?? "Unknown",
+        role: d.role as OrgRole,
+      }));
+      setUserOrgs(orgs);
+      const current = orgs.find((o) => o.orgId === orgId) ?? orgs[0];
+      setRole(current.role);
+      setOrgId(current.orgId);
+      setOrgName(current.orgName);
+    } else {
+      setUserOrgs([]);
+      setRole(null);
+      setOrgId(null);
+      setOrgName(null);
+    }
+    setLoading(false);
+  }, [orgId]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    await fetchRole();
+  }, [fetchRole]);
+
+  useEffect(() => {
     fetchRole();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
@@ -88,7 +99,7 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <OrgRoleContext.Provider value={{ role, orgId, orgName, userId, loading, userOrgs, switchOrg }}>
+    <OrgRoleContext.Provider value={{ role, orgId, orgName, userId, loading, userOrgs, switchOrg, refresh }}>
       {children}
     </OrgRoleContext.Provider>
   );

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, Users } from "lucide-react";
@@ -10,6 +11,7 @@ type Path = "choose" | "create" | "join";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { refresh } = useOrgRole();
   const [path, setPath] = useState<Path>("choose");
   const [orgName, setOrgName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -52,15 +54,20 @@ const Onboarding = () => {
         accepted: true,
       });
 
-    setLoading(false);
     if (memberError) {
       toast({
         title: "Organization created but membership failed",
         description: memberError.message,
         variant: "destructive",
       });
+      setLoading(false);
     } else {
-      toast({ title: "Organization created!" });
+      await refresh();
+      toast({
+        title: `Welcome to BeefSynch!`,
+        description: `Your organization ${orgName.trim()} has been created.`,
+      });
+      setLoading(false);
       navigate("/");
     }
   };
@@ -111,7 +118,11 @@ const Onboarding = () => {
         variant: "destructive",
       });
     } else {
-      toast({ title: `Joined ${org.name}!` });
+      await refresh();
+      toast({
+        title: `Welcome to ${org.name}!`,
+        description: "You now have access to all team projects.",
+      });
       navigate("/");
     }
   };
