@@ -257,11 +257,9 @@ const ProjectDetail = () => {
             >
               <FileDown className="h-4 w-4" />
             </Button>
-            {(orgRole === "owner" || orgRole === "admin" || project.user_id === userId) && (
-              <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            )}
+            <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
