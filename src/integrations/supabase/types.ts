@@ -269,6 +269,7 @@ export type Database = {
         Args: { _organization_id: string; _user_id: string }
         Returns: string
       }
+      user_org_ids: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
