@@ -156,42 +156,30 @@ const AcceptInvite = () => {
     }
 
     const validateAndProceed = async () => {
-      // Query pending_invites for valid token
-      const { data: invite, error } = await supabase
+      // Use the standard supabase client (anon key) — works because
+      // the RLS policy allows public SELECT on pending_invites
+      const { data: invite, error: lookupError } = await supabase
         .from("pending_invites")
-        .select("token, organization_id, invited_email, accepted, expires_at")
+        .select("token, organization_id, invited_email, accepted, expires_at, organizations(name)")
         .eq("token", token)
         .eq("accepted", false)
+        .gt("expires_at", new Date().toISOString())
         .maybeSingle();
 
-      if (error || !invite) {
+      console.log("Token lookup result:", invite ? "found" : "not found", lookupError?.message ?? "");
+
+      if (lookupError || !invite) {
         setStep("invalid");
         setErrorMsg(
           "This invitation link is invalid or has expired. Please ask your organization owner to send a new invite."
         );
         return;
       }
-
-      // Check expiry
-      if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-        setStep("invalid");
-        setErrorMsg(
-          "This invitation link is invalid or has expired. Please ask your organization owner to send a new invite."
-        );
-        return;
-      }
-
-      // Get org name
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("name")
-        .eq("id", invite.organization_id!)
-        .single();
 
       const inviteData: InviteData = {
         token: invite.token,
         organization_id: invite.organization_id!,
-        org_name: org?.name ?? "your organization",
+        org_name: (invite as any).organizations?.name ?? "your organization",
         invited_email: invite.invited_email,
       };
       setInvite(inviteData);
