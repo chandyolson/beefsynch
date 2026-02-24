@@ -73,6 +73,65 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_members: {
+        Row: {
+          accepted: boolean | null
+          created_at: string | null
+          id: string
+          invited_email: string | null
+          organization_id: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string | null
+          id?: string
+          invited_email?: string | null
+          organization_id?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string | null
+          id?: string
+          invited_email?: string | null
+          organization_id?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       project_bulls: {
         Row: {
           bull_catalog_id: string | null
@@ -122,6 +181,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          organization_id: string | null
           protocol: string
           status: string
           user_id: string | null
@@ -135,6 +195,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          organization_id?: string | null
           protocol: string
           status?: string
           user_id?: string | null
@@ -148,11 +209,20 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          organization_id?: string | null
           protocol?: string
           status?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       protocol_events: {
         Row: {
