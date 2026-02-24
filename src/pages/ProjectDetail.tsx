@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star } from "lucide-react";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
@@ -38,6 +39,7 @@ interface ProjectRow {
   breeding_time: string | null;
   status: string;
   notes: string | null;
+  user_id: string | null;
 }
 
 interface EventRow {
@@ -63,6 +65,7 @@ const statusColor: Record<string, string> = {
 
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
+  const { role: orgRole, userId } = useOrgRole();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -250,9 +253,11 @@ const ProjectDetail = () => {
             >
               <FileDown className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4" />
-            </Button>
+            {(orgRole === "owner" || orgRole === "admin" || project.user_id === userId) && (
+              <Button variant="outline" size="icon" className="hidden lg:inline-flex h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 

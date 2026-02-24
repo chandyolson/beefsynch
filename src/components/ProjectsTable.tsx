@@ -11,6 +11,8 @@ interface ProjectsTableProps {
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   bullsByProject?: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>;
+  canEditAll?: boolean;
+  currentUserId?: string | null;
 }
 
 type SortKey = keyof BreedingProject;
@@ -27,8 +29,12 @@ const typeStyles: Record<string, string> = {
   Cow: "bg-accent/20 text-accent",
 };
 
-const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {} }: ProjectsTableProps) => {
+const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
   const navigate = useNavigate();
+
+  const canSelectProject = (project: BreedingProject) => {
+    return canEditAll || project.userId === currentUserId;
+  };
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
@@ -70,16 +76,17 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   }, [projects, search, filterType, sortKey, sortDir]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
-  const allVisibleSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  const selectableFiltered = useMemo(() => filtered.filter(canSelectProject), [filtered, canEditAll, currentUserId]);
+  const allVisibleSelected = selectableFiltered.length > 0 && selectableFiltered.every((p) => selectedIds.has(p.id));
 
   const toggleAll = () => {
     if (allVisibleSelected) {
       const next = new Set(selectedIds);
-      filtered.forEach((p) => next.delete(p.id));
+      selectableFiltered.forEach((p) => next.delete(p.id));
       onSelectionChange(next);
     } else {
       const next = new Set(selectedIds);
-      filtered.forEach((p) => next.add(p.id));
+      selectableFiltered.forEach((p) => next.add(p.id));
       onSelectionChange(next);
     }
   };
@@ -209,12 +216,14 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
                 <td className="px-4 py-3">
-                  <Checkbox
-                    checked={selectedIds.has(project.id)}
-                    onCheckedChange={() => toggleOne(project.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={`Select ${project.name}`}
-                  />
+                  {canSelectProject(project) ? (
+                    <Checkbox
+                      checked={selectedIds.has(project.id)}
+                      onCheckedChange={() => toggleOne(project.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${project.name}`}
+                    />
+                  ) : <div className="w-4" />}
                 </td>
                 <td className="px-4 py-3">
                   <button
@@ -262,12 +271,14 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
             className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70 space-y-2"
           >
             <div className="flex items-center gap-3">
-              <Checkbox
-                checked={selectedIds.has(project.id)}
-                onCheckedChange={() => toggleOne(project.id)}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Select ${project.name}`}
-              />
+              {canSelectProject(project) ? (
+                <Checkbox
+                  checked={selectedIds.has(project.id)}
+                  onCheckedChange={() => toggleOne(project.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select ${project.name}`}
+                />
+              ) : <div className="w-4" />}
               <div className="flex-1 min-w-0" onClick={() => navigate(`/project/${project.id}`)}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>

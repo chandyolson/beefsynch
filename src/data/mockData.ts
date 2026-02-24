@@ -11,6 +11,7 @@ export interface BreedingProject {
   breedDate: string;
   status: ProjectStatus;
   location: string;
+  userId?: string | null;
 }
 
 export const protocols = [
