@@ -85,7 +85,28 @@ const Auth = () => {
     supabase.auth.getSession().then(({ data }) => {
       setIsAnonymous(data.session?.user?.is_anonymous === true);
     });
-  }, []);
+
+    // Listen for auth state changes (e.g. email confirmation redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
+        // Check if user already has an organization
+        const { data: memberships } = await supabase
+          .from("organization_members")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .eq("accepted", true)
+          .limit(1);
+
+        if (memberships && memberships.length > 0) {
+          navigate("/");
+        } else {
+          navigate("/onboarding");
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   // Login form
   const loginForm = useForm<LoginValues>({
@@ -134,22 +155,51 @@ const Auth = () => {
   const handleSignup = async (values: SignupValues) => {
     setLoading(true);
 
-    // Guest conversion: update the existing anonymous user in place
+    // Guest conversion: update the existing anonymous user, create org, migrate projects
     if (isAnonymous) {
       const { error } = await supabase.auth.updateUser({
         email: values.email,
-        password: values.password
+        password: values.password,
       });
-      setLoading(false);
       if (error) {
+        setLoading(false);
         toast({ title: "Account conversion failed", description: error.message, variant: "destructive" });
-      } else {
-        toast({
-          title: "Account created!",
-          description: "All your projects have been saved."
-        });
-        navigate("/");
+        return;
       }
+
+      // Auto-create an organization for the converted guest
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const orgName = values.email.split("@")[0] + "'s Organization";
+        const { data: org } = await supabase
+          .from("organizations")
+          .insert({ name: orgName, created_by: user.id })
+          .select("id")
+          .single();
+
+        if (org) {
+          // Add user as owner
+          await supabase.from("organization_members").insert({
+            user_id: user.id,
+            organization_id: org.id,
+            role: "owner",
+            accepted: true,
+          });
+
+          // Migrate all existing guest projects to the new org
+          await supabase
+            .from("projects")
+            .update({ organization_id: org.id })
+            .eq("user_id", user.id);
+        }
+      }
+
+      setLoading(false);
+      toast({
+        title: "Account created!",
+        description: "All your projects have been saved.",
+      });
+      navigate("/");
       return;
     }
 
@@ -157,7 +207,7 @@ const Auth = () => {
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: `${window.location.origin}/onboarding` }
     });
     setLoading(false);
     if (error) {
