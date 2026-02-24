@@ -216,31 +216,6 @@ const Index = () => {
           />
         </div>
 
-        {/* My Favorite Bulls */}
-        {!isAnonymous && (
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">My Favorite Bulls</h3>
-            {favoriteBulls.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60">
-                Star bulls in the Bull List to see your favorites here.
-              </p>
-            ) : (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                {favoriteBulls.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => navigate(`/bulls?search=${encodeURIComponent(b.bull_name)}`)}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
-                  >
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{b.bull_name}</span>
-                    <span className="text-muted-foreground">· {b.company}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {selectedProjects.length > 0 && (
           <BulkActionToolbar
