@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +14,8 @@ function jsonResponse(body: object, status: number) {
 }
 
 Deno.serve(async (req) => {
+  console.log("invite-member received request:", req.method, req.url);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -31,10 +33,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Missing email, organization_id, or org_name" }, 400);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey || !anonKey || !resendApiKey) {
+      console.error("Missing required environment variables");
+      return jsonResponse({ error: "Server configuration error" }, 500);
+    }
 
     // Step 1 — Authenticate the caller
     const authHeader = req.headers.get("Authorization");
@@ -213,7 +220,7 @@ Deno.serve(async (req) => {
     // Step 7 — Return result
     return jsonResponse({ success: true }, 200);
   } catch (err) {
-    console.error("Unhandled error in invite-member:", err);
+    console.error("TOP LEVEL CRASH in invite-member:", (err as Error).message, (err as Error).stack);
     return jsonResponse({ error: (err as Error).message || "An unexpected error occurred" }, 500);
   }
 });
