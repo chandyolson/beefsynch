@@ -47,9 +47,10 @@ interface BulkActionToolbarProps {
   selectedProjects: SelectedProject[];
   onClear: () => void;
   onComplete: () => void;
+  canDelete?: boolean;
 }
 
-const BulkActionToolbar = ({ selectedProjects, onClear, onComplete }: BulkActionToolbarProps) => {
+const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = true }: BulkActionToolbarProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -243,15 +244,17 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete }: BulkAction
           />
         </div>
 
-        <Button
-          variant="destructive"
-          size="sm"
-          className="h-8 text-xs"
-          disabled={busy}
-          onClick={() => setDeleteDialogOpen(true)}
-        >
-          Delete Selected
-        </Button>
+        {canDelete && (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 text-xs"
+            disabled={busy}
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            Delete Selected
+          </Button>
+        )}
 
         <button
           onClick={onClear}

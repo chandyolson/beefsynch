@@ -11,6 +11,7 @@ import NewProjectDialog from "@/components/NewProjectDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/data/mockData";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
 
 interface DbProject {
@@ -22,10 +23,13 @@ interface DbProject {
   breeding_date: string | null;
   breeding_time: string | null;
   status: string;
+  user_id: string | null;
 }
 
 const Index = () => {
   const navigate = useNavigate();
+  const { role: orgRole, userId } = useOrgRole();
+  const isOwnerOrAdmin = orgRole === "owner" || orgRole === "admin";
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,6 +80,7 @@ const Index = () => {
         breedDate: p.breeding_date ?? "",
         status: p.status === "Complete" ? "Completed" : p.status === "Confirmed" ? "Active" : "Scheduled",
         location: "",
+        userId: p.user_id,
       }));
       setProjects(mapped);
 
@@ -240,6 +245,7 @@ const Index = () => {
               setSelectedIds(new Set());
               fetchProjects();
             }}
+            canDelete={isOwnerOrAdmin}
           />
         )}
         <ProjectsTable
@@ -247,6 +253,8 @@ const Index = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           bullsByProject={bullsByProject}
+          canEditAll={isOwnerOrAdmin}
+          currentUserId={userId}
         />
       </main>
       <NewProjectDialog
