@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     }
 
     // Step 6 — Send email via Resend
-    const acceptUrl = `${redirect_url || "https://beefsynch.lovable.app"}/accept-invite?token=${invite.token}`;
+    const acceptUrl = `${redirect_url || "https://beefsynch.com"}/accept-invite?token=${invite.token}`;
 
     const htmlContent = `<!DOCTYPE html>
 <html>
