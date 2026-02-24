@@ -138,6 +138,44 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_invites: {
+        Row: {
+          accepted: boolean | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          invited_email: string
+          organization_id: string | null
+          token: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_email: string
+          organization_id?: string | null
+          token?: string
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          invited_email?: string
+          organization_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_invites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_bulls: {
         Row: {
           bull_catalog_id: string | null
