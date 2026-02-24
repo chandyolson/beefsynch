@@ -78,6 +78,7 @@ export type Database = {
           accepted: boolean | null
           created_at: string | null
           id: string
+          invited_by: string | null
           invited_email: string | null
           organization_id: string | null
           role: string
@@ -87,6 +88,7 @@ export type Database = {
           accepted?: boolean | null
           created_at?: string | null
           id?: string
+          invited_by?: string | null
           invited_email?: string | null
           organization_id?: string | null
           role?: string
@@ -96,6 +98,7 @@ export type Database = {
           accepted?: boolean | null
           created_at?: string | null
           id?: string
+          invited_by?: string | null
           invited_email?: string | null
           organization_id?: string | null
           role?: string
