@@ -1,0 +1,234 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Building2, Users } from "lucide-react";
+
+type Path = "choose" | "create" | "join";
+
+const Onboarding = () => {
+  const navigate = useNavigate();
+  const [path, setPath] = useState<Path>("choose");
+  const [orgName, setOrgName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!orgName.trim()) return;
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const { data: org, error: orgError } = await supabase
+      .from("organizations")
+      .insert({ name: orgName.trim(), created_by: user.id })
+      .select("id")
+      .single();
+
+    if (orgError || !org) {
+      toast({
+        title: "Could not create organization",
+        description: orgError?.message,
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const { error: memberError } = await supabase
+      .from("organization_members")
+      .insert({
+        user_id: user.id,
+        organization_id: org.id,
+        role: "owner",
+        accepted: true,
+      });
+
+    setLoading(false);
+    if (memberError) {
+      toast({
+        title: "Organization created but membership failed",
+        description: memberError.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Organization created!" });
+      navigate("/");
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) return;
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Look up org by invite code
+    const { data: org, error: lookupError } = await supabase
+      .from("organizations")
+      .select("id, name")
+      .eq("invite_code", inviteCode.trim())
+      .single();
+
+    if (lookupError || !org) {
+      toast({
+        title: "Invalid invite code",
+        description: "No organization found with that code.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const { error: memberError } = await supabase
+      .from("organization_members")
+      .insert({
+        user_id: user.id,
+        organization_id: org.id,
+        role: "member",
+        accepted: true,
+      });
+
+    setLoading(false);
+    if (memberError) {
+      toast({
+        title: "Could not join organization",
+        description: memberError.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: `Joined ${org.name}!` });
+      navigate("/");
+    }
+  };
+
+  const cardClass =
+    "w-full max-w-md rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-6";
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background:
+          "linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%)",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      <div className={cardClass} style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Set Up Your Organization
+          </h1>
+          <p className="text-sm text-white/50">
+            {path === "choose"
+              ? "Create a new organization or join an existing one."
+              : path === "create"
+              ? "Name your organization to get started."
+              : "Enter the invite code you received."}
+          </p>
+        </div>
+
+        {/* ── Choose path ───────────────────────── */}
+        {path === "choose" && (
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => setPath("create")}
+              className="flex items-center gap-4 rounded-xl border border-white/20 bg-white/5 p-4 text-left text-white hover:bg-white/10 transition-colors"
+            >
+              <Building2 className="h-6 w-6 text-primary shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Create a New Organization</p>
+                <p className="text-xs text-white/50">
+                  Start fresh and invite your team later.
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setPath("join")}
+              className="flex items-center gap-4 rounded-xl border border-white/20 bg-white/5 p-4 text-left text-white hover:bg-white/10 transition-colors"
+            >
+              <Users className="h-6 w-6 text-primary shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">
+                  Join an Existing Organization
+                </p>
+                <p className="text-xs text-white/50">
+                  Use an invite code from your team.
+                </p>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* ── Create org ───────────────────────── */}
+        {path === "create" && (
+          <div className="space-y-4">
+            <Input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Organization name"
+              className="h-11 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-primary"
+            />
+            <Button
+              disabled={loading || !orgName.trim()}
+              onClick={handleCreate}
+              className="w-full h-11 text-sm font-semibold text-white"
+            >
+              {loading ? "Creating…" : "Create Organization"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setPath("choose")}
+              className="block mx-auto text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {/* ── Join org ─────────────────────────── */}
+        {path === "join" && (
+          <div className="space-y-4">
+            <Input
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Invite code"
+              className="h-11 rounded-lg border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-primary"
+            />
+            <Button
+              disabled={loading || !inviteCode.trim()}
+              onClick={handleJoin}
+              className="w-full h-11 text-sm font-semibold text-white"
+            >
+              {loading ? "Joining…" : "Join Organization"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setPath("choose")}
+              className="block mx-auto text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Onboarding;

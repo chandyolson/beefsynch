@@ -10,6 +10,7 @@ import BullList from "./pages/BullList";
 import BullReport from "./pages/BullReport";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected routes */}
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
