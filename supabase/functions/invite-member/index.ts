@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, organization_id } = await req.json();
+    const { email, organization_id, redirect_url } = await req.json();
     if (!email || !organization_id) {
       return new Response(JSON.stringify({ error: "Missing email or organization_id" }), {
         status: 400,
@@ -93,8 +93,11 @@ Deno.serve(async (req) => {
     }
 
     // Send invite email via Supabase Auth
+    const inviteRedirect = redirect_url
+      ? `${redirect_url}/accept-invite`
+      : `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/accept-invite`;
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/auth`,
+      redirectTo: inviteRedirect,
     });
 
     // Non-fatal if invite email fails (member record still created)

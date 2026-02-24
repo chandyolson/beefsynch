@@ -122,9 +122,8 @@ const TeamManagement = () => {
     if (!inviteEmail.trim() || !orgId) return;
     setSending(true);
 
-    const { data: session } = await supabase.auth.getSession();
     const res = await supabase.functions.invoke("invite-member", {
-      body: { email: inviteEmail.trim(), organization_id: orgId },
+      body: { email: inviteEmail.trim(), organization_id: orgId, redirect_url: window.location.origin },
     });
 
     setSending(false);
