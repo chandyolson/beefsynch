@@ -83,7 +83,7 @@ const Index = () => {
         headCount: p.head_count,
         startDate: p.breeding_date ?? "",
         breedDate: p.breeding_date ?? "",
-        status: p.status === "Complete" ? "Completed" : p.status === "Confirmed" ? "Active" : "Scheduled",
+        status: p.status as any,
         location: "",
         userId: p.user_id,
       }));

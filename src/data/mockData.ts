@@ -1,5 +1,5 @@
 export type AnimalType = "Heifer" | "Cow";
-export type ProjectStatus = "Active" | "Completed" | "Scheduled";
+export type ProjectStatus = "Tentative" | "Confirmed" | "Complete";
 
 export interface BreedingProject {
   id: string;
@@ -32,7 +32,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 85,
     startDate: "2026-03-01",
     breedDate: "2026-03-15",
-    status: "Scheduled",
+    status: "Tentative",
     location: "North Pasture",
   },
   {
@@ -43,7 +43,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 150,
     startDate: "2026-02-10",
     breedDate: "2026-02-20",
-    status: "Active",
+    status: "Confirmed",
     location: "Main Barn",
   },
   {
@@ -54,7 +54,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 60,
     startDate: "2026-01-05",
     breedDate: "2026-01-12",
-    status: "Completed",
+    status: "Complete",
     location: "South Lot",
   },
   {
@@ -65,7 +65,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 200,
     startDate: "2026-03-10",
     breedDate: "2026-04-01",
-    status: "Scheduled",
+    status: "Tentative",
     location: "East Ranch",
   },
   {
@@ -76,7 +76,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 45,
     startDate: "2026-02-15",
     breedDate: "2026-02-25",
-    status: "Active",
+    status: "Confirmed",
     location: "Feedlot 2",
   },
   {
@@ -87,7 +87,7 @@ export const mockProjects: BreedingProject[] = [
     headCount: 120,
     startDate: "2026-01-20",
     breedDate: "2026-02-01",
-    status: "Completed",
+    status: "Complete",
     location: "West Pasture",
   },
 ];
