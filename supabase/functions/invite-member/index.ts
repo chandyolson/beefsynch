@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Parse body
     let body: any;
     try {
       body = await req.json();
@@ -147,27 +146,27 @@ Deno.serve(async (req) => {
     // Step 6 — Send email via Resend
     const acceptUrl = `${redirect_url || "https://beefsynch.lovable.app"}/accept-invite?token=${invite.token}`;
 
-    const htmlContent = `
-<!DOCTYPE html>
+    const htmlContent = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
 <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <!-- Header -->
         <tr>
           <td style="background-color:#102175;padding:32px 40px;text-align:center;">
             <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:0.5px;">BeefSynch</h1>
             <p style="margin:4px 0 0;color:#8b9fd6;font-size:13px;">Synchronization &amp; Breeding Management</p>
           </td>
         </tr>
-        <!-- Body -->
         <tr>
           <td style="padding:40px;">
-            <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;">You're Invited!</h2>
+            <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;">You have been invited!</h2>
+            <p style="margin:0 0 12px;color:#4a4a68;font-size:15px;line-height:1.6;">
+              You have been invited to join <strong>${org_name}</strong> on <strong>BeefSynch</strong>.
+            </p>
             <p style="margin:0 0 24px;color:#4a4a68;font-size:15px;line-height:1.6;">
-              <strong>${inviterEmail}</strong> has invited you to join <strong>${org_name}</strong> on <strong>BeefSynch</strong> — Synchronization and Breeding Management.
+              Click the button below to create your account and accept the invitation.
             </p>
             <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
               <tr><td align="center" style="border-radius:6px;background-color:#0da3a3;">
@@ -176,13 +175,13 @@ Deno.serve(async (req) => {
                 </a>
               </td></tr>
             </table>
-            <p style="margin:0;color:#8888a0;font-size:13px;text-align:center;">This invitation expires in 48 hours.</p>
+            <p style="margin:0 0 8px;color:#8888a0;font-size:13px;text-align:center;">This invitation expires in 48 hours.</p>
+            <p style="margin:0;color:#8888a0;font-size:13px;text-align:center;">If you did not expect this invitation you can safely ignore this email.</p>
           </td>
         </tr>
-        <!-- Footer -->
         <tr>
           <td style="background-color:#f8f8fb;padding:20px 40px;text-align:center;">
-            <p style="margin:0;color:#aaaabc;font-size:12px;">&copy; ${new Date().getFullYear()} BeefSynch. All rights reserved.</p>
+            <p style="margin:0;color:#aaaabc;font-size:12px;">BeefSynch by Chuteside Resources &nbsp;|&nbsp; beefsynch.com</p>
           </td>
         </tr>
       </table>
@@ -198,7 +197,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "BeefSynch <invites@beefsynch.com>",
+        from: "BeefSynch <invites@mail.beefsynch.com>",
         to: [email],
         subject: `You have been invited to join ${org_name} on BeefSynch`,
         html: htmlContent,
