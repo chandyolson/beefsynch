@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
 import { Lock, Eye, EyeOff } from "lucide-react";
 
@@ -41,6 +42,7 @@ type Step = "loading" | "set-password" | "sign-in" | "accepting" | "done" | "err
 
 const AcceptInvite = () => {
   const navigate = useNavigate();
+  const { refresh } = useOrgRole();
   const [step, setStep] = useState<Step>("loading");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -126,6 +128,8 @@ const AcceptInvite = () => {
       .single();
 
     const orgName = org?.name ?? "your organization";
+
+    await refresh();
 
     toast({
       title: `Welcome to ${orgName}!`,
