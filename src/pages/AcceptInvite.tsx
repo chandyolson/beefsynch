@@ -1,25 +1,56 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
+// ── Schemas ──────────────────────────────────────────────────────────────
+const loginSchema = z.object({
+  email: z.string().trim().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = z
+  .object({
+    email: z.string().trim().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+type LoginValues = z.infer<typeof loginSchema>;
+type SignupValues = z.infer<typeof signupSchema>;
+
+// ── Password input ───────────────────────────────────────────────────────
 function PasswordInput({
   value,
   onChange,
   placeholder = "Password",
-}: {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-}) {
+  ...rest
+}: React.ComponentProps<"input">) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
       <input
+        {...rest}
         type={show ? "text" : "password"}
         value={value}
         onChange={onChange}
@@ -38,134 +69,212 @@ function PasswordInput({
   );
 }
 
-type Step = "loading" | "set-password" | "sign-in" | "accepting" | "done" | "error";
+type Step = "loading" | "invalid" | "auth" | "accepting" | "done";
+type AuthTab = "signin" | "signup";
+
+interface InviteData {
+  token: string;
+  organization_id: string;
+  org_name: string;
+  invited_email: string;
+}
 
 const AcceptInvite = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { refresh } = useOrgRole();
+
   const [step, setStep] = useState<Step>("loading");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [authTab, setAuthTab] = useState<AuthTab>("signup");
+  const [invite, setInvite] = useState<InviteData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Listen for the auth event from the invite link hash
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-          // Check if this is from an invite (user needs password set) or existing user
-          const hash = window.location.hash;
-          const isInvite = hash.includes("type=invite") || hash.includes("type=signup") || hash.includes("type=magiclink");
+  const emailInputClass =
+    "flex h-11 w-full rounded-lg border border-white/20 bg-white/10 pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 transition-colors";
 
-          if (isInvite) {
-            // New invited user — needs to set password
-            setStep("set-password");
-          } else {
-            // Already authenticated — just accept the invite
-            await acceptInvite(session.user.id, session.user.email ?? "");
-          }
-        }
-      }
-    );
+  // ── Accept invite logic ────────────────────────────────────────────────
+  const acceptInvite = useCallback(
+    async (userId: string, userEmail: string, inviteData: InviteData) => {
+      setStep("accepting");
 
-    // Check if already has a session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        const hash = window.location.hash;
-        const isInvite = hash.includes("type=invite") || hash.includes("type=signup") || hash.includes("type=magiclink");
-        if (isInvite) {
-          setStep("set-password");
+      try {
+        // Mark pending_invites as accepted
+        await supabase
+          .from("pending_invites")
+          .update({ accepted: true })
+          .eq("token", inviteData.token);
+
+        // Try to update existing organization_members row
+        const { data: existingMember } = await supabase
+          .from("organization_members")
+          .select("id")
+          .eq("invited_email", inviteData.invited_email)
+          .eq("organization_id", inviteData.organization_id)
+          .eq("accepted", false)
+          .maybeSingle();
+
+        if (existingMember) {
+          await supabase
+            .from("organization_members")
+            .update({ user_id: userId, accepted: true })
+            .eq("id", existingMember.id);
         } else {
-          // User navigated here directly while logged in — check for pending invite
-          acceptInvite(session.user.id, session.user.email ?? "");
+          // Insert a new row if none existed
+          await supabase.from("organization_members").insert({
+            user_id: userId,
+            organization_id: inviteData.organization_id,
+            role: "member",
+            accepted: true,
+          });
         }
-      } else {
-        // No session and no invite token — show sign in option
-        setStep("sign-in");
+
+        await refresh();
+
+        toast({
+          title: `Welcome to ${inviteData.org_name}!`,
+          description: "You now have access to all team projects.",
+        });
+
+        setStep("done");
+        navigate("/");
+      } catch (err: any) {
+        setStep("invalid");
+        setErrorMsg(err.message || "Failed to accept invitation.");
       }
-    });
+    },
+    [navigate, refresh]
+  );
 
-    return () => subscription.unsubscribe();
-  }, []);
+  // ── On load: validate token ────────────────────────────────────────────
+  useEffect(() => {
+    const token = searchParams.get("token");
 
-  const acceptInvite = async (userId: string, userEmail: string) => {
-    setStep("accepting");
-
-    // Find their pending membership by email
-    const { data: membership, error: findError } = await supabase
-      .from("organization_members")
-      .select("id, organization_id")
-      .eq("invited_email", userEmail)
-      .eq("accepted", false)
-      .limit(1)
-      .maybeSingle();
-
-    if (findError || !membership) {
-      // No pending invite found — might already be accepted or doesn't exist
-      setStep("error");
-      setErrorMsg("No pending invitation found for your email. It may have already been accepted.");
+    if (!token) {
+      navigate("/auth");
       return;
     }
 
-    // Accept the invite
-    const { error: updateError } = await supabase
-      .from("organization_members")
-      .update({ accepted: true, user_id: userId })
-      .eq("id", membership.id);
+    const validateAndProceed = async () => {
+      // Query pending_invites for valid token
+      const { data: invite, error } = await supabase
+        .from("pending_invites")
+        .select("token, organization_id, invited_email, accepted, expires_at")
+        .eq("token", token)
+        .eq("accepted", false)
+        .maybeSingle();
 
-    if (updateError) {
-      setStep("error");
-      setErrorMsg(updateError.message);
-      return;
-    }
+      if (error || !invite) {
+        setStep("invalid");
+        setErrorMsg(
+          "This invitation link is invalid or has expired. Please ask your organization owner to send a new invite."
+        );
+        return;
+      }
 
-    // Get org name for the welcome toast
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("name")
-      .eq("id", membership.organization_id)
-      .single();
+      // Check expiry
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+        setStep("invalid");
+        setErrorMsg(
+          "This invitation link is invalid or has expired. Please ask your organization owner to send a new invite."
+        );
+        return;
+      }
 
-    const orgName = org?.name ?? "your organization";
+      // Get org name
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", invite.organization_id!)
+        .single();
 
-    await refresh();
+      const inviteData: InviteData = {
+        token: invite.token,
+        organization_id: invite.organization_id!,
+        org_name: org?.name ?? "your organization",
+        invited_email: invite.invited_email,
+      };
+      setInvite(inviteData);
 
-    toast({
-      title: `Welcome to ${orgName}!`,
-      description: "You now have access to all team projects.",
-    });
+      // Check if user is already logged in
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    setStep("done");
-    navigate("/");
-  };
+      if (session?.user && !session.user.is_anonymous) {
+        await acceptInvite(
+          session.user.id,
+          session.user.email ?? "",
+          inviteData
+        );
+      } else {
+        setStep("auth");
+      }
+    };
 
-  const handleSetPassword = async () => {
-    if (password.length < 6) {
-      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast({ title: "Passwords do not match", variant: "destructive" });
-      return;
-    }
+    validateAndProceed();
+  }, [searchParams, navigate, acceptInvite]);
 
+  // ── Auth handlers ──────────────────────────────────────────────────────
+  const loginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const signupForm = useForm<SignupValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { email: "", password: "", confirmPassword: "" },
+  });
+
+  const handleLogin = async (values: LoginValues) => {
+    if (!invite) return;
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
     if (error) {
-      toast({ title: "Could not set password", description: error.message, variant: "destructive" });
       setLoading(false);
+      toast({
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
-
-    // Now accept the invite
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await acceptInvite(user.id, user.email ?? "");
+    if (data.user) {
+      await acceptInvite(data.user.id, data.user.email ?? "", invite);
     }
     setLoading(false);
   };
 
+  const handleSignup = async (values: SignupValues) => {
+    if (!invite) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/accept-invite?token=${invite.token}`,
+      },
+    });
+    setLoading(false);
+    if (error) {
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Check your email",
+        description:
+          "We sent a confirmation link. Click it to activate your account and join the team.",
+      });
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────
   const cardClass =
     "w-full max-w-md rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl p-8 space-y-6";
 
@@ -173,11 +282,13 @@ const AcceptInvite = () => {
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        background: "linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%)",
+        background:
+          "linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%)",
         backgroundAttachment: "fixed",
       }}
     >
       <div className={cardClass} style={{ background: "rgba(255,255,255,0.07)" }}>
+        {/* Branding */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-white tracking-tight">
             Beef<span className="text-primary">Synch</span>
@@ -202,64 +313,187 @@ const AcceptInvite = () => {
           </div>
         )}
 
-        {/* Set Password (new invited user) */}
-        {step === "set-password" && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <p className="text-base font-semibold text-white/80">Set Your Password</p>
-              <p className="text-xs text-white/40 mt-1">
-                Create a password to complete your account setup.
-              </p>
-            </div>
-            <PasswordInput
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-            />
-            <PasswordInput
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm password"
-            />
-            <Button
-              disabled={loading}
-              onClick={handleSetPassword}
-              className="w-full h-11 text-sm font-semibold text-white"
-            >
-              {loading ? "Setting up…" : "Set Password & Join Team"}
-            </Button>
-          </div>
-        )}
-
-        {/* Sign In (existing user) */}
-        {step === "sign-in" && (
-          <div className="space-y-4 text-center">
-            <p className="text-sm text-white/70">
-              Sign in to your account to accept the team invitation.
-            </p>
-            <Button
-              onClick={() => navigate("/auth")}
-              className="w-full h-11 text-sm font-semibold text-white"
-            >
-              Sign In to Accept
-            </Button>
-            <p className="text-xs text-white/40">
-              Don't have an account? The invitation link in your email will create one automatically.
-            </p>
-          </div>
-        )}
-
-        {/* Error */}
-        {step === "error" && (
+        {/* Invalid / Expired */}
+        {step === "invalid" && (
           <div className="space-y-4 text-center">
             <p className="text-sm text-white/70">{errorMsg}</p>
             <Button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/auth")}
               variant="outline"
               className="border-white/20 text-white/70 hover:bg-white/10 hover:text-white"
             >
-              Go to Dashboard
+              Go to Sign In
             </Button>
+          </div>
+        )}
+
+        {/* Auth — Sign Up / Sign In tabs */}
+        {step === "auth" && invite && (
+          <div className="space-y-5">
+            <p className="text-center text-sm text-white/70">
+              You have been invited to join{" "}
+              <span className="font-semibold text-white/90">
+                {invite.org_name}
+              </span>
+              . Create an account or sign in to accept.
+            </p>
+
+            {/* Tab buttons */}
+            <div className="flex rounded-lg border border-white/20 overflow-hidden">
+              <button
+                onClick={() => setAuthTab("signup")}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                  authTab === "signup"
+                    ? "bg-primary text-white"
+                    : "bg-white/5 text-white/50 hover:text-white/70"
+                }`}
+              >
+                Sign Up
+              </button>
+              <button
+                onClick={() => setAuthTab("signin")}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                  authTab === "signin"
+                    ? "bg-primary text-white"
+                    : "bg-white/5 text-white/50 hover:text-white/70"
+                }`}
+              >
+                Sign In
+              </button>
+            </div>
+
+            {/* Sign Up form */}
+            {authTab === "signup" && (
+              <Form {...signupForm}>
+                <form
+                  onSubmit={signupForm.handleSubmit(handleSignup)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={signupForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="you@example.com"
+                              className={emailInputClass}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">
+                          Password
+                        </FormLabel>
+                        <FormControl>
+                          <PasswordInput
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">
+                          Confirm Password
+                        </FormLabel>
+                        <FormControl>
+                          <PasswordInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Confirm password"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-11 text-sm font-semibold text-white"
+                  >
+                    {loading ? "Creating account…" : "Create Account"}
+                  </Button>
+                </form>
+              </Form>
+            )}
+
+            {/* Sign In form */}
+            {authTab === "signin" && (
+              <Form {...loginForm}>
+                <form
+                  onSubmit={loginForm.handleSubmit(handleLogin)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="you@example.com"
+                              className={emailInputClass}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">
+                          Password
+                        </FormLabel>
+                        <FormControl>
+                          <PasswordInput
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-11 text-sm font-semibold text-white"
+                  >
+                    {loading ? "Signing in…" : "Sign In & Accept Invite"}
+                  </Button>
+                </form>
+              </Form>
+            )}
           </div>
         )}
       </div>
