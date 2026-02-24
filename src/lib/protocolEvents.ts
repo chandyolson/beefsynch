@@ -35,33 +35,33 @@ type ProtocolStep = { name: string; offset: number; hasTime: boolean };
 const protocolSteps: Record<string, ProtocolStep[]> = {
   // COWS
   "Select Synch CIDR": [
-    { name: "GnRH + CIDR Insert", offset: -9.625, hasTime: true },
+    { name: "GnRH + CIDR Insert", offset: -9.625, hasTime: false },
     { name: "PGF + CIDR Out", offset: -2.625, hasTime: true },
   ],
   "Select Synch TOO": [
-    { name: "GnRH", offset: -10, hasTime: true },
+    { name: "GnRH", offset: -10, hasTime: false },
     { name: "Bulls In", offset: -6, hasTime: true },
     { name: "PGF", offset: -3, hasTime: true },
   ],
   "Select Synch": [
-    { name: "GnRH", offset: -10, hasTime: true },
+    { name: "GnRH", offset: -10, hasTime: false },
     { name: "PGF", offset: -3, hasTime: true },
   ],
   // Cows 7&7
   "7&7 Synch_Cows": [
-    { name: "PGF + CIDR Insert", offset: -16.75, hasTime: true },
-    { name: "GnRH", offset: -9.75, hasTime: true },
+    { name: "PGF + CIDR Insert", offset: -16.75, hasTime: false },
+    { name: "GnRH", offset: -9.75, hasTime: false },
     { name: "PGF + CIDR Out", offset: -2.75, hasTime: true },
   ],
   // HEIFERS
   "7 Day CIDR": [
-    { name: "GnRH + CIDR Insert", offset: -9.25, hasTime: true },
+    { name: "GnRH + CIDR Insert", offset: -9.25, hasTime: false },
     { name: "PGF + CIDR Out", offset: -2.25, hasTime: true },
   ],
   // Heifers 7&7
   "7&7 Synch_Heifers": [
-    { name: "PGF + CIDR Insert", offset: -16.75, hasTime: true },
-    { name: "GnRH", offset: -9.75, hasTime: true },
+    { name: "PGF + CIDR Insert", offset: -16.75, hasTime: false },
+    { name: "GnRH", offset: -9.75, hasTime: false },
     { name: "CIDR Out + PGF", offset: -2.25, hasTime: true },
   ],
   MGA: [
@@ -70,7 +70,7 @@ const protocolSteps: Record<string, ProtocolStep[]> = {
     { name: "PGF", offset: -3, hasTime: true },
   ],
   "14 Day CIDR": [
-    { name: "CIDR Insert", offset: -32.75, hasTime: true },
+    { name: "CIDR Insert", offset: -32.75, hasTime: false },
     { name: "CIDR Removed", offset: -18.75, hasTime: true },
     { name: "PGF", offset: -2.75, hasTime: true },
   ],
@@ -97,9 +97,9 @@ export function calculateProtocolEvents(
     return { event_name: step.name, ...f };
   });
 
-  // Breeding Date/Time itself
+  // Timed Breeding Date/Time itself
   const breedFmt = fmt(base, true);
-  events.push({ event_name: "Breeding", ...breedFmt });
+  events.push({ event_name: "Timed Breeding", ...breedFmt });
 
   // Return Heat = breeding + 20 days (no time)
   const returnHeat = addDays(base, 20);
