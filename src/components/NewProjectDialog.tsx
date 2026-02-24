@@ -101,6 +101,37 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
   const [bulls, setBulls] = useState<BullRow[]>([]);
   const isEditing = !!editData;
 
+  // Organization selection
+  const [userOrgs, setUserOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || user.is_anonymous) {
+        setUserOrgs([]);
+        setSelectedOrgId(null);
+        return;
+      }
+      const { data } = await supabase
+        .from("organization_members")
+        .select("organization_id, organizations(id, name)")
+        .eq("user_id", user.id)
+        .eq("accepted", true);
+      if (data && data.length > 0) {
+        const orgs = data
+          .map((d: any) => d.organizations)
+          .filter(Boolean)
+          .map((o: any) => ({ id: o.id, name: o.name }));
+        setUserOrgs(orgs);
+        setSelectedOrgId(orgs[0]?.id ?? null);
+      } else {
+        setUserOrgs([]);
+        setSelectedOrgId(null);
+      }
+    });
+  }, [open]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -176,7 +207,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         return;
       }
 
-      const projectPayload = {
+      const projectPayload: Record<string, any> = {
         name: values.name,
         cattle_type: values.cattle_type,
         protocol: values.protocol,
@@ -188,11 +219,16 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         user_id: user.id,
       };
 
+      // Attach organization if available
+      if (selectedOrgId) {
+        projectPayload.organization_id = selectedOrgId;
+      }
+
       let projectId: string;
 
       if (isEditing && editData) {
         // Update existing project
-        const { error } = await supabase.from("projects").update(projectPayload).eq("id", editData.id);
+        const { error } = await supabase.from("projects").update(projectPayload as any).eq("id", editData.id);
         if (error) throw error;
         projectId = editData.id;
 
@@ -205,7 +241,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         if (delBullErr) throw delBullErr;
       } else {
         // Insert new project
-        const { data: project, error } = await supabase.from("projects").insert(projectPayload).select("id").single();
+        const { data: project, error } = await supabase.from("projects").insert(projectPayload as any).select("id").single();
         if (error) throw error;
         projectId = project.id;
       }
@@ -257,6 +293,23 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            {/* Organization selector (only if multiple orgs) */}
+            {userOrgs.length > 1 && (
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Organization</label>
+                <Select value={selectedOrgId ?? ""} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userOrgs.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Project Name */}
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
