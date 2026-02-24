@@ -19,9 +19,9 @@ type SortKey = keyof BreedingProject;
 type SortDir = "asc" | "desc";
 
 const statusStyles: Record<string, string> = {
-  Active: "bg-primary/20 text-primary",
-  Completed: "bg-success/20 text-success",
-  Scheduled: "bg-warning/20 text-warning",
+  Confirmed: "bg-primary/20 text-primary",
+  Complete: "bg-success/20 text-success",
+  Tentative: "bg-warning/20 text-warning",
 };
 
 const typeStyles: Record<string, string> = {
