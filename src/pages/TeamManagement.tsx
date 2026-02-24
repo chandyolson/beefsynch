@@ -151,7 +151,7 @@ const TeamManagement = () => {
 
     try {
       const res = await supabase.functions.invoke("invite-member", {
-        body: { email: inviteEmail.trim(), organization_id: orgId, redirect_url: window.location.origin },
+        body: { email: inviteEmail.trim(), organization_id: orgId, org_name: orgName, redirect_url: window.location.origin },
       });
 
       setSending(false);
