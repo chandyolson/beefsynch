@@ -28,7 +28,7 @@ interface DbProject {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { role: orgRole, userId } = useOrgRole();
+  const { role: orgRole, userId, orgId } = useOrgRole();
   const isOwnerOrAdmin = orgRole === "owner" || orgRole === "admin";
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
@@ -63,10 +63,16 @@ const Index = () => {
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
 
   const fetchProjects = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("projects")
       .select("*")
       .order("created_at", { ascending: false });
+
+    if (orgId) {
+      query = query.eq("organization_id", orgId);
+    }
+
+    const { data } = await query;
 
     if (data) {
       setDbProjects(data as DbProject[]);
@@ -106,7 +112,7 @@ const Index = () => {
         }
       }
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     fetchProjects();
