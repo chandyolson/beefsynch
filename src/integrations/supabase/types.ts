@@ -268,6 +268,17 @@ export type Database = {
     }
     Functions: {
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
+      get_org_members: {
+        Args: { _organization_id: string }
+        Returns: {
+          accepted: boolean
+          email: string
+          id: string
+          invited_email: string
+          role: string
+          user_id: string
+        }[]
+      }
       get_org_role: {
         Args: { _organization_id: string; _user_id: string }
         Returns: string
