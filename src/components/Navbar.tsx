@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +24,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
   const [email, setEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const { role: orgRole } = useOrgRole();
+  const { role: orgRole, orgName, userOrgs, switchOrg } = useOrgRole();
   const canManageTeam = orgRole === "owner" || orgRole === "admin";
 
   useEffect(() => {
@@ -60,9 +60,38 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
               Beef<span className="text-primary">Synch</span>
             </h1>
-            <p className="text-xs text-muted-foreground tracking-wide">
-              Synchronization Planner
-            </p>
+            {orgName && userOrgs.length <= 1 && (
+              <p className="text-xs text-muted-foreground tracking-wide">
+                {orgName}
+              </p>
+            )}
+            {orgName && userOrgs.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    {orgName}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="z-50 w-56 bg-popover border border-border shadow-lg">
+                  {userOrgs.map((org) => (
+                    <DropdownMenuItem
+                      key={org.orgId}
+                      onClick={() => switchOrg(org.orgId)}
+                      className={`cursor-pointer gap-2 ${org.orgId === orgName ? "" : ""}`}
+                    >
+                      <span className={org.orgName === orgName ? "font-semibold" : ""}>{org.orgName}</span>
+                      <span className="ml-auto text-xs text-muted-foreground capitalize">{org.role}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!orgName && (
+              <p className="text-xs text-muted-foreground tracking-wide">
+                Synchronization Planner
+              </p>
+            )}
           </div>
         </div>
 
