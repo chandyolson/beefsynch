@@ -28,8 +28,7 @@ interface DbProject {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { role: orgRole, userId, orgId } = useOrgRole();
-  const isOwnerOrAdmin = orgRole === "owner" || orgRole === "admin";
+  const { userId, orgId } = useOrgRole();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -251,7 +250,7 @@ const Index = () => {
               setSelectedIds(new Set());
               fetchProjects();
             }}
-            canDelete={isOwnerOrAdmin}
+            canDelete={true}
           />
         )}
         <ProjectsTable
@@ -259,7 +258,7 @@ const Index = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           bullsByProject={bullsByProject}
-          canEditAll={isOwnerOrAdmin}
+          canEditAll={true}
           currentUserId={userId}
         />
       </main>

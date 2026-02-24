@@ -32,8 +32,8 @@ const typeStyles: Record<string, string> = {
 const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
   const navigate = useNavigate();
 
-  const canSelectProject = (project: BreedingProject) => {
-    return canEditAll || project.userId === currentUserId;
+  const canSelectProject = (_project: BreedingProject) => {
+    return true;
   };
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
