@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -17,15 +17,33 @@ const Onboarding = () => {
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Guard: if user already has an org, redirect to dashboard
+  useEffect(() => {
+    const checkExistingOrg = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("organization_members")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("accepted", true)
+        .limit(1);
+      if (data && data.length > 0) {
+        navigate("/", { replace: true });
+      }
+    };
+    checkExistingOrg();
+  }, [navigate]);
+
   const handleCreate = async () => {
     if (!orgName.trim()) return;
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
+      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
+      navigate("/auth", { replace: true });
       return;
     }
 
@@ -36,55 +54,55 @@ const Onboarding = () => {
       .single();
 
     if (orgError || !org) {
-      toast({
-        title: "Could not create organization",
-        description: orgError?.message,
-        variant: "destructive",
-      });
+      toast({ title: "Could not create organization", description: orgError?.message, variant: "destructive" });
       setLoading(false);
       return;
     }
 
     const { error: memberError } = await supabase
       .from("organization_members")
-      .insert({
-        user_id: user.id,
-        organization_id: org.id,
-        role: "owner",
-        accepted: true,
-      });
+      .insert({ user_id: user.id, organization_id: org.id, role: "owner", accepted: true });
 
     if (memberError) {
-      toast({
-        title: "Organization created but membership failed",
-        description: memberError.message,
-        variant: "destructive",
-      });
+      toast({ title: "Organization created but membership failed", description: memberError.message, variant: "destructive" });
       setLoading(false);
-    } else {
-      await refresh();
-      toast({
-        title: `Welcome to BeefSynch!`,
-        description: `Your organization ${orgName.trim()} has been created.`,
-      });
-      setLoading(false);
-      navigate("/");
+      return;
     }
+
+    await refresh();
+
+    // Confirm membership exists before navigating
+    const { data: confirmed } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .eq("organization_id", org.id)
+      .eq("accepted", true)
+      .limit(1);
+
+    if (!confirmed || confirmed.length === 0) {
+      toast({ title: "Something went wrong", description: "Organization membership could not be confirmed.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
+    setLoading(false);
+    navigate("/");
   };
 
   const handleJoin = async () => {
     if (!inviteCode.trim()) return;
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
+      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
+      navigate("/auth", { replace: true });
       return;
     }
 
-    // Look up org by invite code
     const { data: org, error: lookupError } = await supabase
       .from("organizations")
       .select("id, name")
@@ -92,39 +110,41 @@ const Onboarding = () => {
       .single();
 
     if (lookupError || !org) {
-      toast({
-        title: "Invalid invite code",
-        description: "No organization found with that code.",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid invite code", description: "No organization found with that code.", variant: "destructive" });
       setLoading(false);
       return;
     }
 
     const { error: memberError } = await supabase
       .from("organization_members")
-      .insert({
-        user_id: user.id,
-        organization_id: org.id,
-        role: "member",
-        accepted: true,
-      });
+      .insert({ user_id: user.id, organization_id: org.id, role: "member", accepted: true });
 
-    setLoading(false);
     if (memberError) {
-      toast({
-        title: "Could not join organization",
-        description: memberError.message,
-        variant: "destructive",
-      });
-    } else {
-      await refresh();
-      toast({
-        title: `Welcome to ${org.name}!`,
-        description: "You now have access to all team projects.",
-      });
-      navigate("/");
+      toast({ title: "Could not join organization", description: memberError.message, variant: "destructive" });
+      setLoading(false);
+      return;
     }
+
+    await refresh();
+
+    // Confirm membership exists before navigating
+    const { data: confirmed } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .eq("organization_id", org.id)
+      .eq("accepted", true)
+      .limit(1);
+
+    if (!confirmed || confirmed.length === 0) {
+      toast({ title: "Something went wrong", description: "Organization membership could not be confirmed.", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    toast({ title: `Welcome to ${org.name}!`, description: "You now have access to all team projects." });
+    setLoading(false);
+    navigate("/");
   };
 
   const cardClass =
