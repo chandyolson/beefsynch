@@ -102,10 +102,10 @@ Deno.serve(async (req) => {
     }
 
     // Check if user already exists and is a member
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const matchedUser = existingUsers?.users?.find(
-      (u: any) => u.email?.toLowerCase() === email.toLowerCase()
-    );
+    const { data: { users: matchedUsers } } = await adminClient.auth.admin.listUsers({
+      filter: `email.eq.${email}`,
+    });
+    const matchedUser = matchedUsers?.[0] ?? null;
     if (matchedUser) {
       const { data: existingMember } = await adminClient
         .from("organization_members")
