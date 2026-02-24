@@ -98,50 +98,60 @@ const AcceptInvite = () => {
     async (userId: string, userEmail: string, inviteData: InviteData) => {
       setStep("accepting");
 
-      try {
-        // Mark pending_invites as accepted
-        await supabase
-          .from("pending_invites")
-          .update({ accepted: true })
-          .eq("token", inviteData.token);
+      // Step 1 — Mark the invite token as accepted
+      const { error: inviteUpdateError } = await supabase
+        .from("pending_invites")
+        .update({ accepted: true })
+        .eq("token", inviteData.token);
 
-        // Try to update existing organization_members row
-        const { data: existingMember } = await supabase
+      if (inviteUpdateError) {
+        console.error("Failed to mark invite accepted:", inviteUpdateError.message);
+      }
+
+      // Step 2 — Try to update existing pending org member record by invited_email
+      const { data: updatedRows } = await supabase
+        .from("organization_members")
+        .update({ user_id: userId, accepted: true })
+        .eq("organization_id", inviteData.organization_id)
+        .eq("invited_email", inviteData.invited_email)
+        .eq("accepted", false)
+        .select();
+
+      // Step 3 — If no existing record was found, insert a fresh one
+      if (!updatedRows || updatedRows.length === 0) {
+        const { error: insertError } = await supabase
           .from("organization_members")
-          .select("id")
-          .eq("invited_email", inviteData.invited_email)
-          .eq("organization_id", inviteData.organization_id)
-          .eq("accepted", false)
-          .maybeSingle();
-
-        if (existingMember) {
-          await supabase
-            .from("organization_members")
-            .update({ user_id: userId, accepted: true })
-            .eq("id", existingMember.id);
-        } else {
-          // Insert a new row if none existed
-          await supabase.from("organization_members").insert({
+          .insert({
             user_id: userId,
             organization_id: inviteData.organization_id,
             role: "member",
             accepted: true,
           });
+
+        if (insertError) {
+          console.error("Failed to insert org member:", insertError.message);
+          toast({
+            title: "Something went wrong",
+            description:
+              "Could not complete your organization membership. Please contact your organization owner.",
+            variant: "destructive",
+          });
+          setStep("invalid");
+          setErrorMsg("Failed to accept invitation.");
+          return;
         }
-
-        await refresh();
-
-        toast({
-          title: `Welcome to ${inviteData.org_name}!`,
-          description: "You now have access to all team projects.",
-        });
-
-        setStep("done");
-        navigate("/");
-      } catch (err: any) {
-        setStep("invalid");
-        setErrorMsg(err.message || "Failed to accept invitation.");
       }
+
+      // Step 4 — Success
+      await refresh();
+
+      toast({
+        title: `Welcome to ${inviteData.org_name}!`,
+        description: "You now have access to all team projects.",
+      });
+
+      setStep("done");
+      navigate("/");
     },
     [navigate, refresh]
   );
