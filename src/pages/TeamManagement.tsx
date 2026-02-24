@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw } from "lucide-react";
 
 interface Member {
@@ -45,6 +55,7 @@ const TeamManagement = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [showRegenDialog, setShowRegenDialog] = useState(false);
 
   const canManage = myRole === "owner" || myRole === "admin";
 
@@ -252,7 +263,7 @@ const TeamManagement = () => {
               </button>
               {myRole === "owner" && (
                 <button
-                  onClick={regenerateInviteCode}
+                  onClick={() => setShowRegenDialog(true)}
                   disabled={regenerating}
                   className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                   title="Regenerate invite code"
@@ -367,6 +378,23 @@ const TeamManagement = () => {
             </div>
           </div>
         )}
+        {/* Regenerate confirmation dialog */}
+        <AlertDialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Regenerate Invite Code?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Regenerating the invite code will invalidate the current one. Anyone with the old code will not be able to join. Continue?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setShowRegenDialog(false); regenerateInviteCode(); }}>
+                Regenerate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
