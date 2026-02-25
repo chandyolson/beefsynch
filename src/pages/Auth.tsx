@@ -87,21 +87,10 @@ const Auth = () => {
     });
 
     // Listen for auth state changes (e.g. email confirmation redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
-        // Check if user already has an organization
-        const { data: memberships } = await supabase
-          .from("organization_members")
-          .select("id")
-          .eq("user_id", session.user.id)
-          .eq("accepted", true)
-          .limit(1);
-
-        if (memberships && memberships.length > 0) {
-          navigate("/");
-        } else {
-          navigate("/onboarding");
-        }
+        // Let ProtectedRoute handle onboarding vs dashboard routing
+        navigate("/");
       }
     });
 
