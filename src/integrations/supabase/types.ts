@@ -176,6 +176,27 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          has_completed_onboarding: boolean
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          has_completed_onboarding?: boolean
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          has_completed_onboarding?: boolean
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       project_bulls: {
         Row: {
           bull_catalog_id: string | null
