@@ -86,6 +86,9 @@ const Onboarding = () => {
       return;
     }
 
+    // Mark onboarding complete
+    await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
+
     toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
     setLoading(false);
     navigate("/");
@@ -157,6 +160,9 @@ const Onboarding = () => {
       setLoading(false);
       return;
     }
+
+    // Mark onboarding complete
+    await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
 
     toast({ title: `Welcome to ${org.name}!`, description: "You now have access to all team projects." });
     setLoading(false);
