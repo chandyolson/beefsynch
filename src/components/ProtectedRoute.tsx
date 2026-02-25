@@ -32,14 +32,22 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("has_completed_onboarding")
         .eq("user_id", s.user.id)
         .single();
 
+      console.log("[ProtectedRoute] profile fetch:", { userId: s.user.id, data, error });
+      console.log("[ProtectedRoute] has_completed_onboarding:", data?.has_completed_onboarding);
+
       if (cancelled) return;
-      setNeedsOnboarding(!data?.has_completed_onboarding);
+
+      // Only redirect to onboarding if explicitly false.
+      // Treat null, undefined, or fetch errors as "completed" so existing users aren't stuck.
+      const onboardingNeeded = data?.has_completed_onboarding === false;
+      console.log("[ProtectedRoute] onboardingNeeded:", onboardingNeeded);
+      setNeedsOnboarding(onboardingNeeded);
       setOnboardingChecked(true);
     };
 
