@@ -15,38 +15,47 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
+    let cancelled = false;
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
+    // Reset onboarding state on every auth change to prevent stale renders
+    const handleSession = async (s: Session | null) => {
+      if (cancelled) return;
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Check onboarding status from profiles table
-  useEffect(() => {
-    if (!session || session.user.is_anonymous) {
-      setOnboardingChecked(true);
+      // Reset onboarding check before updating session so the loading
+      // spinner shows while we fetch the profile
+      setOnboardingChecked(false);
       setNeedsOnboarding(false);
-      return;
-    }
+      setSession(s);
 
-    const checkOnboarding = async () => {
+      if (!s || s.user.is_anonymous) {
+        setOnboardingChecked(true);
+        return;
+      }
+
       const { data } = await supabase
         .from("profiles")
         .select("has_completed_onboarding")
-        .eq("user_id", session.user.id)
+        .eq("user_id", s.user.id)
         .single();
 
+      if (cancelled) return;
       setNeedsOnboarding(!data?.has_completed_onboarding);
       setOnboardingChecked(true);
     };
 
-    checkOnboarding();
-  }, [session]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      handleSession(s);
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      handleSession(data.session);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Still loading session or onboarding check
   if (session === undefined || (session && !session.user.is_anonymous && !onboardingChecked)) {
