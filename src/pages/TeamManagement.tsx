@@ -78,6 +78,30 @@ const TeamManagement = () => {
     if (!roleLoading && orgId) fetchData();
   }, [roleLoading, orgId, fetchData]);
 
+  // Realtime subscription to auto-refresh when members change
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`org-members-${orgId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "organization_members",
+          filter: `organization_id=eq.${orgId}`,
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orgId, fetchData]);
+
   // Rename org
   const saveOrgName = async () => {
     if (!nameDraft.trim() || !orgId) return;
