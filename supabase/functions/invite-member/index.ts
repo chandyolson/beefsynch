@@ -77,6 +77,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Only owners and admins can invite members" }, 403);
     }
 
+    // Step 2.1 — Fetch the organization's invite_code
+    const { data: orgData } = await adminClient
+      .from("organizations")
+      .select("invite_code")
+      .eq("id", organization_id)
+      .single();
+
+    const inviteCode = orgData?.invite_code ?? "";
+
     // Step 2.5 — Handle ghost users from previous failed invites
     const { data: { users: existingAuthUsers } } = await adminClient.auth.admin.listUsers();
     const existingAuthUser = existingAuthUsers?.find(
@@ -192,12 +201,10 @@ Deno.serve(async (req) => {
         </tr>
         <tr>
           <td style="padding:40px;">
-            <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;">You have been invited!</h2>
+            <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;">You've been invited!</h2>
             <p style="margin:0 0 12px;color:#4a4a68;font-size:15px;line-height:1.6;">
-              You have been invited to join <strong>${org_name}</strong> on <strong>BeefSynch</strong>.
-            </p>
-            <p style="margin:0 0 24px;color:#4a4a68;font-size:15px;line-height:1.6;">
-              Click the button below to create your account and accept the invitation.
+              You've been invited to join <strong>${org_name}</strong> on <strong>BeefSynch</strong>.
+              Click the button below to accept, or use the organization code <strong style="color:#0da3a3;letter-spacing:1px;">${inviteCode}</strong> to join manually from the Join Organization screen.
             </p>
             <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
               <tr><td align="center" style="border-radius:6px;background-color:#0da3a3;">
