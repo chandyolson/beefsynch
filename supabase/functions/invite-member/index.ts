@@ -87,10 +87,24 @@ Deno.serve(async (req) => {
     const inviteCode = orgData?.invite_code ?? "";
 
     // Step 2.5 — Handle ghost users from previous failed invites
-    const { data: { users: existingAuthUsers } } = await adminClient.auth.admin.listUsers();
-    const existingAuthUser = existingAuthUsers?.find(
-      (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+    // Use GoTrue admin API with email filter instead of loading all users
+    const gotrueRes = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users?filter=${encodeURIComponent(email.toLowerCase())}&page=1&per_page=1`,
+      {
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+        },
+      }
     );
+    let existingAuthUser: any = null;
+    if (gotrueRes.ok) {
+      const gotrueData = await gotrueRes.json();
+      const users = gotrueData?.users ?? gotrueData ?? [];
+      existingAuthUser = Array.isArray(users)
+        ? users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        : null;
+    }
 
     if (existingAuthUser) {
       if (existingAuthUser.email_confirmed_at) {
