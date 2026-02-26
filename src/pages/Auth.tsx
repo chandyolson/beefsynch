@@ -83,19 +83,15 @@ const Auth = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setIsAnonymous(data.session?.user?.is_anonymous === true);
-    });
-
-    // Listen for auth state changes (e.g. email confirmation redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
-        // Let ProtectedRoute handle onboarding vs dashboard routing
-        navigate("/");
+      const user = data.session?.user;
+      setIsAnonymous(user?.is_anonymous === true);
+      // If already signed in as a non-anonymous user, redirect away
+      // and let ProtectedRoute handle onboarding vs dashboard routing
+      if (user && !user.is_anonymous && !isConvert) {
+        navigate("/", { replace: true });
       }
     });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, isConvert]);
 
   // Login form
   const loginForm = useForm<LoginValues>({
@@ -196,7 +192,7 @@ const Auth = () => {
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
-      options: { emailRedirectTo: `${window.location.origin}/onboarding` }
+      options: { emailRedirectTo: window.location.origin }
     });
     setLoading(false);
     if (error) {

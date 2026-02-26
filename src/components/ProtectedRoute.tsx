@@ -36,7 +36,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         .from("profiles")
         .select("has_completed_onboarding")
         .eq("user_id", s.user.id)
-        .single();
+        .maybeSingle();
 
       console.log("[ProtectedRoute] profile fetch:", { userId: s.user.id, data, error });
       console.log("[ProtectedRoute] has_completed_onboarding:", data?.has_completed_onboarding);
