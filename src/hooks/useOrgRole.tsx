@@ -53,6 +53,10 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.is_anonymous) {
       setUserId(user?.id ?? null);
+      setRole(null);
+      setOrgId(null);
+      setOrgName(null);
+      setUserOrgs([]);
       setLoading(false);
       return;
     }
