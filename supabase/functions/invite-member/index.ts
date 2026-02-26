@@ -141,16 +141,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3 — Check for duplicate pending invite
-    const { data: existingInvite } = await adminClient
-      .from("pending_invites")
-      .select("id")
-      .eq("organization_id", organization_id)
-      .eq("invited_email", email)
-      .eq("accepted", false)
-      .gte("expires_at", new Date().toISOString())
-      .maybeSingle();
-
+    // Step 3 — Check if already an accepted member (block), or has pending invite (replace it)
     const { data: existingMember } = await adminClient
       .from("organization_members")
       .select("id")
@@ -159,11 +150,27 @@ Deno.serve(async (req) => {
       .eq("accepted", true)
       .maybeSingle();
 
-    if (existingInvite || existingMember) {
+    if (existingMember) {
       return jsonResponse({
-        error: "An invitation has already been sent to this email address or they are already a member.",
+        error: "This person is already a member of your organization.",
       }, 409);
     }
+
+    // Clean up any existing pending invites for this email so we can create a fresh one
+    await adminClient
+      .from("pending_invites")
+      .delete()
+      .eq("organization_id", organization_id)
+      .eq("invited_email", email)
+      .eq("accepted", false);
+
+    // Clean up any existing unaccepted org member rows too
+    await adminClient
+      .from("organization_members")
+      .delete()
+      .eq("organization_id", organization_id)
+      .eq("invited_email", email)
+      .eq("accepted", false);
 
     // Step 4 — Insert pending invite record
     const { data: invite, error: inviteInsertErr } = await adminClient
