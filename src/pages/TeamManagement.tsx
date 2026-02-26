@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw } from "lucide-react";
+import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw } from "lucide-react";
 
 interface Member {
   id: string;
@@ -54,6 +54,7 @@ const TeamManagement = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenDialog, setShowRegenDialog] = useState(false);
 
@@ -187,6 +188,36 @@ const TeamManagement = () => {
     }
   };
 
+  // Resend invitation for a pending member
+  const handleResendInvite = async (member: Member) => {
+    if (!orgId || !member.invited_email) return;
+    setResendingId(member.id);
+
+    try {
+      const res = await supabase.functions.invoke("resend-invite", {
+        body: { email: member.invited_email, organization_id: orgId, org_name: orgName, redirect_url: 'https://beefsynch.com' },
+      });
+
+      setResendingId(null);
+      if (res.error || res.data?.error) {
+        toast({
+          title: "Resend failed",
+          description: res.data?.error || res.error?.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Invitation resent to ${member.invited_email}` });
+      }
+    } catch {
+      setResendingId(null);
+      toast({
+        title: "Resend failed",
+        description: "Invitation service unavailable — please try again shortly.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (roleLoading) {
     return (
       <div
@@ -313,6 +344,19 @@ const TeamManagement = () => {
                     {canManage && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {!m.accepted && m.invited_email && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResendInvite(m)}
+                              disabled={resendingId === m.id}
+                              className="h-8 gap-1 text-xs"
+                              title="Resend invitation"
+                            >
+                              <RotateCw className={`h-3.5 w-3.5 ${resendingId === m.id ? "animate-spin" : ""}`} />
+                              {resendingId === m.id ? "Sending…" : "Resend"}
+                            </Button>
+                          )}
                           {!(myRole === "admin" && isOwner) && (
                             <Select
                               value={m.role}
