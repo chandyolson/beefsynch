@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
                 </a>
               </td></tr>
             </table>
-            <p style="margin:0 0 8px;color:#8888a0;font-size:13px;text-align:center;">This invitation expires in 48 hours.</p>
+            <p style="margin:0 0 8px;color:#8888a0;font-size:13px;text-align:center;">This invitation expires in 7 days.</p>
             <p style="margin:0;color:#8888a0;font-size:13px;text-align:center;">If you did not expect this invitation you can safely ignore this email.</p>
           </td>
         </tr>
