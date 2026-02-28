@@ -81,7 +81,7 @@ const Index = () => {
         animalType: p.cattle_type === "Cows" ? "Cow" : "Heifer",
         protocol: p.protocol,
         headCount: p.head_count,
-        startDate: p.breeding_date ?? "",
+        startDate: "",
         breedDate: p.breeding_date ?? "",
         status: p.status as any,
         location: "",
@@ -89,8 +89,32 @@ const Index = () => {
       }));
       setProjects(mapped);
 
-      // Fetch bulls for all projects
+      // Fetch earliest protocol event date per project
       const projectIds = data.map((p) => p.id);
+      let earliestDateMap: Record<string, string> = {};
+      if (projectIds.length > 0) {
+        const { data: eventsData } = await supabase
+          .from("protocol_events")
+          .select("project_id, event_date")
+          .in("project_id", projectIds)
+          .order("event_date", { ascending: true });
+
+        if (eventsData) {
+          for (const ev of eventsData) {
+            if (!earliestDateMap[ev.project_id]) {
+              earliestDateMap[ev.project_id] = ev.event_date;
+            }
+          }
+        }
+      }
+
+      // Update startDate with earliest protocol event date
+      setProjects((prev) =>
+        prev.map((p) => ({
+          ...p,
+          startDate: earliestDateMap[p.id] || p.startDate,
+        }))
+      );
       if (projectIds.length > 0) {
         const { data: bullsData } = await supabase
           .from("project_bulls")

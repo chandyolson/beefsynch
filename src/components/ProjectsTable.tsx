@@ -242,8 +242,8 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{project.protocol}</td>
                 <td className="px-4 py-3 font-semibold text-foreground">{project.headCount}</td>
-                <td className="px-4 py-3 text-muted-foreground">{format(parseISO(project.startDate), "MMM d, yyyy")}</td>
-                <td className="px-4 py-3 text-muted-foreground">{format(parseISO(project.breedDate), "MMM d, yyyy")}</td>
+                <td className="px-4 py-3 text-muted-foreground">{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
                     {project.status}
@@ -297,7 +297,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                   <span className="font-medium text-foreground">{project.headCount} head</span>
-                  <span>Breed: {format(parseISO(project.breedDate), "MMM d, yyyy")}</span>
+                  <span>Breed: {project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</span>
                 </div>
 
                 <div className="mt-1">{renderBulls(project.id)}</div>
