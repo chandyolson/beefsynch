@@ -128,17 +128,17 @@ Deno.serve(async (req) => {
 
         // Also clean up any stale org member / pending invite rows for this email
         await adminClient
-130:           .from("organization_members")
-131:           .delete()
-132:           .eq("invited_email", normalizedEmail)
-133:           .eq("organization_id", organization_id)
-134:           .eq("accepted", false);
-135:         await adminClient
-136:           .from("pending_invites")
-137:           .delete()
-138:           .eq("invited_email", normalizedEmail)
-139:           .eq("organization_id", organization_id)
-140:           .eq("accepted", false);
+          .from("organization_members")
+          .delete()
+          .eq("invited_email", normalizedEmail)
+          .eq("organization_id", organization_id)
+          .eq("accepted", false);
+        await adminClient
+          .from("pending_invites")
+          .delete()
+          .eq("invited_email", normalizedEmail)
+          .eq("organization_id", organization_id)
+          .eq("accepted", false);
       }
     }
 
