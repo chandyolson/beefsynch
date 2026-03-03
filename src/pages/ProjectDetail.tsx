@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2 } from "lucide-react";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
@@ -15,8 +15,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -73,6 +84,7 @@ const ProjectDetail = () => {
   const [bulls, setBulls] = useState<BullRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -93,6 +105,17 @@ const ProjectDetail = () => {
     if (eRes.data) setEvents(eRes.data as EventRow[]);
     if (bRes.data) setBulls(bRes.data as BullRow[]);
     setLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Could not delete project", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Project deleted", description: project?.name + " has been removed." });
+      navigate("/");
+    }
   };
 
   useEffect(() => {
@@ -191,6 +214,10 @@ const ProjectDetail = () => {
                 >
                   <Download className="h-4 w-4" /> Download CSV
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer gap-2 text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4" /> Delete Project
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
@@ -230,6 +257,10 @@ const ProjectDetail = () => {
                   }}
                 >
                   <Download className="h-4 w-4" /> Download CSV
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer gap-2 text-destructive focus:text-destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4" /> Delete Project
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -445,6 +476,23 @@ const ProjectDetail = () => {
           })),
         } : null}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{project?.name}" and all its protocol events and bull assignments. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
