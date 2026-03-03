@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
@@ -14,11 +14,14 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const location = useLocation();
 
+  const fetchIdRef = useRef(0);
+
   useEffect(() => {
     let cancelled = false;
 
     // Reset onboarding state on every auth change to prevent stale renders
     const handleSession = async (s: Session | null) => {
+      const fetchId = ++fetchIdRef.current;
       if (cancelled) return;
 
       // Reset onboarding check before updating session so the loading
@@ -41,7 +44,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       console.log("[ProtectedRoute] profile fetch:", { userId: s.user.id, data, error });
       console.log("[ProtectedRoute] has_completed_onboarding:", data?.has_completed_onboarding);
 
-      if (cancelled) return;
+      if (cancelled || fetchId !== fetchIdRef.current) return;
 
       // Only redirect to onboarding if explicitly false.
       // Treat null, undefined, or fetch errors as "completed" so existing users aren't stuck.
