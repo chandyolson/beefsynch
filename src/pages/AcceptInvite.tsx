@@ -166,15 +166,10 @@ const AcceptInvite = () => {
     }
 
     const validateAndProceed = async () => {
-      // Use the standard supabase client (anon key) — works because
-      // the RLS policy allows public SELECT on pending_invites
-      const { data: invite, error: lookupError } = await supabase
-        .from("pending_invites")
-        .select("token, organization_id, invited_email, accepted, expires_at, organizations(name)")
-        .eq("token", token)
-        .eq("accepted", false)
-        .gt("expires_at", new Date().toISOString())
-        .maybeSingle();
+      const { data: invites, error: lookupError } = await supabase
+        .rpc("lookup_invite_by_token", { _token: token });
+
+      const invite = invites && invites.length > 0 ? invites[0] : null;
 
       console.log("Token lookup result:", invite ? "found" : "not found", lookupError?.message ?? "");
 
@@ -189,7 +184,7 @@ const AcceptInvite = () => {
       const inviteData: InviteData = {
         token: invite.token,
         organization_id: invite.organization_id!,
-        org_name: (invite as any).organizations?.name ?? "your organization",
+        org_name: invite.org_name ?? "your organization",
         invited_email: invite.invited_email,
       };
       setInvite(inviteData);
