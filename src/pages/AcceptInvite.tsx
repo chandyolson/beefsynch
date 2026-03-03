@@ -118,7 +118,7 @@ const AcceptInvite = () => {
         .from("organization_members")
         .update({ user_id: userId, accepted: true })
         .eq("organization_id", inviteData.organization_id)
-        .eq("invited_email", inviteData.invited_email)
+        .eq("invited_email", inviteData.invited_email.toLowerCase())
         .eq("accepted", false)
         .select();
 

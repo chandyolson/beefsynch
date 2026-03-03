@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
     if (!email || !organization_id || !org_name) {
       return jsonResponse({ error: "Missing email, organization_id, or org_name" }, 400);
     }
+    const normalizedEmail = email.toLowerCase().trim();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
     await adminClient
       .from("pending_invites")
       .delete()
-      .eq("invited_email", email)
+      .eq("invited_email", normalizedEmail)
       .eq("organization_id", organization_id);
 
     // Create a fresh pending invite (7-day default from DB)
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
       .from("pending_invites")
       .insert({
         organization_id,
-        invited_email: email,
+        invited_email: normalizedEmail,
         accepted: false,
       })
       .select("token")
