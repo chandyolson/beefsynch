@@ -176,7 +176,6 @@ const AcceptInvite = () => {
 
       const invite = invites && invites.length > 0 ? invites[0] : null;
 
-      console.log("Token lookup result:", invite ? "found" : "not found", lookupError?.message ?? "");
 
       if (lookupError || !invite) {
         setStep("invalid");
