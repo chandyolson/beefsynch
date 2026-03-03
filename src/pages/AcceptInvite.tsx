@@ -96,6 +96,11 @@ const AcceptInvite = () => {
   // ── Accept invite logic ────────────────────────────────────────────────
   const acceptInvite = useCallback(
     async (userId: string, userEmail: string, inviteData: InviteData) => {
+      if (userEmail && inviteData.invited_email && userEmail.toLowerCase() !== inviteData.invited_email.toLowerCase()) {
+        toast({ title: "Email mismatch", description: "This invitation was sent to " + inviteData.invited_email + ". Please sign in with that email address to accept it.", variant: "destructive" });
+        setStep("auth");
+        return;
+      }
       setStep("accepting");
 
       // Step 1 — Mark the invite token as accepted
