@@ -120,45 +120,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3 — Check if already a member (by email in org_members OR by user_id if auth user exists)
-    const { data: existingByEmail } = await adminClient
-      .from("organization_members")
-      .select("id, accepted")
-      .eq("organization_id", organization_id)
-      .eq("invited_email", normalizedEmail)
-      .eq("accepted", true)
-      .maybeSingle();
+    // Step 3 — Comprehensive duplicate check
 
-    if (existingByEmail) {
-      return jsonResponse({ error: "This person is already a member of your organization." }, 409);
-    }
-
-    // Also check by user_id if we found an auth user for this email
+    // 3a: If an auth user exists for this email, check if they're already a member by user_id
     if (existingAuthUser) {
-      const { data: existingByUid } = await adminClient
+      const { data: memberByUid } = await adminClient
         .from("organization_members")
         .select("id, accepted")
         .eq("organization_id", organization_id)
         .eq("user_id", existingAuthUser.id)
-        .eq("accepted", true)
         .maybeSingle();
 
-      if (existingByUid) {
+      if (memberByUid?.accepted) {
         return jsonResponse({ error: "This person is already a member of your organization." }, 409);
+      }
+      if (memberByUid && !memberByUid.accepted) {
+        return jsonResponse({ error: "An invitation is already pending for this email. Use the Resend button on the Team page." }, 409);
       }
     }
 
-    // Also block if there's already a pending invite for this email
-    const { data: existingPending } = await adminClient
+    // 3b: Also check by invited_email (catches cases where no auth user exists yet)
+    const { data: memberByEmail } = await adminClient
       .from("organization_members")
-      .select("id")
+      .select("id, accepted")
       .eq("organization_id", organization_id)
       .eq("invited_email", normalizedEmail)
-      .eq("accepted", false)
       .maybeSingle();
 
-    if (existingPending) {
-      return jsonResponse({ error: "An invitation is already pending for this email address. Use the Resend button on the Team page to send it again." }, 409);
+    if (memberByEmail?.accepted) {
+      return jsonResponse({ error: "This person is already a member of your organization." }, 409);
+    }
+    if (memberByEmail && !memberByEmail.accepted) {
+      return jsonResponse({ error: "An invitation is already pending for this email. Use the Resend button on the Team page." }, 409);
     }
 
     // Step 4 — Insert pending invite record
