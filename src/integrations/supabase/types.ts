@@ -342,6 +342,13 @@ export type Database = {
         Args: { _organization_id: string; _user_id: string }
         Returns: string
       }
+      lookup_org_by_invite_code: {
+        Args: { _code: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       user_org_ids: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
