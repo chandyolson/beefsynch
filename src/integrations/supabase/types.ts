@@ -342,6 +342,17 @@ export type Database = {
         Args: { _organization_id: string; _user_id: string }
         Returns: string
       }
+      lookup_invite_by_token: {
+        Args: { _token: string }
+        Returns: {
+          accepted: boolean
+          expires_at: string
+          invited_email: string
+          org_name: string
+          organization_id: string
+          token: string
+        }[]
+      }
       lookup_org_by_invite_code: {
         Args: { _code: string }
         Returns: {
