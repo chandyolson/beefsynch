@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
     if (!email || !organization_id || !org_name) {
       return jsonResponse({ error: "Missing email, organization_id, or org_name" }, 400);
     }
+    const normalizedEmail = email.toLowerCase().trim();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -127,17 +128,17 @@ Deno.serve(async (req) => {
 
         // Also clean up any stale org member / pending invite rows for this email
         await adminClient
-          .from("organization_members")
-          .delete()
-          .eq("invited_email", email)
-          .eq("organization_id", organization_id)
-          .eq("accepted", false);
-        await adminClient
-          .from("pending_invites")
-          .delete()
-          .eq("invited_email", email)
-          .eq("organization_id", organization_id)
-          .eq("accepted", false);
+130:           .from("organization_members")
+131:           .delete()
+132:           .eq("invited_email", normalizedEmail)
+133:           .eq("organization_id", organization_id)
+134:           .eq("accepted", false);
+135:         await adminClient
+136:           .from("pending_invites")
+137:           .delete()
+138:           .eq("invited_email", normalizedEmail)
+139:           .eq("organization_id", organization_id)
+140:           .eq("accepted", false);
       }
     }
 
@@ -146,7 +147,7 @@ Deno.serve(async (req) => {
       .from("organization_members")
       .select("id")
       .eq("organization_id", organization_id)
-      .eq("invited_email", email)
+      .eq("invited_email", normalizedEmail)
       .eq("accepted", true)
       .maybeSingle();
 
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
       .from("pending_invites")
       .delete()
       .eq("organization_id", organization_id)
-      .eq("invited_email", email)
+      .eq("invited_email", normalizedEmail)
       .eq("accepted", false);
 
     // Clean up any existing unaccepted org member rows too
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
       .from("organization_members")
       .delete()
       .eq("organization_id", organization_id)
-      .eq("invited_email", email)
+      .eq("invited_email", normalizedEmail)
       .eq("accepted", false);
 
     // Step 4 — Insert pending invite record
@@ -177,7 +178,7 @@ Deno.serve(async (req) => {
       .from("pending_invites")
       .insert({
         organization_id,
-        invited_email: email,
+        invited_email: normalizedEmail,
         accepted: false,
       })
       .select("token")
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
       .from("organization_members")
       .insert({
         organization_id,
-        invited_email: email,
+        invited_email: normalizedEmail,
         user_id: null,
         role: "member",
         accepted: false,
