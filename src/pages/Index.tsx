@@ -69,6 +69,8 @@ const Index = () => {
 
     if (orgId) {
       query = query.eq("organization_id", orgId);
+    } else if (userId) {
+      query = query.eq("user_id", userId);
     }
 
     const { data } = await query;
