@@ -28,7 +28,7 @@ interface DbProject {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { userId, orgId } = useOrgRole();
+  const { userId, orgId, role: myRole } = useOrgRole();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -259,7 +259,7 @@ const Index = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           bullsByProject={bullsByProject}
-          canEditAll={true}
+          canEditAll={myRole === "owner" || myRole === "admin"}
           currentUserId={userId}
         />
       </main>
