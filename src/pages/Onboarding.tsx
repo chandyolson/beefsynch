@@ -106,11 +106,10 @@ const Onboarding = () => {
       return;
     }
 
-    const { data: org, error: lookupError } = await supabase
-      .from("organizations")
-      .select("id, name")
-      .eq("invite_code", inviteCode.trim())
-      .single();
+    const { data: orgs, error: lookupError } = await supabase
+      .rpc("lookup_org_by_invite_code", { _code: inviteCode.trim() });
+
+    const org = orgs && orgs.length > 0 ? orgs[0] : null;
 
     if (lookupError || !org) {
       toast({ title: "Invalid invite code", description: "No organization found with that code.", variant: "destructive" });
