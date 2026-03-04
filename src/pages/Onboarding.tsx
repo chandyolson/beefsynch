@@ -315,6 +315,19 @@ const Onboarding = () => {
             </button>
           </div>
         )}
+
+        <div className="pt-2 border-t border-white/10 text-center">
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              navigate("/auth", { replace: true });
+            }}
+            className="text-xs text-white/40 hover:text-white/60 transition-colors"
+          >
+            Sign out or use a different account
+          </button>
+        </div>
       </div>
     </div>
   );
