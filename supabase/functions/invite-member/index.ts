@@ -124,12 +124,13 @@ Deno.serve(async (req) => {
 
     // 3a: If an auth user exists for this email, check if they're already a member by user_id
     if (existingAuthUser) {
-      const { data: memberByUid } = await adminClient
+      const { data: membersByUid } = await adminClient
         .from("organization_members")
         .select("id, accepted")
         .eq("organization_id", organization_id)
         .eq("user_id", existingAuthUser.id)
-        .maybeSingle();
+        .limit(1);
+      const memberByUid = membersByUid?.[0] ?? null;
 
       if (memberByUid?.accepted) {
         return jsonResponse({ error: "This person is already a member of your organization." }, 409);
@@ -140,12 +141,13 @@ Deno.serve(async (req) => {
     }
 
     // 3b: Also check by invited_email (catches cases where no auth user exists yet)
-    const { data: memberByEmail } = await adminClient
+    const { data: membersByEmail } = await adminClient
       .from("organization_members")
       .select("id, accepted")
       .eq("organization_id", organization_id)
       .eq("invited_email", normalizedEmail)
-      .maybeSingle();
+      .limit(1);
+    const memberByEmail = membersByEmail?.[0] ?? null;
 
     if (memberByEmail?.accepted) {
       return jsonResponse({ error: "This person is already a member of your organization." }, 409);
@@ -153,6 +155,21 @@ Deno.serve(async (req) => {
     if (memberByEmail && !memberByEmail.accepted) {
       return jsonResponse({ error: "An invitation is already pending for this email. Use the Resend button on the Team page." }, 409);
     }
+
+    // Step 3.5 — Clean up stale pending records for this email + org before creating new ones
+    await adminClient
+      .from("pending_invites")
+      .delete()
+      .eq("organization_id", organization_id)
+      .eq("invited_email", normalizedEmail)
+      .eq("accepted", false);
+
+    await adminClient
+      .from("organization_members")
+      .delete()
+      .eq("organization_id", organization_id)
+      .eq("invited_email", normalizedEmail)
+      .eq("accepted", false);
 
     // Step 4 — Insert pending invite record
     const { data: invite, error: inviteInsertErr } = await adminClient
