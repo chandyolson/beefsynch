@@ -117,30 +117,64 @@ const Onboarding = () => {
       return;
     }
 
-    // Check if user is already a member of this org
-    const { data: existing } = await supabase
+    // Check if user is already an accepted member of this org
+    const { data: existingAccepted } = await supabase
       .from("organization_members")
       .select("id")
       .eq("user_id", user.id)
       .eq("organization_id", org.id)
+      .eq("accepted", true)
       .limit(1);
 
-    if (existing && existing.length > 0) {
+    if (existingAccepted && existingAccepted.length > 0) {
       await refresh();
-      toast({ title: `Already a member`, description: `You're already part of ${org.name}.` });
+      toast({ title: "Already a member", description: `You're already part of ${org.name}.` });
       setLoading(false);
       navigate("/");
       return;
     }
 
-    const { error: memberError } = await supabase
+    // Check if there's a pending invitation row for this user's email — update it instead of inserting
+    const userEmail = user.email?.toLowerCase() ?? "";
+    const { data: pendingRow } = await supabase
       .from("organization_members")
-      .insert({ user_id: user.id, organization_id: org.id, role: "member", accepted: true });
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("invited_email", userEmail)
+      .eq("accepted", false)
+      .limit(1);
 
-    if (memberError) {
-      toast({ title: "Could not join organization", description: memberError.message, variant: "destructive" });
-      setLoading(false);
-      return;
+    if (pendingRow && pendingRow.length > 0) {
+      // Update the existing pending row to claim it
+      const { error: updateError } = await supabase
+        .from("organization_members")
+        .update({ user_id: user.id, accepted: true })
+        .eq("id", pendingRow[0].id);
+
+      if (updateError) {
+        toast({ title: "Could not join organization", description: updateError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // Also mark any pending_invites for this email as accepted
+      await supabase
+        .from("pending_invites")
+        .update({ accepted: true })
+        .eq("organization_id", org.id)
+        .eq("invited_email", userEmail)
+        .eq("accepted", false);
+    } else {
+      // No pending row exists — insert a fresh one
+      const { error: memberError } = await supabase
+        .from("organization_members")
+        .insert({ user_id: user.id, organization_id: org.id, role: "member", accepted: true });
+
+      if (memberError) {
+        toast({ title: "Could not join organization", description: memberError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
     }
 
     await refresh();
