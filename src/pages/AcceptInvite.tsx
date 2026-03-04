@@ -147,6 +147,14 @@ const AcceptInvite = () => {
         }
       }
 
+      // Clean up any remaining unclaimed pending rows for this email + org
+      await supabase
+        .from("organization_members")
+        .delete()
+        .eq("organization_id", inviteData.organization_id)
+        .eq("invited_email", inviteData.invited_email.toLowerCase())
+        .eq("accepted", false);
+
       // Step 4 — Success
       await refresh();
 
