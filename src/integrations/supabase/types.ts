@@ -357,6 +357,7 @@ export type Database = {
         Args: { _code: string }
         Returns: {
           id: string
+          invite_code: string
           name: string
         }[]
       }
