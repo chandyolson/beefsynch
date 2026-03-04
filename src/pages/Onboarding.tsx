@@ -21,7 +21,10 @@ const Onboarding = () => {
   useEffect(() => {
     const checkExistingOrg = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || user.is_anonymous) {
+        navigate("/auth", { replace: true });
+        return;
+      }
       const { data } = await supabase
         .from("organization_members")
         .select("id")
