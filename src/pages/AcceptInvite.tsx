@@ -202,6 +202,34 @@ const AcceptInvite = () => {
         return;
       }
 
+      // If the invite was already accepted, check if the user is already
+      // a member of the org — if so, just send them to the dashboard
+      if (invite.accepted) {
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+
+        if (existingSession?.user && !existingSession.user.is_anonymous) {
+          const { data: membership } = await supabase
+            .from("organization_members")
+            .select("id")
+            .eq("user_id", existingSession.user.id)
+            .eq("organization_id", invite.organization_id)
+            .eq("accepted", true)
+            .maybeSingle();
+
+          if (membership) {
+            // Already a member — just go to dashboard
+            toast({ title: "You're already a member!", description: `Welcome back to ${invite.org_name}.` });
+            navigate("/");
+            return;
+          }
+        }
+
+        // Invite accepted but user isn't a member — something went wrong
+        setStep("invalid");
+        setErrorMsg("This invitation has already been used. Please ask your organization owner to send a new invite.");
+        return;
+      }
+
       const inviteData: InviteData = {
         token: invite.token,
         organization_id: invite.organization_id!,
