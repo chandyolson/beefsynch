@@ -135,7 +135,7 @@ const TeamManagement = () => {
   };
 
   // Remove member
-  const removeMember = async (memberId: string, memberRole: string) => {
+  const removeMember = async (memberId: string, memberRole: string, memberEmail: string | null) => {
     if (memberRole === "owner" && myRole !== "owner") {
       toast({ title: "Cannot remove owner", variant: "destructive" });
       return;
@@ -146,10 +146,37 @@ const TeamManagement = () => {
       .eq("id", memberId);
     if (error) {
       toast({ title: "Could not remove member", description: error.message, variant: "destructive" });
-    } else {
-      setMembers((prev) => prev.filter((m) => m.id !== memberId));
-      toast({ title: "Member removed" });
+      return;
     }
+
+    // Verify the row was actually deleted — Supabase RLS can silently block deletes
+    // returning no error but also not deleting anything
+    const { data: stillExists } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("id", memberId)
+      .maybeSingle();
+
+    if (stillExists) {
+      toast({
+        title: "Could not remove member",
+        description: "Permission denied. Only owners can remove this member.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Also clean up any pending invite rows for this email + org
+    if (memberEmail && orgId) {
+      await supabase
+        .from("pending_invites")
+        .delete()
+        .eq("organization_id", orgId)
+        .eq("invited_email", memberEmail.toLowerCase());
+    }
+
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    toast({ title: "Member removed" });
   };
 
   // Copy invite code
@@ -400,7 +427,7 @@ const TeamManagement = () => {
                           )}
                           {!(myRole === "admin" && isOwner) && (
                             <button
-                              onClick={() => removeMember(m.id, m.role)}
+                              onClick={() => removeMember(m.id, m.role, m.email || m.invited_email)}
                               className="text-destructive hover:text-destructive/80 transition-colors"
                             >
                               <Trash2 className="h-4 w-4" />
