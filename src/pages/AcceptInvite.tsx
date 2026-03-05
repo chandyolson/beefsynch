@@ -155,6 +155,14 @@ const AcceptInvite = () => {
         .eq("invited_email", inviteData.invited_email.toLowerCase())
         .eq("accepted", false);
 
+      // Mark onboarding complete so ProtectedRoute doesn't redirect to /onboarding
+      await supabase
+        .from("profiles")
+        .upsert(
+          { user_id: userId, has_completed_onboarding: true },
+          { onConflict: "user_id" }
+        );
+
       // Step 4 — Success
       await refresh();
 
