@@ -32,6 +32,17 @@ const Onboarding = () => {
         .eq("accepted", true)
         .limit(1);
       if (data && data.length > 0) {
+        // User already has an org — mark onboarding complete before redirecting
+        // to prevent a redirect loop between / and /onboarding
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          await supabase
+            .from("profiles")
+            .upsert(
+              { user_id: currentUser.id, has_completed_onboarding: true },
+              { onConflict: "user_id" }
+            );
+        }
         navigate("/", { replace: true });
       }
     };
