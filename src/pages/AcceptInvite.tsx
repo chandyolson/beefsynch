@@ -264,27 +264,40 @@ const AcceptInvite = () => {
   const handleSignup = async (values: SignupValues) => {
     if (!invite) return;
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
         emailRedirectTo: `${window.location.origin}/accept-invite?token=${invite.token}`,
       },
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast({
         title: "Sign up failed",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Check your email",
-        description:
-          "We sent a confirmation link. Click it to activate your account and join the team.",
-      });
+      return;
     }
+
+    // If Supabase returned a session immediately (email confirmation disabled),
+    // go straight to accepting the invite — no confirmation email needed.
+    if (data.session && data.user) {
+      await acceptInvite(data.user.id, data.user.email ?? "", invite);
+      setLoading(false);
+      return;
+    }
+
+    // If no session yet, Supabase requires email confirmation.
+    // Switch to sign-in tab so the user can sign in after confirming.
+    setLoading(false);
+    toast({
+      title: "Account created — now sign in",
+      description:
+        "Your account is ready. Sign in below to finish joining the team.",
+    });
+    setAuthTab("signin");
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
