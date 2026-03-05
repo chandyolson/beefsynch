@@ -96,75 +96,47 @@ const AcceptInvite = () => {
   // ── Accept invite logic ────────────────────────────────────────────────
   const acceptInvite = useCallback(
     async (userId: string, userEmail: string, inviteData: InviteData) => {
-      if (userEmail && inviteData.invited_email && userEmail.toLowerCase() !== inviteData.invited_email.toLowerCase()) {
-        toast({ title: "Email mismatch", description: "This invitation was sent to " + inviteData.invited_email + ". Please sign in with that email address to accept it.", variant: "destructive" });
+      setStep("accepting");
+
+      const { data: result, error } = await supabase
+        .rpc("accept_org_invite", {
+          _token: inviteData.token,
+          _user_id: userId,
+          _user_email: userEmail,
+        });
+
+      if (error || !result) {
+        toast({
+          title: "Something went wrong",
+          description:
+            "Could not complete your organization membership. Please contact your organization owner.",
+          variant: "destructive",
+        });
+        setStep("invalid");
+        setErrorMsg("Failed to accept invitation.");
+        return;
+      }
+
+      const res = result as Record<string, unknown>;
+
+      if (res.error === "email_mismatch") {
+        toast({
+          title: "Email mismatch",
+          description: `This invitation was sent to ${res.invited_email}. Please sign in with that email address.`,
+          variant: "destructive",
+        });
         setStep("auth");
         return;
       }
-      setStep("accepting");
 
-      // Step 1 — Mark the invite token as accepted
-      const { error: inviteUpdateError } = await supabase
-        .from("pending_invites")
-        .update({ accepted: true })
-        .eq("token", inviteData.token);
-
-      if (inviteUpdateError) {
-        console.error("Failed to mark invite accepted:", inviteUpdateError.message);
-      }
-
-      // Step 2 — Try to update existing pending org member record by invited_email
-      const { data: updatedRows } = await supabase
-        .from("organization_members")
-        .update({ user_id: userId, accepted: true })
-        .eq("organization_id", inviteData.organization_id)
-        .eq("invited_email", inviteData.invited_email.toLowerCase())
-        .eq("accepted", false)
-        .select();
-
-      // Step 3 — If no existing record was found, insert a fresh one
-      if (!updatedRows || updatedRows.length === 0) {
-        const { error: insertError } = await supabase
-          .from("organization_members")
-          .insert({
-            user_id: userId,
-            organization_id: inviteData.organization_id,
-            role: "member",
-            accepted: true,
-          });
-
-        if (insertError) {
-          console.error("Failed to insert org member:", insertError.message);
-          toast({
-            title: "Something went wrong",
-            description:
-              "Could not complete your organization membership. Please contact your organization owner.",
-            variant: "destructive",
-          });
-          setStep("invalid");
-          setErrorMsg("Failed to accept invitation.");
-          return;
-        }
-      }
-
-      // Clean up ALL unaccepted rows for this user+org — covers both email-matched
-      // and any orphaned rows that might cause duplicate entries in Team Management
-      await supabase
-        .from("organization_members")
-        .delete()
-        .eq("organization_id", inviteData.organization_id)
-        .eq("accepted", false)
-        .or(`invited_email.eq.${inviteData.invited_email.toLowerCase()},user_id.eq.${userId}`);
-
-      // Mark onboarding complete so ProtectedRoute doesn't redirect to /onboarding
-      await supabase
-        .from("profiles")
-        .upsert(
-          { user_id: userId, has_completed_onboarding: true },
-          { onConflict: "user_id" }
+      if (res.error === "invalid_token") {
+        setStep("invalid");
+        setErrorMsg(
+          "This invitation link is invalid or has expired. Please ask your organization owner to send a new invite."
         );
+        return;
+      }
 
-      // Step 4 — Success
       await refresh();
 
       toast({

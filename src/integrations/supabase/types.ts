@@ -326,6 +326,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_org_invite: {
+        Args: { _token: string; _user_email: string; _user_id: string }
+        Returns: Json
+      }
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
       get_org_members: {
         Args: { _organization_id: string }
