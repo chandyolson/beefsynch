@@ -147,13 +147,14 @@ const AcceptInvite = () => {
         }
       }
 
-      // Clean up any remaining unclaimed pending rows for this email + org
+      // Clean up ALL unaccepted rows for this user+org — covers both email-matched
+      // and any orphaned rows that might cause duplicate entries in Team Management
       await supabase
         .from("organization_members")
         .delete()
         .eq("organization_id", inviteData.organization_id)
-        .eq("invited_email", inviteData.invited_email.toLowerCase())
-        .eq("accepted", false);
+        .eq("accepted", false)
+        .or(`invited_email.eq.${inviteData.invited_email.toLowerCase()},user_id.eq.${userId}`);
 
       // Mark onboarding complete so ProtectedRoute doesn't redirect to /onboarding
       await supabase
