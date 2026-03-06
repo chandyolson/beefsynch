@@ -142,7 +142,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     { key: "startDate", label: "Start Date" },
     { key: "breedDate", label: "Breed Date" },
     { key: "status", label: "Status" },
-    
   ];
 
   return (
@@ -191,7 +190,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                   aria-label="Select all"
                 />
               </th>
-              <th className="px-4 py-3 w-10"></th>
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -213,26 +211,17 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
             {filtered.map((project) => (
               <tr
                 key={project.id}
+                onClick={() => navigate(`/project/${project.id}`)}
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   {canSelectProject(project) ? (
                     <Checkbox
                       checked={selectedIds.has(project.id)}
                       onCheckedChange={() => toggleOne(project.id)}
-                      onClick={(e) => e.stopPropagation()}
                       aria-label={`Select ${project.name}`}
                     />
                   ) : <div className="w-4" />}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/project/${project.id}`); }}
-                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                    title="View project"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
                 </td>
                 <td className="px-4 py-3 font-medium text-foreground">{project.name}</td>
                 <td className="px-4 py-3">
