@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { BreedingProject } from "@/data/mockData";
-import { ArrowUpDown, Search, Filter, Eye } from "lucide-react";
+import { ArrowUpDown, Search, Filter } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { format, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -142,7 +142,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     { key: "startDate", label: "Start Date" },
     { key: "breedDate", label: "Breed Date" },
     { key: "status", label: "Status" },
-    
   ];
 
   return (
@@ -191,7 +190,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                   aria-label="Select all"
                 />
               </th>
-              <th className="px-4 py-3 w-10"></th>
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -213,26 +211,17 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
             {filtered.map((project) => (
               <tr
                 key={project.id}
+                onClick={() => navigate(`/project/${project.id}`)}
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   {canSelectProject(project) ? (
                     <Checkbox
                       checked={selectedIds.has(project.id)}
                       onCheckedChange={() => toggleOne(project.id)}
-                      onClick={(e) => e.stopPropagation()}
                       aria-label={`Select ${project.name}`}
                     />
                   ) : <div className="w-4" />}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/project/${project.id}`); }}
-                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                    title="View project"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
                 </td>
                 <td className="px-4 py-3 font-medium text-foreground">{project.name}</td>
                 <td className="px-4 py-3">
@@ -268,22 +257,21 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
         {filtered.map((project) => (
           <div
             key={project.id}
+            onClick={() => navigate(`/project/${project.id}`)}
             className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70 space-y-2"
           >
             <div className="flex items-center gap-3">
-              {canSelectProject(project) ? (
-                <Checkbox
-                  checked={selectedIds.has(project.id)}
-                  onCheckedChange={() => toggleOne(project.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={`Select ${project.name}`}
-                />
-              ) : <div className="w-4" />}
-              <div className="flex-1 min-w-0" onClick={() => navigate(`/project/${project.id}`)}>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
-                  <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </div>
+              <div onClick={(e) => e.stopPropagation()}>
+                {canSelectProject(project) ? (
+                  <Checkbox
+                    checked={selectedIds.has(project.id)}
+                    onCheckedChange={() => toggleOne(project.id)}
+                    aria-label={`Select ${project.name}`}
+                  />
+                ) : <div className="w-4" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
 
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
@@ -301,7 +289,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 </div>
 
                 <div className="mt-1">{renderBulls(project.id)}</div>
-
               </div>
             </div>
           </div>
