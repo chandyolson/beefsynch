@@ -60,8 +60,8 @@ const protocolSteps: Record<string, ProtocolStep[]> = {
   ],
   // Heifers 7&7
   "7&7 Synch_Heifers": [
-    { name: "PGF + CIDR Insert", offset: -16.75, hasTime: false },
-    { name: "GnRH", offset: -9.75, hasTime: false },
+    { name: "PGF + CIDR Insert", offset: -16.25, hasTime: false },
+    { name: "GnRH", offset: -9.25, hasTime: false },
     { name: "CIDR Out + PGF", offset: -2.25, hasTime: true },
   ],
   MGA: [
