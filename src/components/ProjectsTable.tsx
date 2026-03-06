@@ -223,22 +223,22 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                     />
                   ) : <div className="w-4" />}
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground">{project.name}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{project.name}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
                     {project.animalType}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{project.protocol}</td>
-                <td className="px-4 py-3 font-semibold text-foreground">{project.headCount}</td>
-                <td className="px-4 py-3 text-muted-foreground">{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.protocol}</td>
+                <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">{project.headCount}</td>
+                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
                     {project.status}
                   </span>
                 </td>
-                <td className="px-4 py-3">{renderBulls(project.id)}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{renderBulls(project.id)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
