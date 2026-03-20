@@ -221,6 +221,16 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         user_id: user.id,
       };
 
+      // Preserve last_contacted fields when editing
+      if (isEditing && editData) {
+        if (editData.last_contacted_date !== undefined) {
+          projectPayload.last_contacted_date = editData.last_contacted_date;
+        }
+        if (editData.last_contacted_by !== undefined) {
+          projectPayload.last_contacted_by = editData.last_contacted_by;
+        }
+      }
+
       // Attach organization if available
       if (selectedOrgId) {
         projectPayload.organization_id = selectedOrgId;
