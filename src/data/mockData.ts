@@ -12,6 +12,7 @@ export interface BreedingProject {
   status: ProjectStatus;
   location: string;
   userId?: string | null;
+  lastContactedDate?: string | null;
 }
 
 export const protocols = [
