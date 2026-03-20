@@ -419,6 +419,95 @@ const ProjectDetail = () => {
           </div>
         </div>
 
+        {/* Last Contacted */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-muted-foreground" />
+              Last Contacted
+            </CardTitle>
+            {!contactEditing && (
+              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving}>
+                Log Contact Now
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {contactEditing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Date</label>
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !contactDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="h-4 w-4 mr-2 opacity-50" />
+                          {contactDate ? format(contactDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={contactDate}
+                          onSelect={(d) => { setContactDate(d); setDatePickerOpen(false); }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Contacted By</label>
+                    <Select value={contactBy} onValueChange={setContactBy}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orgMembers.map((m) => (
+                          <SelectItem key={m.user_id!} value={m.user_id!}>
+                            {m.email ?? "Unknown"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleContactSave} disabled={contactSaving || !contactDate || !contactBy}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setContactEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : project.last_contacted_date ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-foreground">
+                  {format(parseISO(project.last_contacted_date), "MMM d, yyyy")}
+                  <span className="text-muted-foreground"> · {resolveContactEmail(project.last_contacted_by)}</span>
+                </p>
+                <Button size="sm" variant="outline" onClick={startContactEdit}>
+                  Update
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">No contact logged</p>
+                <Button size="sm" variant="outline" onClick={startContactEdit}>
+                  Log Contact
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Synchronization Schedule */}
         <Card>
           <CardHeader>
