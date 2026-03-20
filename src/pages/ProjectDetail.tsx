@@ -60,6 +60,14 @@ interface ProjectRow {
   status: string;
   notes: string | null;
   user_id: string | null;
+  last_contacted_date: string | null;
+  last_contacted_by: string | null;
+}
+
+interface OrgMember {
+  id: string;
+  user_id: string | null;
+  email: string | null;
 }
 
 interface EventRow {
