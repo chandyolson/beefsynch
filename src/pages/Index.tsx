@@ -24,6 +24,7 @@ interface DbProject {
   breeding_time: string | null;
   status: string;
   user_id: string | null;
+  last_contacted_date: string | null;
 }
 
 const Index = () => {
@@ -88,6 +89,7 @@ const Index = () => {
         status: p.status as any,
         location: "",
         userId: p.user_id,
+        lastContactedDate: p.last_contacted_date ?? null,
       }));
       setProjects(mapped);
 

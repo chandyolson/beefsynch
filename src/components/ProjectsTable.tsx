@@ -66,6 +66,15 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     return [...list].sort((a, b) => {
       const aVal = a[sortKey];
       const bVal = b[sortKey];
+      // Treat null/undefined/empty as "oldest" for lastContactedDate
+      if (sortKey === "lastContactedDate") {
+        const aStr = (aVal as string) || "";
+        const bStr = (bVal as string) || "";
+        if (!aStr && !bStr) return 0;
+        if (!aStr) return sortDir === "asc" ? -1 : 1;
+        if (!bStr) return sortDir === "asc" ? 1 : -1;
+        return sortDir === "asc" ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+      }
       if (typeof aVal === "number" && typeof bVal === "number") {
         return sortDir === "asc" ? aVal - bVal : bVal - aVal;
       }
@@ -142,6 +151,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     { key: "startDate", label: "Start Date" },
     { key: "breedDate", label: "Breed Date" },
     { key: "status", label: "Status" },
+    { key: "lastContactedDate", label: "Last Contact" },
   ];
 
   return (
@@ -238,6 +248,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                     {project.status}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                  {project.lastContactedDate ? format(parseISO(project.lastContactedDate), "MMM d") : <span className="text-muted-foreground">—</span>}
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">{renderBulls(project.id)}</td>
               </tr>
             ))}
@@ -286,6 +299,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                   <span className="font-medium text-foreground">{project.headCount} head</span>
                   <span>Breed: {project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                  <span>Last Contact: {project.lastContactedDate ? format(parseISO(project.lastContactedDate), "MMM d") : "—"}</span>
                 </div>
 
                 <div className="mt-1">{renderBulls(project.id)}</div>
