@@ -85,6 +85,8 @@ interface EditProjectData {
   breeding_time: string | null;
   status: string;
   notes: string | null;
+  last_contacted_date?: string | null;
+  last_contacted_by?: string | null;
   bulls: { name: string; catalogId: string | null; units: number }[];
 }
 
@@ -218,6 +220,16 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         notes: values.notes || null,
         user_id: user.id,
       };
+
+      // Preserve last_contacted fields when editing
+      if (isEditing && editData) {
+        if (editData.last_contacted_date !== undefined) {
+          projectPayload.last_contacted_date = editData.last_contacted_date;
+        }
+        if (editData.last_contacted_by !== undefined) {
+          projectPayload.last_contacted_by = editData.last_contacted_by;
+        }
+      }
 
       // Attach organization if available
       if (selectedOrgId) {

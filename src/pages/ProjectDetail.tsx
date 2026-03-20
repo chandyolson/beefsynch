@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck } from "lucide-react";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
@@ -11,6 +11,15 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 
@@ -51,6 +61,14 @@ interface ProjectRow {
   status: string;
   notes: string | null;
   user_id: string | null;
+  last_contacted_date: string | null;
+  last_contacted_by: string | null;
+}
+
+interface OrgMember {
+  id: string;
+  user_id: string | null;
+  email: string | null;
 }
 
 interface EventRow {
@@ -76,7 +94,7 @@ const statusColor: Record<string, string> = {
 
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
-  const { role: orgRole, userId } = useOrgRole();
+  const { role: orgRole, userId, orgId } = useOrgRole();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -85,6 +103,78 @@ const ProjectDetail = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Last Contacted state
+  const [contactEditing, setContactEditing] = useState(false);
+  const [contactDate, setContactDate] = useState<Date | undefined>(undefined);
+  const [contactBy, setContactBy] = useState<string>("");
+  const [contactSaving, setContactSaving] = useState(false);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  // Fetch org members for the contact dropdown
+  const fetchOrgMembers = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase.rpc("get_org_members", { _organization_id: orgId });
+    if (data) {
+      setOrgMembers(
+        (data as any[])
+          .filter((m: any) => m.accepted && m.user_id)
+          .map((m: any) => ({ id: m.id, user_id: m.user_id, email: m.email }))
+      );
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    fetchOrgMembers();
+  }, [fetchOrgMembers]);
+
+  const resolveContactEmail = (uid: string | null): string => {
+    if (!uid) return "Unknown user";
+    const member = orgMembers.find((m) => m.user_id === uid);
+    return member?.email ?? "Unknown user";
+  };
+
+  const handleQuickLog = async () => {
+    if (!project || !userId) return;
+    setContactSaving(true);
+    const today = format(new Date(), "yyyy-MM-dd");
+    const { error } = await supabase
+      .from("projects")
+      .update({ last_contacted_date: today, last_contacted_by: userId })
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Could not log contact", description: error.message, variant: "destructive" });
+    } else {
+      setProject((p) => p ? { ...p, last_contacted_date: today, last_contacted_by: userId } : p);
+      toast({ title: "Contact logged" });
+    }
+    setContactSaving(false);
+  };
+
+  const handleContactSave = async () => {
+    if (!project || !contactDate || !contactBy) return;
+    setContactSaving(true);
+    const dateStr = format(contactDate, "yyyy-MM-dd");
+    const { error } = await supabase
+      .from("projects")
+      .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Could not save contact", description: error.message, variant: "destructive" });
+    } else {
+      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+      toast({ title: "Contact updated" });
+      setContactEditing(false);
+    }
+    setContactSaving(false);
+  };
+
+  const startContactEdit = () => {
+    setContactDate(project?.last_contacted_date ? parseISO(project.last_contacted_date) : new Date());
+    setContactBy(project?.last_contacted_by ?? userId ?? "");
+    setContactEditing(true);
+  };
 
   const load = async () => {
     if (!id) return;
@@ -330,6 +420,95 @@ const ProjectDetail = () => {
           </div>
         </div>
 
+        {/* Last Contacted */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-muted-foreground" />
+              Last Contacted
+            </CardTitle>
+            {!contactEditing && (
+              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving}>
+                Log Contact Now
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {contactEditing ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Date</label>
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !contactDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="h-4 w-4 mr-2 opacity-50" />
+                          {contactDate ? format(contactDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={contactDate}
+                          onSelect={(d) => { setContactDate(d); setDatePickerOpen(false); }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Contacted By</label>
+                    <Select value={contactBy} onValueChange={setContactBy}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orgMembers.map((m) => (
+                          <SelectItem key={m.user_id!} value={m.user_id!}>
+                            {m.email ?? "Unknown"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleContactSave} disabled={contactSaving || !contactDate || !contactBy}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setContactEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : project.last_contacted_date ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-foreground">
+                  {format(parseISO(project.last_contacted_date), "MMM d, yyyy")}
+                  <span className="text-muted-foreground"> · {resolveContactEmail(project.last_contacted_by)}</span>
+                </p>
+                <Button size="sm" variant="outline" onClick={startContactEdit}>
+                  Update
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">No contact logged</p>
+                <Button size="sm" variant="outline" onClick={startContactEdit}>
+                  Log Contact
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Synchronization Schedule */}
         <Card>
           <CardHeader>
@@ -469,6 +648,8 @@ const ProjectDetail = () => {
           breeding_time: project.breeding_time,
           status: project.status,
           notes: project.notes,
+          last_contacted_date: project.last_contacted_date,
+          last_contacted_by: project.last_contacted_by,
           bulls: bulls.map((b) => ({
             name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "",
             catalogId: b.bull_catalog_id,
