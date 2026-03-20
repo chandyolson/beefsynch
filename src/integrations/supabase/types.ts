@@ -244,6 +244,8 @@ export type Database = {
           created_at: string
           head_count: number
           id: string
+          last_contacted_by: string | null
+          last_contacted_date: string | null
           name: string
           notes: string | null
           organization_id: string | null
@@ -258,6 +260,8 @@ export type Database = {
           created_at?: string
           head_count?: number
           id?: string
+          last_contacted_by?: string | null
+          last_contacted_date?: string | null
           name: string
           notes?: string | null
           organization_id?: string | null
@@ -272,6 +276,8 @@ export type Database = {
           created_at?: string
           head_count?: number
           id?: string
+          last_contacted_by?: string | null
+          last_contacted_date?: string | null
           name?: string
           notes?: string | null
           organization_id?: string | null
