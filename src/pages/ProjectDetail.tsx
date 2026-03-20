@@ -46,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 
@@ -647,6 +648,8 @@ const ProjectDetail = () => {
           breeding_time: project.breeding_time,
           status: project.status,
           notes: project.notes,
+          last_contacted_date: project.last_contacted_date,
+          last_contacted_by: project.last_contacted_by,
           bulls: bulls.map((b) => ({
             name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "",
             catalogId: b.bull_catalog_id,

@@ -85,6 +85,8 @@ interface EditProjectData {
   breeding_time: string | null;
   status: string;
   notes: string | null;
+  last_contacted_date?: string | null;
+  last_contacted_by?: string | null;
   bulls: { name: string; catalogId: string | null; units: number }[];
 }
 
