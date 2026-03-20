@@ -93,7 +93,7 @@ const statusColor: Record<string, string> = {
 
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
-  const { role: orgRole, userId } = useOrgRole();
+  const { role: orgRole, userId, orgId } = useOrgRole();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectRow | null>(null);
@@ -102,6 +102,78 @@ const ProjectDetail = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Last Contacted state
+  const [contactEditing, setContactEditing] = useState(false);
+  const [contactDate, setContactDate] = useState<Date | undefined>(undefined);
+  const [contactBy, setContactBy] = useState<string>("");
+  const [contactSaving, setContactSaving] = useState(false);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  // Fetch org members for the contact dropdown
+  const fetchOrgMembers = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase.rpc("get_org_members", { _organization_id: orgId });
+    if (data) {
+      setOrgMembers(
+        (data as any[])
+          .filter((m: any) => m.accepted && m.user_id)
+          .map((m: any) => ({ id: m.id, user_id: m.user_id, email: m.email }))
+      );
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    fetchOrgMembers();
+  }, [fetchOrgMembers]);
+
+  const resolveContactEmail = (uid: string | null): string => {
+    if (!uid) return "Unknown user";
+    const member = orgMembers.find((m) => m.user_id === uid);
+    return member?.email ?? "Unknown user";
+  };
+
+  const handleQuickLog = async () => {
+    if (!project || !userId) return;
+    setContactSaving(true);
+    const today = format(new Date(), "yyyy-MM-dd");
+    const { error } = await supabase
+      .from("projects")
+      .update({ last_contacted_date: today, last_contacted_by: userId })
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Could not log contact", description: error.message, variant: "destructive" });
+    } else {
+      setProject((p) => p ? { ...p, last_contacted_date: today, last_contacted_by: userId } : p);
+      toast({ title: "Contact logged" });
+    }
+    setContactSaving(false);
+  };
+
+  const handleContactSave = async () => {
+    if (!project || !contactDate || !contactBy) return;
+    setContactSaving(true);
+    const dateStr = format(contactDate, "yyyy-MM-dd");
+    const { error } = await supabase
+      .from("projects")
+      .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Could not save contact", description: error.message, variant: "destructive" });
+    } else {
+      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+      toast({ title: "Contact updated" });
+      setContactEditing(false);
+    }
+    setContactSaving(false);
+  };
+
+  const startContactEdit = () => {
+    setContactDate(project?.last_contacted_date ? parseISO(project.last_contacted_date) : new Date());
+    setContactBy(project?.last_contacted_by ?? userId ?? "");
+    setContactEditing(true);
+  };
 
   const load = async () => {
     if (!id) return;
