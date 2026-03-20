@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, X } from "lucide-react";
+import { CalendarIcon, X, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calculateProtocolEvents } from "@/lib/protocolEvents";
+import { generateBulkCsv } from "@/lib/generateBulkCsv";
+import { generateBulkPdf } from "@/lib/generateBulkPdf";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -251,6 +253,30 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
             onChange={(e) => handleTimeChange(e.target.value)}
           />
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1"
+          disabled={busy}
+          onClick={async () => {
+            await handleBulkExport("csv");
+          }}
+        >
+          <Download className="h-3 w-3" /> Export CSV
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1"
+          disabled={busy}
+          onClick={async () => {
+            await handleBulkExport("pdf");
+          }}
+        >
+          <Download className="h-3 w-3" /> Export PDF
+        </Button>
 
         {canDelete && (
           <Button
