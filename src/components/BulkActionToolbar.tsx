@@ -194,6 +194,49 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
     }
   };
 
+  const handleBulkExport = async (type: "csv" | "pdf") => {
+    setBusy(true);
+    try {
+      const ids = selectedProjects.map((p) => p.id);
+
+      const [pRes, eRes, bRes] = await Promise.all([
+        supabase.from("projects").select("*").in("id", ids),
+        supabase.from("protocol_events").select("*").in("project_id", ids).order("event_date", { ascending: true }),
+        supabase.from("project_bulls").select("*, bulls_catalog(bull_name, company, registration_number)").in("project_id", ids),
+      ]);
+
+      const projectsData = (pRes.data ?? []) as any[];
+      // Order projects to match ids order
+      const orderedProjects = ids.map((id) => projectsData.find((p: any) => p.id === id)).filter(Boolean);
+
+      const eventsByProject: Record<string, any[]> = {};
+      for (const ev of (eRes.data ?? []) as any[]) {
+        if (!eventsByProject[ev.project_id]) eventsByProject[ev.project_id] = [];
+        eventsByProject[ev.project_id].push(ev);
+      }
+
+      const bullsByProject: Record<string, any[]> = {};
+      for (const b of (bRes.data ?? []) as any[]) {
+        if (!bullsByProject[b.project_id]) bullsByProject[b.project_id] = [];
+        bullsByProject[b.project_id].push(b);
+      }
+
+      if (type === "csv") {
+        generateBulkCsv(orderedProjects, eventsByProject, bullsByProject, ids);
+      } else {
+        generateBulkPdf(orderedProjects, eventsByProject, bullsByProject, ids);
+      }
+
+      toast({
+        title: `Exported ${ids.length} project${ids.length > 1 ? "s" : ""} as ${type.toUpperCase()}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
