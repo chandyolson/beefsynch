@@ -1,12 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2 } from "lucide-react";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
+import {
+  pushEventsToGoogleCalendar,
+  removeEventsFromGoogleCalendar,
+  isGoogleCalendarConfigured,
+  type CalendarEventInput,
+} from "@/lib/googleCalendar";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +118,11 @@ const ProjectDetail = () => {
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
+  // Google Calendar state
+  const [pushing, setPushing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
     if (!orgId) return;
@@ -197,6 +208,23 @@ const ProjectDetail = () => {
     setLoading(false);
   };
 
+  // Fetch last sync timestamp
+  const fetchLastSync = useCallback(async () => {
+    if (!id || !userId) return;
+    const { data } = await supabase
+      .from("google_calendar_events")
+      .select("synced_at")
+      .eq("user_id", userId)
+      .eq("project_id", id)
+      .order("synced_at", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      setLastSyncedAt(data[0].synced_at);
+    } else {
+      setLastSyncedAt(null);
+    }
+  }, [id, userId]);
+
   const handleDelete = async () => {
     if (!id) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
@@ -212,6 +240,10 @@ const ProjectDetail = () => {
     if (!id) return;
     load();
   }, [id]);
+
+  useEffect(() => {
+    fetchLastSync();
+  }, [fetchLastSync]);
 
   if (loading) {
     return (
@@ -250,11 +282,111 @@ const ProjectDetail = () => {
     ? formatTime12(project.breeding_time)
     : "";
 
-  const calendarUrl = () => {
-    if (!project.breeding_date) return "#";
-    const dateStr = project.breeding_date.replace(/-/g, "");
-    const title = encodeURIComponent(project.name);
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}`;
+  // --- Shared helpers for Google Calendar ---
+
+  const filteredEvents = events.filter((ev) => ev.event_name !== "Return Heat");
+
+  const buildDescription = () => {
+    let desc = `Protocol: ${project.protocol}\nCattle Type: ${project.cattle_type}\nHead Count: ${project.head_count}`;
+    if (project.breeding_date) {
+      desc += `\nBreeding Date: ${format(parseISO(project.breeding_date), "MMMM d, yyyy")}`;
+      if (project.breeding_time) desc += ` at ${formatTime12(project.breeding_time)}`;
+    }
+    if (bulls.length > 0) {
+      desc += "\n\nBulls:";
+      for (const b of bulls) {
+        const name = b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown";
+        desc += `\n  ${name} — ${b.units} units`;
+      }
+    }
+    return desc;
+  };
+
+  const openEventsInBrowser = () => {
+    if (filteredEvents.length > 8) {
+      if (!confirm(`This will open ${filteredEvents.length} browser tabs. Continue?`)) return;
+    }
+    const description = buildDescription();
+    filteredEvents.forEach((ev, idx) => {
+      const summary = `${project.name} — ${ev.event_name}`;
+      const allDay = isNoTimeEvent(ev.event_name);
+      const dateClean = ev.event_date.replace(/-/g, "");
+      let dates: string;
+      if (allDay) {
+        const d = new Date(ev.event_date + "T00:00:00");
+        d.setDate(d.getDate() + 1);
+        const endStr = d.toISOString().slice(0, 10).replace(/-/g, "");
+        dates = `${dateClean}/${endStr}`;
+      } else {
+        const time = (ev.event_time ?? "08:00").replace(":", "") + "00";
+        const startDt = `${dateClean}T${time}`;
+        const d = new Date(`${ev.event_date}T${ev.event_time ?? "08:00"}:00`);
+        d.setHours(d.getHours() + 1);
+        const endHH = String(d.getHours()).padStart(2, "0");
+        const endMM = String(d.getMinutes()).padStart(2, "0");
+        const endDt = `${dateClean}T${endHH}${endMM}00`;
+        dates = `${startDt}/${endDt}`;
+      }
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(summary)}&dates=${dates}&details=${encodeURIComponent(description)}`;
+      setTimeout(() => window.open(url, "_blank"), idx * 100);
+    });
+  };
+
+  // --- Push to Google Calendar ---
+  const handlePushToGoogle = async () => {
+    if (!userId) return;
+    setPushing(true);
+    try {
+      const description = buildDescription();
+      const calendarEvents: CalendarEventInput[] = filteredEvents.map((ev) => ({
+        protocolEventId: ev.id,
+        summary: `${project.name} — ${ev.event_name}`,
+        description,
+        eventDate: ev.event_date,
+        eventTime: isNoTimeEvent(ev.event_name) ? null : ev.event_time,
+        isAllDay: isNoTimeEvent(ev.event_name),
+      }));
+      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId);
+      if (result.errors.length > 0) {
+        toast({
+          title: "Sync completed with errors",
+          description: result.errors.join("\n"),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Google Calendar synced",
+          description: `${result.created} added, ${result.updated} updated`,
+        });
+      }
+      await fetchLastSync();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Google Calendar error", description: msg, variant: "destructive" });
+    }
+    setPushing(false);
+  };
+
+  const handleRemoveFromGoogle = async () => {
+    if (!userId) return;
+    setRemoving(true);
+    try {
+      const result = await removeEventsFromGoogleCalendar(project.id, userId);
+      if (result.errors.length > 0) {
+        toast({
+          title: "Removed with errors",
+          description: result.errors.join("\n"),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Events removed", description: `${result.removed} events removed from Google Calendar.` });
+      }
+      setLastSyncedAt(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Google Calendar error", description: msg, variant: "destructive" });
+    }
+    setRemoving(false);
   };
 
   return (
@@ -273,10 +405,11 @@ const ProjectDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
-                    <Calendar className="h-4 w-4" /> Add to Google Calendar
-                  </a>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={openEventsInBrowser}
+                >
+                  <Calendar className="h-4 w-4" /> Open events in Google Calendar
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer gap-2"
@@ -317,10 +450,11 @@ const ProjectDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-50 w-56 bg-popover border border-border shadow-lg">
-                <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                  <a href={calendarUrl()} target="_blank" rel="noopener noreferrer">
-                    <Calendar className="h-4 w-4" /> Add to Google Calendar
-                  </a>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={openEventsInBrowser}
+                >
+                  <Calendar className="h-4 w-4" /> Open events in Google Calendar
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer gap-2"
@@ -568,6 +702,63 @@ const ProjectDetail = () => {
                 </Table>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Google Calendar */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              Google Calendar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isGoogleCalendarConfigured() && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button onClick={handlePushToGoogle} disabled={pushing || filteredEvents.length === 0}>
+                    {pushing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pushing…
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="h-4 w-4 mr-1" /> Push to Google Calendar
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground text-xs"
+                    onClick={handleRemoveFromGoogle}
+                    disabled={removing}
+                  >
+                    {removing ? "Removing…" : "Remove from Calendar"}
+                  </Button>
+                </div>
+                {lastSyncedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Last synced: {format(parseISO(lastSyncedAt), "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* URL fallback — always visible */}
+            <div className="pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={openEventsInBrowser}
+                disabled={filteredEvents.length === 0}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open events in browser
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">Opens a new tab for each event</p>
+            </div>
           </CardContent>
         </Card>
 
