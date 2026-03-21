@@ -11,6 +11,7 @@ import {
   pushEventsToGoogleCalendar,
   removeEventsFromGoogleCalendar,
   isGoogleCalendarConfigured,
+  isGoogleCalendarConfiguredAsync,
   getGoogleAccessToken,
   listGoogleCalendars,
   type CalendarEventInput,
@@ -128,6 +129,7 @@ const ProjectDetail = () => {
   const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarInfo[]>([]);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
+  const [googleCalendarConfigured, setGoogleCalendarConfigured] = useState(isGoogleCalendarConfigured());
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -265,6 +267,27 @@ const ProjectDetail = () => {
   useEffect(() => {
     fetchLastSync();
   }, [fetchLastSync]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (isGoogleCalendarConfigured()) {
+      setGoogleCalendarConfigured(true);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    isGoogleCalendarConfiguredAsync().then((configured) => {
+      if (isMounted) {
+        setGoogleCalendarConfigured(configured);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -792,7 +815,7 @@ const ProjectDetail = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isGoogleCalendarConfigured() && (
+            {googleCalendarConfigured && (
               <div className="space-y-3">
                 {/* Calendar picker — shown when no org calendar is set or user clicks Change */}
                 {showCalendarPicker && googleCalendars.length > 0 && (
