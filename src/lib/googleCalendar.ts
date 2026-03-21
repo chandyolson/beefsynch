@@ -99,9 +99,10 @@ function addOneHour(dateStr: string, timeStr: string): string {
 export async function pushEventsToGoogleCalendar(
   projectId: string,
   events: CalendarEventInput[],
-  userId: string
+  userId: string,
+  accessToken: string
 ): Promise<{ created: number; updated: number; errors: string[] }> {
-  const token = await getGoogleAccessToken();
+  const token = accessToken;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { data: existing } = await supabase
@@ -194,9 +195,10 @@ export async function pushEventsToGoogleCalendar(
 // --- Remove events ---
 export async function removeEventsFromGoogleCalendar(
   projectId: string,
-  userId: string
+  userId: string,
+  accessToken: string
 ): Promise<{ removed: number; errors: string[] }> {
-  const token = await getGoogleAccessToken();
+  const token = accessToken;
 
   const { data: records } = await supabase
     .from("google_calendar_events")
