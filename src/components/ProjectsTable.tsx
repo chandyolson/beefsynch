@@ -86,7 +86,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
         ? String(aVal).localeCompare(String(bVal))
         : String(bVal).localeCompare(String(aVal));
     });
-  }, [projects, search, filterType, sortKey, sortDir]);
+  }, [projects, search, filterType, filterStatus, sortKey, sortDir]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
   const selectableFiltered = useMemo(() => filtered.filter(canSelectProject), [filtered, canEditAll, currentUserId]);
