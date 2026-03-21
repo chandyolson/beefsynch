@@ -1,3 +1,8 @@
+/**
+ * Google Calendar integration — OAuth token management and CRUD operations.
+ * Uses Google Identity Services (GIS) for auth and the Calendar v3 REST API.
+ * Sync state is persisted in the `google_calendar_events` Supabase table.
+ */
 declare global {
   interface Window {
     google?: {
