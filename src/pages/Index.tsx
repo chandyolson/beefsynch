@@ -224,6 +224,7 @@ const Index = () => {
             delay={200}
             index={2}
             icon={Beef}
+            onClick={() => setBullsDialogOpen(true)}
             breakdown={<>
               <p className="flex justify-between">Catalog Bulls <span style={{ color: "#5de8d0" }}>{bullStats.catalogCount}</span></p>
               <p className="flex justify-between">Total Units <span style={{ color: "#5de8d0" }}>{bullStats.totalUnits}</span></p>
