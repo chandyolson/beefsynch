@@ -8,6 +8,7 @@ import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
 import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/data/mockData";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
@@ -33,6 +34,7 @@ const Index = () => {
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [bullsDialogOpen, setBullsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAnonymous, setIsAnonymous] = useState(true);
 
@@ -222,6 +224,7 @@ const Index = () => {
             delay={200}
             index={2}
             icon={Beef}
+            onClick={() => setBullsDialogOpen(true)}
             breakdown={<>
               <p className="flex justify-between">Catalog Bulls <span style={{ color: "#5de8d0" }}>{bullStats.catalogCount}</span></p>
               <p className="flex justify-between">Total Units <span style={{ color: "#5de8d0" }}>{bullStats.totalUnits}</span></p>
@@ -269,6 +272,12 @@ const Index = () => {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onProjectCreated={fetchProjects}
+      />
+      <BullsSummaryDialog
+        open={bullsDialogOpen}
+        onOpenChange={setBullsDialogOpen}
+        bullsByProject={bullsByProject}
+        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
     </div>
   );

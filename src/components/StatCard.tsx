@@ -8,6 +8,7 @@ interface StatCardProps {
   delay?: number;
   index?: number;
   icon?: LucideIcon;
+  onClick?: () => void;
 }
 
 const defaultIcons: LucideIcon[] = [Calendar, Users, Beef, Calendar];
@@ -19,12 +20,13 @@ const gradients = [
 "linear-gradient(135deg, #0d8a8a 0%, #0da3a3 100%)"];
 
 
-const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon }: StatCardProps) => {
+const StatCard = ({ title, value, breakdown, delay = 0, index = 0, icon, onClick }: StatCardProps) => {
   const Icon = icon || defaultIcons[index % defaultIcons.length];
 
   return (
     <div
-      className="opacity-0 animate-fade-in relative overflow-hidden flex flex-col justify-between"
+      className={`opacity-0 animate-fade-in relative overflow-hidden flex flex-col justify-between ${onClick ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
+      onClick={onClick}
       style={{
         animationDelay: `${delay}ms`,
         background: gradients[index % gradients.length],
