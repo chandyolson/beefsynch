@@ -37,8 +37,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   };
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedBulls, setExpandedBulls] = useState<Set<string>>(new Set());
 
   const toggleSort = (key: SortKey) => {
