@@ -8,6 +8,7 @@ interface StatCardProps {
   delay?: number;
   index?: number;
   icon?: LucideIcon;
+  onClick?: () => void;
 }
 
 const defaultIcons: LucideIcon[] = [Calendar, Users, Beef, Calendar];
