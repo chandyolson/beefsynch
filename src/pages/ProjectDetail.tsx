@@ -934,7 +934,28 @@ const ProjectDetail = () => {
                       </TableCell>
                       <TableCell className="font-medium">
                         {b.bulls_catalog
-                          ? `${b.bulls_catalog.bull_name} (${b.bulls_catalog.company})`
+                          ? (() => {
+                              const isSelectSires = b.bulls_catalog!.company.toLowerCase().includes("select sires");
+                              const bullDisplay = `${b.bulls_catalog!.bull_name} (${b.bulls_catalog!.company})`;
+                              if (isSelectSires) {
+                                const breedSlug = b.bulls_catalog!.breed.toLowerCase().replace(/\s+/g, "-");
+                                const nameSlug = b.bulls_catalog!.bull_name.toLowerCase().replace(/\s+/g, "-");
+                                const url = `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
+                                return (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {bullDisplay}
+                                    <ExternalLink className="inline h-3 w-3 ml-1 -mt-0.5" />
+                                  </a>
+                                );
+                              }
+                              return bullDisplay;
+                            })()
                           : b.custom_bull_name ?? "Unknown"}
                         {b.bulls_catalog?.registration_number && (
                           <div className="mt-0.5">
