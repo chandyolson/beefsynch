@@ -41,17 +41,64 @@ export function loadGoogleScript(): Promise<void> {
   return scriptPromise;
 }
 
-// --- Token cache ---
+// --- Token + client-id cache ---
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+let cachedClientId: string | null =
+  typeof import.meta.env.VITE_GOOGLE_CLIENT_ID === "string" &&
+  import.meta.env.VITE_GOOGLE_CLIENT_ID.trim().length > 0
+    ? import.meta.env.VITE_GOOGLE_CLIENT_ID.trim()
+    : null;
+let clientIdPromise: Promise<string> | null = null;
+
+async function resolveGoogleClientId(): Promise<string> {
+  if (cachedClientId) return cachedClientId;
+  if (clientIdPromise) return clientIdPromise;
+
+  clientIdPromise = (async () => {
+    const { data, error } = await supabase.functions.invoke("google-calendar-config", {
+      body: {},
+    });
+
+    if (error) {
+      throw new Error("Google Calendar configuration could not be loaded");
+    }
+
+    const clientId =
+      typeof (data as { clientId?: string } | null)?.clientId === "string"
+        ? (data as { clientId?: string }).clientId!.trim()
+        : "";
+
+    if (!clientId) {
+      throw new Error("VITE_GOOGLE_CLIENT_ID is not configured");
+    }
+
+    cachedClientId = clientId;
+    return clientId;
+  })();
+
+  try {
+    return await clientIdPromise;
+  } finally {
+    clientIdPromise = null;
+  }
+}
+
+export async function isGoogleCalendarConfiguredAsync(): Promise<boolean> {
+  try {
+    await resolveGoogleClientId();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function getGoogleAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
 
   await loadGoogleScript();
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error("VITE_GOOGLE_CLIENT_ID is not configured");
+  const clientId = await resolveGoogleClientId();
   if (!window.google) throw new Error("Google Identity Services not loaded");
 
   return new Promise<string>((resolve, reject) => {
@@ -73,8 +120,7 @@ export async function getGoogleAccessToken(): Promise<string> {
 }
 
 export function isGoogleCalendarConfigured(): boolean {
-  const id = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  return typeof id === "string" && id.length > 0;
+  return !!cachedClientId;
 }
 
 // --- List calendars ---
