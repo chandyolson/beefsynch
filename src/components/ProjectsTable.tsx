@@ -56,6 +56,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     if (filterType !== "All") {
       list = list.filter((p) => p.animalType === filterType);
     }
+    if (filterStatus !== "All") {
+      list = list.filter((p) => p.status === filterStatus);
+    }
     if (search) {
       const s = search.toLowerCase();
       list = list.filter(
