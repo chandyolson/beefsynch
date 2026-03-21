@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star } from "lucide-react";
+import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star, ExternalLink } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { toast } from "@/hooks/use-toast";
@@ -202,8 +202,18 @@ const BullList = () => {
     return bulls.filter((b) => favoritedIds.has(b.id));
   }, [bulls, favoritedIds]);
 
+  // Select Sires link helper
+  const selectSiresUrl = (bull: CatalogBull): string | null => {
+    if (!bull.company.toLowerCase().includes("select sires")) return null;
+    const breedSlug = bull.breed.toLowerCase().replace(/\s+/g, "-");
+    const nameSlug = bull.bull_name.toLowerCase().replace(/\s+/g, "-");
+    return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
+  };
+
   // Shared row renderer for both desktop table and mobile cards
-  const renderMobileCard = (bull: CatalogBull) => (
+  const renderMobileCard = (bull: CatalogBull) => {
+    const ssUrl = selectSiresUrl(bull);
+    return (
     <div
       key={bull.id}
       className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
@@ -221,9 +231,16 @@ const BullList = () => {
               className="shrink-0"
             />
           )}
-          <p className="font-medium text-xs text-foreground truncate min-w-0">
-            {bull.bull_name}
-          </p>
+          {ssUrl ? (
+            <a href={ssUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-xs text-primary hover:underline truncate min-w-0 inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {bull.bull_name}
+              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+            </a>
+          ) : (
+            <p className="font-medium text-xs text-foreground truncate min-w-0">
+              {bull.bull_name}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Badge
@@ -250,8 +267,11 @@ const BullList = () => {
       </div>
     </div>
   );
+  };
 
-  const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean) => (
+  const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean) => {
+    const ssUrl = selectSiresUrl(bull);
+    return (
     <TableRow
       key={bull.id}
       className={`border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
@@ -270,7 +290,14 @@ const BullList = () => {
         </TableCell>
       )}
       <TableCell className="font-medium text-foreground">
-        {bull.bull_name}
+        {ssUrl ? (
+          <a href={ssUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {bull.bull_name}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+        ) : (
+          bull.bull_name
+        )}
         {bull.naab_code && (
           <span className="ml-2 text-xs text-muted-foreground">
             ({bull.naab_code})
@@ -300,6 +327,7 @@ const BullList = () => {
       </TableCell>
     </TableRow>
   );
+  };
 
   return (
     <div className="min-h-screen">
