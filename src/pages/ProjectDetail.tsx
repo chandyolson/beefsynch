@@ -11,6 +11,7 @@ import {
   pushEventsToGoogleCalendar,
   removeEventsFromGoogleCalendar,
   isGoogleCalendarConfigured,
+  getGoogleAccessToken,
   type CalendarEventInput,
 } from "@/lib/googleCalendar";
 import { toast } from "@/hooks/use-toast";
@@ -335,8 +336,9 @@ const ProjectDetail = () => {
   // --- Push to Google Calendar ---
   const handlePushToGoogle = async () => {
     if (!userId) return;
-    setPushing(true);
     try {
+      const token = await getGoogleAccessToken();
+      setPushing(true);
       const description = buildDescription();
       const calendarEvents: CalendarEventInput[] = filteredEvents.map((ev) => ({
         protocolEventId: ev.id,
@@ -346,7 +348,7 @@ const ProjectDetail = () => {
         eventTime: isNoTimeEvent(ev.event_name) ? null : ev.event_time,
         isAllDay: isNoTimeEvent(ev.event_name),
       }));
-      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId);
+      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId, token);
       if (result.errors.length > 0) {
         toast({
           title: "Sync completed with errors",
@@ -362,16 +364,18 @@ const ProjectDetail = () => {
       await fetchLastSync();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar error", description: msg, variant: "destructive" });
+      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
+    } finally {
+      setPushing(false);
     }
-    setPushing(false);
   };
 
   const handleRemoveFromGoogle = async () => {
     if (!userId) return;
-    setRemoving(true);
     try {
-      const result = await removeEventsFromGoogleCalendar(project.id, userId);
+      const token = await getGoogleAccessToken();
+      setRemoving(true);
+      const result = await removeEventsFromGoogleCalendar(project.id, userId, token);
       if (result.errors.length > 0) {
         toast({
           title: "Removed with errors",
@@ -384,9 +388,10 @@ const ProjectDetail = () => {
       setLastSyncedAt(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar error", description: msg, variant: "destructive" });
+      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
+    } finally {
+      setRemoving(false);
     }
-    setRemoving(false);
   };
 
   return (
