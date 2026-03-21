@@ -163,6 +163,7 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          google_calendar_id: string | null
           id: string
           invite_code: string | null
           name: string
@@ -170,6 +171,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          google_calendar_id?: string | null
           id?: string
           invite_code?: string | null
           name: string
@@ -177,6 +179,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          google_calendar_id?: string | null
           id?: string
           invite_code?: string | null
           name?: string
