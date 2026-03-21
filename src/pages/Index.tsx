@@ -273,6 +273,12 @@ const Index = () => {
         onOpenChange={setDialogOpen}
         onProjectCreated={fetchProjects}
       />
+      <BullsSummaryDialog
+        open={bullsDialogOpen}
+        onOpenChange={setBullsDialogOpen}
+        bullsByProject={bullsByProject}
+        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+      />
     </div>
   );
 };
