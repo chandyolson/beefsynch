@@ -212,7 +212,7 @@ export async function pushEventsToGoogleCalendar(
       description: ev.description,
     };
 
-    if (ev.isAllDay) {
+    if (ev.isAllDay || !ev.eventTime) {
       body.start = { date: ev.eventDate };
       body.end = { date: addOneDay(ev.eventDate) };
     } else {
