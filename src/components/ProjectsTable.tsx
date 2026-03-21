@@ -189,6 +189,21 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-1 rounded-md border border-border bg-secondary p-0.5">
+            {["All", "Tentative", "Confirmed", "Complete"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+                  filterStatus === s
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
