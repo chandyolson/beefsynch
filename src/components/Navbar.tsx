@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -116,6 +116,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/bull-report")} className="cursor-pointer gap-2">
                 <BarChart3 className="h-4 w-4" /> Bull Report
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/chat")} className="cursor-pointer gap-2">
+                <MessageSquare className="h-4 w-4" /> Bull Chat
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <button
@@ -189,6 +192,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </button>
           <button onClick={() => go("/bull-report")} className={navBtnClass}>
             <BarChart3 className="h-4 w-4" /> Bull Report
+          </button>
+          <button onClick={() => go("/chat")} className={navBtnClass}>
+            <MessageSquare className="h-4 w-4" /> Bull Chat
           </button>
           <button
             onClick={() => { onNewProject?.(); setMobileOpen(false); }}

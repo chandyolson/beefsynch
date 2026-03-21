@@ -9,6 +9,7 @@ import ProjectDetail from "./pages/ProjectDetail";
 import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
 import BullReport from "./pages/BullReport";
+import BullChat from "./pages/BullChat";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
             <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
             <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><BullChat /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
