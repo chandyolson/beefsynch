@@ -31,7 +31,7 @@ const typeStyles: Record<string, string> = {
   Cow: "bg-accent/20 text-accent",
 };
 
-// calendar-sync indicator v2
+// calendar-sync indicator v3
 const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, syncedProjectIds = new Set(), canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
   const navigate = useNavigate();
 
