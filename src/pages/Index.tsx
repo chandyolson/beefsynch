@@ -8,6 +8,7 @@ import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
 import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/data/mockData";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
