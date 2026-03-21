@@ -37,8 +37,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   };
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedBulls, setExpandedBulls] = useState<Set<string>>(new Set());
 
   const toggleSort = (key: SortKey) => {
@@ -54,6 +55,9 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     let list = projects;
     if (filterType !== "All") {
       list = list.filter((p) => p.animalType === filterType);
+    }
+    if (filterStatus !== "All") {
+      list = list.filter((p) => p.status === filterStatus);
     }
     if (search) {
       const s = search.toLowerCase();
@@ -82,7 +86,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
         ? String(aVal).localeCompare(String(bVal))
         : String(bVal).localeCompare(String(aVal));
     });
-  }, [projects, search, filterType, sortKey, sortDir]);
+  }, [projects, search, filterType, filterStatus, sortKey, sortDir]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
   const selectableFiltered = useMemo(() => filtered.filter(canSelectProject), [filtered, canEditAll, currentUserId]);
@@ -182,6 +186,21 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 }`}
               >
                 {t}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 rounded-md border border-border bg-secondary p-0.5">
+            {["All", "Tentative", "Confirmed", "Complete"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+                  filterStatus === s
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s}
               </button>
             ))}
           </div>
