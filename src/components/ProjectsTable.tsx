@@ -1,16 +1,18 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { BreedingProject } from "@/data/mockData";
-import { ArrowUpDown, Search, Filter } from "lucide-react";
+import { ArrowUpDown, Search, Filter, CalendarCheck } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { format, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProjectsTableProps {
   projects: BreedingProject[];
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   bullsByProject?: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>;
+  syncedProjectIds?: Set<string>;
   canEditAll?: boolean;
   currentUserId?: string | null;
 }
@@ -29,7 +31,7 @@ const typeStyles: Record<string, string> = {
   Cow: "bg-accent/20 text-accent",
 };
 
-const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
+const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, syncedProjectIds = new Set(), canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
   const navigate = useNavigate();
 
   const canSelectProject = (_project: BreedingProject) => {
@@ -252,7 +254,21 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                     />
                   ) : <div className="w-4" />}
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{project.name}</td>
+                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    {project.name}
+                    {syncedProjectIds.has(project.id) && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CalendarCheck className="h-3.5 w-3.5 text-primary" />
+                          </TooltipTrigger>
+                          <TooltipContent>Synced to Google Calendar</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </span>
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
                     {project.animalType}
@@ -303,7 +319,12 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 ) : <div className="w-4" />}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate pr-2">{project.name}</h3>
+                <h3 className="font-semibold text-foreground truncate pr-2 inline-flex items-center gap-1.5">
+                  {project.name}
+                  {syncedProjectIds.has(project.id) && (
+                    <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
+                </h3>
 
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>

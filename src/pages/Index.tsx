@@ -140,6 +140,16 @@ const Index = () => {
           }
           setBullsByProject(map);
         }
+
+        // Fetch which projects have been synced to Google Calendar
+        const { data: syncData } = await supabase
+          .from("google_calendar_events")
+          .select("project_id")
+          .in("project_id", projectIds);
+
+        if (syncData) {
+          setSyncedProjectIds(new Set(syncData.map((r) => r.project_id)));
+        }
       }
     }
   }, [orgId]);
@@ -265,6 +275,7 @@ const Index = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           bullsByProject={bullsByProject}
+          syncedProjectIds={syncedProjectIds}
           canEditAll={myRole === "owner" || myRole === "admin"}
           currentUserId={userId}
         />
