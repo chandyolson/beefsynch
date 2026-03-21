@@ -63,6 +63,7 @@ const Index = () => {
   }, [catalogBulls, favoritedIds]);
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
+  const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
 
   const fetchProjects = useCallback(async () => {
     let query = supabase
@@ -138,6 +139,16 @@ const Index = () => {
             map[pid].push({ name, units: b.units, registrationNumber: regNum, breed });
           }
           setBullsByProject(map);
+        }
+
+        // Fetch which projects have been synced to Google Calendar
+        const { data: syncData } = await supabase
+          .from("google_calendar_events")
+          .select("project_id")
+          .in("project_id", projectIds);
+
+        if (syncData) {
+          setSyncedProjectIds(new Set(syncData.map((r) => r.project_id)));
         }
       }
     }
@@ -264,6 +275,7 @@ const Index = () => {
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           bullsByProject={bullsByProject}
+          syncedProjectIds={syncedProjectIds}
           canEditAll={myRole === "owner" || myRole === "admin"}
           currentUserId={userId}
         />
