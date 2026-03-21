@@ -31,7 +31,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw } from "lucide-react";
+import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw, Download } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { generateFullExport } from "@/lib/generateFullExport";
 
 interface Member {
   id: string;
@@ -57,6 +59,7 @@ const TeamManagement = () => {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenDialog, setShowRegenDialog] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const canManage = myRole === "owner" || myRole === "admin";
 
@@ -472,6 +475,42 @@ const TeamManagement = () => {
               </Button>
             </div>
           </div>
+        )}
+
+        {/* Data Backup */}
+        {canManage && orgId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Data Backup</CardTitle>
+              <CardDescription>
+                Download a complete backup of all your organization's data including projects, schedules, bulls, and team members.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                disabled={exporting}
+                onClick={async () => {
+                  setExporting(true);
+                  try {
+                    await generateFullExport(orgId);
+                    toast({ title: "Backup downloaded successfully" });
+                  } catch (err: any) {
+                    toast({ title: "Export failed", description: err.message, variant: "destructive" });
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                className="gap-2"
+              >
+                {exporting ? (
+                  <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {exporting ? "Exporting…" : "Export All Data"}
+              </Button>
+            </CardContent>
+          </Card>
         )}
         {/* Regenerate confirmation dialog */}
         <AlertDialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
