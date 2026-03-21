@@ -52,7 +52,7 @@ export async function getGoogleAccessToken(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: "https://www.googleapis.com/auth/calendar.events",
+      scope: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
       callback: (response) => {
         if (response.error) {
           reject(new Error(`Google OAuth error: ${response.error}`));
@@ -72,13 +72,36 @@ export function isGoogleCalendarConfigured(): boolean {
   return typeof id === "string" && id.length > 0;
 }
 
+// --- List calendars ---
+export interface GoogleCalendarInfo {
+  id: string;
+  summary: string;
+  primary: boolean;
+}
+
+export async function listGoogleCalendars(accessToken: string): Promise<GoogleCalendarInfo[]> {
+  const res = await fetch(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`Failed to list calendars: ${res.status}`);
+  const json = await res.json();
+  return (json.items || [])
+    .filter((c: any) => c.accessRole === "owner" || c.accessRole === "writer")
+    .map((c: any) => ({
+      id: c.id,
+      summary: c.summary || c.id,
+      primary: !!c.primary,
+    }));
+}
+
 // --- Push events ---
 export interface CalendarEventInput {
   protocolEventId: string;
   summary: string;
   description: string;
-  eventDate: string; // yyyy-MM-dd
-  eventTime: string | null; // HH:mm or null
+  eventDate: string;
+  eventTime: string | null;
   isAllDay: boolean;
 }
 
@@ -100,10 +123,14 @@ export async function pushEventsToGoogleCalendar(
   projectId: string,
   events: CalendarEventInput[],
   userId: string,
-  accessToken: string
+  accessToken: string,
+  calendarId: string
 ): Promise<{ created: number; updated: number; errors: string[] }> {
   const token = accessToken;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const encodedCalId = encodeURIComponent(calendarId);
+
+  console.log("[BeefSynch] Pushing", events.length, "events to calendar:", calendarId);
 
   const { data: existing } = await supabase
     .from("google_calendar_events")
@@ -127,6 +154,8 @@ export async function pushEventsToGoogleCalendar(
   };
 
   for (const ev of events) {
+    console.log("[BeefSynch] Processing event:", ev.summary, "| allDay:", ev.isAllDay, "| date:", ev.eventDate, "| time:", ev.eventTime);
+
     const body: Record<string, unknown> = {
       summary: ev.summary,
       description: ev.description,
@@ -148,11 +177,12 @@ export async function pushEventsToGoogleCalendar(
     try {
       if (existingGoogleId) {
         const res = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingGoogleId}`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events/${existingGoogleId}`,
           { method: "PATCH", headers, body: JSON.stringify(body) }
         );
         if (!res.ok) {
           const text = await res.text();
+          console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
           errors.push(`Update failed for "${ev.summary}": ${res.status} ${text}`);
           continue;
         }
@@ -162,13 +192,15 @@ export async function pushEventsToGoogleCalendar(
           .eq("user_id", userId)
           .eq("protocol_event_id", ev.protocolEventId);
         updated++;
+        console.log("[BeefSynch] Updated:", ev.summary);
       } else {
         const res = await fetch(
-          "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+          `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events`,
           { method: "POST", headers, body: JSON.stringify(body) }
         );
         if (!res.ok) {
           const text = await res.text();
+          console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
           errors.push(`Create failed for "${ev.summary}": ${res.status} ${text}`);
           continue;
         }
@@ -179,16 +211,20 @@ export async function pushEventsToGoogleCalendar(
           project_id: projectId,
           protocol_event_id: ev.protocolEventId,
           google_event_id: googleId,
+          google_calendar_id: calendarId,
           synced_at: new Date().toISOString(),
         });
         created++;
+        console.log("[BeefSynch] Created:", ev.summary, "→ Google ID:", googleId);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.error("[BeefSynch] Failed:", ev.summary, "→", msg);
       errors.push(`Error for "${ev.summary}": ${msg}`);
     }
   }
 
+  console.log("[BeefSynch] Done. Created:", created, "Updated:", updated, "Errors:", errors.length);
   return { created, updated, errors };
 }
 
@@ -196,9 +232,11 @@ export async function pushEventsToGoogleCalendar(
 export async function removeEventsFromGoogleCalendar(
   projectId: string,
   userId: string,
-  accessToken: string
+  accessToken: string,
+  calendarId: string
 ): Promise<{ removed: number; errors: string[] }> {
   const token = accessToken;
+  const encodedCalId = encodeURIComponent(calendarId);
 
   const { data: records } = await supabase
     .from("google_calendar_events")
@@ -213,7 +251,7 @@ export async function removeEventsFromGoogleCalendar(
     for (const row of records) {
       try {
         const res = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${row.google_event_id}`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events/${row.google_event_id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },

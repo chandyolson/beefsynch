@@ -12,7 +12,9 @@ import {
   removeEventsFromGoogleCalendar,
   isGoogleCalendarConfigured,
   getGoogleAccessToken,
+  listGoogleCalendars,
   type CalendarEventInput,
+  type GoogleCalendarInfo,
 } from "@/lib/googleCalendar";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -123,6 +125,9 @@ const ProjectDetail = () => {
   const [pushing, setPushing] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarInfo[]>([]);
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -140,6 +145,21 @@ const ProjectDetail = () => {
   useEffect(() => {
     fetchOrgMembers();
   }, [fetchOrgMembers]);
+
+  // Fetch org's saved Google Calendar ID
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("organizations")
+      .select("google_calendar_id")
+      .eq("id", orgId)
+      .single()
+      .then(({ data }) => {
+        if (data?.google_calendar_id) {
+          setOrgGoogleCalendarId(data.google_calendar_id);
+        }
+      });
+  }, [orgId]);
 
   const resolveContactEmail = (uid: string | null): string => {
     if (!uid) return "Unknown user";
@@ -334,11 +354,9 @@ const ProjectDetail = () => {
   };
 
   // --- Push to Google Calendar ---
-  const handlePushToGoogle = async () => {
-    if (!userId) return;
+  const doPush = async (token: string, calId: string) => {
+    setPushing(true);
     try {
-      const token = await getGoogleAccessToken();
-      setPushing(true);
       const description = buildDescription();
       const calendarEvents: CalendarEventInput[] = filteredEvents.map((ev) => ({
         protocolEventId: ev.id,
@@ -348,7 +366,7 @@ const ProjectDetail = () => {
         eventTime: isNoTimeEvent(ev.event_name) ? null : ev.event_time,
         isAllDay: isNoTimeEvent(ev.event_name),
       }));
-      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId, token);
+      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId, token, calId);
       if (result.errors.length > 0) {
         toast({
           title: "Sync completed with errors",
@@ -362,11 +380,66 @@ const ProjectDetail = () => {
         });
       }
       await fetchLastSync();
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const handlePushToGoogle = async () => {
+    if (!userId) return;
+    try {
+      // Get token FIRST — directly on click so popup isn't blocked
+      const token = await getGoogleAccessToken();
+
+      if (!orgGoogleCalendarId) {
+        // No calendar chosen yet — fetch list and show picker
+        setPushing(true);
+        const calendars = await listGoogleCalendars(token);
+        setGoogleCalendars(calendars);
+        setShowCalendarPicker(true);
+        setPushing(false);
+        return;
+      }
+
+      // Calendar is set — push events
+      await doPush(token, orgGoogleCalendarId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
-    } finally {
       setPushing(false);
+    }
+  };
+
+  const handleCalendarSelected = async (calId: string) => {
+    if (!orgId) return;
+    // Save to org so all members use this calendar
+    await supabase
+      .from("organizations")
+      .update({ google_calendar_id: calId })
+      .eq("id", orgId);
+    setOrgGoogleCalendarId(calId);
+    setShowCalendarPicker(false);
+    const selectedCal = googleCalendars.find((c) => c.id === calId);
+    toast({ title: "Calendar saved", description: `"${selectedCal?.summary || calId}" will be used for all projects.` });
+    // Now auto-push since user was trying to push when we showed the picker
+    try {
+      const token = await getGoogleAccessToken();
+      await doPush(token, calId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Google Calendar", description: msg || "Push failed", variant: "destructive" });
+    }
+  };
+
+  const handleChangeCalendar = async () => {
+    try {
+      const token = await getGoogleAccessToken();
+      const calendars = await listGoogleCalendars(token);
+      setGoogleCalendars(calendars);
+      setShowCalendarPicker(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
     }
   };
 
@@ -375,7 +448,7 @@ const ProjectDetail = () => {
     try {
       const token = await getGoogleAccessToken();
       setRemoving(true);
-      const result = await removeEventsFromGoogleCalendar(project.id, userId, token);
+      const result = await removeEventsFromGoogleCalendar(project.id, userId, token, orgGoogleCalendarId || "primary");
       if (result.errors.length > 0) {
         toast({
           title: "Removed with errors",
@@ -721,32 +794,68 @@ const ProjectDetail = () => {
           <CardContent className="space-y-4">
             {isGoogleCalendarConfigured() && (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button onClick={handlePushToGoogle} disabled={pushing || filteredEvents.length === 0}>
-                    {pushing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pushing…
-                      </>
-                    ) : (
-                      <>
-                        <Calendar className="h-4 w-4 mr-1" /> Push to Google Calendar
-                      </>
+                {/* Calendar picker — shown when no org calendar is set or user clicks Change */}
+                {showCalendarPicker && googleCalendars.length > 0 && (
+                  <div className="rounded-lg border border-border bg-secondary/50 p-4 space-y-3">
+                    <p className="text-sm font-medium text-foreground">Choose a Google Calendar</p>
+                    <p className="text-xs text-muted-foreground">All projects in your organization will push events to this calendar.</p>
+                    <Select onValueChange={handleCalendarSelected}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a calendar…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {googleCalendars.map((cal) => (
+                          <SelectItem key={cal.id} value={cal.id}>
+                            {cal.summary}{cal.primary ? " (Primary)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="sm" onClick={() => setShowCalendarPicker(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+
+                {/* Push / Remove buttons — shown when picker is NOT open */}
+                {!showCalendarPicker && (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button onClick={handlePushToGoogle} disabled={pushing || filteredEvents.length === 0}>
+                        {pushing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pushing…
+                          </>
+                        ) : (
+                          <>
+                            <Calendar className="h-4 w-4 mr-1" /> Push to Google Calendar
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground text-xs"
+                        onClick={handleRemoveFromGoogle}
+                        disabled={removing}
+                      >
+                        {removing ? "Removing…" : "Remove from Calendar"}
+                      </Button>
+                    </div>
+                    {orgGoogleCalendarId && (
+                      <button
+                        onClick={handleChangeCalendar}
+                        className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+                      >
+                        Change calendar
+                      </button>
                     )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground text-xs"
-                    onClick={handleRemoveFromGoogle}
-                    disabled={removing}
-                  >
-                    {removing ? "Removing…" : "Remove from Calendar"}
-                  </Button>
-                </div>
-                {lastSyncedAt && (
-                  <p className="text-xs text-muted-foreground">
-                    Last synced: {format(parseISO(lastSyncedAt), "MMM d, yyyy 'at' h:mm a")}
-                  </p>
+                    {lastSyncedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last synced: {format(parseISO(lastSyncedAt), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}
