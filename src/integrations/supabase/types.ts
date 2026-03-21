@@ -73,6 +73,51 @@ export type Database = {
         }
         Relationships: []
       }
+      google_calendar_events: {
+        Row: {
+          google_calendar_id: string
+          google_event_id: string
+          id: string
+          project_id: string
+          protocol_event_id: string
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          google_calendar_id?: string
+          google_event_id: string
+          id?: string
+          project_id: string
+          protocol_event_id: string
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          google_calendar_id?: string
+          google_event_id?: string
+          id?: string
+          project_id?: string
+          protocol_event_id?: string
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_calendar_events_protocol_event_id_fkey"
+            columns: ["protocol_event_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           accepted: boolean | null
