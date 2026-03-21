@@ -162,14 +162,6 @@ function addOneDay(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-function addOneHour(dateStr: string, timeStr: string): string {
-  const d = new Date(`${dateStr}T${timeStr}:00`);
-  d.setHours(d.getHours() + 1);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
 export async function pushEventsToGoogleCalendar(
   projectId: string,
   events: CalendarEventInput[],
@@ -178,7 +170,6 @@ export async function pushEventsToGoogleCalendar(
   calendarId: string
 ): Promise<{ created: number; updated: number; errors: string[] }> {
   const token = accessToken;
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const encodedCalId = encodeURIComponent(calendarId);
 
   console.log("[BeefSynch] Pushing", events.length, "events to calendar:", calendarId);
@@ -212,16 +203,9 @@ export async function pushEventsToGoogleCalendar(
       description: ev.description,
     };
 
-    if (ev.isAllDay || !ev.eventTime) {
-      body.start = { date: ev.eventDate };
-      body.end = { date: addOneDay(ev.eventDate) };
-    } else {
-      const startDt = `${ev.eventDate}T${ev.eventTime}:00`;
-      const endTime = addOneHour(ev.eventDate, ev.eventTime!);
-      const endDt = `${ev.eventDate}T${endTime}:00`;
-      body.start = { dateTime: startDt, timeZone };
-      body.end = { dateTime: endDt, timeZone };
-    }
+    // All events are pushed as all-day — times are in the title for visibility
+    body.start = { date: ev.eventDate };
+    body.end = { date: addOneDay(ev.eventDate) };
 
     const existingGoogleId = syncMap.get(ev.protocolEventId);
 

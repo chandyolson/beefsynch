@@ -382,14 +382,15 @@ const ProjectDetail = () => {
     try {
       const description = buildDescription();
       const calendarEvents: CalendarEventInput[] = filteredEvents.map((ev) => {
-        const noTime = isNoTimeEvent(ev.event_name) || !ev.event_time;
+        const hasTime = !isNoTimeEvent(ev.event_name) && !!ev.event_time;
+        const timeSuffix = hasTime ? ` @ ${formatTime12(ev.event_time!)}` : "";
         return {
           protocolEventId: ev.id,
-          summary: `${project.name} — ${ev.event_name}`,
+          summary: `${project.name} — ${ev.event_name}${timeSuffix}`,
           description,
           eventDate: ev.event_date,
-          eventTime: noTime ? null : ev.event_time,
-          isAllDay: noTime,
+          eventTime: null,
+          isAllDay: true,
         };
       });
       const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId, token, calId);
