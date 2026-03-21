@@ -12,6 +12,13 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  define: {
+    // Forward VITE_GOOGLE_CLIENT_ID from process env into import.meta.env
+    // (secrets are available as process env vars but Vite only auto-inlines .env file vars)
+    ...(process.env.VITE_GOOGLE_CLIENT_ID
+      ? { "import.meta.env.VITE_GOOGLE_CLIENT_ID": JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID) }
+      : {}),
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
