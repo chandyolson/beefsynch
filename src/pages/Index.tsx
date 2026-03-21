@@ -63,6 +63,7 @@ const Index = () => {
   }, [catalogBulls, favoritedIds]);
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
+  const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
 
   const fetchProjects = useCallback(async () => {
     let query = supabase
