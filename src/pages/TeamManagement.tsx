@@ -511,7 +511,7 @@ const TeamManagement = () => {
               </Button>
             </CardContent>
           </Card>
-        )
+        )}
         {/* Regenerate confirmation dialog */}
         <AlertDialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
           <AlertDialogContent>
