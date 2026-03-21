@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, X, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { calculateProtocolEvents } from "@/lib/protocolEvents";
 import { generateBulkCsv } from "@/lib/generateBulkCsv";
 import { generateBulkPdf } from "@/lib/generateBulkPdf";
 import { Button } from "@/components/ui/button";
@@ -21,7 +19,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,14 +30,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const cowProtocols = ["Select Synch CIDR", "Select Synch TOO", "Select Synch", "7&7 Synch"];
-const heiferProtocols = ["7 Day CIDR", "7&7 Synch", "MGA", "14 Day CIDR"];
-const allProtocols = [...new Set([...cowProtocols, ...heiferProtocols])];
-
 interface SelectedProject {
   id: string;
   name: string;
-  cattleType: string; // "Cows" or "Heifers" from DB cattle_type
+  cattleType: string;
   protocol: string;
   breedingTime: string | null;
 }
@@ -55,39 +48,9 @@ interface BulkActionToolbarProps {
 const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = true }: BulkActionToolbarProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [lastContactPickerOpen, setLastContactPickerOpen] = useState(false);
 
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const count = selectedProjects.length;
-
-  // Determine cattle types among selected
-  const cattleTypes = new Set(selectedProjects.map((p) => p.cattleType));
-  const isMixed = cattleTypes.size > 1;
-  const singleType = isMixed ? null : [...cattleTypes][0];
-  const protocolOptions = isMixed
-    ? allProtocols
-    : singleType === "Cows"
-    ? cowProtocols
-    : heiferProtocols;
-
-  const recalcEvents = async (projectId: string, protocol: string, cattleType: string, breedingDate: string, breedingTime: string) => {
-    await supabase.from("protocol_events").delete().eq("project_id", projectId);
-    const events = calculateProtocolEvents(
-      protocol,
-      cattleType as "Heifers" | "Cows",
-      new Date(breedingDate + "T12:00:00"),
-      breedingTime
-    );
-    if (events.length > 0) {
-      await supabase.from("protocol_events").insert(
-        events.map((e) => ({
-          project_id: projectId,
-          event_name: e.event_name,
-          event_date: e.event_date,
-          event_time: e.event_time,
-        }))
-      );
-    }
-  };
 
   // Map display labels to DB values
   const statusDisplayToDb: Record<string, string> = {
@@ -109,60 +72,20 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
     onComplete();
   };
 
-  const handleProtocolChange = async (protocol: string) => {
-    setBusy(true);
-    const failed: string[] = [];
-    for (const p of selectedProjects) {
-      const { error } = await supabase.from("projects").update({ protocol }).eq("id", p.id);
-      if (error) { failed.push(p.name); continue; }
-      // Fetch current project to get breeding_date/time
-      const { data: proj } = await supabase.from("projects").select("breeding_date, breeding_time, cattle_type").eq("id", p.id).single();
-      if (proj?.breeding_date) {
-        try {
-          await recalcEvents(p.id, protocol, proj.cattle_type, proj.breeding_date, proj.breeding_time || "10:00");
-        } catch { failed.push(p.name); }
-      }
-    }
-    setBusy(false);
-    showResult("Protocol updated", failed);
-    onComplete();
-  };
-
-  const handleDateChange = async (date: Date) => {
+  const handleLastContactChange = async (date: Date) => {
     setBusy(true);
     const dateStr = format(date, "yyyy-MM-dd");
+    const { data: { user } } = await supabase.auth.getUser();
     const failed: string[] = [];
     for (const p of selectedProjects) {
-      const { error } = await supabase.from("projects").update({ breeding_date: dateStr }).eq("id", p.id);
-      if (error) { failed.push(p.name); continue; }
-      const { data: proj } = await supabase.from("projects").select("protocol, cattle_type, breeding_time").eq("id", p.id).single();
-      if (proj) {
-        try {
-          await recalcEvents(p.id, proj.protocol, proj.cattle_type, dateStr, proj.breeding_time || "10:00");
-        } catch { failed.push(p.name); }
-      }
+      const { error } = await supabase.from("projects").update({
+        last_contacted_date: dateStr,
+        last_contacted_by: user?.id ?? null,
+      }).eq("id", p.id);
+      if (error) failed.push(p.name);
     }
     setBusy(false);
-    showResult("Breeding date updated", failed);
-    onComplete();
-  };
-
-  const handleTimeChange = async (time: string) => {
-    if (!time) return;
-    setBusy(true);
-    const failed: string[] = [];
-    for (const p of selectedProjects) {
-      const { error } = await supabase.from("projects").update({ breeding_time: time }).eq("id", p.id);
-      if (error) { failed.push(p.name); continue; }
-      const { data: proj } = await supabase.from("projects").select("protocol, cattle_type, breeding_date").eq("id", p.id).single();
-      if (proj?.breeding_date) {
-        try {
-          await recalcEvents(p.id, proj.protocol, proj.cattle_type, proj.breeding_date, time);
-        } catch { failed.push(p.name); }
-      }
-    }
-    setBusy(false);
-    showResult("Breeding time updated", failed);
+    showResult("Last contact date updated", failed);
     onComplete();
   };
 
@@ -170,7 +93,6 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
     setBusy(true);
     const failed: string[] = [];
     for (const p of selectedProjects) {
-      // Delete children first, then project
       await supabase.from("protocol_events").delete().eq("project_id", p.id);
       await supabase.from("project_bulls").delete().eq("project_id", p.id);
       const { error } = await supabase.from("projects").delete().eq("id", p.id);
@@ -206,7 +128,6 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
       ]);
 
       const projectsData = (pRes.data ?? []) as any[];
-      // Order projects to match ids order
       const orderedProjects = ids.map((id) => projectsData.find((p: any) => p.id === id)).filter(Boolean);
 
       const eventsByProject: Record<string, any[]> = {};
@@ -255,56 +176,27 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
           </SelectContent>
         </Select>
 
-        <div className="relative">
-          <Select onValueChange={handleProtocolChange} disabled={busy}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
-              <SelectValue placeholder="Change Protocol" />
-            </SelectTrigger>
-            <SelectContent>
-              {isMixed && (
-                <p className="px-2 py-1 text-xs text-warning">
-                  Mixed cattle types — protocol will recalculate events
-                </p>
-              )}
-              {protocolOptions.map((p) => (
-                <SelectItem key={p} value={p}>{p}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <Popover open={lastContactPickerOpen} onOpenChange={setLastContactPickerOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" disabled={busy}>
-              <CalendarIcon className="h-3 w-3" /> Change Date
+              <CalendarIcon className="h-3 w-3" /> Last Contact
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              onSelect={(d) => { if (d) { handleDateChange(d); setDatePickerOpen(false); } }}
+              onSelect={(d) => { if (d) { handleLastContactChange(d); setLastContactPickerOpen(false); } }}
               className="p-3 pointer-events-auto"
             />
           </PopoverContent>
         </Popover>
-
-        <div className="flex items-center gap-1">
-          <Input
-            type="time"
-            className="h-8 w-[120px] text-xs"
-            disabled={busy}
-            onChange={(e) => handleTimeChange(e.target.value)}
-          />
-        </div>
 
         <Button
           variant="outline"
           size="sm"
           className="h-8 text-xs gap-1"
           disabled={busy}
-          onClick={async () => {
-            await handleBulkExport("csv");
-          }}
+          onClick={() => handleBulkExport("csv")}
         >
           <Download className="h-3 w-3" /> Export CSV
         </Button>
@@ -314,9 +206,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
           size="sm"
           className="h-8 text-xs gap-1"
           disabled={busy}
-          onClick={async () => {
-            await handleBulkExport("pdf");
-          }}
+          onClick={() => handleBulkExport("pdf")}
         >
           <Download className="h-3 w-3" /> Export PDF
         </Button>
