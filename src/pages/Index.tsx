@@ -34,6 +34,7 @@ const Index = () => {
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [bullsDialogOpen, setBullsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAnonymous, setIsAnonymous] = useState(true);
 
