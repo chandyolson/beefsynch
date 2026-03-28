@@ -10,7 +10,7 @@ import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { BreedingProject } from "@/data/mockData";
+import { BreedingProject, ProjectStatus } from "@/data/mockData";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
@@ -89,7 +89,7 @@ const Index = () => {
         headCount: p.head_count,
         startDate: "",
         breedDate: p.breeding_date ?? "",
-        status: p.status as any,
+        status: p.status as ProjectStatus,
         location: "",
         userId: p.user_id,
         lastContactedDate: p.last_contacted_date ?? null,
@@ -152,7 +152,7 @@ const Index = () => {
         }
       }
     }
-  }, [orgId]);
+  }, [orgId, userId]);
 
   useEffect(() => {
     fetchProjects();

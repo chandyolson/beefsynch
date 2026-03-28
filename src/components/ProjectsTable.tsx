@@ -35,9 +35,6 @@ const typeStyles: Record<string, string> = {
 const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, syncedProjectIds = new Set(), canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
   const navigate = useNavigate();
 
-  const canSelectProject = (_project: BreedingProject) => {
-    return true;
-  };
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<string>("All");
@@ -92,7 +89,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   }, [projects, search, filterType, filterStatus, sortKey, sortDir]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
-  const selectableFiltered = useMemo(() => filtered.filter(canSelectProject), [filtered, canEditAll, currentUserId]);
+  const selectableFiltered = filtered;
   const allVisibleSelected = selectableFiltered.length > 0 && selectableFiltered.every((p) => selectedIds.has(p.id));
 
   const toggleAll = () => {

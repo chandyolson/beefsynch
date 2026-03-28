@@ -101,7 +101,7 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchRole]);
 
   return (
     <OrgRoleContext.Provider value={{ role, orgId, orgName, userId, loading, userOrgs, switchOrg, refresh }}>

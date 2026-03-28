@@ -145,8 +145,7 @@ const BullChat = () => {
           setIsLoading(false);
         },
       });
-    } catch (e) {
-      console.error(e);
+    } catch {
       setError("Failed to connect. Please try again.");
       setIsLoading(false);
     }

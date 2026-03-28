@@ -172,8 +172,6 @@ export async function pushEventsToGoogleCalendar(
   const token = accessToken;
   const encodedCalId = encodeURIComponent(calendarId);
 
-  console.log("[BeefSynch] Pushing", events.length, "events to calendar:", calendarId);
-
   const { data: existing } = await supabase
     .from("google_calendar_events")
     .select("protocol_event_id, google_event_id")
@@ -196,8 +194,6 @@ export async function pushEventsToGoogleCalendar(
   };
 
   for (const ev of events) {
-    console.log("[BeefSynch] Processing event:", ev.summary, "| allDay:", ev.isAllDay, "| date:", ev.eventDate, "| time:", ev.eventTime);
-
     const body: Record<string, unknown> = {
       summary: ev.summary,
       description: ev.description,
@@ -217,7 +213,6 @@ export async function pushEventsToGoogleCalendar(
         );
         if (!res.ok) {
           const text = await res.text();
-          console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
           errors.push(`Update failed for "${ev.summary}": ${res.status} ${text}`);
           continue;
         }
@@ -227,7 +222,6 @@ export async function pushEventsToGoogleCalendar(
           .eq("user_id", userId)
           .eq("protocol_event_id", ev.protocolEventId);
         updated++;
-        console.log("[BeefSynch] Updated:", ev.summary);
       } else {
         const res = await fetch(
           `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events`,
@@ -235,7 +229,6 @@ export async function pushEventsToGoogleCalendar(
         );
         if (!res.ok) {
           const text = await res.text();
-          console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
           errors.push(`Create failed for "${ev.summary}": ${res.status} ${text}`);
           continue;
         }
@@ -250,16 +243,13 @@ export async function pushEventsToGoogleCalendar(
           synced_at: new Date().toISOString(),
         });
         created++;
-        console.log("[BeefSynch] Created:", ev.summary, "→ Google ID:", googleId);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[BeefSynch] Failed:", ev.summary, "→", msg);
       errors.push(`Error for "${ev.summary}": ${msg}`);
     }
   }
 
-  console.log("[BeefSynch] Done. Created:", created, "Updated:", updated, "Errors:", errors.length);
   return { created, updated, errors };
 }
 

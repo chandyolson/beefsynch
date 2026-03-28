@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -137,16 +137,12 @@ const BullList = () => {
   }, [bulls, search, companyFilter, breedFilter, starredOnly, favoritedIds, sortKey, sortDir]);
 
   // Clear selection when filters change
-  const clearSelection = useCallback(() => {
-    if (selectedIds.size > 0) {
-      setSelectedIds(new Set());
-      toast({ title: "Selection cleared — filters updated." });
-    }
-  }, [selectedIds.size]);
-
   useEffect(() => {
-    clearSelection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      toast({ title: "Selection cleared — filters updated." });
+      return new Set();
+    });
   }, [search, companyFilter, breedFilter, starredOnly]);
 
   const toggleSort = (key: SortKey) => {
