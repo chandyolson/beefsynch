@@ -1,5 +1,11 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+// jspdf-autotable augments the jsPDF instance at runtime but doesn't always
+// expose the type for lastAutoTable, so we declare it locally.
+interface JsPDFWithPlugin extends jsPDF {
+  lastAutoTable: { finalY: number } | undefined;
+}
 import { format, parseISO, addDays } from "date-fns";
 
 interface ProjectData {
@@ -161,7 +167,7 @@ export function generateProjectPdf(
   }
 
   // ── Synchronization Product Directions ──
-  const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
+  const finalY = (doc as JsPDFWithPlugin).lastAutoTable?.finalY ?? y + 20;
   let dirY = finalY + 36;
 
   const pageHeight = doc.internal.pageSize.getHeight();

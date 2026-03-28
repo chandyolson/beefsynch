@@ -42,8 +42,27 @@ export function loadGoogleScript(): Promise<void> {
 }
 
 // --- Token + client-id cache ---
+const TOKEN_SS_KEY = "bs_gcal_token";
+const TOKEN_EXPIRY_SS_KEY = "bs_gcal_token_expiry";
+
+// Restore a previously obtained token from sessionStorage so the user doesn't
+// have to re-authorize on every page load within the same browser session.
+function loadTokenFromSession(): void {
+  try {
+    const stored = sessionStorage.getItem(TOKEN_SS_KEY);
+    const expiry = Number(sessionStorage.getItem(TOKEN_EXPIRY_SS_KEY) ?? 0);
+    if (stored && Date.now() < expiry) {
+      cachedToken = stored;
+      tokenExpiresAt = expiry;
+    }
+  } catch {
+    // sessionStorage unavailable (e.g. private-browsing restrictions) — ignore
+  }
+}
+
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+loadTokenFromSession();
 let cachedClientId: string | null =
   typeof import.meta.env.VITE_GOOGLE_CLIENT_ID === "string" &&
   import.meta.env.VITE_GOOGLE_CLIENT_ID.trim().length > 0
@@ -112,6 +131,10 @@ export async function getGoogleAccessToken(): Promise<string> {
         }
         cachedToken = response.access_token;
         tokenExpiresAt = Date.now() + 50 * 60 * 1000; // 50 minutes
+        try {
+          sessionStorage.setItem(TOKEN_SS_KEY, response.access_token);
+          sessionStorage.setItem(TOKEN_EXPIRY_SS_KEY, String(tokenExpiresAt));
+        } catch { /* sessionStorage unavailable — token lives only in memory */ }
         resolve(response.access_token);
       },
     });

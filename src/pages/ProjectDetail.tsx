@@ -7,16 +7,8 @@ import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
-import {
-  pushEventsToGoogleCalendar,
-  removeEventsFromGoogleCalendar,
-  isGoogleCalendarConfigured,
-  isGoogleCalendarConfiguredAsync,
-  getGoogleAccessToken,
-  listGoogleCalendars,
-  type CalendarEventInput,
-  type GoogleCalendarInfo,
-} from "@/lib/googleCalendar";
+import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
+import { isNoTimeEvent, formatTime12 } from "@/lib/calendarHelpers";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +73,13 @@ interface OrgMember {
   email: string | null;
 }
 
+interface OrgMemberRpcRow {
+  id: string;
+  user_id: string | null;
+  email: string | null;
+  accepted: boolean;
+}
+
 interface EventRow {
   id: string;
   event_name: string;
@@ -122,14 +121,22 @@ const ProjectDetail = () => {
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
-  // Google Calendar state
-  const [pushing, setPushing] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
-  const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarInfo[]>([]);
-  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
-  const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
-  const [googleCalendarConfigured, setGoogleCalendarConfigured] = useState(isGoogleCalendarConfigured());
+  const {
+    pushing,
+    removing,
+    lastSyncedAt,
+    googleCalendars,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    orgGoogleCalendarId,
+    googleCalendarConfigured,
+    filteredEvents,
+    buildDescription,
+    handlePushToGoogle,
+    handleCalendarSelected,
+    handleChangeCalendar,
+    handleRemoveFromGoogle,
+  } = useGoogleCalendarSync({ projectId: id, project, events, bulls, userId, orgId });
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -137,9 +144,9 @@ const ProjectDetail = () => {
     const { data } = await supabase.rpc("get_org_members", { _organization_id: orgId });
     if (data) {
       setOrgMembers(
-        (data as any[])
-          .filter((m: any) => m.accepted && m.user_id)
-          .map((m: any) => ({ id: m.id, user_id: m.user_id, email: m.email }))
+        (data as OrgMemberRpcRow[])
+          .filter((m) => m.accepted && m.user_id)
+          .map((m) => ({ id: m.id, user_id: m.user_id, email: m.email }))
       );
     }
   }, [orgId]);
@@ -147,21 +154,6 @@ const ProjectDetail = () => {
   useEffect(() => {
     fetchOrgMembers();
   }, [fetchOrgMembers]);
-
-  // Fetch org's saved Google Calendar ID
-  useEffect(() => {
-    if (!orgId) return;
-    supabase
-      .from("organizations")
-      .select("google_calendar_id")
-      .eq("id", orgId)
-      .single()
-      .then(({ data }) => {
-        if (data?.google_calendar_id) {
-          setOrgGoogleCalendarId(data.google_calendar_id);
-        }
-      });
-  }, [orgId]);
 
   const resolveContactEmail = (uid: string | null): string => {
     if (!uid) return "Unknown user";
@@ -231,23 +223,6 @@ const ProjectDetail = () => {
     setLoading(false);
   };
 
-  // Fetch last sync timestamp
-  const fetchLastSync = useCallback(async () => {
-    if (!id || !userId) return;
-    const { data } = await supabase
-      .from("google_calendar_events")
-      .select("synced_at")
-      .eq("user_id", userId)
-      .eq("project_id", id)
-      .order("synced_at", { ascending: false })
-      .limit(1);
-    if (data && data.length > 0) {
-      setLastSyncedAt(data[0].synced_at);
-    } else {
-      setLastSyncedAt(null);
-    }
-  }, [id, userId]);
-
   const handleDelete = async () => {
     if (!id) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
@@ -263,31 +238,6 @@ const ProjectDetail = () => {
     if (!id) return;
     load();
   }, [id]);
-
-  useEffect(() => {
-    fetchLastSync();
-  }, [fetchLastSync]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (isGoogleCalendarConfigured()) {
-      setGoogleCalendarConfigured(true);
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    isGoogleCalendarConfiguredAsync().then((configured) => {
-      if (isMounted) {
-        setGoogleCalendarConfigured(configured);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -305,19 +255,6 @@ const ProjectDetail = () => {
     );
   }
 
-  const isNoTimeEvent = (name: string) => {
-    const exact = ["Return Heat", "Estimated Calving"];
-    const contains = ["CIDR Insert", "GnRH"];
-    return exact.includes(name) || contains.some((k) => name.includes(k));
-  };
-
-  const formatTime12 = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
-
   const breedingDisplay = project.breeding_date
     ? format(parseISO(project.breeding_date), "MMMM d, yyyy")
     : "—";
@@ -325,26 +262,6 @@ const ProjectDetail = () => {
   const breedingTimeDisplay = project.breeding_time
     ? formatTime12(project.breeding_time)
     : "";
-
-  // --- Shared helpers for Google Calendar ---
-
-  const filteredEvents = events.filter((ev) => ev.event_name !== "Return Heat");
-
-  const buildDescription = () => {
-    let desc = `Protocol: ${project.protocol}\nCattle Type: ${project.cattle_type}\nHead Count: ${project.head_count}`;
-    if (project.breeding_date) {
-      desc += `\nBreeding Date: ${format(parseISO(project.breeding_date), "MMMM d, yyyy")}`;
-      if (project.breeding_time) desc += ` at ${formatTime12(project.breeding_time)}`;
-    }
-    if (bulls.length > 0) {
-      desc += "\n\nBulls:";
-      for (const b of bulls) {
-        const name = b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown";
-        desc += `\n  ${name} — ${b.units} units`;
-      }
-    }
-    return desc;
-  };
 
   const openEventsInBrowser = () => {
     if (filteredEvents.length > 8) {
@@ -374,124 +291,6 @@ const ProjectDetail = () => {
       const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(summary)}&dates=${dates}&details=${encodeURIComponent(description)}`;
       setTimeout(() => window.open(url, "_blank"), idx * 100);
     });
-  };
-
-  // --- Push to Google Calendar ---
-  const doPush = async (token: string, calId: string) => {
-    setPushing(true);
-    try {
-      const description = buildDescription();
-      const calendarEvents: CalendarEventInput[] = filteredEvents.map((ev) => {
-        const hasTime = !isNoTimeEvent(ev.event_name) && !!ev.event_time;
-        const timeSuffix = hasTime ? ` @ ${formatTime12(ev.event_time!)}` : "";
-        return {
-          protocolEventId: ev.id,
-          summary: `${project.name} — ${ev.event_name}${timeSuffix}`,
-          description,
-          eventDate: ev.event_date,
-          eventTime: null,
-          isAllDay: true,
-        };
-      });
-      const result = await pushEventsToGoogleCalendar(project.id, calendarEvents, userId, token, calId);
-      if (result.errors.length > 0) {
-        toast({
-          title: "Sync completed with errors",
-          description: result.errors.join("\n"),
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Google Calendar synced",
-          description: `${result.created} added, ${result.updated} updated`,
-        });
-      }
-      await fetchLastSync();
-    } finally {
-      setPushing(false);
-    }
-  };
-
-  const handlePushToGoogle = async () => {
-    if (!userId) return;
-    try {
-      // Get token FIRST — directly on click so popup isn't blocked
-      const token = await getGoogleAccessToken();
-
-      if (!orgGoogleCalendarId) {
-        // No calendar chosen yet — fetch list and show picker
-        setPushing(true);
-        const calendars = await listGoogleCalendars(token);
-        setGoogleCalendars(calendars);
-        setShowCalendarPicker(true);
-        setPushing(false);
-        return;
-      }
-
-      // Calendar is set — push events
-      await doPush(token, orgGoogleCalendarId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
-      setPushing(false);
-    }
-  };
-
-  const handleCalendarSelected = async (calId: string) => {
-    if (!orgId) return;
-    // Save to org so all members use this calendar
-    await supabase
-      .from("organizations")
-      .update({ google_calendar_id: calId })
-      .eq("id", orgId);
-    setOrgGoogleCalendarId(calId);
-    setShowCalendarPicker(false);
-    const selectedCal = googleCalendars.find((c) => c.id === calId);
-    toast({ title: "Calendar saved", description: `"${selectedCal?.summary || calId}" will be used for all projects.` });
-    // Now auto-push since user was trying to push when we showed the picker
-    try {
-      const token = await getGoogleAccessToken();
-      await doPush(token, calId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar", description: msg || "Push failed", variant: "destructive" });
-    }
-  };
-
-  const handleChangeCalendar = async () => {
-    try {
-      const token = await getGoogleAccessToken();
-      const calendars = await listGoogleCalendars(token);
-      setGoogleCalendars(calendars);
-      setShowCalendarPicker(true);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
-    }
-  };
-
-  const handleRemoveFromGoogle = async () => {
-    if (!userId) return;
-    try {
-      const token = await getGoogleAccessToken();
-      setRemoving(true);
-      const result = await removeEventsFromGoogleCalendar(project.id, userId, token, orgGoogleCalendarId || "primary");
-      if (result.errors.length > 0) {
-        toast({
-          title: "Removed with errors",
-          description: result.errors.join("\n"),
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Events removed", description: `${result.removed} events removed from Google Calendar.` });
-      }
-      setLastSyncedAt(null);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({ title: "Google Calendar", description: msg || "Sign-in cancelled", variant: "destructive" });
-    } finally {
-      setRemoving(false);
-    }
   };
 
   return (

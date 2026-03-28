@@ -88,7 +88,6 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
     });
   }, [projects, search, filterType, filterStatus, sortKey, sortDir]);
 
-  const filteredIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
   const selectableFiltered = filtered;
   const allVisibleSelected = selectableFiltered.length > 0 && selectableFiltered.every((p) => selectedIds.has(p.id));
 

@@ -30,6 +30,14 @@ import {
   type IcsEvent,
 } from "@/lib/generateIcs";
 
+interface ProjectBullRow {
+  project_id: string;
+  units: number;
+  custom_bull_name: string | null;
+  bull_catalog_id: string | null;
+  bulls_catalog: { bull_name: string; registration_number: string } | null;
+}
+
 interface CalendarEvent {
   id: string;
   event_name: string;
@@ -123,7 +131,7 @@ const MasterCalendar = () => {
 
           if (bullData) {
             const bMap = new Map<string, { bull_name: string; registration_number: string; units: number }[]>();
-            for (const b of bullData as any[]) {
+            for (const b of bullData as ProjectBullRow[]) {
               const pid = b.project_id;
               if (!bMap.has(pid)) bMap.set(pid, []);
               bMap.get(pid)!.push({

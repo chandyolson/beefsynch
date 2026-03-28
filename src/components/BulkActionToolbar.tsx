@@ -3,8 +3,12 @@ import { format } from "date-fns";
 import { CalendarIcon, X, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { generateBulkCsv } from "@/lib/generateBulkCsv";
+import { generateBulkCsv, type BulkProjectData, type BulkEventData, type BulkBullData } from "@/lib/generateBulkCsv";
 import { generateBulkPdf } from "@/lib/generateBulkPdf";
+
+type ProjectRow = BulkProjectData & { id: string };
+type EventRow = BulkEventData & { project_id: string };
+type BullRow = BulkBullData & { project_id: string };
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -127,17 +131,17 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
         supabase.from("project_bulls").select("*, bulls_catalog(bull_name, company, registration_number)").in("project_id", ids),
       ]);
 
-      const projectsData = (pRes.data ?? []) as any[];
-      const orderedProjects = ids.map((id) => projectsData.find((p: any) => p.id === id)).filter(Boolean);
+      const projectsData = (pRes.data ?? []) as ProjectRow[];
+      const orderedProjects = ids.map((id) => projectsData.find((p) => p.id === id)).filter(Boolean) as ProjectRow[];
 
-      const eventsByProject: Record<string, any[]> = {};
-      for (const ev of (eRes.data ?? []) as any[]) {
+      const eventsByProject: Record<string, EventRow[]> = {};
+      for (const ev of (eRes.data ?? []) as EventRow[]) {
         if (!eventsByProject[ev.project_id]) eventsByProject[ev.project_id] = [];
         eventsByProject[ev.project_id].push(ev);
       }
 
-      const bullsByProject: Record<string, any[]> = {};
-      for (const b of (bRes.data ?? []) as any[]) {
+      const bullsByProject: Record<string, BullRow[]> = {};
+      for (const b of (bRes.data ?? []) as BullRow[]) {
         if (!bullsByProject[b.project_id]) bullsByProject[b.project_id] = [];
         bullsByProject[b.project_id].push(b);
       }
@@ -151,8 +155,9 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
       toast({
         title: `Exported ${ids.length} project${ids.length > 1 ? "s" : ""} as ${type.toUpperCase()}`,
       });
-    } catch (err: any) {
-      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Export failed", description: msg, variant: "destructive" });
     } finally {
       setBusy(false);
     }

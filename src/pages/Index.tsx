@@ -15,6 +15,14 @@ import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
 
+interface ProjectBullRow {
+  project_id: string;
+  units: number;
+  custom_bull_name: string | null;
+  bull_catalog_id: string | null;
+  bulls_catalog: { bull_name: string; registration_number: string; breed: string } | null;
+}
+
 interface DbProject {
   id: string;
   name: string;
@@ -62,7 +70,7 @@ const Index = () => {
     return catalogBulls.filter((b) => favoritedIds.has(b.id));
   }, [catalogBulls, favoritedIds]);
 
-  const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
+  const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string; isFromCatalog: boolean }[]>>({});
   const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
 
   const fetchProjects = useCallback(async () => {
@@ -129,14 +137,14 @@ const Index = () => {
           .in("project_id", projectIds);
 
         if (bullsData) {
-          const map: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]> = {};
-          for (const b of bullsData as any[]) {
+          const map: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string; isFromCatalog: boolean }[]> = {};
+          for (const b of bullsData as ProjectBullRow[]) {
             const pid = b.project_id;
             if (!map[pid]) map[pid] = [];
             const name = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
             const regNum = b.bulls_catalog?.registration_number || undefined;
             const breed = b.bulls_catalog?.breed || undefined;
-            map[pid].push({ name, units: b.units, registrationNumber: regNum, breed });
+            map[pid].push({ name, units: b.units, registrationNumber: regNum, breed, isFromCatalog: !!b.bulls_catalog });
           }
           setBullsByProject(map);
         }
@@ -177,17 +185,17 @@ const Index = () => {
 
   // Bulls stats
   const bullStats = useMemo(() => {
-    const names = new Set<string>();
-    const catalogIds = new Set<string>();
+    const allNames = new Set<string>();
+    const catalogNames = new Set<string>();
     let totalUnits = 0;
     for (const bulls of Object.values(bullsByProject)) {
       for (const b of bulls) {
-        names.add(b.name);
+        allNames.add(b.name);
+        if (b.isFromCatalog) catalogNames.add(b.name);
         totalUnits += b.units;
       }
     }
-    // We don't have catalog vs custom separation here, so catalogIds stays 0
-    return { distinct: names.size, catalogCount: names.size, totalUnits };
+    return { distinct: allNames.size, catalogCount: catalogNames.size, totalUnits };
   }, [bullsByProject]);
 
   // Breeding season

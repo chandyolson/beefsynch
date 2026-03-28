@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+interface JsPDFWithPlugin extends jsPDF {
+  lastAutoTable: { finalY: number } | undefined;
+}
 import { format, parseISO, addDays } from "date-fns";
 import type { BulkProjectData, BulkEventData, BulkBullData } from "./generateBulkCsv";
 
@@ -154,7 +158,7 @@ function renderProjectPage(
   }
 
   // Product directions
-  const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
+  const finalY = (doc as JsPDFWithPlugin).lastAutoTable?.finalY ?? y + 20;
   let dirY = finalY + 36;
   const pageHeight = doc.internal.pageSize.getHeight();
   const boxH = 145;
