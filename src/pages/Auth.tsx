@@ -88,7 +88,7 @@ const Auth = () => {
       // If already signed in as a non-anonymous user, redirect away
       // and let ProtectedRoute handle onboarding vs dashboard routing
       if (user && !user.is_anonymous && !isConvert) {
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     });
   }, [navigate, isConvert]);
