@@ -12,7 +12,7 @@ const Terms = () => (
       <p className="text-sm text-muted-foreground italic mb-8">Last updated: April 2, 2026</p>
 
       <div className="space-y-6 text-sm leading-relaxed text-foreground/90">
-        <p>By using BeefSynch ("the Service"), operated by Chuteside Resources, LLC ("we", "us", "our"), you agree to these terms.</p>
+        <p>By using BeefSynch ("the Service"), <p>By using BeefSynch ("the Service"), operated by Chuteside, LLC ("we", "us", "our"), you agree to these terms.</p> ("we", "us", "our"), you agree to these terms.</p>
 
         <h2 className="text-lg font-semibold text-foreground">Use of the Service</h2>
         <p>BeefSynch is a breeding synchronization and semen management tool for beef cattle operations. You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account. You agree to use the Service only for lawful purposes related to cattle breeding management.</p>
