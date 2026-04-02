@@ -145,7 +145,7 @@ const AcceptInvite = () => {
       });
 
       setStep("done");
-      navigate("/");
+      navigate("/dashboard");
     },
     [navigate, refresh]
   );
