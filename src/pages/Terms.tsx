@@ -24,7 +24,7 @@ const Terms = () => (
         <p>The Service is provided "as is" without warranties of any kind. BeefSynch is a management tool — breeding decisions, sire selections, and veterinary matters remain your responsibility. We are not liable for outcomes related to breeding decisions made using information from the Service. EPD data and bull information may not reflect the most current breed association evaluations.</p>
 
         <h2 className="text-lg font-semibold text-foreground">Limitation of liability</h2>
-        <p>To the maximum extent permitted by law, Chuteside Resources, LLC shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
+        <p>To the maximum extent permitted by law, <p>To the maximum extent permitted by law, Chuteside, LLC shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p> for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
 
         <h2 className="text-lg font-semibold text-foreground">Changes to these terms</h2>
         <p>We may update these terms from time to time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
