@@ -33,8 +33,8 @@ const Terms = () => (
         <p>For questions about these terms, contact us at <a href="mailto:office@catlresources.com" className="text-primary hover:underline">office@catlresources.com</a>.</p>
 
         <p className="pt-4 text-muted-foreground">
-          Chuteside Resources, LLC<br />
-          Sioux Falls, SD
+          Chuteside, LLC<br />
+          St. Onge, SD
         </p>
       </div>
     </div>
