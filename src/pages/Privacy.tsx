@@ -12,7 +12,7 @@ const Privacy = () => (
       <p className="text-sm text-muted-foreground italic mb-8">Last updated: April 2, 2026</p>
 
       <div className="space-y-6 text-sm leading-relaxed text-foreground/90">
-        <p>BeefSynch is operated by Chuteside Resources, LLC ("we", "us", "our"). This privacy policy explains how we collect, use, and protect your information when you use BeefSynch ("the Service").</p>
+        <p><p>BeefSynch is operated by Chuteside, LLC ("we", "us", "our"). This privacy policy explains how we collect, use, and protect your information when you use BeefSynch ("the Service").</p> ("we", "us", "our"). This privacy policy explains how we collect, use, and protect your information when you use BeefSynch ("the Service").</p>
 
         <h2 className="text-lg font-semibold text-foreground">Information we collect</h2>
         <p>When you create an account, we collect your email address and name. When you use the Service, we store the breeding project data, bull selections, semen order information, and other content you enter. We also collect basic usage data such as login timestamps and device type to maintain and improve the Service.</p>
@@ -33,8 +33,8 @@ const Privacy = () => (
         <p>For questions about this privacy policy, contact us at <a href="mailto:office@catlresources.com" className="text-primary hover:underline">office@catlresources.com</a>.</p>
 
         <p className="pt-4 text-muted-foreground">
-          Chuteside Resources, LLC<br />
-          Sioux Falls, SD
+          Chuteside, LLC<br />
+          St. Onge, SD
         </p>
       </div>
     </div>
