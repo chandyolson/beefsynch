@@ -38,9 +38,12 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
 
+            {/* Root: public landing or redirect to dashboard */}
+            <Route path="/" element={<RootRedirect />} />
+
             {/* Protected routes */}
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
             <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
