@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 const Privacy = () => (
   <div className="min-h-screen bg-background text-foreground">
     <div className="mx-auto max-w-[680px] px-6 py-12">
-      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors mb-8">
+      <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors mb-8">
         <ArrowLeft className="h-4 w-4" /> Back to BeefSynch
       </Link>
 

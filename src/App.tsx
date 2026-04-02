@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { OrgRoleProvider } from "@/hooks/useOrgRole";
 import Index from "./pages/Index";
+import RootRedirect from "./components/RootRedirect";
 import ProjectDetail from "./pages/ProjectDetail";
 import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
@@ -37,9 +38,12 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
 
+            {/* Root: public landing or redirect to dashboard */}
+            <Route path="/" element={<RootRedirect />} />
+
             {/* Protected routes */}
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
             <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />

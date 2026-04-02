@@ -145,7 +145,7 @@ const AcceptInvite = () => {
       });
 
       setStep("done");
-      navigate("/");
+      navigate("/dashboard");
     },
     [navigate, refresh]
   );
@@ -191,7 +191,7 @@ const AcceptInvite = () => {
           if (membership) {
             // Already a member — just go to dashboard
             toast({ title: "You're already a member!", description: `Welcome back to ${invite.org_name}.` });
-            navigate("/");
+            navigate("/dashboard");
             return;
           }
         }
