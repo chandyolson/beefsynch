@@ -4,6 +4,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { Beef, Calendar, Star } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
 import BulkActionToolbar from "@/components/BulkActionToolbar";
@@ -291,6 +292,7 @@ const Index = () => {
         bullsByProject={bullsByProject}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
+      <AppFooter />
     </div>
   );
 };
