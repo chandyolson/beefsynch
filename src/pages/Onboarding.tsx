@@ -213,7 +213,7 @@ const Onboarding = () => {
 
     toast({ title: `Welcome to ${org.name}!`, description: "You now have access to all team projects." });
     setLoading(false);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const cardClass =
