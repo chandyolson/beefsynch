@@ -105,7 +105,7 @@ const Onboarding = () => {
 
     toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
     setLoading(false);
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const handleJoin = async () => {
