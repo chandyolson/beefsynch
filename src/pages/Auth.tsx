@@ -457,6 +457,12 @@ const Auth = () => {
           </Form>
         }
       </div>
+
+      <div className="mt-8 flex justify-center gap-4 text-xs text-white/40">
+        <a href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</a>
+        <span>·</span>
+        <a href="/terms" className="hover:text-white/60 transition-colors">Terms of Service</a>
+      </div>
     </div>);
 
 };
