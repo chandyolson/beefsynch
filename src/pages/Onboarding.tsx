@@ -144,7 +144,7 @@ const Onboarding = () => {
       await refresh();
       toast({ title: "Already a member", description: `You're already part of ${org.name}.` });
       setLoading(false);
-      navigate("/");
+      navigate("/dashboard");
       return;
     }
 
