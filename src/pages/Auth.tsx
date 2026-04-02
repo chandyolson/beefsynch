@@ -119,7 +119,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Guest sign in failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
