@@ -255,7 +255,7 @@ const ProjectDetail = () => {
       toast({ title: "Could not delete project", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Project deleted", description: project?.name + " has been removed." });
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
