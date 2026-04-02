@@ -43,7 +43,7 @@ const Onboarding = () => {
               { onConflict: "user_id" }
             );
         }
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     };
     checkExistingOrg();
