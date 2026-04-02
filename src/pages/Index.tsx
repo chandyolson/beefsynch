@@ -292,6 +292,7 @@ const Index = () => {
         bullsByProject={bullsByProject}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
+      <AppFooter />
     </div>
   );
 };
