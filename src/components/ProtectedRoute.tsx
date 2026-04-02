@@ -81,7 +81,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!needsOnboarding && location.pathname === "/onboarding") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   if (needsOnboarding && location.pathname !== "/onboarding") {

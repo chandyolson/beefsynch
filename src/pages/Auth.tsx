@@ -184,7 +184,7 @@ const Auth = () => {
         title: "Account created!",
         description: "All your projects have been saved.",
       });
-      navigate("/");
+      navigate("/dashboard");
       return;
     }
 
