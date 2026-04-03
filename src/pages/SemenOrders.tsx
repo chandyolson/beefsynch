@@ -228,6 +228,7 @@ const SemenOrders = () => {
                 <TableHead className="whitespace-nowrap">Customer Name</TableHead>
                 <TableHead className="whitespace-nowrap">Company</TableHead>
                 <TableHead className="whitespace-nowrap">Order Date</TableHead>
+                <TableHead className="whitespace-nowrap">Placed By</TableHead>
                 <TableHead className="whitespace-nowrap">Bulls</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                 <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
