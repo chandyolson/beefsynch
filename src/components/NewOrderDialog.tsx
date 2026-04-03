@@ -108,6 +108,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId(editData.project_id ?? "none");
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
+      setPlacedBy(editData.placed_by ?? "");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
       setCustomerName("");
@@ -119,6 +120,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId("none");
       setSemenCompanyId("none");
       setNotes("");
+      setPlacedBy("");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
       setAddingCompany(false);
       setNewCompanyName("");
