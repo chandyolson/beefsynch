@@ -416,14 +416,14 @@ const ReceiveShipment = () => {
     const orderedQty = orderedQtyMap.get(orderedKey);
 
     if (orderedQty != null) {
-      const isFull = totalAllocated >= orderedQty;
+          const isFull = totalAllocated >= orderedQty;
       const isPartial = totalAllocated > 0 && totalAllocated < orderedQty;
       return (
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Ordered: {orderedQty}</span>
           <span className={cn(
             "font-medium",
-            isFull ? "text-green-600" : isPartial ? "text-orange-500" : "text-destructive"
+            isFull ? "text-primary" : isPartial ? "text-accent-foreground" : "text-destructive"
           )}>
             {isFull && <Check className="inline h-3 w-3 mr-0.5" />}
             {isPartial && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
