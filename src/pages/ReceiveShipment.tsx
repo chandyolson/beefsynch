@@ -156,6 +156,7 @@ const ReceiveShipment = () => {
           units: item.units,
           tankId: "",
           canister: "",
+          itemType: "semen" as const,
         }));
         setLines(newLines);
 
