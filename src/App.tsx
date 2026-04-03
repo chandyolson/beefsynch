@@ -66,6 +66,7 @@ const App = () => (
             <Route path="/tanks/:id" element={<ProtectedRoute><TankDetail /></ProtectedRoute>} />
             <Route path="/tanks/:tankId/reinventory" element={<ProtectedRoute><ReInventory /></ProtectedRoute>} />
             <Route path="/tank-fills" element={<ProtectedRoute><TankFills /></ProtectedRoute>} />
+            <Route path="/tanks-out" element={<ProtectedRoute><TanksOut /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
