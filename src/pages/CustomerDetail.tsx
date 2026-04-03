@@ -420,6 +420,9 @@ const CustomerDetail = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                      Re-inventory
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
                       Add Semen
                     </Button>
