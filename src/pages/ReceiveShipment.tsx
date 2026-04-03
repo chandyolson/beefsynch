@@ -40,6 +40,7 @@ interface LineItem {
   units: number;
   tankId: string;
   canister: string;
+  itemType: "semen" | "embryo";
 }
 
 interface BullGroup {
