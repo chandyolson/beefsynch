@@ -50,6 +50,10 @@ const SemenOrders = () => {
   const queryClient = useQueryClient();
   const canDelete = role === "owner" || role === "admin";
 
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<EditOrderData | null>(null);
+
   // Filters
   const [search, setSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
