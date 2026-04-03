@@ -288,6 +288,16 @@ const SemenInventory = () => {
               className="pl-9"
             />
           </div>
+          <div className="w-36">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="semen">Semen Only</SelectItem>
+                <SelectItem value="embryo">Embryos Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex border border-border rounded-md overflow-hidden">
             <button
               onClick={() => setViewMode("detail")}
