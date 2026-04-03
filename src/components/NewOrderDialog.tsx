@@ -312,6 +312,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             </Popover>
           </div>
 
+          {/* Placed By */}
+          <div>
+            <Label>Placed By</Label>
+            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" className="mt-1.5" />
+          </div>
+
           {/* Status dropdowns */}
           <div className="grid grid-cols-2 gap-4">
             <div>

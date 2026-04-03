@@ -228,6 +228,10 @@ const SemenOrderDetail = () => {
               <p className="font-medium">{format(parseISO(order.order_date), "MMMM d, yyyy")}</p>
             </div>
             <div>
+              <span className="text-muted-foreground">Placed By</span>
+              <p className="font-medium">{order.placed_by || "—"}</p>
+            </div>
+            <div>
               <span className="text-muted-foreground">Fulfillment Status</span>
               <p className="font-medium capitalize">{order.fulfillment_status}</p>
             </div>

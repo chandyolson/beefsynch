@@ -253,6 +253,7 @@ const SemenOrders = () => {
                     <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{order.placed_by || "—"}</TableCell>
                     <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                     <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
                     <TableCell>
