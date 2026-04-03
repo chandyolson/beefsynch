@@ -172,44 +172,89 @@ const ProjectDetail = () => {
     return member?.email ?? "Unknown user";
   };
 
-  const handleQuickLog = async () => {
-    if (!project || !userId) return;
-    setContactSaving(true);
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { error } = await supabase
-      .from("projects")
-      .update({ last_contacted_date: today, last_contacted_by: userId })
-      .eq("id", project.id);
-    if (error) {
-      toast({ title: "Could not log contact", description: error.message, variant: "destructive" });
-    } else {
-      setProject((p) => p ? { ...p, last_contacted_date: today, last_contacted_by: userId } : p);
-      toast({ title: "Contact logged" });
-    }
-    setContactSaving(false);
+  const fetchContacts = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("project_contacts")
+      .select("*")
+      .eq("project_id", id)
+      .order("contact_date", { ascending: false });
+    setContacts(data ?? []);
+  }, [id]);
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
+
+  const handleQuickLog = () => {
+    setContactDate(new Date());
+    setContactBy(userId ?? "");
+    setContactNotes("");
+    setContactEditing(true);
   };
 
   const handleContactSave = async () => {
-    if (!project || !contactDate || !contactBy) return;
+    if (!project || !contactDate || !contactBy || !orgId) return;
     setContactSaving(true);
     const dateStr = format(contactDate, "yyyy-MM-dd");
-    const { error } = await supabase
+    // Insert into project_contacts
+    const { error: insertErr } = await supabase
+      .from("project_contacts")
+      .insert({
+        project_id: project.id,
+        organization_id: orgId,
+        contact_date: dateStr,
+        contacted_by: contactBy,
+        notes: contactNotes.trim() || null,
+      });
+    if (insertErr) {
+      toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+      setContactSaving(false);
+      return;
+    }
+    // Also update the projects table for backward compat
+    await supabase
       .from("projects")
       .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
       .eq("id", project.id);
-    if (error) {
-      toast({ title: "Could not save contact", description: error.message, variant: "destructive" });
-    } else {
-      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
-      toast({ title: "Contact updated" });
-      setContactEditing(false);
-    }
+    setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+    await fetchContacts();
+    setContactEditing(false);
+    setContactNotes("");
+    toast({ title: "Contact logged" });
     setContactSaving(false);
   };
 
+  const handleDeleteContact = async (contactId: string) => {
+    const { error } = await supabase.from("project_contacts").delete().eq("id", contactId);
+    if (error) {
+      toast({ title: "Could not delete", description: error.message, variant: "destructive" });
+      return;
+    }
+    // After deleting, update the project's last_contacted fields
+    const remaining = contacts.filter((c) => c.id !== contactId);
+    if (remaining.length > 0) {
+      const latest = remaining[0]; // already sorted desc
+      await supabase
+        .from("projects")
+        .update({ last_contacted_date: latest.contact_date, last_contacted_by: latest.contacted_by })
+        .eq("id", project!.id);
+      setProject((p) => p ? { ...p, last_contacted_date: latest.contact_date, last_contacted_by: latest.contacted_by } : p);
+    } else {
+      await supabase
+        .from("projects")
+        .update({ last_contacted_date: null, last_contacted_by: null })
+        .eq("id", project!.id);
+      setProject((p) => p ? { ...p, last_contacted_date: null, last_contacted_by: null } : p);
+    }
+    await fetchContacts();
+    toast({ title: "Contact entry deleted" });
+  };
+
   const startContactEdit = () => {
-    setContactDate(project?.last_contacted_date ? parseISO(project.last_contacted_date) : new Date());
-    setContactBy(project?.last_contacted_by ?? userId ?? "");
+    setContactDate(new Date());
+    setContactBy(userId ?? "");
+    setContactNotes("");
     setContactEditing(true);
   };
 
