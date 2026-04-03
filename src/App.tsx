@@ -19,6 +19,7 @@ import Tanks from "./pages/Tanks";
 import ReInventory from "./pages/ReInventory";
 import TankDetail from "./pages/TankDetail";
 import TankFills from "./pages/TankFills";
+import TanksOut from "./pages/TanksOut";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
