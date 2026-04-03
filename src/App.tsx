@@ -13,6 +13,7 @@ import BullReport from "./pages/BullReport";
 import BullChat from "./pages/BullChat";
 import SemenOrders from "./pages/SemenOrders";
 import SemenOrderDetail from "./pages/SemenOrderDetail";
+import Customers from "./pages/Customers";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
