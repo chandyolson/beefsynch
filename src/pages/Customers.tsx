@@ -1,0 +1,307 @@
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Eye, Plus, Search, Users, Package, Archive } from "lucide-react";
+import { format, parseISO, differenceInDays } from "date-fns";
+
+import Navbar from "@/components/Navbar";
+import AppFooter from "@/components/AppFooter";
+import StatCard from "@/components/StatCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrgRole } from "@/hooks/useOrgRole";
+import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+const Customers = () => {
+  const navigate = useNavigate();
+  const { orgId } = useOrgRole();
+  const queryClient = useQueryClient();
+
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formAddress, setFormAddress] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Fetch customers
+  const { data: customers = [], isLoading } = useQuery({
+    queryKey: ["customers", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers" as any)
+        .select("*")
+        .eq("organization_id", orgId!)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Fetch tanks with customer_id
+  const { data: tanks = [] } = useQuery({
+    queryKey: ["tanks_for_customers", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tanks" as any)
+        .select("id, customer_id")
+        .eq("organization_id", orgId!);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Fetch tank inventory
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["tank_inventory_for_customers", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_inventory" as any)
+        .select("customer_id, units, inventoried_at")
+        .eq("organization_id", orgId!);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  // Computed customer data
+  const customerData = useMemo(() => {
+    const tankCountMap = new Map<string, number>();
+    const unitSumMap = new Map<string, number>();
+    const lastInventoriedMap = new Map<string, string>();
+
+    for (const t of tanks) {
+      if (t.customer_id) {
+        tankCountMap.set(t.customer_id, (tankCountMap.get(t.customer_id) || 0) + 1);
+      }
+    }
+
+    for (const inv of inventory) {
+      if (inv.customer_id) {
+        unitSumMap.set(inv.customer_id, (unitSumMap.get(inv.customer_id) || 0) + (inv.units || 0));
+        const existing = lastInventoriedMap.get(inv.customer_id);
+        if (inv.inventoried_at && (!existing || inv.inventoried_at > existing)) {
+          lastInventoriedMap.set(inv.customer_id, inv.inventoried_at);
+        }
+      }
+    }
+
+    return customers.map((c: any) => ({
+      ...c,
+      tankCount: tankCountMap.get(c.id) || 0,
+      totalUnits: unitSumMap.get(c.id) || 0,
+      lastInventoried: lastInventoriedMap.get(c.id) || null,
+    }));
+  }, [customers, tanks, inventory]);
+
+  // Filtered
+  const filtered = useMemo(() => {
+    if (!search) return customerData;
+    const q = search.toLowerCase();
+    return customerData.filter((c: any) => c.name.toLowerCase().includes(q));
+  }, [customerData, search]);
+
+  // Stats
+  const totalCustomers = customers.length;
+  const totalTanks = tanks.filter((t: any) => t.customer_id).length;
+  const totalUnitsStored = inventory
+    .filter((i: any) => i.customer_id)
+    .reduce((s: number, i: any) => s + (i.units || 0), 0);
+
+  // Save mutation
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("customers" as any)
+        .insert({
+          organization_id: orgId!,
+          name: formName.trim(),
+          phone: formPhone.trim() || null,
+          email: formEmail.trim() || null,
+          address: formAddress.trim() || null,
+          notes: formNotes.trim() || null,
+        } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({ title: "Customer added" });
+      setDialogOpen(false);
+      resetForm();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not save customer.", variant: "destructive" });
+    },
+  });
+
+  const resetForm = () => {
+    setFormName("");
+    setFormPhone("");
+    setFormEmail("");
+    setFormAddress("");
+    setFormNotes("");
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim()) return;
+    setSaving(true);
+    await saveMutation.mutateAsync();
+    setSaving(false);
+  };
+
+  const getInventoryColor = (lastInventoried: string | null) => {
+    if (!lastInventoried) return "";
+    const days = differenceInDays(new Date(), parseISO(lastInventoried));
+    if (days > 180) return "text-destructive";
+    if (days > 90) return "text-orange-400";
+    return "";
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold font-display tracking-tight">Customers</h2>
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="h-4 w-4" /> Add Customer
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard title="Total Customers" value={totalCustomers} delay={0} index={0} icon={Users} />
+          <StatCard title="Total Tanks" value={totalTanks} delay={100} index={1} icon={Package} />
+          <StatCard title="Total Units Stored" value={totalUnitsStored} delay={200} index={2} icon={Archive} />
+        </div>
+
+        {/* Search */}
+        <div className="flex-1 min-w-[200px] max-w-xs">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="rounded-lg border border-border/50 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead className="whitespace-nowrap">Customer Name</TableHead>
+                <TableHead className="whitespace-nowrap">Phone</TableHead>
+                <TableHead className="whitespace-nowrap">Email</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Tanks</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
+                <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
+                <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                </TableRow>
+              ) : filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    {customers.length === 0 ? "No customers yet." : "No customers match your search."}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((cust: any) => (
+                  <TableRow key={cust.id} className="hover:bg-muted/20">
+                    <TableCell className="font-medium whitespace-nowrap">{cust.name}</TableCell>
+                    <TableCell className="whitespace-nowrap">{cust.phone || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{cust.email || "—"}</TableCell>
+                    <TableCell className="text-right">{cust.tankCount}</TableCell>
+                    <TableCell className="text-right">{cust.totalUnits}</TableCell>
+                    <TableCell className={cn("whitespace-nowrap", getInventoryColor(cust.lastInventoried))}>
+                      {cust.lastInventoried
+                        ? format(parseISO(cust.lastInventoried), "MMM d, yyyy")
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/customers/${cust.id}`)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </main>
+
+      {/* Add Customer Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Customer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Name *</Label>
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Customer name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Phone number" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Email address" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Address</Label>
+              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="Address" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Notes" rows={3} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || !formName.trim()}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AppFooter />
+    </div>
+  );
+};
+
+export default Customers;

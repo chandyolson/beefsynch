@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, ShoppingCart } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, ShoppingCart, Package, Archive } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -18,6 +19,9 @@ interface NavbarProps {
 
 const navBtnClass =
   "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors w-full md:w-auto";
+
+const subItemClass =
+  "cursor-pointer gap-2 pl-6 text-xs";
 
 const Navbar = ({ onNewProject }: NavbarProps) => {
   const navigate = useNavigate();
@@ -78,7 +82,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                     <DropdownMenuItem
                       key={org.orgId}
                       onClick={() => switchOrg(org.orgId)}
-                      className={`cursor-pointer gap-2 ${org.orgId === orgName ? "" : ""}`}
+                      className="cursor-pointer gap-2"
                     >
                       <span className={org.orgName === orgName ? "font-semibold" : ""}>{org.orgName}</span>
                       <span className="ml-auto text-xs text-muted-foreground capitalize">{org.role}</span>
@@ -103,13 +107,27 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                 <Menu className="h-4 w-4" /> Menu
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="z-50 w-48 bg-popover border border-border shadow-lg">
+            <DropdownMenuContent align="start" className="z-50 w-52 bg-popover border border-border shadow-lg">
               <DropdownMenuItem onClick={() => go("/")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Dashboard
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/semen-orders")} className="cursor-pointer gap-2">
                 <ShoppingCart className="h-4 w-4" /> Semen Orders
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Inventory
+              </div>
+              <DropdownMenuItem onClick={() => go("/customers")} className={subItemClass}>
+                <Users className="h-4 w-4" /> Customers
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/tanks")} className={subItemClass}>
+                <Package className="h-4 w-4" /> Tanks
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/tank-fills")} className={subItemClass}>
+                <Archive className="h-4 w-4" /> Tank Fills
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
               </DropdownMenuItem>
@@ -189,6 +207,18 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </button>
           <button onClick={() => go("/semen-orders")} className={navBtnClass}>
             <ShoppingCart className="h-4 w-4" /> Semen Orders
+          </button>
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Inventory
+          </div>
+          <button onClick={() => go("/customers")} className={navBtnClass + " pl-6"}>
+            <Users className="h-4 w-4" /> Customers
+          </button>
+          <button onClick={() => go("/tanks")} className={navBtnClass + " pl-6"}>
+            <Package className="h-4 w-4" /> Tanks
+          </button>
+          <button onClick={() => go("/tank-fills")} className={navBtnClass + " pl-6"}>
+            <Archive className="h-4 w-4" /> Tank Fills
           </button>
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog

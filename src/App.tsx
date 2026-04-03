@@ -13,6 +13,7 @@ import BullReport from "./pages/BullReport";
 import BullChat from "./pages/BullChat";
 import SemenOrders from "./pages/SemenOrders";
 import SemenOrderDetail from "./pages/SemenOrderDetail";
+import Customers from "./pages/Customers";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/semen-orders/:id" element={<ProtectedRoute><SemenOrderDetail /></ProtectedRoute>} />
             <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><BullChat /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
