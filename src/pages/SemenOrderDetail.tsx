@@ -101,10 +101,6 @@ const SemenOrderDetail = () => {
     load();
   }, [id]);
 
-  const handleEditSaved = () => {
-    load();
-  };
-
   const openEdit = () => {
     if (!order) return;
     setEditOpen(true);
