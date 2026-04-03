@@ -20,8 +20,6 @@ interface NavbarProps {
 const navBtnClass =
   "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors w-full md:w-auto";
 
-const subItemClass =
-  "cursor-pointer gap-2 pl-6 text-xs";
 
 const Navbar = ({ onNewProject }: NavbarProps) => {
   const navigate = useNavigate();
