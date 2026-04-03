@@ -35,6 +35,7 @@ interface ExistingRow {
   actual: number;
   customer_id: string | null;
   storage_type: string | null;
+  item_type: string;
 }
 
 interface NewRow {
