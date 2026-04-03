@@ -22,6 +22,7 @@ import TankFills from "./pages/TankFills";
 import TanksOut from "./pages/TanksOut";
 import SemenInventory from "./pages/SemenInventory";
 import ReceiveShipment from "./pages/ReceiveShipment";
+import TanksDashboard from "./pages/TanksDashboard";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
