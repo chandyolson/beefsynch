@@ -39,6 +39,7 @@ interface ItemRow {
     bull_name: string;
     company: string;
     registration_number: string;
+    naab_code: string | null;
     breed: string;
   } | null;
 }
