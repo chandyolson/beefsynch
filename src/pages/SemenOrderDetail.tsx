@@ -187,7 +187,7 @@ const SemenOrderDetail = () => {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name}</h1>
+          <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name || "—"}</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Order Date: {format(parseISO(order.order_date), "MMMM d, yyyy")}
           </p>
