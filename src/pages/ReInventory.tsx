@@ -85,6 +85,20 @@ const ReInventory = () => {
     },
   });
 
+  // Fetch customers for semen owner dropdown
+  const { data: orgCustomers = [] } = useQuery({
+    queryKey: ["customers-list-reinv", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      return data ?? [];
+    },
+  });
+
   // Fetch inventory for this tank
   const { data: inventoryData = [], isLoading } = useQuery({
     queryKey: ["reinventory_items", tankId, customerId],
