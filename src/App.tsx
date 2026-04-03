@@ -18,6 +18,7 @@ import CustomerDetail from "./pages/CustomerDetail";
 import Tanks from "./pages/Tanks";
 import ReInventory from "./pages/ReInventory";
 import TankDetail from "./pages/TankDetail";
+import TankFills from "./pages/TankFills";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/tanks" element={<ProtectedRoute><Tanks /></ProtectedRoute>} />
             <Route path="/tanks/:id" element={<ProtectedRoute><TankDetail /></ProtectedRoute>} />
             <Route path="/tanks/:tankId/reinventory" element={<ProtectedRoute><ReInventory /></ProtectedRoute>} />
+            <Route path="/tank-fills" element={<ProtectedRoute><TankFills /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
+import { generateCustomerInventoryPdf } from "@/lib/generateCustomerInventoryPdf";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -374,6 +375,18 @@ const CustomerDetail = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              if (!customer) return;
+              generateCustomerInventoryPdf(
+                customer,
+                allTanks,
+                inventoryByTank,
+                allTanks.map((t: any) => t.id)
+              );
+              toast({ title: "PDF downloaded" });
+            }} className="gap-2">
+              <FileText className="h-4 w-4" /> Print Report
+            </Button>
             <Button variant="outline" onClick={openEdit} className="gap-2">
               <Edit className="h-4 w-4" /> Edit
             </Button>
