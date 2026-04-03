@@ -350,7 +350,7 @@ const ReInventory = () => {
                 </TableRow>
               ) : rows.length === 0 && newRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
                 </TableRow>
               ) : (
                 <>
