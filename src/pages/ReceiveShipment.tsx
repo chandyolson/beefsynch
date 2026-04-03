@@ -647,6 +647,22 @@ const ReceiveShipment = () => {
                 {errors.receivedBy && <p className="text-xs text-destructive">{errors.receivedBy}</p>}
               </div>
 
+              {/* Semen Owner */}
+              <div className="space-y-1.5">
+                <Label>Semen Owner</Label>
+                <Select value={semenOwnerId || "__none"} onValueChange={(v) => setSemenOwnerId(v === "__none" ? null : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No owner (company inventory)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No owner (company inventory)</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Received Date */}
               <div className="space-y-1.5">
                 <Label>Received Date</Label>
