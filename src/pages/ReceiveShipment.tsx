@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import BullCombobox from "@/components/BullCombobox";
@@ -12,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -27,28 +30,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Upload, X, Package } from "lucide-react";
+import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-
-interface OrderOption {
-  id: string;
-  customer_name: string;
-  order_date: string;
-  received_from?: string;
-}
+import { cn } from "@/lib/utils";
 
 interface OrderItem {
   bull_catalog_id: string | null;
   custom_bull_name: string | null;
   units: number;
   bulls_catalog: { bull_name: string } | null;
-}
-
-interface TankOption {
-  id: string;
-  tank_name: string | null;
-  tank_number: string;
-  tank_type: string;
 }
 
 interface LineItem {
@@ -75,40 +65,47 @@ const ReceiveShipment = () => {
   const { orgId } = useOrgRole();
   const isMobile = useIsMobile();
 
-  const [orders, setOrders] = useState<OrderOption[]>([]);
-  const [tanks, setTanks] = useState<TankOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [receivedFrom, setReceivedFrom] = useState("");
-  const [receivedDate, setReceivedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [receivedDate, setReceivedDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
-  // Load orders and tanks
-  useEffect(() => {
-    if (!orgId) return;
-    const loadData = async () => {
-      const [oRes, tRes] = await Promise.all([
-        supabase
-          .from("semen_orders")
-          .select("id, customer_name, order_date")
-          .eq("organization_id", orgId)
-          .order("order_date", { ascending: false })
-          .limit(100),
-        supabase
-          .from("tanks")
-          .select("id, tank_name, tank_number, tank_type")
-          .eq("organization_id", orgId)
-          .order("tank_number"),
-      ]);
-      setOrders(oRes.data ?? []);
-      setTanks(tRes.data ?? []);
-    };
-    loadData();
-  }, [orgId]);
+  // Fetch orders
+  const { data: orders = [] } = useQuery({
+    queryKey: ["semen-orders-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("semen_orders")
+        .select("id, customer_name, order_date")
+        .eq("organization_id", orgId)
+        .order("order_date", { ascending: false })
+        .limit(100);
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Fetch tanks
+  const { data: tanks = [] } = useQuery({
+    queryKey: ["tanks-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number, tank_type")
+        .eq("organization_id", orgId)
+        .order("tank_number");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
 
   // Pre-select order from query param
   useEffect(() => {
@@ -118,7 +115,9 @@ const ReceiveShipment = () => {
 
   // When order is selected, pre-fill lines
   useEffect(() => {
-    if (!selectedOrderId) return;
+    if (!selectedOrderId || selectedOrderId === "__none") {
+      return;
+    }
     const order = orders.find((o) => o.id === selectedOrderId);
     if (order) {
       setReceivedFrom(order.customer_name);
@@ -142,12 +141,22 @@ const ReceiveShipment = () => {
     })();
   }, [selectedOrderId, orders]);
 
+  const handleOrderChange = (val: string) => {
+    if (val === "__none") {
+      setSelectedOrderId("");
+      setReceivedFrom("");
+      setLines([emptyLine()]);
+    } else {
+      setSelectedOrderId(val);
+    }
+  };
+
   // File handling
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 10 * 1024 * 1024) {
-      toast.error("File too large — max 10MB");
+      toast({ title: "File too large", description: "Max 10MB allowed", variant: "destructive" });
       return;
     }
     setFile(f);
@@ -160,6 +169,7 @@ const ReceiveShipment = () => {
 
   const removeFile = () => {
     setFile(null);
+    if (filePreview) URL.revokeObjectURL(filePreview);
     setFilePreview(null);
   };
 
@@ -194,14 +204,12 @@ const ReceiveShipment = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id ?? null;
-
-      // 1. Upload file if present
-      let documentPath: string | null = null;
       const shipmentId = crypto.randomUUID();
 
+      // Step A: Upload file
+      let documentPath: string | null = null;
       if (file) {
-        const ext = file.name.split(".").pop();
-        const path = `${orgId}/${shipmentId}/${crypto.randomUUID()}.${ext}`;
+        const path = `${orgId}/${crypto.randomUUID()}/${file.name}`;
         const { error: upErr } = await supabase.storage
           .from("shipment-documents")
           .upload(path, file);
@@ -209,30 +217,30 @@ const ReceiveShipment = () => {
         documentPath = path;
       }
 
-      // 2. Insert shipment
+      // Step B: Insert shipment
       const { error: shipErr } = await supabase.from("shipments").insert({
         id: shipmentId,
         organization_id: orgId,
         semen_order_id: selectedOrderId || null,
         received_from: receivedFrom.trim(),
-        received_date: receivedDate,
+        received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
         notes: notes.trim() || null,
         created_by: userId,
       });
       if (shipErr) throw shipErr;
 
-      // 3. Process each line
+      // Step C: Process each line
       let totalUnits = 0;
       for (const line of lines) {
         totalUnits += line.units;
 
-        // Upsert tank_inventory
-        const matchFilter = {
+        // C1: Upsert tank_inventory
+        const matchFilter: Record<string, string> = {
           organization_id: orgId,
           tank_id: line.tankId,
           canister: line.canister.trim(),
-        } as Record<string, string>;
+        };
 
         if (line.bullCatalogId) {
           matchFilter.bull_catalog_id = line.bullCatalogId;
@@ -259,16 +267,16 @@ const ReceiveShipment = () => {
             bull_catalog_id: line.bullCatalogId,
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             units: line.units,
-            storage_type: "customer",
+            storage_type: "inventory",
           });
         }
 
-        // Insert inventory_transaction
+        // C2: Insert inventory_transaction
         await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: line.tankId,
           bull_catalog_id: line.bullCatalogId,
-          custom_bull_name: line.bullCatalogId ? null : line.bullName,
+          custom_bull_name: line.bullName,
           units_change: line.units,
           transaction_type: "received",
           shipment_id: shipmentId,
@@ -278,26 +286,16 @@ const ReceiveShipment = () => {
         });
       }
 
-      // 4. Update order fulfillment if linked
+      // Step D: Update order fulfillment if linked
       if (selectedOrderId) {
-        // Get total ordered
-        const { data: orderItems } = await supabase
-          .from("semen_order_items")
-          .select("units")
-          .eq("semen_order_id", selectedOrderId);
+        const [{ data: orderItems }, { data: txns }] = await Promise.all([
+          supabase.from("semen_order_items").select("units").eq("semen_order_id", selectedOrderId),
+          supabase.from("inventory_transactions").select("units_change").eq("order_id", selectedOrderId).eq("transaction_type", "received"),
+        ]);
         const totalOrdered = (orderItems ?? []).reduce((s, i) => s + i.units, 0);
-
-        // Get total received (all shipments for this order)
-        const { data: txns } = await supabase
-          .from("inventory_transactions")
-          .select("units_change")
-          .eq("order_id", selectedOrderId)
-          .eq("transaction_type", "received");
         const totalReceived = (txns ?? []).reduce((s, t) => s + t.units_change, 0);
-
         const newStatus = totalReceived >= totalOrdered ? "delivered" : "partially_filled";
 
-        // Only upgrade status
         const { data: currentOrder } = await supabase
           .from("semen_orders")
           .select("fulfillment_status")
@@ -305,39 +303,55 @@ const ReceiveShipment = () => {
           .single();
 
         const statusRank: Record<string, number> = {
-          pending: 0,
-          backordered: 1,
-          ordered: 2,
-          partially_filled: 3,
-          shipped: 4,
-          delivered: 5,
+          pending: 0, backordered: 1, ordered: 2, partially_filled: 3, shipped: 4, delivered: 5,
         };
 
-        if (
-          currentOrder &&
-          (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)
-        ) {
-          await supabase
-            .from("semen_orders")
-            .update({ fulfillment_status: newStatus })
-            .eq("id", selectedOrderId);
+        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)) {
+          await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
         }
       }
 
-      toast.success(`Shipment received — ${totalUnits} units added to inventory`);
+      // Step E: Success toast
+      toast({ title: "Shipment received", description: `${totalUnits} units added to inventory` });
 
+      // Step F: Navigate
       if (selectedOrderId) {
         navigate(`/semen-orders/${selectedOrderId}`);
       } else {
-        navigate("/tanks");
+        navigate("/semen-inventory");
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Failed to receive shipment");
+      toast({ title: "Error", description: err.message || "Failed to receive shipment", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
+
+  const renderTankSelect = (line: LineItem, idx: number) => (
+    <>
+      {tanks.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No tanks found.{" "}
+          <Link to="/tanks" className="text-primary hover:underline">Add tanks first.</Link>
+        </p>
+      ) : (
+        <Select value={line.tankId} onValueChange={(v) => updateLine(line.key, { tankId: v })}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select tank..." />
+          </SelectTrigger>
+          <SelectContent>
+            {tanks.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.tank_name || t.tank_number} ({t.tank_type.replace(/_/g, " ")})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      {errors[`line_${idx}_tank`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_tank`]}</p>}
+    </>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -346,7 +360,7 @@ const ReceiveShipment = () => {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">Receive Shipment</h1>
-          <p className="text-sm text-muted-foreground">Log incoming semen and add it to inventory</p>
+          <p className="text-sm text-muted-foreground">Log incoming semen and add to inventory</p>
         </div>
 
         {/* Shipment Details */}
@@ -359,14 +373,12 @@ const ReceiveShipment = () => {
               {/* Link to Order */}
               <div className="space-y-1.5">
                 <Label>Link to Order (optional)</Label>
-                <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                <Select value={selectedOrderId || "__none"} onValueChange={handleOrderChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an order..." />
+                    <SelectValue placeholder="No order — manual entry" />
                   </SelectTrigger>
                   <SelectContent>
-                    {orders.length === 0 && (
-                      <SelectItem value="__none" disabled>No orders found</SelectItem>
-                    )}
+                    <SelectItem value="__none">No order — manual entry</SelectItem>
                     {orders.map((o) => (
                       <SelectItem key={o.id} value={o.id}>
                         {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
@@ -382,21 +394,31 @@ const ReceiveShipment = () => {
                 <Input
                   value={receivedFrom}
                   onChange={(e) => setReceivedFrom(e.target.value)}
-                  placeholder='e.g. "Select Sires", "ABS Global"'
+                  placeholder="e.g. Select Sires, ABS Global"
+                  className={cn(errors.receivedFrom && "border-destructive")}
                 />
-                {errors.receivedFrom && (
-                  <p className="text-xs text-destructive">{errors.receivedFrom}</p>
-                )}
+                {errors.receivedFrom && <p className="text-xs text-destructive">{errors.receivedFrom}</p>}
               </div>
 
-              {/* Received Date */}
+              {/* Received Date — Calendar picker */}
               <div className="space-y-1.5">
                 <Label>Received Date</Label>
-                <Input
-                  type="date"
-                  value={receivedDate}
-                  onChange={(e) => setReceivedDate(e.target.value)}
-                />
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {format(receivedDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={receivedDate}
+                      onSelect={(d) => { if (d) { setReceivedDate(d); setCalendarOpen(false); } }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* File Upload */}
@@ -410,7 +432,7 @@ const ReceiveShipment = () => {
                       <Package className="h-8 w-8 text-muted-foreground" />
                     )}
                     <span className="text-sm truncate flex-1">{file.name}</span>
-                    <Button variant="ghost" size="icon" onClick={removeFile}>
+                    <Button variant="ghost" size="icon" onClick={removeFile} type="button">
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -420,7 +442,7 @@ const ReceiveShipment = () => {
                     <span className="text-sm text-muted-foreground">Upload photo or PDF</span>
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/heic,application/pdf"
+                      accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
                       capture="environment"
                       className="sr-only"
                       onChange={handleFileChange}
@@ -446,97 +468,48 @@ const ReceiveShipment = () => {
         {/* Line Items */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Line Items</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
-            >
+            <CardTitle className="text-lg">Inventory Items</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, emptyLine()])}>
               <Plus className="h-4 w-4 mr-1" /> Add Row
             </Button>
           </CardHeader>
           <CardContent>
-            {errors.lines && (
-              <p className="text-xs text-destructive mb-2">{errors.lines}</p>
-            )}
+            {errors.lines && <p className="text-xs text-destructive mb-2">{errors.lines}</p>}
 
             {isMobile ? (
-              /* Mobile: card layout */
               <div className="space-y-4">
                 {lines.map((line, i) => (
                   <div key={line.key} className="border border-border rounded-lg p-3 space-y-3 relative">
                     {lines.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 text-destructive"
-                        onClick={() => removeLine(line.key)}
-                      >
+                      <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => removeLine(line.key)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                     <div className="space-y-1">
                       <Label className="text-xs">Bull *</Label>
-                      <BullCombobox
-                        value={line.bullName}
-                        catalogId={line.bullCatalogId}
-                        onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })}
-                      />
-                      {errors[`line_${i}_bull`] && (
-                        <p className="text-xs text-destructive">{errors[`line_${i}_bull`]}</p>
-                      )}
+                      <BullCombobox value={line.bullName} catalogId={line.bullCatalogId} onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })} />
+                      {errors[`line_${i}_bull`] && <p className="text-xs text-destructive">{errors[`line_${i}_bull`]}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Units *</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={line.units || ""}
-                          onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })}
-                        />
-                        {errors[`line_${i}_units`] && (
-                          <p className="text-xs text-destructive">{errors[`line_${i}_units`]}</p>
-                        )}
+                        <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
+                        {errors[`line_${i}_units`] && <p className="text-xs text-destructive">{errors[`line_${i}_units`]}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Canister *</Label>
-                        <Input
-                          value={line.canister}
-                          onChange={(e) => updateLine(line.key, { canister: e.target.value })}
-                          placeholder="e.g. 1A"
-                        />
-                        {errors[`line_${i}_canister`] && (
-                          <p className="text-xs text-destructive">{errors[`line_${i}_canister`]}</p>
-                        )}
+                        <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
+                        {errors[`line_${i}_canister`] && <p className="text-xs text-destructive">{errors[`line_${i}_canister`]}</p>}
                       </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Destination Tank *</Label>
-                      <Select
-                        value={line.tankId}
-                        onValueChange={(v) => updateLine(line.key, { tankId: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select tank..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tanks.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.tank_name || t.tank_number} ({t.tank_type.replace(/_/g, " ")})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors[`line_${i}_tank`] && (
-                        <p className="text-xs text-destructive">{errors[`line_${i}_tank`]}</p>
-                      )}
+                      {renderTankSelect(line, i)}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              /* Desktop: table layout */
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -551,65 +524,21 @@ const ReceiveShipment = () => {
                   {lines.map((line, i) => (
                     <TableRow key={line.key}>
                       <TableCell>
-                        <BullCombobox
-                          value={line.bullName}
-                          catalogId={line.bullCatalogId}
-                          onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })}
-                        />
-                        {errors[`line_${i}_bull`] && (
-                          <p className="text-xs text-destructive mt-1">{errors[`line_${i}_bull`]}</p>
-                        )}
+                        <BullCombobox value={line.bullName} catalogId={line.bullCatalogId} onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })} />
+                        {errors[`line_${i}_bull`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_bull`]}</p>}
                       </TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={line.units || ""}
-                          onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })}
-                          className="w-20"
-                        />
-                        {errors[`line_${i}_units`] && (
-                          <p className="text-xs text-destructive mt-1">{errors[`line_${i}_units`]}</p>
-                        )}
+                        <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} className="w-20" />
+                        {errors[`line_${i}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_units`]}</p>}
                       </TableCell>
+                      <TableCell>{renderTankSelect(line, i)}</TableCell>
                       <TableCell>
-                        <Select
-                          value={line.tankId}
-                          onValueChange={(v) => updateLine(line.key, { tankId: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select tank..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tanks.map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.tank_name || t.tank_number} ({t.tank_type.replace(/_/g, " ")})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors[`line_${i}_tank`] && (
-                          <p className="text-xs text-destructive mt-1">{errors[`line_${i}_tank`]}</p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={line.canister}
-                          onChange={(e) => updateLine(line.key, { canister: e.target.value })}
-                          placeholder="e.g. 1A"
-                        />
-                        {errors[`line_${i}_canister`] && (
-                          <p className="text-xs text-destructive mt-1">{errors[`line_${i}_canister`]}</p>
-                        )}
+                        <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
+                        {errors[`line_${i}_canister`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_canister`]}</p>}
                       </TableCell>
                       <TableCell>
                         {lines.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive h-8 w-8"
-                            onClick={() => removeLine(line.key)}
-                          >
+                          <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeLine(line.key)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
@@ -624,12 +553,8 @@ const ReceiveShipment = () => {
 
         {/* Submit */}
         <div className={isMobile ? "sticky bottom-0 bg-background border-t border-border p-4 -mx-4" : ""}>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className={isMobile ? "w-full" : "w-full md:w-auto"}
-            size="lg"
-          >
+          <Button onClick={handleSubmit} disabled={submitting} className={isMobile ? "w-full" : "w-full md:w-auto"} size="lg">
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {submitting ? "Processing..." : "Receive & Add to Inventory"}
           </Button>
         </div>
