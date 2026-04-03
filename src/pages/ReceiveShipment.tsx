@@ -66,6 +66,7 @@ const ReceiveShipment = () => {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [receivedFrom, setReceivedFrom] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
   const [receivedDate, setReceivedDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
@@ -249,6 +250,7 @@ const ReceiveShipment = () => {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!receivedFrom.trim()) errs.receivedFrom = "Required";
+    if (!receivedBy.trim()) errs.receivedBy = "Required";
     if (lines.length === 0) errs.lines = "At least one line item required";
     lines.forEach((l, i) => {
       if (!l.bullName) errs[`line_${i}_bull`] = "Required";
@@ -287,6 +289,7 @@ const ReceiveShipment = () => {
         received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
         notes: notes.trim() || null,
+        received_by: receivedBy.trim() || null,
         created_by: userId,
       });
       if (shipErr) throw shipErr;
@@ -586,6 +589,18 @@ const ReceiveShipment = () => {
                   className={cn(errors.receivedFrom && "border-destructive")}
                 />
                 {errors.receivedFrom && <p className="text-xs text-destructive">{errors.receivedFrom}</p>}
+              </div>
+
+              {/* Received By */}
+              <div className="space-y-1.5">
+                <Label>Received By *</Label>
+                <Input
+                  value={receivedBy}
+                  onChange={(e) => setReceivedBy(e.target.value)}
+                  placeholder="Who received this shipment?"
+                  className={cn(errors.receivedBy && "border-destructive")}
+                />
+                {errors.receivedBy && <p className="text-xs text-destructive">{errors.receivedBy}</p>}
               </div>
 
               {/* Received Date */}
