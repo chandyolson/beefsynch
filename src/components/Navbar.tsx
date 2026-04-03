@@ -124,6 +124,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/tanks")} className={subItemClass}>
                 <Package className="h-4 w-4" /> Tanks
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/semen-inventory")} className={subItemClass}>
+                <Layers className="h-4 w-4" /> Semen Inventory
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/tank-fills")} className={subItemClass}>
                 <Archive className="h-4 w-4" /> Tank Fills
               </DropdownMenuItem>
