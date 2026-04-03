@@ -343,6 +343,7 @@ const ReceiveShipment = () => {
             .update({ units: existing.units + line.units })
             .eq("id", existing.id);
         } else {
+          const ownerName = semenOwnerId ? customers.find(c => c.id === semenOwnerId)?.name || null : null;
           await supabase.from("tank_inventory").insert({
             organization_id: orgId,
             tank_id: line.tankId,
@@ -352,6 +353,8 @@ const ReceiveShipment = () => {
             units: line.units,
             storage_type: "inventory",
             item_type: line.itemType,
+            customer_id: semenOwnerId || null,
+            owner: ownerName,
           });
         }
 
