@@ -215,8 +215,19 @@ const SemenOrders = () => {
             </SelectContent>
           </Select>
 
-          {(search || fulfillmentFilter !== "all" || billingFilter !== "all" || dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFulfillmentFilter("all"); setBillingFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>
+          <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Order Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="customer">Customer Orders</SelectItem>
+              <SelectItem value="inventory">Inventory Orders</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(search || fulfillmentFilter !== "all" || billingFilter !== "all" || orderTypeFilter !== "all" || dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFulfillmentFilter("all"); setBillingFilter("all"); setOrderTypeFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>
               Clear
             </Button>
           )}
