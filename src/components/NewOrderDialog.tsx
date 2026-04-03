@@ -106,7 +106,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId(editData.project_id ?? "none");
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
-      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, units: 1 }]);
+      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
       setCustomerName("");
       setCustomerPhone("");
