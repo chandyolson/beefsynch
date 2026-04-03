@@ -289,6 +289,7 @@ const ReceiveShipment = () => {
         received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
         notes: notes.trim() || null,
+        received_by: receivedBy.trim() || null,
         created_by: userId,
       });
       if (shipErr) throw shipErr;
