@@ -402,8 +402,15 @@ const TankDetail = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Edit className="h-4 w-4" /> Edit</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${id}/reinventory`)} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Re-inventory</Button>
-            <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
+            {tank.status === "dry" ? (
+              <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => handleDryToggle()} className="gap-1.5"><Sun className="h-4 w-4" /> Dry Off</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${id}/reinventory`)} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Re-inventory</Button>
+                <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
           </div>
         </div>
