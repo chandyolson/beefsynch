@@ -18,6 +18,7 @@ import CustomerDetail from "./pages/CustomerDetail";
 import Tanks from "./pages/Tanks";
 import ReInventory from "./pages/ReInventory";
 import TankDetail from "./pages/TankDetail";
+import TankFills from "./pages/TankFills";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
