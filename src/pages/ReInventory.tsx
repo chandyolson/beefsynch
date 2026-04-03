@@ -92,7 +92,7 @@ const ReInventory = () => {
     queryFn: async () => {
       let query = supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", tankId!);
       if (customerId) {
         query = query.eq("customer_id", customerId);
