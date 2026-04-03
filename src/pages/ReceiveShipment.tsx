@@ -591,6 +591,18 @@ const ReceiveShipment = () => {
                 {errors.receivedFrom && <p className="text-xs text-destructive">{errors.receivedFrom}</p>}
               </div>
 
+              {/* Received By */}
+              <div className="space-y-1.5">
+                <Label>Received By *</Label>
+                <Input
+                  value={receivedBy}
+                  onChange={(e) => setReceivedBy(e.target.value)}
+                  placeholder="Who received this shipment?"
+                  className={cn(errors.receivedBy && "border-destructive")}
+                />
+                {errors.receivedBy && <p className="text-xs text-destructive">{errors.receivedBy}</p>}
+              </div>
+
               {/* Received Date */}
               <div className="space-y-1.5">
                 <Label>Received Date</Label>
