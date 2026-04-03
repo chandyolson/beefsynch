@@ -276,7 +276,7 @@ const SemenOrderDetail = () => {
                           <TableCell>
                             {item.bulls_catalog?.registration_number ? (
                               <ClickableRegNumber
-                                regNumber={item.bulls_catalog.registration_number}
+                                registrationNumber={item.bulls_catalog.registration_number}
                                 breed={item.bulls_catalog.breed}
                               />
                             ) : (
