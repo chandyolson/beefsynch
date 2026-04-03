@@ -154,7 +154,7 @@ const SemenOrders = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Orders</h2>
-          <Button className="gap-2" disabled>
+          <Button className="gap-2" onClick={openCreate}>
             <Plus className="h-4 w-4" /> New Order
           </Button>
         </div>
