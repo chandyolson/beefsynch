@@ -589,7 +589,7 @@ const CustomerDetail = () => {
             return (
               <div key={tank.id} className="rounded-lg border border-border/50 overflow-hidden">
                 {/* Tank header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                <div className={cn("flex items-center justify-between px-4 py-3", tank.status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
@@ -604,15 +604,26 @@ const CustomerDetail = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
-                      <Droplets className="h-4 w-4" /> Fill
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
-                      Re-inventory
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
-                      Add Semen
-                    </Button>
+                    {tank.status === "dry" ? (
+                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                        <Droplets className="h-4 w-4" /> Mark Wet
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                          <Sun className="h-4 w-4" /> Dry Off
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
+                          <Droplets className="h-4 w-4" /> Fill
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                          Re-inventory
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
+                          Add Semen
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
