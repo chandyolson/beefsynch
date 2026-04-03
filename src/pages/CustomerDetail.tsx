@@ -544,6 +544,11 @@ const CustomerDetail = () => {
             }} className="gap-2">
               <FileText className="h-4 w-4" /> Print Report
             </Button>
+            {customer.email && (
+              <Button variant="outline" onClick={() => window.location.href = `mailto:${customer.email}`} className="gap-2">
+                <Mail className="h-4 w-4" /> Email
+              </Button>
+            )}
             <Button variant="outline" onClick={openEdit} className="gap-2">
               <Edit className="h-4 w-4" /> Edit
             </Button>
