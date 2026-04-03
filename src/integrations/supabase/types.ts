@@ -375,6 +375,89 @@ export type Database = {
           },
         ]
       }
+      semen_order_items: {
+        Row: {
+          bull_catalog_id: string | null
+          custom_bull_name: string | null
+          id: string
+          semen_order_id: string
+          units: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          custom_bull_name?: string | null
+          id?: string
+          semen_order_id: string
+          units?: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          custom_bull_name?: string | null
+          id?: string
+          semen_order_id?: string
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semen_order_items_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semen_order_items_semen_order_id_fkey"
+            columns: ["semen_order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semen_orders: {
+        Row: {
+          billing_status: string
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          fulfillment_status: string
+          id: string
+          notes: string | null
+          order_date: string
+          organization_id: string
+        }
+        Insert: {
+          billing_status?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          fulfillment_status?: string
+          id?: string
+          notes?: string | null
+          order_date?: string
+          organization_id: string
+        }
+        Update: {
+          billing_status?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          fulfillment_status?: string
+          id?: string
+          notes?: string | null
+          order_date?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semen_orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
