@@ -14,6 +14,7 @@ import BullChat from "./pages/BullChat";
 import SemenOrders from "./pages/SemenOrders";
 import SemenOrderDetail from "./pages/SemenOrderDetail";
 import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
