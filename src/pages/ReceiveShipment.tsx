@@ -540,6 +540,15 @@ const ReceiveShipment = () => {
                   <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
                   {errors[`line_${idx}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_units`]}</p>}
                 </div>
+                <div className="w-28">
+                  <Select value={line.itemType} onValueChange={(v) => updateLine(line.key, { itemType: v as "semen" | "embryo" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semen">Semen</SelectItem>
+                      <SelectItem value="embryo">Embryo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 {group.items.length > 1 && (
                   <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 shrink-0" onClick={() => removeLine(line.key)}>
                     <Trash2 className="h-4 w-4" />

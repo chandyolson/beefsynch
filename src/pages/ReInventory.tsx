@@ -423,6 +423,15 @@ const ReInventory = () => {
                         />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <Select value={nr.item_type} onValueChange={(v) => updateNewRow(i, "item_type", v)}>
+                          <SelectTrigger className="w-24 h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="semen">Semen</SelectItem>
+                            <SelectItem value="embryo">Embryo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Input
                           type="number"
