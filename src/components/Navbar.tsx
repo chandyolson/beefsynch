@@ -127,6 +127,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/tank-fills")} className={subItemClass}>
                 <Archive className="h-4 w-4" /> Tank Fills
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/tanks-out")} className={subItemClass}>
+                <Truck className="h-4 w-4" /> Tanks Out
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
