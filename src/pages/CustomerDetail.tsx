@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets } from "lucide-react";
-import { format } from "date-fns";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -29,6 +29,7 @@ import {
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
@@ -36,6 +37,20 @@ const STATUS_COLORS: Record<string, string> = {
   out: "bg-blue-600/20 text-blue-400 border-blue-600/30",
   "bad tank": "bg-destructive/20 text-destructive border-destructive/30",
   inactive: "bg-muted text-muted-foreground border-border",
+};
+
+const FULFILLMENT_COLORS: Record<string, string> = {
+  pending: "bg-muted text-muted-foreground",
+  ordered: "bg-blue-600/20 text-blue-400",
+  partially_filled: "bg-yellow-600/20 text-yellow-400",
+  shipped: "bg-purple-600/20 text-purple-400",
+  delivered: "bg-green-600/20 text-green-400",
+};
+
+const BILLING_COLORS: Record<string, string> = {
+  unbilled: "bg-muted text-muted-foreground",
+  billed: "bg-blue-600/20 text-blue-400",
+  paid: "bg-green-600/20 text-green-400",
 };
 
 const CustomerDetail = () => {
@@ -77,6 +92,21 @@ const CustomerDetail = () => {
   const [semenStorageType, setSemenStorageType] = useState("customer");
   const [semenNotes, setSemenNotes] = useState("");
   const [semenSaving, setSemenSaving] = useState(false);
+
+  // Expandable sections
+  const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
+
+  const toggleSection = (tankId: string, section: string) => {
+    setExpandedSections(prev => {
+      const tankSections = new Set(prev[tankId] || []);
+      if (tankSections.has(section)) tankSections.delete(section);
+      else tankSections.add(section);
+      return { ...prev, [tankId]: tankSections };
+    });
+  };
+
+  const isSectionOpen = (tankId: string, section: string) =>
+    expandedSections[tankId]?.has(section) ?? false;
 
   // Fetch customer
   const { data: customer, isLoading } = useQuery({
@@ -123,7 +153,7 @@ const CustomerDetail = () => {
     },
   });
 
-  // Find communal tank IDs (tanks holding this customer's semen but not owned by them)
+  // Find communal tank IDs
   const communalTankIds = useMemo(() => {
     const ownedSet = new Set(ownedTanks.map((t: any) => t.id));
     const extra = new Set<string>();
@@ -155,7 +185,6 @@ const CustomerDetail = () => {
     return Array.from(map.values());
   }, [ownedTanks, communalTanks]);
 
-  // Fetch ALL inventory for these tanks (not just this customer's, but we'll filter display)
   const allTankIds = useMemo(() => allTanks.map((t: any) => t.id), [allTanks]);
 
   const { data: allInventory = [] } = useQuery({
@@ -172,6 +201,91 @@ const CustomerDetail = () => {
     },
   });
 
+  // Fetch fill history for all customer tanks
+  const { data: allFills = [] } = useQuery({
+    queryKey: ["customer_tank_fills", id, orgId, allTankIds],
+    enabled: !!id && !!orgId && allTankIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_fills")
+        .select("*")
+        .eq("organization_id", orgId!)
+        .in("tank_id", allTankIds)
+        .order("fill_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch transaction history for all customer tanks
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["customer_tank_transactions", id, orgId, allTankIds],
+    enabled: !!id && !!orgId && allTankIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inventory_transactions")
+        .select("*, bulls_catalog(bull_name)")
+        .eq("organization_id", orgId!)
+        .in("tank_id", allTankIds)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch customer orders
+  const { data: customerOrders = [] } = useQuery({
+    queryKey: ["customer_orders", customer?.name, orgId],
+    enabled: !!customer?.name && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("semen_orders")
+        .select("*, semen_companies(name)")
+        .eq("organization_id", orgId!)
+        .ilike("customer_name", customer!.name)
+        .order("order_date", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch customer shipments
+  const { data: customerShipments = [] } = useQuery({
+    queryKey: ["customer_shipments", id, orgId],
+    enabled: !!id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shipments")
+        .select("*, semen_companies(name)")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", id!)
+        .order("received_date", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Group fills and transactions by tank
+  const fillsByTank = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const f of allFills) {
+      if (!map.has(f.tank_id)) map.set(f.tank_id, []);
+      map.get(f.tank_id)!.push(f);
+    }
+    return map;
+  }, [allFills]);
+
+  const txnsByTank = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const t of allTransactions) {
+      if (!map.has(t.tank_id)) map.set(t.tank_id, []);
+      map.get(t.tank_id)!.push(t);
+    }
+    return map;
+  }, [allTransactions]);
+
   // Group inventory by tank
   const inventoryByTank = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -180,7 +294,6 @@ const CustomerDetail = () => {
       arr.push(inv);
       map.set(inv.tank_id, arr);
     }
-    // Sort each group
     for (const [, arr] of map) {
       arr.sort((a: any, b: any) => {
         const ca = (a.canister || "").localeCompare(b.canister || "");
@@ -202,6 +315,11 @@ const CustomerDetail = () => {
     }
     return names.size;
   }, [allInventory]);
+
+  const lastFillDate = useMemo(() => {
+    if (allFills.length === 0) return null;
+    return allFills[0]?.fill_date ?? null;
+  }, [allFills]);
 
   // Edit customer handlers
   const openEdit = () => {
@@ -324,6 +442,7 @@ const CustomerDetail = () => {
     } else {
       toast({ title: "Fill recorded", description: `${tankNumber} ${tankName || ""}`.trim() });
       queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_tank_fills"] });
     }
   };
 
@@ -390,6 +509,12 @@ const CustomerDetail = () => {
                 {customer.phone && <span>{customer.phone}</span>}
                 {customer.email && <span>{customer.email}</span>}
               </div>
+              {customer.address && (
+                <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
+              )}
+              {customer.notes && (
+                <p className="text-sm text-muted-foreground italic mt-1">{customer.notes}</p>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -412,10 +537,17 @@ const CustomerDetail = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard title="Tanks" value={totalTanks} delay={0} index={0} icon={Package} />
           <StatCard title="Total Units" value={totalUnits} delay={100} index={1} icon={Archive} />
           <StatCard title="Bulls on Hand" value={bullsOnHand} delay={200} index={2} icon={Dna} />
+          <StatCard
+            title="Last Fill"
+            value={lastFillDate ? format(new Date(lastFillDate + "T00:00:00"), "MMM d, yyyy") : "Never"}
+            delay={300}
+            index={3}
+            icon={Droplets}
+          />
         </div>
 
         {/* Tanks section header */}
@@ -433,6 +565,13 @@ const CustomerDetail = () => {
           allTanks.map((tank: any) => {
             const inv = inventoryByTank.get(tank.id) || [];
             const tankTotal = inv.reduce((s: number, i: any) => s + (i.units || 0), 0);
+            const tankFills = fillsByTank.get(tank.id) || [];
+            const tankTxns = txnsByTank.get(tank.id) || [];
+            const lastTankFill = tankFills[0];
+            const fillOverdue = lastTankFill
+              ? differenceInDays(new Date(), new Date(lastTankFill.fill_date + "T00:00:00")) > 90
+              : false;
+
             return (
               <div key={tank.id} className="rounded-lg border border-border/50 overflow-hidden">
                 {/* Tank header */}
@@ -450,18 +589,19 @@ const CustomerDetail = () => {
                       {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                     </div>
                   </div>
-                   <div className="flex gap-2">
-                     <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
-                       <Droplets className="h-4 w-4" /> Fill
-                     </Button>
-                     <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
-                       Re-inventory
-                     </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
+                      <Droplets className="h-4 w-4" /> Fill
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                      Re-inventory
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
                       Add Semen
                     </Button>
                   </div>
                 </div>
+
                 {/* Inventory table */}
                 <Table>
                   <TableHeader>
@@ -499,10 +639,190 @@ const CustomerDetail = () => {
                     )}
                   </TableBody>
                 </Table>
+
+                {/* Expandable: Fill History */}
+                <div className="border-t border-border">
+                  <button
+                    onClick={() => toggleSection(tank.id, "fills")}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
+                      {isSectionOpen(tank.id, "fills") ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <span className="font-medium">Fill History ({tankFills.length})</span>
+                      {lastTankFill && (
+                        <span className="text-xs text-muted-foreground">
+                          Last fill: {format(new Date(lastTankFill.fill_date + "T00:00:00"), "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  {isSectionOpen(tank.id, "fills") && (
+                    <div className="overflow-x-auto">
+                      {tankFills.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-muted-foreground">No fills recorded</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/5">
+                              <TableHead>Fill Date</TableHead>
+                              <TableHead>Fill Type</TableHead>
+                              <TableHead>Notes</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {tankFills.slice(0, 20).map((fill: any, idx: number) => (
+                              <TableRow key={fill.id} className={cn(idx === 0 && fillOverdue && "bg-amber-500/10")}>
+                                <TableCell className="text-sm">{format(new Date(fill.fill_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
+                                <TableCell className="text-sm">{fill.fill_type || "—"}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{fill.notes || "—"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                      {tankFills.length > 20 && (
+                        <div className="px-4 py-2">
+                          <Link to={`/tanks/${tank.id}`} className="text-xs text-primary hover:underline">
+                            View all on tank page →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Expandable: Transaction History */}
+                <div className="border-t border-border">
+                  <button
+                    onClick={() => toggleSection(tank.id, "txns")}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
+                      {isSectionOpen(tank.id, "txns") ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <span className="font-medium">Transaction History ({tankTxns.length})</span>
+                    </div>
+                  </button>
+                  {isSectionOpen(tank.id, "txns") && (
+                    <div className="overflow-x-auto">
+                      {tankTxns.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-muted-foreground">No transactions recorded</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/5">
+                              <TableHead>Date</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Bull</TableHead>
+                              <TableHead className="text-right">Units</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {tankTxns.slice(0, 20).map((txn: any) => (
+                              <TableRow key={txn.id}>
+                                <TableCell className="text-sm">{format(new Date(txn.created_at), "MMM d, yyyy")}</TableCell>
+                                <TableCell className="text-sm capitalize">{(txn.transaction_type || "").replace(/_/g, " ")}</TableCell>
+                                <TableCell className="text-sm">{txn.bulls_catalog?.bull_name || txn.custom_bull_name || "—"}</TableCell>
+                                <TableCell className={cn("text-right text-sm font-medium", txn.units_change > 0 ? "text-primary" : "text-destructive")}>
+                                  {txn.units_change > 0 ? "+" : ""}{txn.units_change}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                      {tankTxns.length > 20 && (
+                        <div className="px-4 py-2">
+                          <Link to={`/tanks/${tank.id}`} className="text-xs text-primary hover:underline">
+                            View all on tank page →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })
         )}
+
+        {/* Orders & Shipments */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Truck className="h-5 w-5" /> Orders & Shipments
+          </h2>
+
+          {/* Recent Orders */}
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 font-medium text-sm">Recent Orders</div>
+            {customerOrders.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">No orders found for this customer</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead>Order Date</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Fulfillment</TableHead>
+                      <TableHead>Billing</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerOrders.map((order: any) => (
+                      <TableRow key={order.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
+                        <TableCell className="text-sm">{format(new Date(order.order_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="text-sm">{order.semen_companies?.name || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={FULFILLMENT_COLORS[order.fulfillment_status] || "bg-muted text-muted-foreground"}>
+                            {(order.fulfillment_status || "").replace(/_/g, " ")}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={BILLING_COLORS[order.billing_status] || "bg-muted text-muted-foreground"}>
+                            {order.billing_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-primary hover:underline">View →</span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Shipments */}
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 font-medium text-sm">Recent Shipments</div>
+            {customerShipments.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">No shipments found for this customer</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead>Received Date</TableHead>
+                      <TableHead>From</TableHead>
+                      <TableHead>Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerShipments.map((ship: any) => (
+                      <TableRow key={ship.id}>
+                        <TableCell className="text-sm">{format(new Date(ship.received_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="text-sm">{ship.received_from || ship.semen_companies?.name || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{ship.notes || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
 
       {/* Edit Customer Dialog */}
