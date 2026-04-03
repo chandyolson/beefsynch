@@ -442,6 +442,51 @@ export type Database = {
           },
         ]
       }
+      project_contacts: {
+        Row: {
+          contact_date: string
+          contacted_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string
+          project_id: string
+        }
+        Insert: {
+          contact_date?: string
+          contacted_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          project_id: string
+        }
+        Update: {
+          contact_date?: string
+          contacted_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           breeding_date: string | null
@@ -749,6 +794,7 @@ export type Database = {
         Row: {
           created_at: string
           fill_date: string
+          fill_type: string | null
           filled_by: string | null
           id: string
           notes: string | null
@@ -758,6 +804,7 @@ export type Database = {
         Insert: {
           created_at?: string
           fill_date: string
+          fill_type?: string | null
           filled_by?: string | null
           id?: string
           notes?: string | null
@@ -767,6 +814,7 @@ export type Database = {
         Update: {
           created_at?: string
           fill_date?: string
+          fill_type?: string | null
           filled_by?: string | null
           id?: string
           notes?: string | null
