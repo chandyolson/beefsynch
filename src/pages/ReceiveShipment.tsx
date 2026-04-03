@@ -127,6 +127,21 @@ const ReceiveShipment = () => {
     enabled: !!orgId,
   });
 
+  // Fetch customers for semen owner dropdown
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId)
+        .order("name");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
   // Pre-select order from query param
   useEffect(() => {
     const orderId = searchParams.get("order");
