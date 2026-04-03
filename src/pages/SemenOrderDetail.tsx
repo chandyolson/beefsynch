@@ -81,7 +81,7 @@ const SemenOrderDetail = () => {
       supabase.from("semen_orders").select("*").eq("id", id).single(),
       supabase
         .from("semen_order_items")
-        .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
+        .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
         .eq("semen_order_id", id),
     ]);
 
