@@ -47,6 +47,7 @@ const billingColors: Record<string, string> = {
 };
 
 const SemenOrders = () => {
+  const navigate = useNavigate();
   const { orgId, role } = useOrgRole();
   const queryClient = useQueryClient();
   const canDelete = role === "owner" || role === "admin";
