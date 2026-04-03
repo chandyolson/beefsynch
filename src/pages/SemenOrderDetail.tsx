@@ -66,7 +66,7 @@ const billingColors: Record<string, string> = {
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orgId } = useOrgRole();
+  const _orgId = useOrgRole();
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [project, setProject] = useState<ProjectRef | null>(null);
