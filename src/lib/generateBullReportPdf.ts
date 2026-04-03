@@ -12,6 +12,7 @@ export interface BullReportRow {
   projectNames: string;
   breedingDates: string;
   cattleTypes: string;
+  source: "Project" | "Order" | "Both";
 }
 
 export interface BullReportStats {
@@ -28,6 +29,7 @@ export interface BullReportFilters {
   protocol: string;
   company: string;
   search: string;
+  dataSource?: string;
 }
 
 export function generateBullReportPdf(
@@ -40,7 +42,7 @@ export function generateBullReportPdf(
   const margin = 40;
   let y = 40;
 
-  // ── Header ──
+  // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.text("BeefSynch — Bull Report", margin, y);
@@ -55,7 +57,11 @@ export function generateBullReportPdf(
   const toLabel = filters.toDate
     ? format(new Date(filters.toDate + "T00:00:00"), "MMM d, yyyy")
     : "—";
-  doc.text(`Breeding Date Range: ${fromLabel} to ${toLabel}`, margin, y);
+  doc.text(`Date Range: ${fromLabel} to ${toLabel}`, margin, y);
+  y += 14;
+
+  const sourceLabel = filters.dataSource === "projects" ? "Projects Only" : filters.dataSource === "orders" ? "Orders Only" : "All Sources (Projects + Orders)";
+  doc.text(`Data Source: ${sourceLabel}`, margin, y);
   y += 14;
 
   const appliedFilters: string[] = [];
@@ -72,19 +78,19 @@ export function generateBullReportPdf(
   doc.setTextColor(0);
   y += 4;
 
-  // ── Divider ──
+  // Divider
   doc.setDrawColor(180);
   doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);
   y += 16;
 
-  // ── Stat cards summary ──
+  // Stat cards summary
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   const statItems = [
     ["Total Bulls in Use", String(stats.totalBulls)],
     ["Total Semen Units", String(stats.totalUnits)],
-    ["Total Projects", String(stats.totalProjects)],
+    ["Total Projects/Orders", String(stats.totalProjects)],
     ["Total Head in Range", String(stats.totalHead)],
   ];
   const colW = (pageWidth - margin * 2) / 4;
@@ -101,18 +107,19 @@ export function generateBullReportPdf(
   }
   y += 36;
 
-  // ── Divider ──
+  // Divider
   doc.setDrawColor(200);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
   y += 12;
 
-  // ── Table ──
+  // Table
   const tableBody = rows.map((r) => [
     r.bullName,
     r.company || "—",
     r.registrationNumber || "—",
     String(r.totalUnits),
+    r.source,
     String(r.projectCount),
     r.projectNames,
     r.breedingDates,
@@ -122,24 +129,25 @@ export function generateBullReportPdf(
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["Bull Name", "Company", "Reg. #", "Units", "Projects", "Project Names", "Breeding Date(s)", "Cattle Type"]],
+    head: [["Bull Name", "Company", "Reg. #", "Units", "Source", "Projects", "Project/Order Names", "Date(s)", "Cattle Type"]],
     body: tableBody,
-    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+    styles: { fontSize: 7.5, cellPadding: 3.5, overflow: "linebreak" },
     headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
-      0: { cellWidth: 90 },
-      1: { cellWidth: 70 },
-      2: { cellWidth: 75 },
-      3: { cellWidth: 40, halign: "center" },
-      4: { cellWidth: 45, halign: "center" },
-      5: { cellWidth: 120 },
-      6: { cellWidth: 100 },
-      7: { cellWidth: 65 },
+      0: { cellWidth: 80 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 70 },
+      3: { cellWidth: 35, halign: "center" },
+      4: { cellWidth: 40 },
+      5: { cellWidth: 40, halign: "center" },
+      6: { cellWidth: 120 },
+      7: { cellWidth: 80 },
+      8: { cellWidth: 55 },
     },
   });
 
-  // ── Footer ──
+  // Footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -147,7 +155,7 @@ export function generateBullReportPdf(
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
-      "BeefSynch by Chuteside Resources",
+      "BeefSynch by Chuteside, LLC",
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 24,
       { align: "center" }

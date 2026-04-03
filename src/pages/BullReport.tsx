@@ -71,6 +71,7 @@ const COMPANY_BADGE: Record<string, string> = {
 
 type SortKey = "bullName" | "totalUnits" | "projectCount";
 type SortDir = "asc" | "desc";
+type DataSource = "all" | "projects" | "orders";
 
 const thisYear = new Date();
 const DEFAULT_FROM = format(startOfYear(thisYear), "yyyy-MM-dd");
@@ -98,6 +99,24 @@ interface ProjectBullJoin {
   } | null;
 }
 
+interface OrderItemJoin {
+  units: number;
+  custom_bull_name: string | null;
+  bull_catalog_id: string | null;
+  bulls_catalog: {
+    bull_name: string;
+    company: string;
+    registration_number: string;
+    breed: string;
+  } | null;
+  semen_order_id: string;
+  semen_orders: {
+    id: string;
+    customer_name: string;
+    order_date: string;
+  } | null;
+}
+
 const BullReport = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
   const navigate = useNavigate();
@@ -110,6 +129,7 @@ const BullReport = () => {
   const [company, setCompany] = useState("All Companies");
   const [breed, setBreed] = useState("All Breeds");
   const [search, setSearch] = useState("");
+  const [dataSource, setDataSource] = useState<DataSource>("all");
   const [hasRun, setHasRun] = useState(false);
 
   // Applied (committed) filters
@@ -120,6 +140,7 @@ const BullReport = () => {
   const [appliedCompany, setAppliedCompany] = useState("All Companies");
   const [appliedBreed, setAppliedBreed] = useState("All Breeds");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedSource, setAppliedSource] = useState<DataSource>("all");
 
   // Sorting
   const [sortKey, setSortKey] = useState<SortKey>("totalUnits");
@@ -143,8 +164,9 @@ const BullReport = () => {
     },
   });
 
-  const { data: rawRows = [], isLoading, refetch } = useQuery({
-    queryKey: ["bull_report", appliedFrom, appliedTo, appliedCattle, appliedProtocol, appliedCompany],
+  // Fetch project bulls
+  const { data: rawRows = [], isLoading: loadingProjects } = useQuery({
+    queryKey: ["bull_report_projects", appliedFrom, appliedTo, appliedCattle, appliedProtocol],
     queryFn: async () => {
       let query = supabase
         .from("project_bulls")
@@ -157,132 +179,148 @@ const BullReport = () => {
           projects!inner (id, name, breeding_date, cattle_type, protocol, head_count, status)
         `);
 
-      if (appliedFrom) {
-        query = query.gte("projects.breeding_date", appliedFrom);
-      }
-      if (appliedTo) {
-        query = query.lte("projects.breeding_date", appliedTo);
-      }
-      if (appliedCattle !== "All") {
-        query = query.eq("projects.cattle_type", appliedCattle);
-      }
-      if (appliedProtocol !== "All Protocols") {
-        query = query.eq("projects.protocol", appliedProtocol);
-      }
+      if (appliedFrom) query = query.gte("projects.breeding_date", appliedFrom);
+      if (appliedTo) query = query.lte("projects.breeding_date", appliedTo);
+      if (appliedCattle !== "All") query = query.eq("projects.cattle_type", appliedCattle);
+      if (appliedProtocol !== "All Protocols") query = query.eq("projects.protocol", appliedProtocol);
 
       const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as ProjectBullJoin[];
     },
-    enabled: hasRun,
+    enabled: hasRun && appliedSource !== "orders",
   });
 
-  // Group by bull
+  // Fetch order items
+  const { data: orderRows = [], isLoading: loadingOrders } = useQuery({
+    queryKey: ["bull_report_orders", appliedFrom, appliedTo],
+    queryFn: async () => {
+      let query = supabase
+        .from("semen_order_items")
+        .select(`
+          units,
+          custom_bull_name,
+          bull_catalog_id,
+          semen_order_id,
+          bulls_catalog (bull_name, company, registration_number, breed),
+          semen_orders!inner (id, customer_name, order_date)
+        `);
+
+      if (appliedFrom) query = query.gte("semen_orders.order_date", appliedFrom);
+      if (appliedTo) query = query.lte("semen_orders.order_date", appliedTo);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as unknown as OrderItemJoin[];
+    },
+    enabled: hasRun && appliedSource !== "projects",
+  });
+
+  const isLoading = loadingProjects || loadingOrders;
+
+  // Group by bull — merge both sources
   const reportRows = useMemo(() => {
-    const map = new Map<string, BullReportRow & { projectIds: Set<string>; headSet: Map<string, number> }>();
+    const map = new Map<string, BullReportRow & { 
+      projectIds: Set<string>; 
+      orderIds: Set<string>;
+      headSet: Map<string, number>;
+      namesList: string[];
+      datesList: string[];
+      typesSet: Set<string>;
+      fromProjects: boolean;
+      fromOrders: boolean;
+    }>();
 
-    for (const row of rawRows) {
-      const proj = row.projects;
-      if (!proj) continue;
+    const getBullKey = (catalogId: string | null, catalog: { bull_name: string } | null, customName: string | null) => {
+      return catalogId && catalog
+        ? `catalog_${catalogId}`
+        : `custom_${customName ?? "unknown"}`;
+    };
 
-      // Determine bull key
-      const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
-      const key = isCatalog
-        ? `catalog_${row.bull_catalog_id}`
-        : `custom_${row.custom_bull_name ?? "unknown"}`;
-
-      const bullName = isCatalog
-        ? row.bulls_catalog!.bull_name
-        : row.custom_bull_name ?? "Unknown";
-      const co = isCatalog ? row.bulls_catalog!.company : "";
-      const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
-      const breed = isCatalog ? row.bulls_catalog!.breed : "";
-
-      // Company filter
-      if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
-
-      // Breed filter
-      if (appliedBreed !== "All Breeds" && breed !== appliedBreed) continue;
-
-      // Search filter
-      const q = appliedSearch.toLowerCase();
-      if (q && !bullName.toLowerCase().includes(q) && !proj.name.toLowerCase().includes(q)) continue;
-
+    const initEntry = (key: string, bullName: string, co: string, regNum: string, breed: string) => {
       if (!map.has(key)) {
         map.set(key, {
-          bullName,
-          company: co,
-          registrationNumber: regNum,
-          breed,
-          totalUnits: 0,
-          projectCount: 0,
-          projectNames: "",
-          breedingDates: "",
-          cattleTypes: "",
-          projectIds: new Set(),
-          headSet: new Map(),
+          bullName, company: co, registrationNumber: regNum, breed,
+          totalUnits: 0, projectCount: 0, projectNames: "", breedingDates: "", cattleTypes: "",
+          source: "Project",
+          projectIds: new Set(), orderIds: new Set(), headSet: new Map(),
+          namesList: [], datesList: [], typesSet: new Set(),
+          fromProjects: false, fromOrders: false,
         });
       }
+      return map.get(key)!;
+    };
 
-      const entry = map.get(key)!;
-      entry.totalUnits += row.units;
+    // Process project bulls
+    if (appliedSource !== "orders") {
+      for (const row of rawRows) {
+        const proj = row.projects;
+        if (!proj) continue;
+        const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
+        const key = getBullKey(row.bull_catalog_id, row.bulls_catalog, row.custom_bull_name);
+        const bullName = isCatalog ? row.bulls_catalog!.bull_name : row.custom_bull_name ?? "Unknown";
+        const co = isCatalog ? row.bulls_catalog!.company : "";
+        const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
+        const br = isCatalog ? row.bulls_catalog!.breed : "";
 
-      if (!entry.projectIds.has(proj.id)) {
-        entry.projectIds.add(proj.id);
-        entry.headSet.set(proj.id, proj.head_count);
-      }
-    }
-
-    // Finalize — collect project meta in a second pass
-    const projectMeta = new Map<string, { name: string; breedingDate: string | null; cattleType: string }>();
-    for (const row of rawRows) {
-      const proj = row.projects;
-      if (proj && !projectMeta.has(proj.id)) {
-        projectMeta.set(proj.id, {
-          name: proj.name,
-          breedingDate: proj.breeding_date,
-          cattleType: proj.cattle_type,
-        });
-      }
-    }
-
-    // We need to rebuild so project names/dates are tied per bull
-    const bullProjects = new Map<string, Set<string>>();
-    for (const row of rawRows) {
-      const proj = row.projects;
-      if (!proj) continue;
-      const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
-      const key = isCatalog
-        ? `catalog_${row.bull_catalog_id}`
-        : `custom_${row.custom_bull_name ?? "unknown"}`;
-      if (!bullProjects.has(key)) bullProjects.set(key, new Set());
-      bullProjects.get(key)!.add(proj.id);
-    }
-
-    const result: BullReportRow[] = [];
-    for (const [key, entry] of map.entries()) {
-      const projIds = bullProjects.get(key) ?? new Set<string>();
-      const names: string[] = [];
-      const dates: string[] = [];
-      const types = new Set<string>();
-
-      for (const pid of projIds) {
-        const meta = projectMeta.get(pid);
-        if (!meta) continue;
-
-        // Re-apply filters per project for this bull
+        if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+        if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
         const q = appliedSearch.toLowerCase();
-        if (q && !entry.bullName.toLowerCase().includes(q) && !meta.name.toLowerCase().includes(q)) continue;
+        if (q && !bullName.toLowerCase().includes(q) && !proj.name.toLowerCase().includes(q)) continue;
 
-        names.push(meta.name);
-        if (meta.breedingDate) {
-          dates.push(format(new Date(meta.breedingDate + "T00:00:00"), "M/d/yyyy"));
+        const entry = initEntry(key, bullName, co, regNum, br);
+        entry.totalUnits += row.units;
+        entry.fromProjects = true;
+
+        if (!entry.projectIds.has(proj.id)) {
+          entry.projectIds.add(proj.id);
+          entry.headSet.set(proj.id, proj.head_count);
+          entry.namesList.push(proj.name);
+          if (proj.breeding_date) {
+            entry.datesList.push(format(new Date(proj.breeding_date + "T00:00:00"), "M/d/yyyy"));
+          }
+          entry.typesSet.add(proj.cattle_type);
         }
-        types.add(meta.cattleType);
       }
+    }
 
-      entry.projectCount = names.length;
-      if (entry.projectCount === 0) continue;
+    // Process order items
+    if (appliedSource !== "projects") {
+      for (const row of orderRows) {
+        const ord = row.semen_orders;
+        if (!ord) continue;
+        const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
+        const key = getBullKey(row.bull_catalog_id, row.bulls_catalog, row.custom_bull_name);
+        const bullName = isCatalog ? row.bulls_catalog!.bull_name : row.custom_bull_name ?? "Unknown";
+        const co = isCatalog ? row.bulls_catalog!.company : "";
+        const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
+        const br = isCatalog ? row.bulls_catalog!.breed : "";
+
+        if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+        if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
+        const q = appliedSearch.toLowerCase();
+        if (q && !bullName.toLowerCase().includes(q) && !ord.customer_name.toLowerCase().includes(q)) continue;
+
+        const entry = initEntry(key, bullName, co, regNum, br);
+        entry.totalUnits += row.units;
+        entry.fromOrders = true;
+
+        if (!entry.orderIds.has(ord.id)) {
+          entry.orderIds.add(ord.id);
+          entry.namesList.push(`Order: ${ord.customer_name}`);
+          entry.datesList.push(format(new Date(ord.order_date + "T00:00:00"), "M/d/yyyy"));
+        }
+      }
+    }
+
+    // Finalize
+    const result: BullReportRow[] = [];
+    for (const [, entry] of map.entries()) {
+      entry.projectCount = entry.projectIds.size + entry.orderIds.size;
+      if (entry.namesList.length === 0) continue;
+
+      entry.source = entry.fromProjects && entry.fromOrders ? "Both"
+        : entry.fromProjects ? "Project" : "Order";
 
       result.push({
         bullName: entry.bullName,
@@ -291,9 +329,10 @@ const BullReport = () => {
         breed: entry.breed,
         totalUnits: entry.totalUnits,
         projectCount: entry.projectCount,
-        projectNames: names.join(", "),
-        breedingDates: dates.join(", "),
-        cattleTypes: [...types].join(", "),
+        projectNames: entry.namesList.join(", "),
+        breedingDates: entry.datesList.join(", "),
+        cattleTypes: [...entry.typesSet].join(", "),
+        source: entry.source,
       });
     }
 
@@ -317,39 +356,49 @@ const BullReport = () => {
     });
 
     return result;
-  }, [rawRows, appliedSearch, appliedCompany, appliedBreed, sortKey, sortDir]);
+  }, [rawRows, orderRows, appliedSearch, appliedCompany, appliedBreed, appliedSource, sortKey, sortDir]);
 
   // Stats
   const stats = useMemo(() => {
     const projectIds = new Set<string>();
     let totalHead = 0;
-    const projectMeta = new Map<string, { head_count: number }>();
+    const projectHeads = new Map<string, number>();
 
-    for (const row of rawRows) {
-      if (row.projects && !projectMeta.has(row.projects.id)) {
-        projectMeta.set(row.projects.id, { head_count: row.projects.head_count });
+    if (appliedSource !== "orders") {
+      for (const row of rawRows) {
+        if (!row.projects) continue;
+        const bull = row.bulls_catalog;
+        const bullName = bull ? bull.bull_name : row.custom_bull_name ?? "";
+        const co = bull ? bull.company : "";
+        const br = bull ? bull.breed : "";
+        const q = appliedSearch.toLowerCase();
+        if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+        if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
+        if (q && !bullName.toLowerCase().includes(q) && !row.projects.name.toLowerCase().includes(q)) continue;
+        if (!projectHeads.has(row.projects.id)) {
+          projectHeads.set(row.projects.id, row.projects.head_count);
+        }
+        projectIds.add(row.projects.id);
       }
     }
 
-    // Filter by company/search for stats too
-    const filteredReportIds = new Set(reportRows.flatMap((r) => r.projectNames.split(", ")));
-
-    for (const row of rawRows) {
-      if (!row.projects) continue;
-      const bull = row.bulls_catalog;
-      const bullName = bull ? bull.bull_name : row.custom_bull_name ?? "";
-      const co = bull ? bull.company : "";
-      const br = bull ? bull.breed : "";
-      const q = appliedSearch.toLowerCase();
-      if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
-      if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
-      if (q && !bullName.toLowerCase().includes(q) && !row.projects.name.toLowerCase().includes(q)) continue;
-      projectIds.add(row.projects.id);
+    if (appliedSource !== "projects") {
+      for (const row of orderRows) {
+        if (!row.semen_orders) continue;
+        const bull = row.bulls_catalog;
+        const bullName = bull ? bull.bull_name : row.custom_bull_name ?? "";
+        const co = bull ? bull.company : "";
+        const br = bull ? bull.breed : "";
+        const q = appliedSearch.toLowerCase();
+        if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
+        if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
+        if (q && !bullName.toLowerCase().includes(q) && !row.semen_orders.customer_name.toLowerCase().includes(q)) continue;
+        projectIds.add(`order_${row.semen_orders.id}`);
+      }
     }
 
-    for (const pid of projectIds) {
-      const meta = projectMeta.get(pid);
-      if (meta) totalHead += meta.head_count;
+    for (const [, head] of projectHeads) {
+      totalHead += head;
     }
 
     return {
@@ -358,7 +407,7 @@ const BullReport = () => {
       totalProjects: projectIds.size,
       totalHead,
     };
-  }, [reportRows, rawRows, appliedSearch, appliedCompany, appliedBreed]);
+  }, [reportRows, rawRows, orderRows, appliedSearch, appliedCompany, appliedBreed, appliedSource]);
 
   const handleGenerate = () => {
     setAppliedFrom(fromDate);
@@ -368,6 +417,7 @@ const BullReport = () => {
     setAppliedCompany(company);
     setAppliedBreed(breed);
     setAppliedSearch(search);
+    setAppliedSource(dataSource);
     setHasRun(true);
   };
 
@@ -379,6 +429,7 @@ const BullReport = () => {
     setCompany("All Companies");
     setBreed("All Breeds");
     setSearch("");
+    setDataSource("all");
     setAppliedFrom(DEFAULT_FROM);
     setAppliedTo(DEFAULT_TO);
     setAppliedCattle("All");
@@ -386,11 +437,12 @@ const BullReport = () => {
     setAppliedCompany("All Companies");
     setAppliedBreed("All Breeds");
     setAppliedSearch("");
+    setAppliedSource("all");
     setHasRun(false);
   };
 
   const handleExportCsv = () => {
-    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "Units Committed", "Project Count", "Project Names", "Breeding Dates", "Cattle Type"];
+    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "Units Committed", "Source", "Project/Order Count", "Names", "Dates", "Cattle Type"];
     const escape = (v: string | number) => {
       const s = String(v);
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
@@ -398,7 +450,7 @@ const BullReport = () => {
     const lines = [
       headers.map(escape).join(","),
       ...reportRows.map((r) =>
-        [r.bullName, r.registrationNumber, r.company, r.breed, r.totalUnits, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
+        [r.bullName, r.registrationNumber, r.company, r.breed, r.totalUnits, r.source, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
           .map(escape)
           .join(",")
       ),
@@ -412,16 +464,19 @@ const BullReport = () => {
     URL.revokeObjectURL(url);
   };
 
+  const getFilters = () => ({
+    fromDate: appliedFrom,
+    toDate: appliedTo,
+    cattleType: appliedCattle,
+    protocol: appliedProtocol,
+    company: appliedCompany,
+    search: appliedSearch,
+    dataSource: appliedSource,
+  });
+
   const handleExport = () => {
     setPdfRows(reportRows);
-    generateBullReportPdf(reportRows, stats, {
-      fromDate: appliedFrom,
-      toDate: appliedTo,
-      cattleType: appliedCattle,
-      protocol: appliedProtocol,
-      company: appliedCompany,
-      search: appliedSearch,
-    });
+    generateBullReportPdf(reportRows, stats, getFilters());
     setShareOpen(true);
   };
 
@@ -443,8 +498,22 @@ const BullReport = () => {
   const toLabel = appliedTo ? format(new Date(appliedTo + "T00:00:00"), "MMM d, yyyy") : "";
   const emailSubject = encodeURIComponent(`BeefSynch Bull Report — ${fromLabel} to ${toLabel}`);
   const emailBody = encodeURIComponent(
-    `Please find attached the BeefSynch Bull Report for breeding dates ${fromLabel} to ${toLabel}.`
+    `Please find attached the BeefSynch Bull Report for ${fromLabel} to ${toLabel}.`
   );
+
+  // Find catalog id for favorites
+  const findCatalogId = (bullName: string): string | null => {
+    const matchProject = rawRows.find((r) => {
+      const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
+      return name === bullName && r.bull_catalog_id;
+    });
+    if (matchProject?.bull_catalog_id) return matchProject.bull_catalog_id;
+    const matchOrder = orderRows.find((r) => {
+      const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
+      return name === bullName && r.bull_catalog_id;
+    });
+    return matchOrder?.bull_catalog_id ?? null;
+  };
 
   return (
     <div className="min-h-screen">
@@ -465,7 +534,7 @@ const BullReport = () => {
                 Bull Report
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Semen usage across projects by date range
+                Semen usage across projects and orders by date range
               </p>
             </div>
             {hasRun && reportRows.length > 0 && (
@@ -496,13 +565,33 @@ const BullReport = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Total Bulls in Use" value={stats.totalBulls} delay={0} />
             <StatCard title="Total Semen Units" value={stats.totalUnits} delay={100} />
-            <StatCard title="Total Projects in Range" value={stats.totalProjects} delay={200} />
+            <StatCard title={appliedSource === "orders" ? "Total Orders" : appliedSource === "projects" ? "Total Projects" : "Total Projects/Orders"} value={stats.totalProjects} delay={200} />
             <StatCard title="Total Head in Range" value={stats.totalHead} delay={300} />
           </div>
         )}
 
         {/* Filters */}
         <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+          {/* Data Source toggle */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Data Source</label>
+            <div className="flex rounded-md border border-border overflow-hidden h-8 max-w-xs">
+              {(["all", "projects", "orders"] as DataSource[]).map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setDataSource(src)}
+                  className={`flex-1 text-xs font-medium transition-colors px-3 ${
+                    dataSource === src
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {src === "all" ? "All" : src === "projects" ? "Projects" : "Orders"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
             {/* Date Range */}
             <div className="space-y-0.5">
@@ -524,7 +613,7 @@ const BullReport = () => {
               />
             </div>
 
-            {/* Cattle Type */}
+            {/* Cattle Type - only relevant for projects */}
             <div className="space-y-0.5">
               <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Cattle Type</label>
               <div className="flex rounded-md border border-border overflow-hidden h-8">
@@ -658,74 +747,76 @@ const BullReport = () => {
                       >
                         Units <SortIcon col="totalUnits" />
                       </TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead
                         className="cursor-pointer select-none text-right"
                         onClick={() => toggleSort("projectCount")}
                       >
                         Projects <SortIcon col="projectCount" />
                       </TableHead>
-                      <TableHead>Project Names</TableHead>
-                      <TableHead>Breeding Date(s)</TableHead>
+                      <TableHead>Names</TableHead>
+                      <TableHead>Date(s)</TableHead>
                       <TableHead>Cattle Type</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportRows.map((row, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="w-8">
-                          <button onClick={(e) => {
-                            // Find the bull_catalog_id for this row
-                            const match = rawRows.find((r) => {
-                              const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
-                              return name === row.bullName && r.bull_catalog_id;
-                            });
-                            if (match?.bull_catalog_id) toggleFavorite(match.bull_catalog_id, e);
-                          }}>
-                            {(() => {
-                              const match = rawRows.find((r) => {
-                                const name = r.bulls_catalog ? r.bulls_catalog.bull_name : r.custom_bull_name ?? "";
-                                return name === row.bullName && r.bull_catalog_id;
-                              });
-                              const isFav = match?.bull_catalog_id ? favoritedIds.has(match.bull_catalog_id) : false;
-                              return <Star className={`h-4 w-4 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />;
-                            })()}
-                          </button>
-                        </TableCell>
-                        <TableCell className="font-medium text-foreground">
-                          {row.bullName}
-                        </TableCell>
-                        <TableCell>
-                          {row.company ? (
-                            <Badge
-                              variant="secondary"
-                              className={`text-xs ${COMPANY_BADGE[row.company] ?? ""}`}
-                            >
-                              {row.company}
+                    {reportRows.map((row, i) => {
+                      const catalogId = findCatalogId(row.bullName);
+                      const isFav = catalogId ? favoritedIds.has(catalogId) : false;
+                      return (
+                        <TableRow key={i}>
+                          <TableCell className="w-8">
+                            <button onClick={(e) => {
+                              if (catalogId) toggleFavorite(catalogId, e);
+                            }}>
+                              <Star className={`h-4 w-4 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+                            </button>
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground">
+                            {row.bullName}
+                          </TableCell>
+                          <TableCell>
+                            {row.company ? (
+                              <Badge
+                                variant="secondary"
+                                className={`text-xs ${COMPANY_BADGE[row.company] ?? ""}`}
+                              >
+                                {row.company}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <ClickableRegNumber registrationNumber={row.registrationNumber || null} breed={row.breed} />
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {row.totalUnits}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${
+                              row.source === "Both" ? "bg-purple-500/20 text-purple-300 border-purple-500/30" :
+                              row.source === "Order" ? "bg-blue-500/20 text-blue-300 border-blue-500/30" :
+                              "bg-green-500/20 text-green-300 border-green-500/30"
+                            }`}>
+                              {row.source}
                             </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <ClickableRegNumber registrationNumber={row.registrationNumber || null} breed={row.breed} />
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {row.totalUnits}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {row.projectCount}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[220px]">
-                          {row.projectNames}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {row.breedingDates}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {row.cattleTypes}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {row.projectCount}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[220px]">
+                            {row.projectNames}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {row.breedingDates}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {row.cattleTypes}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -737,7 +828,7 @@ const BullReport = () => {
           <div className="py-20 text-center text-muted-foreground">
             <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <p className="text-lg font-medium">Set your filters and click Generate Report</p>
-            <p className="text-sm mt-1">Results will show semen usage grouped by bull across matching projects.</p>
+            <p className="text-sm mt-1">Results will show semen usage grouped by bull across matching projects and orders.</p>
           </div>
         )}
       </main>
@@ -756,14 +847,7 @@ const BullReport = () => {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                generateBullReportPdf(pdfRows, stats, {
-                  fromDate: appliedFrom,
-                  toDate: appliedTo,
-                  cattleType: appliedCattle,
-                  protocol: appliedProtocol,
-                  company: appliedCompany,
-                  search: appliedSearch,
-                });
+                generateBullReportPdf(pdfRows, stats, getFilters());
               }}
             >
               <Download className="h-4 w-4" />
