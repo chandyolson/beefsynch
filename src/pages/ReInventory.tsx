@@ -115,6 +115,7 @@ const ReInventory = () => {
           actual: inv.units,
           customer_id: inv.customer_id,
           storage_type: inv.storage_type,
+          item_type: inv.item_type || "semen",
         }))
       );
       setInitialized(true);
