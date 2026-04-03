@@ -187,6 +187,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/")} className={navBtnClass}>
             <List className="h-4 w-4" /> Dashboard
           </button>
+          <button onClick={() => go("/semen-orders")} className={navBtnClass}>
+            <ShoppingCart className="h-4 w-4" /> Semen Orders
+          </button>
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog
           </button>
