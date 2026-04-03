@@ -60,6 +60,7 @@ const SemenOrders = () => {
   const [search, setSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [billingFilter, setBillingFilter] = useState("all");
+  const [orderTypeFilter, setOrderTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -96,22 +97,23 @@ const SemenOrders = () => {
   // Filtered orders
   const filtered = useMemo(() => {
     return orders.filter((o: any) => {
-      if (search && !o.customer_name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase())) return false;
       if (fulfillmentFilter !== "all" && o.fulfillment_status !== fulfillmentFilter) return false;
       if (billingFilter !== "all" && o.billing_status !== billingFilter) return false;
+      if (orderTypeFilter !== "all" && o.order_type !== orderTypeFilter) return false;
       if (dateFrom && isBefore(parseISO(o.order_date), dateFrom)) return false;
       if (dateTo && isAfter(parseISO(o.order_date), dateTo)) return false;
       return true;
     });
-  }, [orders, search, fulfillmentFilter, billingFilter, dateFrom, dateTo]);
+  }, [orders, search, fulfillmentFilter, billingFilter, orderTypeFilter, dateFrom, dateTo]);
 
   // Stats
-  const totalOrders = orders.length;
-  const totalUnits = useMemo(() => orders.reduce((sum: number, o: any) =>
+  const totalOrders = filtered.length;
+  const totalUnits = useMemo(() => filtered.reduce((sum: number, o: any) =>
     sum + (o.semen_order_items?.reduce((s: number, i: any) => s + (i.units || 0), 0) ?? 0), 0
-  ), [orders]);
-  const pendingCount = orders.filter((o: any) => o.fulfillment_status !== "delivered").length;
-  const unbilledCount = orders.filter((o: any) => o.billing_status === "unbilled").length;
+  ), [filtered]);
+  const pendingCount = filtered.filter((o: any) => o.fulfillment_status !== "delivered").length;
+  const unbilledCount = filtered.filter((o: any) => o.billing_status === "unbilled").length;
 
   const getBullNames = (items: any[]) => {
     if (!items || items.length === 0) return "—";
@@ -213,8 +215,19 @@ const SemenOrders = () => {
             </SelectContent>
           </Select>
 
-          {(search || fulfillmentFilter !== "all" || billingFilter !== "all" || dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFulfillmentFilter("all"); setBillingFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>
+          <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Order Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="customer">Customer Orders</SelectItem>
+              <SelectItem value="inventory">Inventory Orders</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(search || fulfillmentFilter !== "all" || billingFilter !== "all" || orderTypeFilter !== "all" || dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFulfillmentFilter("all"); setBillingFilter("all"); setOrderTypeFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>
               Clear
             </Button>
           )}
@@ -250,7 +263,14 @@ const SemenOrders = () => {
               ) : (
                 filtered.map((order: any) => (
                   <TableRow key={order.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {order.order_type === "inventory" && (
+                          <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs shrink-0">INV</Badge>
+                        )}
+                        {order.customer_name || "—"}
+                      </div>
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.placed_by || "—"}</TableCell>

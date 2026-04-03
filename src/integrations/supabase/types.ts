@@ -658,6 +658,7 @@ export type Database = {
           id: string
           notes: string | null
           order_date: string
+          order_type: string
           organization_id: string
           placed_by: string | null
           project_id: string | null
@@ -674,6 +675,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          order_type?: string
           organization_id: string
           placed_by?: string | null
           project_id?: string | null
@@ -690,6 +692,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          order_type?: string
           organization_id?: string
           placed_by?: string | null
           project_id?: string | null

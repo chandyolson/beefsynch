@@ -42,6 +42,7 @@ export interface EditOrderData {
   semen_company_id: string | null;
   notes: string | null;
   placed_by: string | null;
+  order_type: string;
   bulls: BullRow[];
 }
 
@@ -67,6 +68,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
+  const [orderType, setOrderType] = useState<"customer" | "inventory">("customer");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -109,6 +111,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
       setPlacedBy(editData.placed_by ?? "");
+      setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
       setCustomerName("");
@@ -121,6 +124,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setSemenCompanyId("none");
       setNotes("");
       setPlacedBy("");
+      setOrderType("customer");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
       setAddingCompany(false);
       setNewCompanyName("");
@@ -154,6 +158,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
         placed_by: placedBy.trim() || null,
+        order_type: orderType,
       };
 
       let orderId: string;
@@ -215,6 +220,37 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Order Type Toggle */}
+          <div>
+            <Label>Order Type</Label>
+            <div className="flex mt-1.5 rounded-md overflow-hidden border border-border">
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                  orderType === "customer"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                )}
+                onClick={() => setOrderType("customer")}
+              >
+                Customer Order
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                  orderType === "inventory"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                )}
+                onClick={() => setOrderType("inventory")}
+              >
+                Inventory Order
+              </button>
+            </div>
+          </div>
+
           {/* Semen Company */}
           <div>
             <Label>Semen Company</Label>
@@ -273,10 +309,10 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             )}
           </div>
 
-          {/* Customer Name */}
+          {/* Customer Name / Description */}
           <div>
-            <Label>Customer Name</Label>
-            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Smith Ranch" className="mt-1.5" />
+            <Label>{orderType === "inventory" ? "Notes / Description" : "Customer Name"}</Label>
+            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={orderType === "inventory" ? "e.g. Spring 2026 restock" : "e.g. Smith Ranch"} className="mt-1.5" />
           </div>
 
           {/* Phone & Email */}
