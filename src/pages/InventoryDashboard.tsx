@@ -745,7 +745,7 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
       if (selectedOrderId) {
         const [{ data: orderItems }, { data: txns }] = await Promise.all([
           supabase.from("semen_order_items").select("units").eq("semen_order_id", selectedOrderId),
-          supabase.from("inventory_transactions").select("units_change").eq("order_id", selectedOrderId).eq("transaction_type", "received"),
+          supabase.from("inventory_transactions").select("units_change").eq("order_id", selectedOrderId).eq("transaction_type", "received").limit(10000),
         ]);
         const totalOrdered = (orderItems ?? []).reduce((s, i) => s + i.units, 0);
         const totalReceived = (txns ?? []).reduce((s, t) => s + t.units_change, 0);

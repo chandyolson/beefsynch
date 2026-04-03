@@ -151,7 +151,8 @@ const Tanks = () => {
       const { data, error } = await supabase
         .from("tank_inventory")
         .select("tank_id, units")
-        .eq("organization_id", orgId!);
+        .eq("organization_id", orgId!)
+        .limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
     },

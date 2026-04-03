@@ -229,7 +229,8 @@ const CustomerDetail = () => {
         .select("*, bulls_catalog(bull_name)")
         .eq("organization_id", orgId!)
         .in("tank_id", allTankIds)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(10000);
       if (error) throw error;
       return data ?? [];
     },

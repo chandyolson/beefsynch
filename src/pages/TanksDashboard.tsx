@@ -321,7 +321,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
     queryKey: ["tank_inventory_sums", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tank_inventory").select("tank_id, units").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("tank_inventory").select("tank_id, units").eq("organization_id", orgId).limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
     },
