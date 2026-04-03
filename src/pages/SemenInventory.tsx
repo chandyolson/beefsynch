@@ -76,6 +76,7 @@ const SemenInventory = () => {
       storageType: item.storage_type || "customer",
       owner: item.owner || null,
       inventoriedAt: item.inventoried_at,
+      itemType: item.item_type || "semen",
     }));
   }, [inventory]);
 
