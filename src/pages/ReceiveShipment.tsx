@@ -250,6 +250,7 @@ const ReceiveShipment = () => {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!receivedFrom.trim()) errs.receivedFrom = "Required";
+    if (!receivedBy.trim()) errs.receivedBy = "Required";
     if (lines.length === 0) errs.lines = "At least one line item required";
     lines.forEach((l, i) => {
       if (!l.bullName) errs[`line_${i}_bull`] = "Required";
