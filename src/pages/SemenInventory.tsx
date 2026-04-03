@@ -121,7 +121,7 @@ const SemenInventory = () => {
     });
 
     return result;
-  }, [rows, storageFilter, ownerFilter, search, sortKey, sortDir]);
+  }, [rows, storageFilter, ownerFilter, typeFilter, search, sortKey, sortDir]);
 
   // Grouped by bull
   const groupedByBull = useMemo(() => {
