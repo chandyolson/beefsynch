@@ -223,6 +223,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/tanks")} className={navBtnClass + " pl-6"}>
             <Package className="h-4 w-4" /> Tanks
           </button>
+          <button onClick={() => go("/semen-inventory")} className={navBtnClass + " pl-6"}>
+            <Layers className="h-4 w-4" /> Semen Inventory
+          </button>
           <button onClick={() => go("/tank-fills")} className={navBtnClass + " pl-6"}>
             <Archive className="h-4 w-4" /> Tank Fills
           </button>
