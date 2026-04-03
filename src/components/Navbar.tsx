@@ -114,6 +114,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/semen-orders")} className="cursor-pointer gap-2">
                 <ShoppingCart className="h-4 w-4" /> Semen Orders
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/receive-shipment")} className="cursor-pointer gap-2">
+                <PackagePlus className="h-4 w-4" /> Receive Shipment
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Inventory
