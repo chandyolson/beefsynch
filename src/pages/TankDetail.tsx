@@ -373,7 +373,7 @@ const TankDetail = () => {
         {/* Breadcrumb */}
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink onClick={() => navigate("/tanks")} className="cursor-pointer">Tanks</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink onClick={() => navigate("/tanks-dashboard?tab=tanks")} className="cursor-pointer">Tanks</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>{tankLabel}</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
