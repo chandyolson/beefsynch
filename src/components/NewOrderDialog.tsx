@@ -103,6 +103,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
       setProjectId(editData.project_id ?? "none");
+      setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, units: 1 }]);
     } else {
@@ -113,8 +114,11 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
       setProjectId("none");
+      setSemenCompanyId("none");
       setNotes("");
       setBulls([{ name: "", catalogId: null, units: 1 }]);
+      setAddingCompany(false);
+      setNewCompanyName("");
     }
   }, [open, editData]);
 
