@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
+import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
@@ -48,6 +49,10 @@ const SemenOrders = () => {
   const { orgId, role } = useOrgRole();
   const queryClient = useQueryClient();
   const canDelete = role === "owner" || role === "admin";
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<EditOrderData | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -116,6 +121,32 @@ const SemenOrders = () => {
     return items.reduce((s: number, i: any) => s + (i.units || 0), 0);
   };
 
+  const openEdit = (order: any) => {
+    const bulls = (order.semen_order_items ?? []).map((i: any) => ({
+      name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
+      catalogId: i.bull_catalog_id,
+      units: i.units || 0,
+    }));
+    setEditOrder({
+      id: order.id,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email,
+      order_date: order.order_date,
+      fulfillment_status: order.fulfillment_status,
+      billing_status: order.billing_status,
+      project_id: order.project_id,
+      notes: order.notes,
+      bulls,
+    });
+    setDialogOpen(true);
+  };
+
+  const openCreate = () => {
+    setEditOrder(null);
+    setDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -123,7 +154,7 @@ const SemenOrders = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Orders</h2>
-          <Button className="gap-2" disabled>
+          <Button className="gap-2" onClick={openCreate}>
             <Plus className="h-4 w-4" /> New Order
           </Button>
         </div>
@@ -252,7 +283,7 @@ const SemenOrders = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(order)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canDelete && (
@@ -287,6 +318,7 @@ const SemenOrders = () => {
           </Table>
         </div>
       </main>
+      <NewOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} editData={editOrder} />
       <AppFooter />
     </div>
   );
