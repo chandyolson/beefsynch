@@ -450,6 +450,17 @@ const ReInventory = () => {
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">—</TableCell>
                       <TableCell>
+                        <Select value={nr.customer_id || "__none"} onValueChange={(v) => updateNewRow(i, "customer_id", v === "__none" ? null : v)}>
+                          <SelectTrigger className="w-28 h-8"><SelectValue placeholder="Owner" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">None</SelectItem>
+                            {orgCustomers.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
                         <Select value={nr.item_type} onValueChange={(v) => updateNewRow(i, "item_type", v)}>
                           <SelectTrigger className="w-24 h-8"><SelectValue /></SelectTrigger>
                           <SelectContent>
