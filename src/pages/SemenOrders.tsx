@@ -318,6 +318,7 @@ const SemenOrders = () => {
           </Table>
         </div>
       </main>
+      <NewOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} editData={editOrder} />
       <AppFooter />
     </div>
   );
