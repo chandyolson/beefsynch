@@ -29,6 +29,7 @@ interface OrderRow {
   semen_company_id: string | null;
   notes: string | null;
   placed_by: string | null;
+  order_type: string;
 }
 
 interface ItemRow {
