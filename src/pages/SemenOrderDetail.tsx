@@ -94,6 +94,16 @@ const SemenOrderDetail = () => {
           .single();
         if (pData) setProject(pData as ProjectRef);
       }
+      if (oRes.data.semen_company_id) {
+        const { data: cData } = await supabase
+          .from("semen_companies")
+          .select("name")
+          .eq("id", oRes.data.semen_company_id)
+          .single();
+        if (cData) setCompanyName(cData.name);
+      } else {
+        setCompanyName(null);
+      }
     }
     if (iRes.data) setItems(iRes.data as ItemRow[]);
     setLoading(false);
