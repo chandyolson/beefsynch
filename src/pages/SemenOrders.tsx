@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
 import { Eye, Trash2, Plus, CalendarIcon, Search, Package, DollarSign, Clock, ShoppingCart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,6 +47,7 @@ const billingColors: Record<string, string> = {
 };
 
 const SemenOrders = () => {
+  const navigate = useNavigate();
   const { orgId, role } = useOrgRole();
   const queryClient = useQueryClient();
   const canDelete = role === "owner" || role === "admin";
@@ -119,27 +121,6 @@ const SemenOrders = () => {
   const getOrderUnits = (items: any[]) => {
     if (!items) return 0;
     return items.reduce((s: number, i: any) => s + (i.units || 0), 0);
-  };
-
-  const openEdit = (order: any) => {
-    const bulls = (order.semen_order_items ?? []).map((i: any) => ({
-      name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
-      catalogId: i.bull_catalog_id,
-      units: i.units || 0,
-    }));
-    setEditOrder({
-      id: order.id,
-      customer_name: order.customer_name,
-      customer_phone: order.customer_phone,
-      customer_email: order.customer_email,
-      order_date: order.order_date,
-      fulfillment_status: order.fulfillment_status,
-      billing_status: order.billing_status,
-      project_id: order.project_id,
-      notes: order.notes,
-      bulls,
-    });
-    setDialogOpen(true);
   };
 
   const openCreate = () => {
@@ -283,7 +264,7 @@ const SemenOrders = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(order)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canDelete && (
