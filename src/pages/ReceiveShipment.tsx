@@ -78,6 +78,7 @@ const ReceiveShipment = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [orderedQtyMap, setOrderedQtyMap] = useState<Map<string, number>>(new Map());
+  const [semenOwnerId, setSemenOwnerId] = useState<string | null>(null);
 
   // Derive groups from lines
   const groups: BullGroup[] = useMemo(() => {
@@ -121,6 +122,21 @@ const ReceiveShipment = () => {
         .select("id, tank_name, tank_number, tank_type")
         .eq("organization_id", orgId)
         .order("tank_number");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Fetch customers for semen owner dropdown
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId)
+        .order("name");
       return data ?? [];
     },
     enabled: !!orgId,
@@ -327,6 +343,7 @@ const ReceiveShipment = () => {
             .update({ units: existing.units + line.units })
             .eq("id", existing.id);
         } else {
+          const ownerName = semenOwnerId ? customers.find(c => c.id === semenOwnerId)?.name || null : null;
           await supabase.from("tank_inventory").insert({
             organization_id: orgId,
             tank_id: line.tankId,
@@ -336,6 +353,8 @@ const ReceiveShipment = () => {
             units: line.units,
             storage_type: "inventory",
             item_type: line.itemType,
+            customer_id: semenOwnerId || null,
+            owner: ownerName,
           });
         }
 
@@ -626,6 +645,22 @@ const ReceiveShipment = () => {
                   className={cn(errors.receivedBy && "border-destructive")}
                 />
                 {errors.receivedBy && <p className="text-xs text-destructive">{errors.receivedBy}</p>}
+              </div>
+
+              {/* Semen Owner */}
+              <div className="space-y-1.5">
+                <Label>Semen Owner</Label>
+                <Select value={semenOwnerId || "__none"} onValueChange={(v) => setSemenOwnerId(v === "__none" ? null : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No owner (company inventory)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No owner (company inventory)</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Received Date */}

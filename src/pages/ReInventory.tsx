@@ -38,6 +38,7 @@ interface ExistingRow {
   previous: number;
   actual: number;
   customer_id: string | null;
+  customer_name: string | null;
   storage_type: string | null;
   item_type: string;
 }
@@ -52,6 +53,7 @@ interface NewRow {
   bull_code: string;
   units: string;
   item_type: "semen" | "embryo";
+  customer_id: string | null;
 }
 
 const ReInventory = () => {
@@ -83,6 +85,20 @@ const ReInventory = () => {
     },
   });
 
+  // Fetch customers for semen owner dropdown
+  const { data: orgCustomers = [] } = useQuery({
+    queryKey: ["customers-list-reinv", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      return data ?? [];
+    },
+  });
+
   // Fetch inventory for this tank
   const { data: inventoryData = [], isLoading } = useQuery({
     queryKey: ["reinventory_items", tankId, customerId],
@@ -90,7 +106,7 @@ const ReInventory = () => {
     queryFn: async () => {
       let query = supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", tankId!);
       if (customerId) {
         query = query.eq("customer_id", customerId);
@@ -118,6 +134,7 @@ const ReInventory = () => {
           previous: inv.units,
           actual: inv.units,
           customer_id: inv.customer_id,
+          customer_name: inv.customers?.name || inv.owner || null,
           storage_type: inv.storage_type,
           item_type: inv.item_type || "semen",
         }))
@@ -160,7 +177,7 @@ const ReInventory = () => {
   const addNewRow = () => {
     setNewRows((prev) => [
       ...prev,
-      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen" },
+      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen", customer_id: customerId || tank?.customer_id || null },
     ]);
   };
 
@@ -226,12 +243,15 @@ const ReInventory = () => {
         if (!nr.canister.trim()) continue;
         const units = parseInt(nr.units) || 0;
 
+        const nrCustomerId = nr.customer_id || customerId || null;
+        const nrOwnerName = nrCustomerId ? orgCustomers.find(c => c.id === nrCustomerId)?.name || null : null;
         const { data: inserted } = await supabase
           .from("tank_inventory")
           .insert({
             organization_id: orgId,
             tank_id: tankId,
-            customer_id: customerId || null,
+            customer_id: nrCustomerId,
+            owner: nrOwnerName,
             canister: nr.canister.trim(),
             sub_canister: nr.sub_canister.trim() || null,
             bull_catalog_id: nr.bull_catalog_id || null,
@@ -338,6 +358,7 @@ const ReInventory = () => {
                 <TableHead>Bull</TableHead>
                 <TableHead>Bull Code</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Owner</TableHead>
                 <TableHead className="text-right">Previous</TableHead>
                 <TableHead className="text-right">Actual</TableHead>
                 <TableHead className="text-right">Diff</TableHead>
@@ -346,11 +367,11 @@ const ReInventory = () => {
             <TableBody>
               {isLoading || !initialized ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : rows.length === 0 && newRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
+                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
                 </TableRow>
               ) : (
                 <>
@@ -367,6 +388,7 @@ const ReInventory = () => {
                             <Badge variant="outline" className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.customer_name || "—"}</TableCell>
                         <TableCell className="text-right text-muted-foreground">{row.previous}</TableCell>
                         <TableCell className="text-right">
                           <Input
@@ -427,6 +449,17 @@ const ReInventory = () => {
                         />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <Select value={nr.customer_id || "__none"} onValueChange={(v) => updateNewRow(i, "customer_id", v === "__none" ? null : v)}>
+                          <SelectTrigger className="w-28 h-8"><SelectValue placeholder="Owner" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">None</SelectItem>
+                            {orgCustomers.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <Select value={nr.item_type} onValueChange={(v) => updateNewRow(i, "item_type", v)}>
                           <SelectTrigger className="w-24 h-8"><SelectValue /></SelectTrigger>
