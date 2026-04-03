@@ -217,6 +217,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/semen-orders")} className={navBtnClass}>
             <ShoppingCart className="h-4 w-4" /> Semen Orders
           </button>
+          <button onClick={() => go("/receive-shipment")} className={navBtnClass}>
+            <PackagePlus className="h-4 w-4" /> Receive Shipment
+          </button>
           <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Inventory
           </div>
