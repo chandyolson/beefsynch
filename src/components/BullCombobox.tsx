@@ -7,12 +7,13 @@ interface CatalogBull {
   id: string;
   bull_name: string;
   company: string;
+  naab_code: string | null;
 }
 
 interface BullComboboxProps {
   value: string;
   catalogId: string | null;
-  onChange: (value: string, catalogId: string | null) => void;
+  onChange: (value: string, catalogId: string | null, naabCode?: string | null) => void;
 }
 
 const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
