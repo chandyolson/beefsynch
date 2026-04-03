@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText } from "lucide-react";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets } from "lucide-react";
+import { format } from "date-fns";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -309,6 +310,23 @@ const CustomerDetail = () => {
     setSemenStorageType("customer"); setSemenNotes("");
   };
 
+  const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
+    if (!orgId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("tank_fills").insert({
+      organization_id: orgId,
+      tank_id: tankId,
+      fill_date: format(new Date(), "yyyy-MM-dd"),
+      filled_by: user?.id ?? null,
+    } as any);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Fill recorded", description: `${tankNumber} ${tankName || ""}`.trim() });
+      queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
+    }
+  };
+
   const openAddSemen = (tankId: string) => {
     resetSemenForm();
     setSemenTankId(tankId);
@@ -432,10 +450,13 @@ const CustomerDetail = () => {
                       {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
-                      Re-inventory
-                    </Button>
+                   <div className="flex gap-2">
+                     <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
+                       <Droplets className="h-4 w-4" /> Fill
+                     </Button>
+                     <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                       Re-inventory
+                     </Button>
                     <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
                       Add Semen
                     </Button>
