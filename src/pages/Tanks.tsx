@@ -334,10 +334,12 @@ const Tanks = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((tank: any) => (
-                  <TableRow key={tank.id} className="hover:bg-muted/20">
+                filtered.map((tank: any) => {
+                  const rowHref = tank.customer_id ? `/customers/${tank.customer_id}` : `/tanks/${tank.id}`;
+                  return (
+                  <TableRow key={tank.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(rowHref)}>
                     <TableCell className="font-medium whitespace-nowrap">{tank.tank_number}</TableCell>
-                    <TableCell className="whitespace-nowrap">{tank.tank_name || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-primary hover:underline">{tank.tank_name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{tank.customerName || orgName || "Company Owned"}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>
