@@ -333,6 +333,7 @@ const ReInventory = () => {
                 <TableHead>Sub-can</TableHead>
                 <TableHead>Bull</TableHead>
                 <TableHead>Bull Code</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead className="text-right">Previous</TableHead>
                 <TableHead className="text-right">Actual</TableHead>
                 <TableHead className="text-right">Diff</TableHead>
