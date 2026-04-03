@@ -707,22 +707,22 @@ const ProjectDetail = () => {
           </div>
         </div>
 
-        {/* Last Contacted */}
+        {/* Contact History */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-muted-foreground" />
-              Last Contacted
+              Contact History
             </CardTitle>
             {!contactEditing && (
-              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving}>
-                Log Contact Now
+              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving} className="gap-1">
+                <Plus className="h-4 w-4" /> Log Contact
               </Button>
             )}
           </CardHeader>
-          <CardContent>
-            {contactEditing ? (
-              <div className="space-y-4">
+          <CardContent className="space-y-4">
+            {contactEditing && (
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-foreground">Date</label>
@@ -766,6 +766,15 @@ const ProjectDetail = () => {
                     </Select>
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Notes</label>
+                  <Textarea
+                    value={contactNotes}
+                    onChange={(e) => setContactNotes(e.target.value)}
+                    placeholder="What was discussed? Key decisions, follow-ups, etc."
+                    rows={3}
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleContactSave} disabled={contactSaving || !contactDate || !contactBy}>
                     Save
@@ -775,22 +784,37 @@ const ProjectDetail = () => {
                   </Button>
                 </div>
               </div>
-            ) : project.last_contacted_date ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-foreground">
-                  {format(parseISO(project.last_contacted_date), "MMM d, yyyy")}
-                  <span className="text-muted-foreground"> · {resolveContactEmail(project.last_contacted_by)}</span>
-                </p>
-                <Button size="sm" variant="outline" onClick={startContactEdit}>
-                  Update
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">No contact logged</p>
-                <Button size="sm" variant="outline" onClick={startContactEdit}>
-                  Log Contact
-                </Button>
+            )}
+
+            {contacts.length === 0 && !contactEditing ? (
+              <p className="text-sm text-muted-foreground">No contacts logged yet.</p>
+            ) : contacts.length > 0 && (
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-border">
+                {contacts.map((c) => (
+                  <div key={c.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {format(parseISO(c.contact_date), "MMM d, yyyy")}
+                          <span className="text-muted-foreground font-normal"> · {resolveContactEmail(c.contacted_by)}</span>
+                        </p>
+                        {c.notes && (
+                          <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{c.notes}</p>
+                        )}
+                      </div>
+                      {(orgRole === "owner" || orgRole === "admin") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleDeleteContact(c.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
