@@ -11,6 +11,7 @@ import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
 import BullReport from "./pages/BullReport";
 import BullChat from "./pages/BullChat";
+import SemenOrders from "./pages/SemenOrders";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
