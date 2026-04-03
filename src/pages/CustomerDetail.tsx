@@ -520,8 +520,8 @@ const CustomerDetail = () => {
             <div>
               <h1 className="text-2xl font-bold font-display tracking-tight">{customer.name}</h1>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                {customer.phone && <span>{customer.phone}</span>}
-                {customer.email && <span>{customer.email}</span>}
+                {customer.phone && <a href={`tel:${customer.phone}`} className="hover:underline">{customer.phone}</a>}
+                {customer.email && <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>}
               </div>
               {customer.address && (
                 <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
