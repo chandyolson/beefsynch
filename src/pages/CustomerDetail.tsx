@@ -502,7 +502,7 @@ const CustomerDetail = () => {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink onClick={() => navigate("/customers")} className="cursor-pointer">Customers</BreadcrumbLink>
+              <BreadcrumbLink onClick={() => navigate("/tanks-dashboard?tab=customers")} className="cursor-pointer">Customers</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
