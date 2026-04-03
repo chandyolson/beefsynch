@@ -177,7 +177,7 @@ const ReInventory = () => {
   const addNewRow = () => {
     setNewRows((prev) => [
       ...prev,
-      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen" },
+      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen", customer_id: customerId || tank?.customer_id || null },
     ]);
   };
 
