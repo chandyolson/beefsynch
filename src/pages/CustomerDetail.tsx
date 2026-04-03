@@ -8,6 +8,7 @@ import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
+import { generateCustomerInventoryPdf } from "@/lib/generateCustomerInventoryPdf";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
