@@ -156,7 +156,7 @@ const ReInventory = () => {
   const addNewRow = () => {
     setNewRows((prev) => [
       ...prev,
-      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "" },
+      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen" },
     ]);
   };
 
