@@ -11,6 +11,7 @@ import MasterCalendar from "./pages/MasterCalendar";
 import BullList from "./pages/BullList";
 import BullReport from "./pages/BullReport";
 import BullChat from "./pages/BullChat";
+import SemenOrders from "./pages/SemenOrders";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
             <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
+            <Route path="/semen-orders" element={<ProtectedRoute><SemenOrders /></ProtectedRoute>} />
             <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><BullChat /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />

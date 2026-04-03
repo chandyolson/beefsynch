@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, ShoppingCart } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -107,6 +107,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Dashboard
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/semen-orders")} className="cursor-pointer gap-2">
+                <ShoppingCart className="h-4 w-4" /> Semen Orders
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
               </DropdownMenuItem>
@@ -183,6 +186,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
         <div className="md:hidden border-t border-border/50 bg-popover/95 backdrop-blur-md px-4 py-3 space-y-1 animate-fade-in">
           <button onClick={() => go("/")} className={navBtnClass}>
             <List className="h-4 w-4" /> Dashboard
+          </button>
+          <button onClick={() => go("/semen-orders")} className={navBtnClass}>
+            <ShoppingCart className="h-4 w-4" /> Semen Orders
           </button>
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog
