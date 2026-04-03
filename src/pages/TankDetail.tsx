@@ -471,7 +471,12 @@ const TankDetail = () => {
                         <TableRow key={inv.id}>
                           <TableCell>{inv.canister}</TableCell>
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
-                          <TableCell>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</TableCell>
+                          <TableCell>
+                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                            {inv.item_type === "embryo" && (
+                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{inv.bull_code || "—"}</TableCell>
                           <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
                           <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
