@@ -85,7 +85,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
 
   const handleInputChange = (val: string) => {
     setQuery(val);
-    onChange(val, null);
+    onChange(val, null, null);
     setOpen(true);
   };
 
