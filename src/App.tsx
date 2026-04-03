@@ -21,6 +21,7 @@ import TankDetail from "./pages/TankDetail";
 import TankFills from "./pages/TankFills";
 import TanksOut from "./pages/TanksOut";
 import SemenInventory from "./pages/SemenInventory";
+import ReceiveShipment from "./pages/ReceiveShipment";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/tank-fills" element={<ProtectedRoute><TankFills /></ProtectedRoute>} />
             <Route path="/tanks-out" element={<ProtectedRoute><TanksOut /></ProtectedRoute>} />
             <Route path="/semen-inventory" element={<ProtectedRoute><SemenInventory /></ProtectedRoute>} />
+            <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

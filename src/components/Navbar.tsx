@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, ShoppingCart, Package, Archive, Truck, Layers } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, ShoppingCart, Package, Archive, Truck, Layers, PackagePlus } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -114,6 +114,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/semen-orders")} className="cursor-pointer gap-2">
                 <ShoppingCart className="h-4 w-4" /> Semen Orders
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/receive-shipment")} className="cursor-pointer gap-2">
+                <PackagePlus className="h-4 w-4" /> Receive Shipment
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Inventory
@@ -213,6 +216,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </button>
           <button onClick={() => go("/semen-orders")} className={navBtnClass}>
             <ShoppingCart className="h-4 w-4" /> Semen Orders
+          </button>
+          <button onClick={() => go("/receive-shipment")} className={navBtnClass}>
+            <PackagePlus className="h-4 w-4" /> Receive Shipment
           </button>
           <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Inventory
