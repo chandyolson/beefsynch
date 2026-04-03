@@ -67,6 +67,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
+  // Semen company state
+  const [semenCompanyId, setSemenCompanyId] = useState("none");
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [addingCompany, setAddingCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+
   // Org projects for linking
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
@@ -78,6 +84,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       .eq("organization_id", orgId)
       .order("name")
       .then(({ data }) => setProjects(data ?? []));
+    supabase
+      .from("semen_companies")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .order("name")
+      .then(({ data }) => setCompanies(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
