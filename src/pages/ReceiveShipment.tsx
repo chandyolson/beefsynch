@@ -57,6 +57,7 @@ const emptyLine = (): LineItem => ({
   units: 0,
   tankId: "",
   canister: "",
+  itemType: "semen",
 });
 
 const ReceiveShipment = () => {
