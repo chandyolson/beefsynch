@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
