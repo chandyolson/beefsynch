@@ -283,7 +283,7 @@ const SemenOrders = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(order)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canDelete && (
