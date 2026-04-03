@@ -65,7 +65,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [billingStatus, setBillingStatus] = useState("unbilled");
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
-  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, units: 1 }]);
+  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
   // Semen company state
