@@ -243,12 +243,15 @@ const ReInventory = () => {
         if (!nr.canister.trim()) continue;
         const units = parseInt(nr.units) || 0;
 
+        const nrCustomerId = nr.customer_id || customerId || null;
+        const nrOwnerName = nrCustomerId ? orgCustomers.find(c => c.id === nrCustomerId)?.name || null : null;
         const { data: inserted } = await supabase
           .from("tank_inventory")
           .insert({
             organization_id: orgId,
             tank_id: tankId,
-            customer_id: customerId || null,
+            customer_id: nrCustomerId,
+            owner: nrOwnerName,
             canister: nr.canister.trim(),
             sub_canister: nr.sub_canister.trim() || null,
             bull_catalog_id: nr.bull_catalog_id || null,
