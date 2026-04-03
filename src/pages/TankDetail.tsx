@@ -398,6 +398,11 @@ const TankDetail = () => {
                 {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                 {tank.eid && <span>EID: {tank.eid}</span>}
               </div>
+              {tank.status === "dry" && (
+                <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
+                  This tank is currently dry — fill and inventory actions are disabled
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
