@@ -115,10 +115,12 @@ const ProjectDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Last Contacted state
+  // Contact history state
+  const [contacts, setContacts] = useState<any[]>([]);
   const [contactEditing, setContactEditing] = useState(false);
   const [contactDate, setContactDate] = useState<Date | undefined>(undefined);
   const [contactBy, setContactBy] = useState<string>("");
+  const [contactNotes, setContactNotes] = useState<string>("");
   const [contactSaving, setContactSaving] = useState(false);
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
