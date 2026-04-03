@@ -306,6 +306,7 @@ const ReceiveShipment = () => {
           organization_id: orgId,
           tank_id: line.tankId,
           canister: line.canister.trim(),
+          item_type: line.itemType,
         };
 
         if (line.bullCatalogId) {
