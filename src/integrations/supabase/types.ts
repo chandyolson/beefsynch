@@ -174,6 +174,7 @@ export type Database = {
           performed_by: string | null
           project_id: string | null
           reason: string | null
+          shipment_id: string | null
           tank_id: string
           transaction_type: string
           units_change: number
@@ -192,6 +193,7 @@ export type Database = {
           performed_by?: string | null
           project_id?: string | null
           reason?: string | null
+          shipment_id?: string | null
           tank_id: string
           transaction_type: string
           units_change: number
@@ -210,6 +212,7 @@ export type Database = {
           performed_by?: string | null
           project_id?: string | null
           reason?: string | null
+          shipment_id?: string | null
           tank_id?: string
           transaction_type?: string
           units_change?: number
@@ -255,6 +258,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
             referencedColumns: ["id"]
           },
           {
@@ -618,6 +628,60 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_path: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          received_date: string
+          received_from: string
+          semen_order_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_path?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          received_date?: string
+          received_from: string
+          semen_order_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_path?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          received_date?: string
+          received_from?: string
+          semen_order_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_semen_order_id_fkey"
+            columns: ["semen_order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
             referencedColumns: ["id"]
           },
         ]
