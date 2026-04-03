@@ -146,7 +146,8 @@ const TankDetail = () => {
         .select("*, bulls_catalog(bull_name, company, registration_number), customers(name)")
         .eq("tank_id", id!)
         .order("canister", { ascending: true })
-        .order("sub_canister", { ascending: true });
+        .order("sub_canister", { ascending: true })
+        .limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
     },
