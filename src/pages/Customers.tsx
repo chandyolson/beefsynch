@@ -238,8 +238,8 @@ const Customers = () => {
                 </TableRow>
               ) : (
                 filtered.map((cust: any) => (
-                  <TableRow key={cust.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{cust.name}</TableCell>
+                  <TableRow key={cust.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/customers/${cust.id}`)}>
+                    <TableCell className="font-medium whitespace-nowrap text-primary hover:underline">{cust.name}</TableCell>
                     <TableCell className="whitespace-nowrap">{cust.phone || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{cust.email || "—"}</TableCell>
                     <TableCell className="text-right">{cust.tankCount}</TableCell>
