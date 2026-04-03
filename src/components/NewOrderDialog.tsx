@@ -158,6 +158,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
         placed_by: placedBy.trim() || null,
+        order_type: orderType,
       };
 
       let orderId: string;
