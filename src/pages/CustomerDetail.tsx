@@ -428,6 +428,20 @@ const CustomerDetail = () => {
     setSemenStorageType("customer"); setSemenNotes("");
   };
 
+  const handleDryToggle = async (tankId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "dry" ? "wet" : "dry";
+    const { error } = await supabase
+      .from("tanks")
+      .update({ status: newStatus })
+      .eq("id", tankId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+  };
+
   const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
     if (!orgId) return;
     const { data: { user } } = await supabase.auth.getUser();
