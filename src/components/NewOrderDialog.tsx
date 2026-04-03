@@ -130,10 +130,6 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
 
   const handleSave = async () => {
-    if (!customerName.trim()) {
-      toast({ title: "Customer name is required", variant: "destructive" });
-      return;
-    }
     if (!orgId) {
       toast({ title: "No organization found", variant: "destructive" });
       return;
