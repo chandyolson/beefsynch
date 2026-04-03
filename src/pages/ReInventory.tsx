@@ -38,6 +38,7 @@ interface ExistingRow {
   previous: number;
   actual: number;
   customer_id: string | null;
+  customer_name: string | null;
   storage_type: string | null;
   item_type: string;
 }
