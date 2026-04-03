@@ -91,6 +91,9 @@ const SemenInventory = () => {
     if (ownerFilter !== "all") {
       result = result.filter((r) => r.owner === ownerFilter);
     }
+    if (typeFilter !== "all") {
+      result = result.filter((r) => r.itemType === typeFilter);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
