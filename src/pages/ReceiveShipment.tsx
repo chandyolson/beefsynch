@@ -78,6 +78,7 @@ const ReceiveShipment = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [orderedQtyMap, setOrderedQtyMap] = useState<Map<string, number>>(new Map());
+  const [semenOwnerId, setSemenOwnerId] = useState<string | null>(null);
 
   // Derive groups from lines
   const groups: BullGroup[] = useMemo(() => {
