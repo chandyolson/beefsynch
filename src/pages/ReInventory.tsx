@@ -388,6 +388,7 @@ const ReInventory = () => {
                             <Badge variant="outline" className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.customer_name || "—"}</TableCell>
                         <TableCell className="text-right text-muted-foreground">{row.previous}</TableCell>
                         <TableCell className="text-right">
                           <Input
