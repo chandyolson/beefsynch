@@ -213,7 +213,7 @@ const TankFills = () => {
       skipEmptyLines: true,
       complete: (results) => {
         const headers = results.meta.fields || [];
-        const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+        
 
         // Detect columns
         let idCol = headers[0];
