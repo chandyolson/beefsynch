@@ -533,6 +533,35 @@ export type Database = {
           },
         ]
       }
+      semen_companies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semen_companies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       semen_order_items: {
         Row: {
           bull_catalog_id: string | null
@@ -586,6 +615,7 @@ export type Database = {
           order_date: string
           organization_id: string
           project_id: string | null
+          semen_company_id: string | null
         }
         Insert: {
           billing_status?: string
@@ -600,6 +630,7 @@ export type Database = {
           order_date?: string
           organization_id: string
           project_id?: string | null
+          semen_company_id?: string | null
         }
         Update: {
           billing_status?: string
@@ -614,6 +645,7 @@ export type Database = {
           order_date?: string
           organization_id?: string
           project_id?: string | null
+          semen_company_id?: string | null
         }
         Relationships: [
           {
@@ -630,51 +662,78 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "semen_orders_semen_company_id_fkey"
+            columns: ["semen_company_id"]
+            isOneToOne: false
+            referencedRelation: "semen_companies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       shipments: {
         Row: {
           created_at: string
           created_by: string | null
+          customer_id: string | null
           document_path: string | null
           id: string
           notes: string | null
           organization_id: string
           received_date: string
-          received_from: string
+          received_from: string | null
+          semen_company_id: string | null
           semen_order_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           document_path?: string | null
           id?: string
           notes?: string | null
           organization_id: string
           received_date?: string
-          received_from: string
+          received_from?: string | null
+          semen_company_id?: string | null
           semen_order_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           document_path?: string | null
           id?: string
           notes?: string | null
           organization_id?: string
           received_date?: string
-          received_from?: string
+          received_from?: string | null
+          semen_company_id?: string | null
           semen_order_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
+            foreignKeyName: "shipments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shipments_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_semen_company_id_fkey"
+            columns: ["semen_company_id"]
+            isOneToOne: false
+            referencedRelation: "semen_companies"
             referencedColumns: ["id"]
           },
           {
