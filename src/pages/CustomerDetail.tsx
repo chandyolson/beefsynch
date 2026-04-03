@@ -375,6 +375,18 @@ const CustomerDetail = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              if (!customer) return;
+              generateCustomerInventoryPdf(
+                customer,
+                allTanks,
+                inventoryByTank,
+                allTanks.map((t: any) => t.id)
+              );
+              toast({ title: "PDF downloaded" });
+            }} className="gap-2">
+              <FileText className="h-4 w-4" /> Print Report
+            </Button>
             <Button variant="outline" onClick={openEdit} className="gap-2">
               <Edit className="h-4 w-4" /> Edit
             </Button>
