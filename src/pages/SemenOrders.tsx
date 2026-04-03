@@ -239,7 +239,7 @@ const SemenOrders = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
