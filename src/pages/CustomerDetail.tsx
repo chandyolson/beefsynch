@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun } from "lucide-react";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -520,8 +520,8 @@ const CustomerDetail = () => {
             <div>
               <h1 className="text-2xl font-bold font-display tracking-tight">{customer.name}</h1>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                {customer.phone && <span>{customer.phone}</span>}
-                {customer.email && <span>{customer.email}</span>}
+                {customer.phone && <a href={`tel:${customer.phone}`} className="hover:underline">{customer.phone}</a>}
+                {customer.email && <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>}
               </div>
               {customer.address && (
                 <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
@@ -544,6 +544,11 @@ const CustomerDetail = () => {
             }} className="gap-2">
               <FileText className="h-4 w-4" /> Print Report
             </Button>
+            {customer.email && (
+              <Button variant="outline" onClick={() => window.location.href = `mailto:${customer.email}`} className="gap-2">
+                <Mail className="h-4 w-4" /> Email
+              </Button>
+            )}
             <Button variant="outline" onClick={openEdit} className="gap-2">
               <Edit className="h-4 w-4" /> Edit
             </Button>
