@@ -38,6 +38,7 @@ export interface EditOrderData {
   fulfillment_status: string;
   billing_status: string;
   project_id: string | null;
+  semen_company_id: string | null;
   notes: string | null;
   bulls: BullRow[];
 }
@@ -66,6 +67,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
+  // Semen company state
+  const [semenCompanyId, setSemenCompanyId] = useState("none");
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [addingCompany, setAddingCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+
   // Org projects for linking
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
 
@@ -77,6 +84,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       .eq("organization_id", orgId)
       .order("name")
       .then(({ data }) => setProjects(data ?? []));
+    supabase
+      .from("semen_companies")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .order("name")
+      .then(({ data }) => setCompanies(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
@@ -90,6 +103,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
       setProjectId(editData.project_id ?? "none");
+      setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, units: 1 }]);
     } else {
@@ -100,8 +114,11 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
       setProjectId("none");
+      setSemenCompanyId("none");
       setNotes("");
       setBulls([{ name: "", catalogId: null, units: 1 }]);
+      setAddingCompany(false);
+      setNewCompanyName("");
     }
   }, [open, editData]);
 
@@ -133,6 +150,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
         project_id: projectId === "none" ? null : projectId,
+        semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
       };
 
@@ -195,6 +213,64 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Semen Company */}
+          <div>
+            <Label>Semen Company</Label>
+            <Select
+              value={semenCompanyId}
+              onValueChange={(val) => {
+                if (val === "add_new") {
+                  setAddingCompany(true);
+                  setNewCompanyName("");
+                } else {
+                  setSemenCompanyId(val);
+                  setAddingCompany(false);
+                }
+              }}
+            >
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                <SelectItem value="add_new">+ Add New Company...</SelectItem>
+              </SelectContent>
+            </Select>
+            {addingCompany && (
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  placeholder="Company name"
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  disabled={!newCompanyName.trim() || !orgId}
+                  onClick={async () => {
+                    if (!orgId) return;
+                    const { data, error } = await supabase
+                      .from("semen_companies")
+                      .insert({ name: newCompanyName.trim(), organization_id: orgId })
+                      .select("id, name")
+                      .single();
+                    if (error) {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                      return;
+                    }
+                    setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+                    setSemenCompanyId(data.id);
+                    setAddingCompany(false);
+                    setNewCompanyName("");
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Customer Name */}
           <div>
             <Label>Customer Name *</Label>

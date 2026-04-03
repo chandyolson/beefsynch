@@ -26,6 +26,7 @@ interface OrderRow {
   fulfillment_status: string;
   billing_status: string;
   project_id: string | null;
+  semen_company_id: string | null;
   notes: string | null;
 }
 
@@ -69,6 +70,7 @@ const SemenOrderDetail = () => {
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [project, setProject] = useState<ProjectRef | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -91,6 +93,16 @@ const SemenOrderDetail = () => {
           .eq("id", oRes.data.project_id)
           .single();
         if (pData) setProject(pData as ProjectRef);
+      }
+      if (oRes.data.semen_company_id) {
+        const { data: cData } = await supabase
+          .from("semen_companies")
+          .select("name")
+          .eq("id", oRes.data.semen_company_id)
+          .single();
+        if (cData) setCompanyName(cData.name);
+      } else {
+        setCompanyName(null);
       }
     }
     if (iRes.data) setItems(iRes.data as ItemRow[]);
@@ -117,6 +129,7 @@ const SemenOrderDetail = () => {
       fulfillment_status: order.fulfillment_status,
       billing_status: order.billing_status,
       project_id: order.project_id,
+      semen_company_id: order.semen_company_id,
       notes: order.notes,
       bulls: items.map((i) => ({
         name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
@@ -217,6 +230,10 @@ const SemenOrderDetail = () => {
             <div>
               <span className="text-muted-foreground">Billing Status</span>
               <p className="font-medium capitalize">{order.billing_status}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Semen Company</span>
+              <p className="font-medium">{companyName || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Linked Project</span>
