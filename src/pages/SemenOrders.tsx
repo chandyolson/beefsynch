@@ -242,7 +242,7 @@ const SemenOrders = () => {
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     {orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}
                   </TableCell>
                 </TableRow>
