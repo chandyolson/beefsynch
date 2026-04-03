@@ -510,11 +510,21 @@ const ReceiveShipment = () => {
                     <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
                     {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive">{errors[`line_${idx}_canister`]}</p>}
                   </div>
-                  <div className="space-y-1">
+                   <div className="space-y-1">
                     <Label className="text-xs">Units *</Label>
                     <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
                     {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Type</Label>
+                  <Select value={line.itemType} onValueChange={(v) => updateLine(line.key, { itemType: v as "semen" | "embryo" })}>
+                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semen">Semen</SelectItem>
+                      <SelectItem value="embryo">Embryo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ) : (
