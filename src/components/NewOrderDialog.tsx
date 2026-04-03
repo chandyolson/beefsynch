@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 interface BullRow {
   name: string;
   catalogId: string | null;
+  naabCode: string | null;
   units: number;
 }
 
