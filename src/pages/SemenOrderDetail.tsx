@@ -232,6 +232,10 @@ const SemenOrderDetail = () => {
               <p className="font-medium capitalize">{order.billing_status}</p>
             </div>
             <div>
+              <span className="text-muted-foreground">Semen Company</span>
+              <p className="font-medium">{companyName || "—"}</p>
+            </div>
+            <div>
               <span className="text-muted-foreground">Linked Project</span>
               <p className="font-medium">
                 {project ? (

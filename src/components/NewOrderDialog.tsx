@@ -213,6 +213,64 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Semen Company */}
+          <div>
+            <Label>Semen Company</Label>
+            <Select
+              value={semenCompanyId}
+              onValueChange={(val) => {
+                if (val === "add_new") {
+                  setAddingCompany(true);
+                  setNewCompanyName("");
+                } else {
+                  setSemenCompanyId(val);
+                  setAddingCompany(false);
+                }
+              }}
+            >
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                <SelectItem value="add_new">+ Add New Company...</SelectItem>
+              </SelectContent>
+            </Select>
+            {addingCompany && (
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  placeholder="Company name"
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  disabled={!newCompanyName.trim() || !orgId}
+                  onClick={async () => {
+                    if (!orgId) return;
+                    const { data, error } = await supabase
+                      .from("semen_companies")
+                      .insert({ name: newCompanyName.trim(), organization_id: orgId })
+                      .select("id, name")
+                      .single();
+                    if (error) {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                      return;
+                    }
+                    setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+                    setSemenCompanyId(data.id);
+                    setAddingCompany(false);
+                    setNewCompanyName("");
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Customer Name */}
           <div>
             <Label>Customer Name *</Label>
