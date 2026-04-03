@@ -130,10 +130,6 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
 
   const handleSave = async () => {
-    if (!customerName.trim()) {
-      toast({ title: "Customer name is required", variant: "destructive" });
-      return;
-    }
     if (!orgId) {
       toast({ title: "No organization found", variant: "destructive" });
       return;
@@ -143,7 +139,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
     try {
       const orderPayload = {
         organization_id: orgId,
-        customer_name: customerName.trim(),
+        customer_name: customerName.trim() || "",
         customer_phone: customerPhone.trim() || null,
         customer_email: customerEmail.trim() || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
@@ -273,7 +269,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
 
           {/* Customer Name */}
           <div>
-            <Label>Customer Name *</Label>
+            <Label>Customer Name</Label>
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Smith Ranch" className="mt-1.5" />
           </div>
 

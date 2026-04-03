@@ -187,7 +187,7 @@ const SemenOrderDetail = () => {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name}</h1>
+          <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name || "—"}</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Order Date: {format(parseISO(order.order_date), "MMMM d, yyyy")}
           </p>
@@ -209,7 +209,7 @@ const SemenOrderDetail = () => {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Customer Name</span>
-              <p className="font-medium">{order.customer_name}</p>
+              <p className="font-medium">{order.customer_name || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Phone</span>
