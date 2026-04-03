@@ -277,9 +277,28 @@ const TankDetail = () => {
     }
   };
 
+  const handleDryToggle = async () => {
+    if (!id || !tank) return;
+    const newStatus = tank.status === "dry" ? "wet" : "dry";
+    const { error } = await supabase
+      .from("tanks")
+      .update({ status: newStatus })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
+  };
+
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
+    if (tank?.status === "dry") {
+      toast({ title: "Cannot fill a dry tank", variant: "destructive" });
+      return;
+    }
     setFillSaving(true);
     const { error } = await supabase.from("tank_fills").insert({
       organization_id: orgId,
