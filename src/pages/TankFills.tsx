@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, AlertCircle, Droplets, Search } from "lucide-react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { AlertTriangle, AlertCircle, Droplets, Search, Upload, Check, X, FileSpreadsheet } from "lucide-react";
+import { format, parseISO, differenceInDays, parse, isValid } from "date-fns";
+import Papa from "papaparse";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -26,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 
+/* ── constants ──────────────────────────────────────── */
 const TYPE_BADGE: Record<string, string> = {
   customer_tank: "bg-teal-600/20 text-teal-400 border-teal-600/30",
   inventory_tank: "bg-purple-600/20 text-purple-400 border-purple-600/30",
@@ -47,7 +49,6 @@ const TYPE_LABELS: Record<string, string> = {
   customer_tank: "Customer Tank", inventory_tank: "Inventory Tank", shipper: "Shipper",
   mushroom: "Mushroom", rental_tank: "Rental Tank", communal_tank: "Communal Tank", freeze_branding: "Freeze Branding",
 };
-
 const TANK_TYPES = [
   { value: "all", label: "All Types" },
   { value: "customer_tank", label: "Customer Tank" },
@@ -68,6 +69,28 @@ const STATUSES = [
   { value: "bad_tank", label: "Bad Tank" },
 ];
 
+const EID_HEADERS = ["eid", "tank_eid", "tank_number", "tank", "number", "id", "tag", "electronic_id"];
+const DATE_HEADERS = ["date", "fill_date", "scan_date", "filled", "timestamp"];
+const DATE_FORMATS = ["yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "yyyy/MM/dd"];
+
+function tryParseDate(raw: string): Date | null {
+  if (!raw) return null;
+  for (const fmt of DATE_FORMATS) {
+    const d = parse(raw.trim(), fmt, new Date());
+    if (isValid(d)) return d;
+  }
+  const fallback = new Date(raw.trim());
+  return isValid(fallback) ? fallback : null;
+}
+
+interface BulkRow {
+  rowNum: number;
+  csvValue: string;
+  matchedTank: { id: string; tank_number: string; tank_name: string | null } | null;
+  parsedDate: Date | null;
+}
+
+/* ── component ──────────────────────────────────────── */
 const TankFills = () => {
   const { orgId, userId } = useOrgRole();
   const queryClient = useQueryClient();
@@ -76,6 +99,13 @@ const TankFills = () => {
   const [selectedTankId, setSelectedTankId] = useState<string>("");
   const [fillDate, setFillDate] = useState<Date>(new Date());
   const [fillSaving, setFillSaving] = useState(false);
+
+  // Bulk import
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [bulkRows, setBulkRows] = useState<BulkRow[] | null>(null);
+  const [bulkDate, setBulkDate] = useState<Date>(new Date());
+  const [useSingleDate, setUseSingleDate] = useState(false);
+  const [bulkImporting, setBulkImporting] = useState(false);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState("all");
@@ -146,7 +176,6 @@ const TankFills = () => {
         (t.customerName || "").toLowerCase().includes(q)
       );
     }
-    // Sort: most overdue first (null = never filled = top)
     list.sort((a: any, b: any) => {
       const ad = a.daysSince ?? 99999;
       const bd = b.daysSince ?? 99999;
@@ -155,7 +184,7 @@ const TankFills = () => {
     return list;
   }, [enriched, typeFilter, statusFilter, overdueOnly, search]);
 
-  // Record fill
+  // Record single fill
   const handleRecordFill = async () => {
     if (!selectedTankId || !orgId) return;
     setFillSaving(true);
@@ -173,6 +202,77 @@ const TankFills = () => {
       toast({ title: "Fill recorded", description: tank ? `${tank.tank_number} ${tank.tank_name || ""}` : "" });
       queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
       setSelectedTankId("");
+    }
+  };
+
+  // CSV parsing
+  const handleFileChange = (file: File | undefined) => {
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        
+
+        // Detect columns
+        let idCol = headers[0];
+        for (const h of headers) {
+          if (EID_HEADERS.includes(h.toLowerCase().trim())) { idCol = h; break; }
+        }
+        let dateCol: string | null = null;
+        for (const h of headers) {
+          if (DATE_HEADERS.includes(h.toLowerCase().trim())) { dateCol = h; break; }
+        }
+        if (!dateCol && headers.length > 1) dateCol = headers[1];
+
+        const rows: BulkRow[] = (results.data as any[]).map((row, i) => {
+          const rawId = (row[idCol] || "").toString().trim();
+          const rawDate = dateCol ? (row[dateCol] || "").toString().trim() : "";
+          const match = tanks.find((t: any) =>
+            (t.eid && t.eid.toLowerCase() === rawId.toLowerCase()) ||
+            t.tank_number.toLowerCase() === rawId.toLowerCase()
+          );
+          return {
+            rowNum: i + 1,
+            csvValue: rawId,
+            matchedTank: match ? { id: match.id, tank_number: match.tank_number, tank_name: match.tank_name } : null,
+            parsedDate: tryParseDate(rawDate),
+          };
+        });
+
+        // Determine if all dates are same or missing
+        const validDates = rows.filter(r => r.parsedDate).map(r => format(r.parsedDate!, "yyyy-MM-dd"));
+        const uniqueDates = new Set(validDates);
+        const needSingle = validDates.length === 0 || uniqueDates.size <= 1;
+        setUseSingleDate(needSingle);
+        setBulkRows(rows);
+      },
+    });
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const matchedRows = bulkRows?.filter(r => r.matchedTank) ?? [];
+  const unmatchedCount = (bulkRows?.length ?? 0) - matchedRows.length;
+
+  const handleBulkImport = async () => {
+    if (!orgId || matchedRows.length === 0) return;
+    setBulkImporting(true);
+    const inserts = matchedRows.map(r => ({
+      organization_id: orgId,
+      tank_id: r.matchedTank!.id,
+      fill_date: format(useSingleDate || !r.parsedDate ? bulkDate : r.parsedDate, "yyyy-MM-dd"),
+      filled_by: userId,
+      notes: "Bulk import",
+    }));
+    const { error } = await supabase.from("tank_fills").insert(inserts as any);
+    setBulkImporting(false);
+    if (error) {
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: `Imported ${matchedRows.length} tank fills` });
+      setBulkRows(null);
+      queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
     }
   };
 
@@ -219,7 +319,108 @@ const TankFills = () => {
           </div>
         </div>
 
-        {/* Section 2 — Overdue Report */}
+        {/* Section 2 — Bulk Import */}
+        <div className="rounded-lg border border-border/50 p-4 bg-muted/10 space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Bulk Import Fills</h3>
+
+          {!bulkRows ? (
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleFileChange(e.dataTransfer.files?.[0]); }}
+              className="border-2 border-dashed border-border rounded-lg p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-colors"
+            >
+              <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Upload CSV of scanned tank fills</p>
+              <p className="text-xs text-muted-foreground">Drag & drop or click to browse (.csv)</p>
+              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => handleFileChange(e.target.files?.[0])} />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="flex flex-wrap items-center gap-4">
+                <p className="text-sm">
+                  <span className="font-medium text-foreground">{matchedRows.length}</span> of{" "}
+                  <span className="font-medium text-foreground">{bulkRows.length}</span> rows matched.
+                  {unmatchedCount > 0 && (
+                    <span className="text-destructive ml-1">{unmatchedCount} unmatched.</span>
+                  )}
+                </p>
+                {useSingleDate && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm whitespace-nowrap">Fill Date for All:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-[160px] justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                          {format(bulkDate, "PPP")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={bulkDate} onSelect={(d) => d && setBulkDate(d)} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+              </div>
+
+              {/* Preview table */}
+              <div className="rounded-lg border border-border/50 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>CSV Value</TableHead>
+                      <TableHead>Matched Tank</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="w-12 text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bulkRows.map((row) => (
+                      <TableRow key={row.rowNum} className={!row.matchedTank ? "bg-destructive/5" : ""}>
+                        <TableCell className="text-muted-foreground">{row.rowNum}</TableCell>
+                        <TableCell className="font-mono text-sm">{row.csvValue}</TableCell>
+                        <TableCell>
+                          {row.matchedTank ? (
+                            <span>{row.matchedTank.tank_number}{row.matchedTank.tank_name ? ` — ${row.matchedTank.tank_name}` : ""}</span>
+                          ) : (
+                            <span className="text-destructive font-medium">NO MATCH</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {useSingleDate
+                            ? format(bulkDate, "MMM d, yyyy")
+                            : row.parsedDate
+                              ? format(row.parsedDate, "MMM d, yyyy")
+                              : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {row.matchedTank ? (
+                            <Check className="h-4 w-4 text-green-500 mx-auto" />
+                          ) : (
+                            <X className="h-4 w-4 text-destructive mx-auto" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button onClick={handleBulkImport} disabled={bulkImporting || matchedRows.length === 0} className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  {bulkImporting ? "Importing…" : `Import ${matchedRows.length} Fills`}
+                </Button>
+                <Button variant="outline" onClick={() => setBulkRows(null)}>Clear</Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 3 — Overdue Report */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Overdue Tanks Report</h3>
 
