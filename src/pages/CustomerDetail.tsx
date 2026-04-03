@@ -433,10 +433,13 @@ const CustomerDetail = () => {
                       {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
-                      Re-inventory
-                    </Button>
+                   <div className="flex gap-2">
+                     <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
+                       <Droplets className="h-4 w-4" /> Fill
+                     </Button>
+                     <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                       Re-inventory
+                     </Button>
                     <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
                       Add Semen
                     </Button>
