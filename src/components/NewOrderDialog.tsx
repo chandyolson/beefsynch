@@ -117,7 +117,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId("none");
       setSemenCompanyId("none");
       setNotes("");
-      setBulls([{ name: "", catalogId: null, units: 1 }]);
+      setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
