@@ -121,6 +121,32 @@ const SemenOrders = () => {
     return items.reduce((s: number, i: any) => s + (i.units || 0), 0);
   };
 
+  const openEdit = (order: any) => {
+    const bulls = (order.semen_order_items ?? []).map((i: any) => ({
+      name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
+      catalogId: i.bull_catalog_id,
+      units: i.units || 0,
+    }));
+    setEditOrder({
+      id: order.id,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      customer_email: order.customer_email,
+      order_date: order.order_date,
+      fulfillment_status: order.fulfillment_status,
+      billing_status: order.billing_status,
+      project_id: order.project_id,
+      notes: order.notes,
+      bulls,
+    });
+    setDialogOpen(true);
+  };
+
+  const openCreate = () => {
+    setEditOrder(null);
+    setDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
