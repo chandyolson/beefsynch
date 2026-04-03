@@ -6,7 +6,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
-import BullCombobox from "@/components/BullCombobox";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
