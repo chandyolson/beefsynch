@@ -373,7 +373,7 @@ const TankDetail = () => {
         {/* Breadcrumb */}
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink onClick={() => navigate("/tanks")} className="cursor-pointer">Tanks</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink onClick={() => navigate("/tanks-dashboard?tab=tanks")} className="cursor-pointer">Tanks</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>{tankLabel}</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
@@ -382,7 +382,7 @@ const TankDetail = () => {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/tanks")} className="mt-1"><ArrowLeft className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/tanks-dashboard?tab=tanks")} className="mt-1"><ArrowLeft className="h-5 w-5" /></Button>
             <div>
               <h1 className="text-2xl font-bold font-display tracking-tight">{tankLabel}</h1>
               <div className="flex flex-wrap gap-2 mt-1 items-center">

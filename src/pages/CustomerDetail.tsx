@@ -502,7 +502,7 @@ const CustomerDetail = () => {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink onClick={() => navigate("/customers")} className="cursor-pointer">Customers</BreadcrumbLink>
+              <BreadcrumbLink onClick={() => navigate("/tanks-dashboard?tab=customers")} className="cursor-pointer">Customers</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -514,7 +514,7 @@ const CustomerDetail = () => {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/customers")} className="mt-1">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/tanks-dashboard?tab=customers")} className="mt-1">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
