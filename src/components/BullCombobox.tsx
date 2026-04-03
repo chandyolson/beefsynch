@@ -77,8 +77,9 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
   }, [query, favoriteIds]);
 
   const handleSelect = (bull: CatalogBull) => {
-    onChange(bull.bull_name, bull.id);
-    setQuery(bull.bull_name);
+    const displayName = bull.naab_code ? `${bull.bull_name} (${bull.naab_code})` : bull.bull_name;
+    onChange(bull.bull_name, bull.id, bull.naab_code);
+    setQuery(displayName);
     setOpen(false);
   };
 
