@@ -120,6 +120,7 @@ const ReInventory = () => {
           previous: inv.units,
           actual: inv.units,
           customer_id: inv.customer_id,
+          customer_name: inv.customers?.name || inv.owner || null,
           storage_type: inv.storage_type,
           item_type: inv.item_type || "semen",
         }))
