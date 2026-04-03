@@ -419,34 +419,43 @@ export type Database = {
           billing_status: string
           created_at: string
           created_by: string | null
+          customer_email: string | null
           customer_name: string
+          customer_phone: string | null
           fulfillment_status: string
           id: string
           notes: string | null
           order_date: string
           organization_id: string
+          project_id: string | null
         }
         Insert: {
           billing_status?: string
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
           customer_name: string
+          customer_phone?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
           order_date?: string
           organization_id: string
+          project_id?: string | null
         }
         Update: {
           billing_status?: string
           created_at?: string
           created_by?: string | null
+          customer_email?: string | null
           customer_name?: string
+          customer_phone?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
           order_date?: string
           organization_id?: string
+          project_id?: string | null
         }
         Relationships: [
           {
@@ -454,6 +463,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "semen_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
