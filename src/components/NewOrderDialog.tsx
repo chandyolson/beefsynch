@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 interface BullRow {
   name: string;
   catalogId: string | null;
+  naabCode: string | null;
   units: number;
 }
 
@@ -64,7 +65,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [billingStatus, setBillingStatus] = useState("unbilled");
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
-  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, units: 1 }]);
+  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
   // Semen company state
@@ -105,7 +106,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId(editData.project_id ?? "none");
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
-      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, units: 1 }]);
+      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
       setCustomerName("");
       setCustomerPhone("");
@@ -116,16 +117,16 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId("none");
       setSemenCompanyId("none");
       setNotes("");
-      setBulls([{ name: "", catalogId: null, units: 1 }]);
+      setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
   }, [open, editData]);
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: 1 }]);
   const removeBullRow = (i: number) => setBulls((prev) => prev.filter((_, idx) => idx !== i));
-  const updateBull = (i: number, name: string, catalogId: string | null) =>
-    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId } : b)));
+  const updateBull = (i: number, name: string, catalogId: string | null, naabCode?: string | null) =>
+    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId, naabCode: naabCode ?? null } : b)));
   const updateUnits = (i: number, units: number) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
 
@@ -362,7 +363,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
                 <BullCombobox
                   value={bull.name}
                   catalogId={bull.catalogId}
-                  onChange={(name, catId) => updateBull(i, name, catId)}
+                  onChange={(name, catId, naabCode) => updateBull(i, name, catId, naabCode)}
                 />
                 <Input
                   type="number"

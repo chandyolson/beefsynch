@@ -7,12 +7,13 @@ interface CatalogBull {
   id: string;
   bull_name: string;
   company: string;
+  naab_code: string | null;
 }
 
 interface BullComboboxProps {
   value: string;
   catalogId: string | null;
-  onChange: (value: string, catalogId: string | null) => void;
+  onChange: (value: string, catalogId: string | null, naabCode?: string | null) => void;
 }
 
 const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
@@ -57,7 +58,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
       setLoading(true);
       const { data } = await supabase
         .from("bulls_catalog")
-        .select("id, bull_name, company")
+        .select("id, bull_name, company, naab_code")
         .eq("active", true)
         .ilike("bull_name", `%${query}%`)
         .limit(20);
@@ -76,14 +77,15 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
   }, [query, favoriteIds]);
 
   const handleSelect = (bull: CatalogBull) => {
-    onChange(bull.bull_name, bull.id);
-    setQuery(bull.bull_name);
+    const displayName = bull.naab_code ? `${bull.bull_name} (${bull.naab_code})` : bull.bull_name;
+    onChange(bull.bull_name, bull.id, bull.naab_code);
+    setQuery(displayName);
     setOpen(false);
   };
 
   const handleInputChange = (val: string) => {
     setQuery(val);
-    onChange(val, null);
+    onChange(val, null, null);
     setOpen(true);
   };
 
@@ -115,7 +117,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
                 {favoriteIds.has(bull.id) && (
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
                 )}
-                {bull.bull_name}
+                {bull.bull_name}{bull.naab_code ? ` (${bull.naab_code})` : ""}
               </span>
               <span className="text-xs text-muted-foreground">{bull.company}</span>
             </button>

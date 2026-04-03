@@ -39,6 +39,7 @@ interface ItemRow {
     bull_name: string;
     company: string;
     registration_number: string;
+    naab_code: string | null;
     breed: string;
   } | null;
 }
@@ -80,7 +81,7 @@ const SemenOrderDetail = () => {
       supabase.from("semen_orders").select("*").eq("id", id).single(),
       supabase
         .from("semen_order_items")
-        .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
+        .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
         .eq("semen_order_id", id),
     ]);
 
@@ -134,6 +135,7 @@ const SemenOrderDetail = () => {
       bulls: items.map((i) => ({
         name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
         catalogId: i.bull_catalog_id,
+        naabCode: i.bulls_catalog?.naab_code ?? null,
         units: i.units,
       })),
     };
@@ -282,7 +284,7 @@ const SemenOrderDetail = () => {
                       {items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
+                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
                           </TableCell>
                           <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                           <TableCell>
