@@ -310,6 +310,23 @@ const CustomerDetail = () => {
     setSemenStorageType("customer"); setSemenNotes("");
   };
 
+  const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
+    if (!orgId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("tank_fills").insert({
+      organization_id: orgId,
+      tank_id: tankId,
+      fill_date: format(new Date(), "yyyy-MM-dd"),
+      filled_by: user?.id ?? null,
+    } as any);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Fill recorded", description: `${tankNumber} ${tankName || ""}`.trim() });
+      queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
+    }
+  };
+
   const openAddSemen = (tankId: string) => {
     resetSemenForm();
     setSemenTankId(tankId);
