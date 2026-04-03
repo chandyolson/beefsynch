@@ -66,6 +66,7 @@ const ReceiveShipment = () => {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [receivedFrom, setReceivedFrom] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
   const [receivedDate, setReceivedDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
