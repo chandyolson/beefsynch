@@ -73,6 +73,47 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_events: {
         Row: {
           google_calendar_id: string
@@ -114,6 +155,113 @@ export type Database = {
             columns: ["protocol_event_id"]
             isOneToOne: false
             referencedRelation: "protocol_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          bull_catalog_id: string | null
+          bull_code: string | null
+          created_at: string
+          custom_bull_name: string | null
+          customer_id: string | null
+          id: string
+          inventory_item_id: string | null
+          notes: string | null
+          order_id: string | null
+          organization_id: string
+          performed_by: string | null
+          project_id: string | null
+          reason: string | null
+          tank_id: string
+          transaction_type: string
+          units_change: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          created_at?: string
+          custom_bull_name?: string | null
+          customer_id?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          organization_id: string
+          performed_by?: string | null
+          project_id?: string | null
+          reason?: string | null
+          tank_id: string
+          transaction_type: string
+          units_change: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          created_at?: string
+          custom_bull_name?: string | null
+          customer_id?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          organization_id?: string
+          performed_by?: string | null
+          project_id?: string | null
+          reason?: string | null
+          tank_id?: string
+          transaction_type?: string
+          units_change?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "tank_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_tank_id_fkey"
+            columns: ["tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
             referencedColumns: ["id"]
           },
         ]
@@ -470,6 +618,268 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_fills: {
+        Row: {
+          created_at: string
+          fill_date: string
+          filled_by: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          tank_id: string
+        }
+        Insert: {
+          created_at?: string
+          fill_date: string
+          filled_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          tank_id: string
+        }
+        Update: {
+          created_at?: string
+          fill_date?: string
+          filled_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          tank_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_fills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_fills_tank_id_fkey"
+            columns: ["tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_inventory: {
+        Row: {
+          bull_catalog_id: string | null
+          bull_code: string | null
+          canister: string
+          created_at: string
+          custom_bull_name: string | null
+          customer_id: string | null
+          id: string
+          inventoried_at: string | null
+          inventoried_by: string | null
+          notes: string | null
+          organization_id: string
+          owner: string | null
+          storage_type: string | null
+          sub_canister: string | null
+          tank_id: string
+          units: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          canister: string
+          created_at?: string
+          custom_bull_name?: string | null
+          customer_id?: string | null
+          id?: string
+          inventoried_at?: string | null
+          inventoried_by?: string | null
+          notes?: string | null
+          organization_id: string
+          owner?: string | null
+          storage_type?: string | null
+          sub_canister?: string | null
+          tank_id: string
+          units?: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          canister?: string
+          created_at?: string
+          custom_bull_name?: string | null
+          customer_id?: string | null
+          id?: string
+          inventoried_at?: string | null
+          inventoried_by?: string | null
+          notes?: string | null
+          organization_id?: string
+          owner?: string | null
+          storage_type?: string | null
+          sub_canister?: string | null
+          tank_id?: string
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_inventory_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_inventory_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_inventory_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_inventory_tank_id_fkey"
+            columns: ["tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_movements: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          movement_date: string
+          movement_type: string
+          notes: string | null
+          organization_id: string
+          performed_by: string | null
+          project_id: string | null
+          tank_id: string
+          tank_status_after: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          movement_date: string
+          movement_type: string
+          notes?: string | null
+          organization_id: string
+          performed_by?: string | null
+          project_id?: string | null
+          tank_id: string
+          tank_status_after?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          movement_date?: string
+          movement_type?: string
+          notes?: string | null
+          organization_id?: string
+          performed_by?: string | null
+          project_id?: string | null
+          tank_id?: string
+          tank_status_after?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_movements_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_movements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_movements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_movements_tank_id_fkey"
+            columns: ["tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tanks: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          description: string | null
+          eid: string | null
+          id: string
+          model: string | null
+          organization_id: string
+          serial_number: string | null
+          status: string
+          tank_name: string | null
+          tank_number: string
+          tank_type: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          eid?: string | null
+          id?: string
+          model?: string | null
+          organization_id: string
+          serial_number?: string | null
+          status?: string
+          tank_name?: string | null
+          tank_number: string
+          tank_type?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          eid?: string | null
+          id?: string
+          model?: string | null
+          organization_id?: string
+          serial_number?: string | null
+          status?: string
+          tank_name?: string | null
+          tank_number?: string
+          tank_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tanks_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tanks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
