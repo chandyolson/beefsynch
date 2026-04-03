@@ -108,12 +108,12 @@ const SemenOrders = () => {
   }, [orders, search, fulfillmentFilter, billingFilter, orderTypeFilter, dateFrom, dateTo]);
 
   // Stats
-  const totalOrders = orders.length;
-  const totalUnits = useMemo(() => orders.reduce((sum: number, o: any) =>
+  const totalOrders = filtered.length;
+  const totalUnits = useMemo(() => filtered.reduce((sum: number, o: any) =>
     sum + (o.semen_order_items?.reduce((s: number, i: any) => s + (i.units || 0), 0) ?? 0), 0
-  ), [orders]);
-  const pendingCount = orders.filter((o: any) => o.fulfillment_status !== "delivered").length;
-  const unbilledCount = orders.filter((o: any) => o.billing_status === "unbilled").length;
+  ), [filtered]);
+  const pendingCount = filtered.filter((o: any) => o.fulfillment_status !== "delivered").length;
+  const unbilledCount = filtered.filter((o: any) => o.billing_status === "unbilled").length;
 
   const getBullNames = (items: any[]) => {
     if (!items || items.length === 0) return "—";
