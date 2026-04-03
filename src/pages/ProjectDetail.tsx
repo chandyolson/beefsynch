@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
@@ -114,10 +115,12 @@ const ProjectDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Last Contacted state
+  // Contact history state
+  const [contacts, setContacts] = useState<any[]>([]);
   const [contactEditing, setContactEditing] = useState(false);
   const [contactDate, setContactDate] = useState<Date | undefined>(undefined);
   const [contactBy, setContactBy] = useState<string>("");
+  const [contactNotes, setContactNotes] = useState<string>("");
   const [contactSaving, setContactSaving] = useState(false);
   const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -169,44 +172,89 @@ const ProjectDetail = () => {
     return member?.email ?? "Unknown user";
   };
 
-  const handleQuickLog = async () => {
-    if (!project || !userId) return;
-    setContactSaving(true);
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { error } = await supabase
-      .from("projects")
-      .update({ last_contacted_date: today, last_contacted_by: userId })
-      .eq("id", project.id);
-    if (error) {
-      toast({ title: "Could not log contact", description: error.message, variant: "destructive" });
-    } else {
-      setProject((p) => p ? { ...p, last_contacted_date: today, last_contacted_by: userId } : p);
-      toast({ title: "Contact logged" });
-    }
-    setContactSaving(false);
+  const fetchContacts = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("project_contacts")
+      .select("*")
+      .eq("project_id", id)
+      .order("contact_date", { ascending: false });
+    setContacts(data ?? []);
+  }, [id]);
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
+
+  const handleQuickLog = () => {
+    setContactDate(new Date());
+    setContactBy(userId ?? "");
+    setContactNotes("");
+    setContactEditing(true);
   };
 
   const handleContactSave = async () => {
-    if (!project || !contactDate || !contactBy) return;
+    if (!project || !contactDate || !contactBy || !orgId) return;
     setContactSaving(true);
     const dateStr = format(contactDate, "yyyy-MM-dd");
-    const { error } = await supabase
+    // Insert into project_contacts
+    const { error: insertErr } = await supabase
+      .from("project_contacts")
+      .insert({
+        project_id: project.id,
+        organization_id: orgId,
+        contact_date: dateStr,
+        contacted_by: contactBy,
+        notes: contactNotes.trim() || null,
+      });
+    if (insertErr) {
+      toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+      setContactSaving(false);
+      return;
+    }
+    // Also update the projects table for backward compat
+    await supabase
       .from("projects")
       .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
       .eq("id", project.id);
-    if (error) {
-      toast({ title: "Could not save contact", description: error.message, variant: "destructive" });
-    } else {
-      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
-      toast({ title: "Contact updated" });
-      setContactEditing(false);
-    }
+    setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+    await fetchContacts();
+    setContactEditing(false);
+    setContactNotes("");
+    toast({ title: "Contact logged" });
     setContactSaving(false);
   };
 
+  const handleDeleteContact = async (contactId: string) => {
+    const { error } = await supabase.from("project_contacts").delete().eq("id", contactId);
+    if (error) {
+      toast({ title: "Could not delete", description: error.message, variant: "destructive" });
+      return;
+    }
+    // After deleting, update the project's last_contacted fields
+    const remaining = contacts.filter((c) => c.id !== contactId);
+    if (remaining.length > 0) {
+      const latest = remaining[0]; // already sorted desc
+      await supabase
+        .from("projects")
+        .update({ last_contacted_date: latest.contact_date, last_contacted_by: latest.contacted_by })
+        .eq("id", project!.id);
+      setProject((p) => p ? { ...p, last_contacted_date: latest.contact_date, last_contacted_by: latest.contacted_by } : p);
+    } else {
+      await supabase
+        .from("projects")
+        .update({ last_contacted_date: null, last_contacted_by: null })
+        .eq("id", project!.id);
+      setProject((p) => p ? { ...p, last_contacted_date: null, last_contacted_by: null } : p);
+    }
+    await fetchContacts();
+    toast({ title: "Contact entry deleted" });
+  };
+
   const startContactEdit = () => {
-    setContactDate(project?.last_contacted_date ? parseISO(project.last_contacted_date) : new Date());
-    setContactBy(project?.last_contacted_by ?? userId ?? "");
+    setContactDate(new Date());
+    setContactBy(userId ?? "");
+    setContactNotes("");
     setContactEditing(true);
   };
 
@@ -659,22 +707,22 @@ const ProjectDetail = () => {
           </div>
         </div>
 
-        {/* Last Contacted */}
+        {/* Contact History */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-muted-foreground" />
-              Last Contacted
+              Contact History
             </CardTitle>
             {!contactEditing && (
-              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving}>
-                Log Contact Now
+              <Button size="sm" onClick={handleQuickLog} disabled={contactSaving} className="gap-1">
+                <Plus className="h-4 w-4" /> Log Contact
               </Button>
             )}
           </CardHeader>
-          <CardContent>
-            {contactEditing ? (
-              <div className="space-y-4">
+          <CardContent className="space-y-4">
+            {contactEditing && (
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-foreground">Date</label>
@@ -718,6 +766,15 @@ const ProjectDetail = () => {
                     </Select>
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Notes</label>
+                  <Textarea
+                    value={contactNotes}
+                    onChange={(e) => setContactNotes(e.target.value)}
+                    placeholder="What was discussed? Key decisions, follow-ups, etc."
+                    rows={3}
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleContactSave} disabled={contactSaving || !contactDate || !contactBy}>
                     Save
@@ -727,22 +784,37 @@ const ProjectDetail = () => {
                   </Button>
                 </div>
               </div>
-            ) : project.last_contacted_date ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-foreground">
-                  {format(parseISO(project.last_contacted_date), "MMM d, yyyy")}
-                  <span className="text-muted-foreground"> · {resolveContactEmail(project.last_contacted_by)}</span>
-                </p>
-                <Button size="sm" variant="outline" onClick={startContactEdit}>
-                  Update
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">No contact logged</p>
-                <Button size="sm" variant="outline" onClick={startContactEdit}>
-                  Log Contact
-                </Button>
+            )}
+
+            {contacts.length === 0 && !contactEditing ? (
+              <p className="text-sm text-muted-foreground">No contacts logged yet.</p>
+            ) : contacts.length > 0 && (
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-border">
+                {contacts.map((c) => (
+                  <div key={c.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {format(parseISO(c.contact_date), "MMM d, yyyy")}
+                          <span className="text-muted-foreground font-normal"> · {resolveContactEmail(c.contacted_by)}</span>
+                        </p>
+                        {c.notes && (
+                          <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap">{c.notes}</p>
+                        )}
+                      </div>
+                      {(orgRole === "owner" || orgRole === "admin") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleDeleteContact(c.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
