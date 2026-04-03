@@ -146,7 +146,8 @@ const TankDetail = () => {
         .select("*, bulls_catalog(bull_name, company, registration_number), customers(name)")
         .eq("tank_id", id!)
         .order("canister", { ascending: true })
-        .order("sub_canister", { ascending: true });
+        .order("sub_canister", { ascending: true })
+        .limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -191,7 +192,8 @@ const TankDetail = () => {
         .from("inventory_transactions")
         .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(customer_name)")
         .eq("tank_id", id!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
     },

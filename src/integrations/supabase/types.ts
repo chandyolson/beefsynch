@@ -659,6 +659,7 @@ export type Database = {
           notes: string | null
           order_date: string
           organization_id: string
+          placed_by: string | null
           project_id: string | null
           semen_company_id: string | null
         }
@@ -674,6 +675,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           organization_id: string
+          placed_by?: string | null
           project_id?: string | null
           semen_company_id?: string | null
         }
@@ -689,6 +691,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           organization_id?: string
+          placed_by?: string | null
           project_id?: string | null
           semen_company_id?: string | null
         }
@@ -725,6 +728,7 @@ export type Database = {
           id: string
           notes: string | null
           organization_id: string
+          received_by: string | null
           received_date: string
           received_from: string | null
           semen_company_id: string | null
@@ -739,6 +743,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id: string
+          received_by?: string | null
           received_date?: string
           received_from?: string | null
           semen_company_id?: string | null
@@ -753,6 +758,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id?: string
+          received_by?: string | null
           received_date?: string
           received_from?: string | null
           semen_company_id?: string | null
@@ -849,6 +855,7 @@ export type Database = {
           id: string
           inventoried_at: string | null
           inventoried_by: string | null
+          item_type: string
           notes: string | null
           organization_id: string
           owner: string | null
@@ -867,6 +874,7 @@ export type Database = {
           id?: string
           inventoried_at?: string | null
           inventoried_by?: string | null
+          item_type?: string
           notes?: string | null
           organization_id: string
           owner?: string | null
@@ -885,6 +893,7 @@ export type Database = {
           id?: string
           inventoried_at?: string | null
           inventoried_by?: string | null
+          item_type?: string
           notes?: string | null
           organization_id?: string
           owner?: string | null
