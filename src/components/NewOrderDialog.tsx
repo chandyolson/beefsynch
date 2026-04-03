@@ -220,6 +220,37 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         </DialogHeader>
 
         <div className="space-y-5">
+          {/* Order Type Toggle */}
+          <div>
+            <Label>Order Type</Label>
+            <div className="flex mt-1.5 rounded-md overflow-hidden border border-border">
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                  orderType === "customer"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                )}
+                onClick={() => setOrderType("customer")}
+              >
+                Customer Order
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                  orderType === "inventory"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                )}
+                onClick={() => setOrderType("inventory")}
+              >
+                Inventory Order
+              </button>
+            </div>
+          </div>
+
           {/* Semen Company */}
           <div>
             <Label>Semen Company</Label>
