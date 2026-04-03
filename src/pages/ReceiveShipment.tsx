@@ -40,6 +40,7 @@ interface LineItem {
   units: number;
   tankId: string;
   canister: string;
+  itemType: "semen" | "embryo";
 }
 
 interface BullGroup {
@@ -56,6 +57,7 @@ const emptyLine = (): LineItem => ({
   units: 0,
   tankId: "",
   canister: "",
+  itemType: "semen",
 });
 
 const ReceiveShipment = () => {
@@ -154,6 +156,7 @@ const ReceiveShipment = () => {
           units: item.units,
           tankId: "",
           canister: "",
+          itemType: "semen" as const,
         }));
         setLines(newLines);
 
@@ -235,6 +238,7 @@ const ReceiveShipment = () => {
       units: 0,
       tankId: "",
       canister: "",
+      itemType: group.items[0]?.itemType || "semen",
     };
     // Insert after the last line of this group
     const lastKey = group.items[group.items.length - 1].key;
@@ -302,6 +306,7 @@ const ReceiveShipment = () => {
           organization_id: orgId,
           tank_id: line.tankId,
           canister: line.canister.trim(),
+          item_type: line.itemType,
         };
 
         if (line.bullCatalogId) {
@@ -330,6 +335,7 @@ const ReceiveShipment = () => {
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             units: line.units,
             storage_type: "inventory",
+            item_type: line.itemType,
           });
         }
 
@@ -504,11 +510,21 @@ const ReceiveShipment = () => {
                     <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
                     {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive">{errors[`line_${idx}_canister`]}</p>}
                   </div>
-                  <div className="space-y-1">
+                   <div className="space-y-1">
                     <Label className="text-xs">Units *</Label>
                     <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
                     {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Type</Label>
+                  <Select value={line.itemType} onValueChange={(v) => updateLine(line.key, { itemType: v as "semen" | "embryo" })}>
+                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semen">Semen</SelectItem>
+                      <SelectItem value="embryo">Embryo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ) : (
@@ -523,6 +539,15 @@ const ReceiveShipment = () => {
                 <div className="w-20">
                   <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
                   {errors[`line_${idx}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_units`]}</p>}
+                </div>
+                <div className="w-28">
+                  <Select value={line.itemType} onValueChange={(v) => updateLine(line.key, { itemType: v as "semen" | "embryo" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semen">Semen</SelectItem>
+                      <SelectItem value="embryo">Embryo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 {group.items.length > 1 && (
                   <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 shrink-0" onClick={() => removeLine(line.key)}>

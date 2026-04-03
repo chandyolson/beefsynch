@@ -658,7 +658,12 @@ const CustomerDetail = () => {
                           <TableRow key={item.id}>
                             <TableCell>{item.canister}</TableCell>
                             <TableCell>{item.sub_canister || "—"}</TableCell>
-                            <TableCell>{item.bulls_catalog?.bull_name || item.custom_bull_name || "—"}</TableCell>
+                            <TableCell>
+                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "—"}
+                              {item.item_type === "embryo" && (
+                                <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                              )}
+                            </TableCell>
                             <TableCell>{item.bull_code || "—"}</TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell className="text-right">{item.units}</TableCell>

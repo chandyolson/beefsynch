@@ -13,6 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -35,6 +39,7 @@ interface ExistingRow {
   actual: number;
   customer_id: string | null;
   storage_type: string | null;
+  item_type: string;
 }
 
 interface NewRow {
@@ -46,6 +51,7 @@ interface NewRow {
   bull_catalog_id: string | null;
   bull_code: string;
   units: string;
+  item_type: "semen" | "embryo";
 }
 
 const ReInventory = () => {
@@ -113,6 +119,7 @@ const ReInventory = () => {
           actual: inv.units,
           customer_id: inv.customer_id,
           storage_type: inv.storage_type,
+          item_type: inv.item_type || "semen",
         }))
       );
       setInitialized(true);
@@ -153,7 +160,7 @@ const ReInventory = () => {
   const addNewRow = () => {
     setNewRows((prev) => [
       ...prev,
-      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "" },
+      { type: "new", key: crypto.randomUUID(), canister: "", sub_canister: "", bull_name: "", bull_catalog_id: null, bull_code: "", units: "", item_type: "semen" },
     ]);
   };
 
@@ -234,6 +241,7 @@ const ReInventory = () => {
             inventoried_at: now,
             inventoried_by: userId,
             storage_type: "customer",
+            item_type: nr.item_type,
           } as any)
           .select("id")
           .single();
@@ -329,6 +337,7 @@ const ReInventory = () => {
                 <TableHead>Sub-can</TableHead>
                 <TableHead>Bull</TableHead>
                 <TableHead>Bull Code</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead className="text-right">Previous</TableHead>
                 <TableHead className="text-right">Actual</TableHead>
                 <TableHead className="text-right">Diff</TableHead>
@@ -337,11 +346,11 @@ const ReInventory = () => {
             <TableBody>
               {isLoading || !initialized ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : rows.length === 0 && newRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No inventory rows for this tank.</TableCell>
                 </TableRow>
               ) : (
                 <>
@@ -353,6 +362,11 @@ const ReInventory = () => {
                         <TableCell>{row.sub_canister || "—"}</TableCell>
                         <TableCell>{row.bull_name || "—"}</TableCell>
                         <TableCell>{row.bull_code || "—"}</TableCell>
+                        <TableCell>
+                          {row.item_type === "embryo" && (
+                            <Badge variant="outline" className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right text-muted-foreground">{row.previous}</TableCell>
                         <TableCell className="text-right">
                           <Input
@@ -413,6 +427,15 @@ const ReInventory = () => {
                         />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <Select value={nr.item_type} onValueChange={(v) => updateNewRow(i, "item_type", v)}>
+                          <SelectTrigger className="w-24 h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="semen">Semen</SelectItem>
+                            <SelectItem value="embryo">Embryo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Input
                           type="number"

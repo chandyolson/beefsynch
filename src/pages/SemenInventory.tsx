@@ -41,6 +41,7 @@ const SemenInventory = () => {
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
@@ -76,6 +77,7 @@ const SemenInventory = () => {
       storageType: item.storage_type || "customer",
       owner: item.owner || null,
       inventoriedAt: item.inventoried_at,
+      itemType: item.item_type || "semen",
     }));
   }, [inventory]);
 
@@ -88,6 +90,9 @@ const SemenInventory = () => {
     }
     if (ownerFilter !== "all") {
       result = result.filter((r) => r.owner === ownerFilter);
+    }
+    if (typeFilter !== "all") {
+      result = result.filter((r) => r.itemType === typeFilter);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -116,7 +121,7 @@ const SemenInventory = () => {
     });
 
     return result;
-  }, [rows, storageFilter, ownerFilter, search, sortKey, sortDir]);
+  }, [rows, storageFilter, ownerFilter, typeFilter, search, sortKey, sortDir]);
 
   // Grouped by bull
   const groupedByBull = useMemo(() => {
@@ -283,6 +288,16 @@ const SemenInventory = () => {
               className="pl-9"
             />
           </div>
+          <div className="w-36">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="semen">Semen Only</SelectItem>
+                <SelectItem value="embryo">Embryos Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex border border-border rounded-md overflow-hidden">
             <button
               onClick={() => setViewMode("detail")}
@@ -332,7 +347,12 @@ const SemenInventory = () => {
                 ) : (
                   filtered.map((row) => (
                     <TableRow key={row.id} className="hover:bg-muted/20">
-                      <TableCell className="font-medium whitespace-nowrap">{row.bullName}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {row.bullName}
+                        {row.itemType === "embryo" && (
+                          <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
                       <TableCell className="whitespace-nowrap">{row.customer}</TableCell>
                       <TableCell className="whitespace-nowrap">{row.tankName}</TableCell>
