@@ -226,6 +226,7 @@ const SemenOrders = () => {
             <TableHeader>
               <TableRow className="bg-muted/30">
                 <TableHead className="whitespace-nowrap">Customer Name</TableHead>
+                <TableHead className="whitespace-nowrap">Company</TableHead>
                 <TableHead className="whitespace-nowrap">Order Date</TableHead>
                 <TableHead className="whitespace-nowrap">Bulls</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
