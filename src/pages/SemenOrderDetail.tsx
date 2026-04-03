@@ -26,6 +26,7 @@ interface OrderRow {
   fulfillment_status: string;
   billing_status: string;
   project_id: string | null;
+  semen_company_id: string | null;
   notes: string | null;
 }
 
