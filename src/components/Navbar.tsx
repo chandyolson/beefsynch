@@ -223,6 +223,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/tank-fills")} className={navBtnClass + " pl-6"}>
             <Archive className="h-4 w-4" /> Tank Fills
           </button>
+          <button onClick={() => go("/tanks-out")} className={navBtnClass + " pl-6"}>
+            <Truck className="h-4 w-4" /> Tanks Out
+          </button>
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog
           </button>
