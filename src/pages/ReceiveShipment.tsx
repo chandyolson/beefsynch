@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -22,15 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2 } from "lucide-react";
+import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +40,13 @@ interface LineItem {
   units: number;
   tankId: string;
   canister: string;
+}
+
+interface BullGroup {
+  groupKey: string;
+  bullName: string;
+  bullCatalogId: string | null;
+  items: LineItem[];
 }
 
 const emptyLine = (): LineItem => ({
@@ -75,6 +74,23 @@ const ReceiveShipment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [orderedQtyMap, setOrderedQtyMap] = useState<Map<string, number>>(new Map());
+
+  // Derive groups from lines
+  const groups: BullGroup[] = useMemo(() => {
+    const map = new Map<string, LineItem[]>();
+    for (const line of lines) {
+      const groupKey = line.bullCatalogId || line.bullName || line.key;
+      if (!map.has(groupKey)) map.set(groupKey, []);
+      map.get(groupKey)!.push(line);
+    }
+    return Array.from(map.entries()).map(([key, items]) => ({
+      groupKey: key,
+      bullName: items[0].bullName,
+      bullCatalogId: items[0].bullCatalogId,
+      items,
+    }));
+  }, [lines]);
 
   // Fetch orders
   const { data: orders = [] } = useQuery({
@@ -116,6 +132,7 @@ const ReceiveShipment = () => {
   // When order is selected, pre-fill lines
   useEffect(() => {
     if (!selectedOrderId || selectedOrderId === "__none") {
+      setOrderedQtyMap(new Map());
       return;
     }
     const order = orders.find((o) => o.id === selectedOrderId);
@@ -128,7 +145,8 @@ const ReceiveShipment = () => {
         .select("bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name)")
         .eq("semen_order_id", selectedOrderId);
       if (data && data.length > 0) {
-        const newLines: LineItem[] = (data as unknown as OrderItem[]).map((item) => ({
+        const items = data as unknown as OrderItem[];
+        const newLines: LineItem[] = items.map((item) => ({
           key: crypto.randomUUID(),
           bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
           bullCatalogId: item.bull_catalog_id,
@@ -137,6 +155,13 @@ const ReceiveShipment = () => {
           canister: "",
         }));
         setLines(newLines);
+
+        const qtyMap = new Map<string, number>();
+        for (const item of items) {
+          const key = item.bull_catalog_id || item.custom_bull_name || "";
+          qtyMap.set(key, (qtyMap.get(key) || 0) + item.units);
+        }
+        setOrderedQtyMap(qtyMap);
       }
     })();
   }, [selectedOrderId, orders]);
@@ -146,6 +171,7 @@ const ReceiveShipment = () => {
       setSelectedOrderId("");
       setReceivedFrom("");
       setLines([emptyLine()]);
+      setOrderedQtyMap(new Map());
     } else {
       setSelectedOrderId(val);
     }
@@ -178,8 +204,45 @@ const ReceiveShipment = () => {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   };
 
+  const updateBullForGroup = (groupKey: string, bullName: string, bullCatalogId: string | null) => {
+    setLines((prev) =>
+      prev.map((l) => {
+        const lKey = l.bullCatalogId || l.bullName || l.key;
+        if (lKey === groupKey) {
+          return { ...l, bullName, bullCatalogId };
+        }
+        return l;
+      })
+    );
+  };
+
   const removeLine = (key: string) => {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
+  };
+
+  const removeGroup = (group: BullGroup) => {
+    if (groups.length <= 1) return;
+    const keys = new Set(group.items.map((i) => i.key));
+    setLines((prev) => prev.filter((l) => !keys.has(l.key)));
+  };
+
+  const addSplitToGroup = (group: BullGroup) => {
+    const newLine: LineItem = {
+      key: crypto.randomUUID(),
+      bullName: group.bullName,
+      bullCatalogId: group.bullCatalogId,
+      units: 0,
+      tankId: "",
+      canister: "",
+    };
+    // Insert after the last line of this group
+    const lastKey = group.items[group.items.length - 1].key;
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => l.key === lastKey);
+      const copy = [...prev];
+      copy.splice(idx + 1, 0, newLine);
+      return copy;
+    });
   };
 
   // Validation
@@ -206,7 +269,6 @@ const ReceiveShipment = () => {
       const userId = user?.id ?? null;
       const shipmentId = crypto.randomUUID();
 
-      // Step A: Upload file
       let documentPath: string | null = null;
       if (file) {
         const path = `${orgId}/${crypto.randomUUID()}/${file.name}`;
@@ -217,7 +279,6 @@ const ReceiveShipment = () => {
         documentPath = path;
       }
 
-      // Step B: Insert shipment
       const { error: shipErr } = await supabase.from("shipments").insert({
         id: shipmentId,
         organization_id: orgId,
@@ -230,12 +291,10 @@ const ReceiveShipment = () => {
       });
       if (shipErr) throw shipErr;
 
-      // Step C: Process each line
       let totalUnits = 0;
       for (const line of lines) {
         totalUnits += line.units;
 
-        // C1: Upsert tank_inventory
         const matchFilter: Record<string, string> = {
           organization_id: orgId,
           tank_id: line.tankId,
@@ -271,7 +330,6 @@ const ReceiveShipment = () => {
           });
         }
 
-        // C2: Insert inventory_transaction
         await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: line.tankId,
@@ -286,7 +344,6 @@ const ReceiveShipment = () => {
         });
       }
 
-      // Step D: Update order fulfillment if linked
       if (selectedOrderId) {
         const [{ data: orderItems }, { data: txns }] = await Promise.all([
           supabase.from("semen_order_items").select("units").eq("semen_order_id", selectedOrderId),
@@ -311,10 +368,8 @@ const ReceiveShipment = () => {
         }
       }
 
-      // Step E: Success toast
       toast({ title: "Shipment received", description: `${totalUnits} units added to inventory` });
 
-      // Step F: Navigate
       if (selectedOrderId) {
         navigate(`/semen-orders/${selectedOrderId}`);
       } else {
@@ -328,7 +383,7 @@ const ReceiveShipment = () => {
     }
   };
 
-  const renderTankSelect = (line: LineItem, idx: number) => (
+  const renderTankSelect = (line: LineItem, lineIndex: number) => (
     <>
       {tanks.length === 0 ? (
         <p className="text-xs text-muted-foreground">
@@ -349,9 +404,142 @@ const ReceiveShipment = () => {
           </SelectContent>
         </Select>
       )}
-      {errors[`line_${idx}_tank`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_tank`]}</p>}
+      {errors[`line_${lineIndex}_tank`] && <p className="text-xs text-destructive mt-1">{errors[`line_${lineIndex}_tank`]}</p>}
     </>
   );
+
+  const getLineIndex = (key: string) => lines.findIndex((l) => l.key === key);
+
+  const renderAllocationBadge = (group: BullGroup) => {
+    const totalAllocated = group.items.reduce((s, l) => s + l.units, 0);
+    const orderedKey = group.bullCatalogId || group.bullName;
+    const orderedQty = orderedQtyMap.get(orderedKey);
+
+    if (orderedQty != null) {
+          const isFull = totalAllocated >= orderedQty;
+      const isPartial = totalAllocated > 0 && totalAllocated < orderedQty;
+      return (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Ordered: {orderedQty}</span>
+          <span className={cn(
+            "font-medium",
+            isFull ? "text-primary" : isPartial ? "text-accent-foreground" : "text-destructive"
+          )}>
+            {isFull && <Check className="inline h-3 w-3 mr-0.5" />}
+            {isPartial && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
+            {totalAllocated} of {orderedQty} allocated
+          </span>
+        </div>
+      );
+    }
+
+    if (totalAllocated > 0) {
+      return <span className="text-xs text-muted-foreground">{totalAllocated} allocated</span>;
+    }
+    return null;
+  };
+
+  const renderGroup = (group: BullGroup) => {
+    const firstLine = group.items[0];
+    const firstIdx = getLineIndex(firstLine.key);
+
+    return (
+      <div key={group.groupKey} className="border border-border rounded-lg overflow-hidden">
+        {/* Group Header */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 bg-secondary/40 border-b border-border">
+          <div className="flex-1 min-w-0">
+            {firstLine.bullName ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-foreground truncate">{group.bullName}</span>
+                {group.bullCatalogId && (
+                  <span className="text-[10px] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded">Catalog</span>
+                )}
+                {renderAllocationBadge(group)}
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground italic">New bull — select below</span>
+            )}
+          </div>
+          {groups.length > 1 && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeGroup(group)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Bull Combobox — only on first line, or if bull not yet chosen */}
+        {!firstLine.bullName && (
+          <div className="px-3 py-2 border-b border-border">
+            <Label className="text-xs">Bull *</Label>
+            <BullCombobox
+              value={firstLine.bullName}
+              catalogId={firstLine.bullCatalogId}
+              onChange={(name, catId) => updateBullForGroup(group.groupKey, name, catId)}
+            />
+            {errors[`line_${firstIdx}_bull`] && <p className="text-xs text-destructive mt-1">{errors[`line_${firstIdx}_bull`]}</p>}
+          </div>
+        )}
+
+        {/* Destination rows */}
+        <div className="divide-y divide-border">
+          {group.items.map((line) => {
+            const idx = getLineIndex(line.key);
+            return isMobile ? (
+              <div key={line.key} className="p-3 space-y-3 relative">
+                {group.items.length > 1 && (
+                  <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => removeLine(line.key)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Destination Tank *</Label>
+                  {renderTankSelect(line, idx)}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Canister *</Label>
+                    <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
+                    {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive">{errors[`line_${idx}_canister`]}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Units *</Label>
+                    <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
+                    {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div key={line.key} className="flex items-start gap-3 px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  {renderTankSelect(line, idx)}
+                </div>
+                <div className="w-28">
+                  <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="Canister" />
+                  {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_canister`]}</p>}
+                </div>
+                <div className="w-20">
+                  <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
+                  {errors[`line_${idx}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_units`]}</p>}
+                </div>
+                {group.items.length > 1 && (
+                  <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 shrink-0" onClick={() => removeLine(line.key)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Split button */}
+        <div className="px-3 py-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={() => addSplitToGroup(group)} className="gap-1">
+            <Plus className="h-3.5 w-3.5" /> Split to Another Tank
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -400,7 +588,7 @@ const ReceiveShipment = () => {
                 {errors.receivedFrom && <p className="text-xs text-destructive">{errors.receivedFrom}</p>}
               </div>
 
-              {/* Received Date — Calendar picker */}
+              {/* Received Date */}
               <div className="space-y-1.5">
                 <Label>Received Date</Label>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -465,89 +653,27 @@ const ReceiveShipment = () => {
           </CardContent>
         </Card>
 
-        {/* Line Items */}
+        {/* Line Items — Grouped by Bull */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Inventory Items</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, emptyLine()])}>
-              <Plus className="h-4 w-4 mr-1" /> Add Row
+              <Plus className="h-4 w-4 mr-1" /> Add Bull
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {errors.lines && <p className="text-xs text-destructive mb-2">{errors.lines}</p>}
 
-            {isMobile ? (
-              <div className="space-y-4">
-                {lines.map((line, i) => (
-                  <div key={line.key} className="border border-border rounded-lg p-3 space-y-3 relative">
-                    {lines.length > 1 && (
-                      <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => removeLine(line.key)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <div className="space-y-1">
-                      <Label className="text-xs">Bull *</Label>
-                      <BullCombobox value={line.bullName} catalogId={line.bullCatalogId} onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })} />
-                      {errors[`line_${i}_bull`] && <p className="text-xs text-destructive">{errors[`line_${i}_bull`]}</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Units *</Label>
-                        <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
-                        {errors[`line_${i}_units`] && <p className="text-xs text-destructive">{errors[`line_${i}_units`]}</p>}
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Canister *</Label>
-                        <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
-                        {errors[`line_${i}_canister`] && <p className="text-xs text-destructive">{errors[`line_${i}_canister`]}</p>}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Destination Tank *</Label>
-                      {renderTankSelect(line, i)}
-                    </div>
-                  </div>
-                ))}
+            {!isMobile && groups.some((g) => g.bullName) && (
+              <div className="flex items-center gap-3 px-3 text-xs font-medium text-muted-foreground">
+                <span className="flex-1">Tank</span>
+                <span className="w-28">Canister</span>
+                <span className="w-20">Units</span>
+                <span className="w-8" />
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[30%]">Bull</TableHead>
-                    <TableHead className="w-[12%]">Units</TableHead>
-                    <TableHead className="w-[28%]">Destination Tank</TableHead>
-                    <TableHead className="w-[15%]">Canister</TableHead>
-                    <TableHead className="w-[5%]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((line, i) => (
-                    <TableRow key={line.key}>
-                      <TableCell>
-                        <BullCombobox value={line.bullName} catalogId={line.bullCatalogId} onChange={(name, catId) => updateLine(line.key, { bullName: name, bullCatalogId: catId })} />
-                        {errors[`line_${i}_bull`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_bull`]}</p>}
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} className="w-20" />
-                        {errors[`line_${i}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_units`]}</p>}
-                      </TableCell>
-                      <TableCell>{renderTankSelect(line, i)}</TableCell>
-                      <TableCell>
-                        <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
-                        {errors[`line_${i}_canister`] && <p className="text-xs text-destructive mt-1">{errors[`line_${i}_canister`]}</p>}
-                      </TableCell>
-                      <TableCell>
-                        {lines.length > 1 && (
-                          <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeLine(line.key)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
             )}
+
+            {groups.map(renderGroup)}
           </CardContent>
         </Card>
 
