@@ -346,7 +346,7 @@ const ReInventory = () => {
             <TableBody>
               {isLoading || !initialized ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : rows.length === 0 && newRows.length === 0 ? (
                 <TableRow>
