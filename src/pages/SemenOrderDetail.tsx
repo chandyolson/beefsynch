@@ -193,7 +193,14 @@ const SemenOrderDetail = () => {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name || "—"}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name || "—"}</h1>
+            {order.order_type === "inventory" && (
+              <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
+                Inventory Order
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground text-sm mt-1">
             Order Date: {format(parseISO(order.order_date), "MMMM d, yyyy")}
           </p>

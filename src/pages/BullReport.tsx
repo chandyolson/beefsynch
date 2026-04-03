@@ -203,8 +203,9 @@ const BullReport = () => {
           bull_catalog_id,
           semen_order_id,
           bulls_catalog (bull_name, company, registration_number, breed),
-          semen_orders!inner (id, customer_name, order_date)
-        `);
+          semen_orders!inner (id, customer_name, order_date, order_type)
+        `)
+        .eq("semen_orders.order_type", "customer");
 
       if (appliedFrom) query = query.gte("semen_orders.order_date", appliedFrom);
       if (appliedTo) query = query.lte("semen_orders.order_date", appliedTo);

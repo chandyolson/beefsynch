@@ -263,7 +263,14 @@ const SemenOrders = () => {
               ) : (
                 filtered.map((order: any) => (
                   <TableRow key={order.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {order.order_type === "inventory" && (
+                          <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs shrink-0">INV</Badge>
+                        )}
+                        {order.customer_name || "—"}
+                      </div>
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.placed_by || "—"}</TableCell>
