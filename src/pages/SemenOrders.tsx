@@ -249,7 +249,7 @@ const SemenOrders = () => {
               ) : (
                 filtered.map((order: any) => (
                   <TableRow key={order.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{order.customer_name}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                     <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
