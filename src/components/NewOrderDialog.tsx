@@ -123,10 +123,10 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
     }
   }, [open, editData]);
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: 1 }]);
   const removeBullRow = (i: number) => setBulls((prev) => prev.filter((_, idx) => idx !== i));
-  const updateBull = (i: number, name: string, catalogId: string | null) =>
-    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId } : b)));
+  const updateBull = (i: number, name: string, catalogId: string | null, naabCode?: string | null) =>
+    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId, naabCode: naabCode ?? null } : b)));
   const updateUnits = (i: number, units: number) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
 
