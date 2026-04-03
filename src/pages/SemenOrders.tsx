@@ -280,7 +280,7 @@ const SemenOrders = () => {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete order?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will permanently delete the order for {order.customer_name}. This cannot be undone.
+                                  This will permanently delete the order for {order.customer_name || "this customer"}. This cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

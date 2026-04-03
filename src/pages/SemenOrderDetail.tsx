@@ -209,7 +209,7 @@ const SemenOrderDetail = () => {
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Customer Name</span>
-              <p className="font-medium">{order.customer_name}</p>
+              <p className="font-medium">{order.customer_name || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Phone</span>

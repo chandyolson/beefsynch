@@ -139,7 +139,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
     try {
       const orderPayload = {
         organization_id: orgId,
-        customer_name: customerName.trim(),
+        customer_name: customerName.trim() || "",
         customer_phone: customerPhone.trim() || null,
         customer_email: customerEmail.trim() || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
