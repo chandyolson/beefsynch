@@ -273,7 +273,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
 
           {/* Customer Name */}
           <div>
-            <Label>Customer Name *</Label>
+            <Label>Customer Name</Label>
             <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="e.g. Smith Ranch" className="mt-1.5" />
           </div>
 
