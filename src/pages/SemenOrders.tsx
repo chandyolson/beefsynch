@@ -60,6 +60,7 @@ const SemenOrders = () => {
   const [search, setSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [billingFilter, setBillingFilter] = useState("all");
+  const [orderTypeFilter, setOrderTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
