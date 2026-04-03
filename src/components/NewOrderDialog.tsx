@@ -150,6 +150,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
         project_id: projectId === "none" ? null : projectId,
+        semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
       };
 
