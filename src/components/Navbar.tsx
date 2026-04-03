@@ -192,33 +192,16 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
       {/* Mobile dropdown panel */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-popover/95 backdrop-blur-md px-4 py-3 space-y-1 animate-fade-in">
-          <button onClick={() => go("/")} className={navBtnClass}>
-            <List className="h-4 w-4" /> Dashboard
+          <button onClick={() => go("/dashboard")} className={navBtnClass}>
+            <List className="h-4 w-4" /> Projects
           </button>
-          <button onClick={() => go("/semen-orders")} className={navBtnClass}>
-            <ShoppingCart className="h-4 w-4" /> Semen Orders
-          </button>
-          <button onClick={() => go("/receive-shipment")} className={navBtnClass}>
-            <PackagePlus className="h-4 w-4" /> Receive Shipment
-          </button>
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Inventory
-          </div>
-          <button onClick={() => go("/customers")} className={navBtnClass + " pl-6"}>
-            <Users className="h-4 w-4" /> Customers
-          </button>
-          <button onClick={() => go("/tanks")} className={navBtnClass + " pl-6"}>
+          <button onClick={() => go("/tanks-dashboard")} className={navBtnClass}>
             <Package className="h-4 w-4" /> Tanks
           </button>
-          <button onClick={() => go("/semen-inventory")} className={navBtnClass + " pl-6"}>
-            <Layers className="h-4 w-4" /> Semen Inventory
+          <button onClick={() => go("/inventory-dashboard")} className={navBtnClass}>
+            <Layers className="h-4 w-4" /> Inventory
           </button>
-          <button onClick={() => go("/tank-fills")} className={navBtnClass + " pl-6"}>
-            <Archive className="h-4 w-4" /> Tank Fills
-          </button>
-          <button onClick={() => go("/tanks-out")} className={navBtnClass + " pl-6"}>
-            <Truck className="h-4 w-4" /> Tanks Out
-          </button>
+          <div className="border-t border-border/50 my-1" />
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog
           </button>
