@@ -97,14 +97,15 @@ const SemenOrders = () => {
   // Filtered orders
   const filtered = useMemo(() => {
     return orders.filter((o: any) => {
-      if (search && !o.customer_name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase())) return false;
       if (fulfillmentFilter !== "all" && o.fulfillment_status !== fulfillmentFilter) return false;
       if (billingFilter !== "all" && o.billing_status !== billingFilter) return false;
+      if (orderTypeFilter !== "all" && o.order_type !== orderTypeFilter) return false;
       if (dateFrom && isBefore(parseISO(o.order_date), dateFrom)) return false;
       if (dateTo && isAfter(parseISO(o.order_date), dateTo)) return false;
       return true;
     });
-  }, [orders, search, fulfillmentFilter, billingFilter, dateFrom, dateTo]);
+  }, [orders, search, fulfillmentFilter, billingFilter, orderTypeFilter, dateFrom, dateTo]);
 
   // Stats
   const totalOrders = orders.length;
