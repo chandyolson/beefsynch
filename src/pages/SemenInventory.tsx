@@ -41,6 +41,7 @@ const SemenInventory = () => {
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
