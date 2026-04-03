@@ -58,7 +58,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
       setLoading(true);
       const { data } = await supabase
         .from("bulls_catalog")
-        .select("id, bull_name, company")
+        .select("id, bull_name, company, naab_code")
         .eq("active", true)
         .ilike("bull_name", `%${query}%`)
         .limit(20);
