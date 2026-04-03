@@ -41,6 +41,7 @@ export interface EditOrderData {
   project_id: string | null;
   semen_company_id: string | null;
   notes: string | null;
+  placed_by: string | null;
   bulls: BullRow[];
 }
 
