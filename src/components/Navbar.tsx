@@ -108,33 +108,14 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="z-50 w-52 bg-popover border border-border shadow-lg">
-              <DropdownMenuItem onClick={() => go("/")} className="cursor-pointer gap-2">
-                <List className="h-4 w-4" /> Dashboard
+              <DropdownMenuItem onClick={() => go("/dashboard")} className="cursor-pointer gap-2">
+                <List className="h-4 w-4" /> Projects
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/semen-orders")} className="cursor-pointer gap-2">
-                <ShoppingCart className="h-4 w-4" /> Semen Orders
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/receive-shipment")} className="cursor-pointer gap-2">
-                <PackagePlus className="h-4 w-4" /> Receive Shipment
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Inventory
-              </div>
-              <DropdownMenuItem onClick={() => go("/customers")} className={subItemClass}>
-                <Users className="h-4 w-4" /> Customers
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/tanks")} className={subItemClass}>
+              <DropdownMenuItem onClick={() => go("/tanks-dashboard")} className="cursor-pointer gap-2">
                 <Package className="h-4 w-4" /> Tanks
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/semen-inventory")} className={subItemClass}>
-                <Layers className="h-4 w-4" /> Semen Inventory
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/tank-fills")} className={subItemClass}>
-                <Archive className="h-4 w-4" /> Tank Fills
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/tanks-out")} className={subItemClass}>
-                <Truck className="h-4 w-4" /> Tanks Out
+              <DropdownMenuItem onClick={() => go("/inventory-dashboard")} className="cursor-pointer gap-2">
+                <Layers className="h-4 w-4" /> Inventory
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
