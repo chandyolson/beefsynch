@@ -358,6 +358,11 @@ const ReInventory = () => {
                         <TableCell>{row.sub_canister || "—"}</TableCell>
                         <TableCell>{row.bull_name || "—"}</TableCell>
                         <TableCell>{row.bull_code || "—"}</TableCell>
+                        <TableCell>
+                          {row.item_type === "embryo" && (
+                            <Badge variant="outline" className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right text-muted-foreground">{row.previous}</TableCell>
                         <TableCell className="text-right">
                           <Input
