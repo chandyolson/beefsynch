@@ -70,7 +70,7 @@ const SemenOrders = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
+        .select("*, semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name, naab_code))")
         .eq("organization_id", orgId!)
         .order("order_date", { ascending: false });
       if (error) throw error;
@@ -228,6 +228,7 @@ const SemenOrders = () => {
                 <TableHead className="whitespace-nowrap">Customer Name</TableHead>
                 <TableHead className="whitespace-nowrap">Company</TableHead>
                 <TableHead className="whitespace-nowrap">Order Date</TableHead>
+                <TableHead className="whitespace-nowrap">Placed By</TableHead>
                 <TableHead className="whitespace-nowrap">Bulls</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                 <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
@@ -238,13 +239,13 @@ const SemenOrders = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                    {orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}
-                  </TableCell>
+                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                     {orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}
+                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((order: any) => (
@@ -252,6 +253,7 @@ const SemenOrders = () => {
                     <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{order.placed_by || "—"}</TableCell>
                     <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                     <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
                     <TableCell>

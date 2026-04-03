@@ -41,6 +41,7 @@ export interface EditOrderData {
   project_id: string | null;
   semen_company_id: string | null;
   notes: string | null;
+  placed_by: string | null;
   bulls: BullRow[];
 }
 
@@ -65,6 +66,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [billingStatus, setBillingStatus] = useState("unbilled");
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
+  const [placedBy, setPlacedBy] = useState("");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -106,6 +108,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId(editData.project_id ?? "none");
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
+      setPlacedBy(editData.placed_by ?? "");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
       setCustomerName("");
@@ -117,6 +120,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setProjectId("none");
       setSemenCompanyId("none");
       setNotes("");
+      setPlacedBy("");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
       setAddingCompany(false);
       setNewCompanyName("");
@@ -149,6 +153,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         project_id: projectId === "none" ? null : projectId,
         semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
+        placed_by: placedBy.trim() || null,
       };
 
       let orderId: string;
@@ -305,6 +310,12 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* Placed By */}
+          <div>
+            <Label>Placed By</Label>
+            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" className="mt-1.5" />
           </div>
 
           {/* Status dropdowns */}

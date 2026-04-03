@@ -28,6 +28,7 @@ interface OrderRow {
   project_id: string | null;
   semen_company_id: string | null;
   notes: string | null;
+  placed_by: string | null;
 }
 
 interface ItemRow {
@@ -132,6 +133,7 @@ const SemenOrderDetail = () => {
       project_id: order.project_id,
       semen_company_id: order.semen_company_id,
       notes: order.notes,
+      placed_by: order.placed_by,
       bulls: items.map((i) => ({
         name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
         catalogId: i.bull_catalog_id,
@@ -224,6 +226,10 @@ const SemenOrderDetail = () => {
             <div>
               <span className="text-muted-foreground">Order Date</span>
               <p className="font-medium">{format(parseISO(order.order_date), "MMMM d, yyyy")}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Placed By</span>
+              <p className="font-medium">{order.placed_by || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Fulfillment Status</span>
