@@ -237,6 +237,7 @@ const ReInventory = () => {
             inventoried_at: now,
             inventoried_by: userId,
             storage_type: "customer",
+            item_type: nr.item_type,
           } as any)
           .select("id")
           .single();
