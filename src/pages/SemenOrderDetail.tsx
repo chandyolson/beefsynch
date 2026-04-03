@@ -129,6 +129,7 @@ const SemenOrderDetail = () => {
       fulfillment_status: order.fulfillment_status,
       billing_status: order.billing_status,
       project_id: order.project_id,
+      semen_company_id: order.semen_company_id,
       notes: order.notes,
       bulls: items.map((i) => ({
         name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
