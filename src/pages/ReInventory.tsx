@@ -47,6 +47,7 @@ interface NewRow {
   bull_catalog_id: string | null;
   bull_code: string;
   units: string;
+  item_type: "semen" | "embryo";
 }
 
 const ReInventory = () => {
