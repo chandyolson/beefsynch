@@ -335,6 +335,7 @@ const ReceiveShipment = () => {
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             units: line.units,
             storage_type: "inventory",
+            item_type: line.itemType,
           });
         }
 
