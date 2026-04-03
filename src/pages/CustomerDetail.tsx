@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck } from "lucide-react";
+import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -428,6 +428,20 @@ const CustomerDetail = () => {
     setSemenStorageType("customer"); setSemenNotes("");
   };
 
+  const handleDryToggle = async (tankId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "dry" ? "wet" : "dry";
+    const { error } = await supabase
+      .from("tanks")
+      .update({ status: newStatus })
+      .eq("id", tankId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+  };
+
   const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
     if (!orgId) return;
     const { data: { user } } = await supabase.auth.getUser();
@@ -575,7 +589,7 @@ const CustomerDetail = () => {
             return (
               <div key={tank.id} className="rounded-lg border border-border/50 overflow-hidden">
                 {/* Tank header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                <div className={cn("flex items-center justify-between px-4 py-3", tank.status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
@@ -590,15 +604,26 @@ const CustomerDetail = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
-                      <Droplets className="h-4 w-4" /> Fill
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
-                      Re-inventory
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
-                      Add Semen
-                    </Button>
+                    {tank.status === "dry" ? (
+                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                        <Droplets className="h-4 w-4" /> Mark Wet
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                          <Sun className="h-4 w-4" /> Dry Off
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
+                          <Droplets className="h-4 w-4" /> Fill
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${tank.id}/reinventory?customer_id=${id}`)}>
+                          Re-inventory
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openAddSemen(tank.id)}>
+                          Add Semen
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 

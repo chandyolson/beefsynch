@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Droplets, RotateCcw, Truck } from "lucide-react";
+import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -277,9 +277,28 @@ const TankDetail = () => {
     }
   };
 
+  const handleDryToggle = async () => {
+    if (!id || !tank) return;
+    const newStatus = tank.status === "dry" ? "wet" : "dry";
+    const { error } = await supabase
+      .from("tanks")
+      .update({ status: newStatus })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
+  };
+
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
+    if (tank?.status === "dry") {
+      toast({ title: "Cannot fill a dry tank", variant: "destructive" });
+      return;
+    }
     setFillSaving(true);
     const { error } = await supabase.from("tank_fills").insert({
       organization_id: orgId,
@@ -379,12 +398,24 @@ const TankDetail = () => {
                 {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                 {tank.eid && <span>EID: {tank.eid}</span>}
               </div>
+              {tank.status === "dry" && (
+                <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
+                  This tank is currently dry — fill and inventory actions are disabled
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Edit className="h-4 w-4" /> Edit</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${id}/reinventory`)} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Re-inventory</Button>
-            <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
+            {tank.status === "dry" ? (
+              <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => handleDryToggle()} className="gap-1.5"><Sun className="h-4 w-4" /> Dry Off</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${id}/reinventory`)} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Re-inventory</Button>
+                <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
           </div>
         </div>
