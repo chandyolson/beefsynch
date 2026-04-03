@@ -238,6 +238,7 @@ const ReceiveShipment = () => {
       units: 0,
       tankId: "",
       canister: "",
+      itemType: group.items[0]?.itemType || "semen",
     };
     // Insert after the last line of this group
     const lastKey = group.items[group.items.length - 1].key;
