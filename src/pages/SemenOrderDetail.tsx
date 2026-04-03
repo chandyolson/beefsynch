@@ -283,7 +283,7 @@ const SemenOrderDetail = () => {
                       {items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
+                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
                           </TableCell>
                           <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                           <TableCell>

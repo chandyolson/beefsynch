@@ -117,7 +117,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
                 {favoriteIds.has(bull.id) && (
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
                 )}
-                {bull.bull_name}
+                {bull.bull_name}{bull.naab_code ? ` (${bull.naab_code})` : ""}
               </span>
               <span className="text-xs text-muted-foreground">{bull.company}</span>
             </button>

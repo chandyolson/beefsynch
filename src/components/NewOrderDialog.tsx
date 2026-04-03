@@ -363,7 +363,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
                 <BullCombobox
                   value={bull.name}
                   catalogId={bull.catalogId}
-                  onChange={(name, catId) => updateBull(i, name, catId)}
+                  onChange={(name, catId, naabCode) => updateBull(i, name, catId, naabCode)}
                 />
                 <Input
                   type="number"
