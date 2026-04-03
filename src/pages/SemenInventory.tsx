@@ -43,6 +43,7 @@ const SemenInventory = () => {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
 
   // Fetch inventory with joins
   const { data: inventory = [], isLoading } = useQuery({
@@ -116,6 +117,32 @@ const SemenInventory = () => {
     return result;
   }, [rows, storageFilter, ownerFilter, search, sortKey, sortDir]);
 
+  // Grouped by bull
+  const groupedByBull = useMemo(() => {
+    if (viewMode !== "grouped") return [];
+    const map = new Map<string, { bullName: string; bullCode: string; customers: Map<string, { customer: string; totalUnits: number; tanks: string[] }>; totalUnits: number }>();
+
+    for (const row of filtered) {
+      const key = row.bullName;
+      if (!map.has(key)) {
+        map.set(key, { bullName: row.bullName, bullCode: row.bullCode, customers: new Map(), totalUnits: 0 });
+      }
+      const group = map.get(key)!;
+      group.totalUnits += row.units;
+
+      const custKey = row.customer;
+      if (!group.customers.has(custKey)) {
+        group.customers.set(custKey, { customer: custKey, totalUnits: 0, tanks: [] });
+      }
+      const custGroup = group.customers.get(custKey)!;
+      custGroup.totalUnits += row.units;
+      const tankLabel = row.tankName !== "—" ? row.tankName : row.tankNumber;
+      if (!custGroup.tanks.includes(tankLabel)) custGroup.tanks.push(tankLabel);
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.bullName.localeCompare(b.bullName));
+  }, [filtered, viewMode]);
+
   // Stats
   const totalUnits = rows.reduce((s, r) => s + r.units, 0);
   const customerUnits = rows.filter((r) => r.customerId).reduce((s, r) => s + r.units, 0);
@@ -147,32 +174,54 @@ const SemenInventory = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Bull Name", "Bull Code", "Customer", "Tank", "Tank #", "Canister", "Sub-canister", "Units", "Storage Type", "Owner", "Last Inventoried"];
-    const csvRows = [
-      headers.join(","),
-      ...filtered.map((r) =>
-        [
-          `"${r.bullName}"`,
-          `"${r.bullCode}"`,
-          `"${r.customer}"`,
-          `"${r.tankName}"`,
-          `"${r.tankNumber}"`,
-          `"${r.canister}"`,
-          `"${r.subCanister}"`,
-          r.units,
-          `"${r.storageType}"`,
-          `"${r.owner || ""}"`,
-          `"${r.inventoriedAt ? format(new Date(r.inventoriedAt), "yyyy-MM-dd") : ""}"`,
-        ].join(",")
-      ),
-    ];
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `BeefSynch_Semen_Inventory_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (viewMode === "grouped" && groupedByBull.length > 0) {
+      const headers = ["Bull Name", "Bull Code", "Customer", "Tanks", "Units"];
+      const csvRows: string[] = [headers.join(",")];
+      for (const group of groupedByBull) {
+        // Bull header row
+        csvRows.push([`"${group.bullName}"`, `"${group.bullCode}"`, "", "", group.totalUnits].join(","));
+        // Customer sub-rows
+        for (const [, cust] of group.customers) {
+          csvRows.push(["", "", `"${cust.customer}"`, `"${cust.tanks.join(", ")}"`, cust.totalUnits].join(","));
+        }
+        csvRows.push(""); // blank separator
+      }
+      csvRows.push(["", "", "", "TOTAL", filteredTotal].join(","));
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BeefSynch_Semen_Inventory_Grouped_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const headers = ["Bull Name", "Bull Code", "Customer", "Tank", "Tank #", "Canister", "Sub-canister", "Units", "Storage Type", "Owner", "Last Inventoried"];
+      const csvRows = [
+        headers.join(","),
+        ...filtered.map((r) =>
+          [
+            `"${r.bullName}"`,
+            `"${r.bullCode}"`,
+            `"${r.customer}"`,
+            `"${r.tankName}"`,
+            `"${r.tankNumber}"`,
+            `"${r.canister}"`,
+            `"${r.subCanister}"`,
+            r.units,
+            `"${r.storageType}"`,
+            `"${r.owner || ""}"`,
+            `"${r.inventoriedAt ? format(new Date(r.inventoriedAt), "yyyy-MM-dd") : ""}"`,
+          ].join(",")
+        ),
+      ];
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BeefSynch_Semen_Inventory_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
@@ -200,7 +249,7 @@ const SemenInventory = () => {
           <StatCard title="Unique Bulls" value={uniqueBulls} delay={300} index={3} icon={Dna} />
         </div>
 
-        {/* Filters */}
+        {/* Filters + View Toggle */}
         <div className="flex flex-wrap gap-3 items-end">
           <div className="w-44">
             <Select value={storageFilter} onValueChange={setStorageFilter}>
@@ -233,77 +282,146 @@ const SemenInventory = () => {
               className="pl-9"
             />
           </div>
+          <div className="flex border border-border rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode("detail")}
+              className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
+            >
+              Detail
+            </button>
+            <button
+              onClick={() => setViewMode("grouped")}
+              className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
+            >
+              Grouped
+            </button>
+          </div>
         </div>
 
         {/* Table */}
         <div className="rounded-lg border border-border/50 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
-                <TableHead className="whitespace-nowrap">Bull Code</TableHead>
-                <TableHead><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
-                <TableHead><SortHeader label="Tank" sortKeyVal="tank" /></TableHead>
-                <TableHead className="whitespace-nowrap">Tank #</TableHead>
-                <TableHead>Canister</TableHead>
-                <TableHead className="whitespace-nowrap">Sub-can</TableHead>
-                <TableHead className="text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
-                <TableHead className="whitespace-nowrap">Storage</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+          {viewMode === "detail" ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
+                  <TableHead className="whitespace-nowrap">Bull Code</TableHead>
+                  <TableHead><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
+                  <TableHead><SortHeader label="Tank" sortKeyVal="tank" /></TableHead>
+                  <TableHead className="whitespace-nowrap">Tank #</TableHead>
+                  <TableHead>Canister</TableHead>
+                  <TableHead className="whitespace-nowrap">Sub-can</TableHead>
+                  <TableHead className="text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
+                  <TableHead className="whitespace-nowrap">Storage</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
                 </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
-                    {rows.length === 0 ? "No inventory data." : "No results match your filters."}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{row.bullName}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.customer}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.tankName}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
-                    <TableCell>{row.canister}</TableCell>
-                    <TableCell>{row.subCanister}</TableCell>
-                    <TableCell className="text-right">{row.units}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>
-                        {row.storageType}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {row.owner ? (
-                        <Badge variant="outline" className={OWNER_BADGES[row.owner] || "bg-muted text-muted-foreground border-border"}>
-                          {row.owner}
-                        </Badge>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  </TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                      {rows.length === 0 ? "No inventory data." : "No results match your filters."}
                     </TableCell>
                   </TableRow>
-                ))
+                ) : (
+                  filtered.map((row) => (
+                    <TableRow key={row.id} className="hover:bg-muted/20">
+                      <TableCell className="font-medium whitespace-nowrap">{row.bullName}</TableCell>
+                      <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
+                      <TableCell className="whitespace-nowrap">{row.customer}</TableCell>
+                      <TableCell className="whitespace-nowrap">{row.tankName}</TableCell>
+                      <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
+                      <TableCell>{row.canister}</TableCell>
+                      <TableCell>{row.subCanister}</TableCell>
+                      <TableCell className="text-right">{row.units}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>
+                          {row.storageType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.owner ? (
+                          <Badge variant="outline" className={OWNER_BADGES[row.owner] || "bg-muted text-muted-foreground border-border"}>
+                            {row.owner}
+                          </Badge>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+              {filtered.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-right font-semibold">Total</TableCell>
+                    <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
+                    <TableCell colSpan={3} />
+                  </TableRow>
+                </TableFooter>
               )}
-            </TableBody>
-            {filtered.length > 0 && (
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={7} className="text-right font-semibold">Total</TableCell>
-                  <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
-                  <TableCell colSpan={3} />
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead>Bull / Customer</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Tanks</TableHead>
+                  <TableHead className="text-right">Units</TableHead>
                 </TableRow>
-              </TableFooter>
-            )}
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  </TableRow>
+                ) : groupedByBull.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                      {rows.length === 0 ? "No inventory data." : "No results match your filters."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  groupedByBull.map((group) => (
+                    <>
+                      {/* Bull header row */}
+                      <TableRow key={`bull-${group.bullName}`} className="bg-muted/40 hover:bg-muted/50">
+                        <TableCell className="font-semibold">{group.bullName}</TableCell>
+                        <TableCell className="text-muted-foreground">{group.bullCode}</TableCell>
+                        <TableCell />
+                        <TableCell className="text-right font-bold">{group.totalUnits}</TableCell>
+                      </TableRow>
+                      {/* Customer sub-rows */}
+                      {Array.from(group.customers.values()).map((cust) => (
+                        <TableRow key={`${group.bullName}-${cust.customer}`} className="hover:bg-muted/20">
+                          <TableCell className="pl-6 text-muted-foreground">{cust.customer}</TableCell>
+                          <TableCell />
+                          <TableCell className="text-sm text-muted-foreground">{cust.tanks.join(", ")}</TableCell>
+                          <TableCell className="text-right">{cust.totalUnits}</TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  ))
+                )}
+              </TableBody>
+              {groupedByBull.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
+                    <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
+          )}
         </div>
       </main>
       <AppFooter />
