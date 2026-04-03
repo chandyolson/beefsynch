@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
+import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
