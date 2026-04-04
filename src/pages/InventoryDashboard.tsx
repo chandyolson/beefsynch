@@ -368,7 +368,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
 
       <div className="rounded-lg border border-border/50 overflow-hidden">
         {viewMode === "detail" ? (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/30">
                 <TableHead><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
