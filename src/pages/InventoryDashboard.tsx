@@ -298,10 +298,15 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
                   {activePacks.map((p: any) => {
                     const tankName = p.tanks?.tank_name || p.tanks?.tank_number || "—";
                     const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
+                    const isShipment = p.pack_type === "shipment";
                     return (
                       <TableRow key={p.id} className="hover:bg-muted/20">
                         <TableCell className="font-medium">{tankName}</TableCell>
-                        <TableCell>{projNames || "—"}</TableCell>
+                        <TableCell>
+                          {isShipment ? (
+                            <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-muted-foreground" /> Ship to: {p.destination_name || "—"}</span>
+                          ) : (projNames || "—")}
+                        </TableCell>
                         <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">{p.status}</Badge>
