@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown } from "lucide-react";
+import { Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown, Printer } from "lucide-react";
 import { format } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -46,7 +46,7 @@ const SemenInventory = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
+  const [viewMode, setViewMode] = useState<"detail" | "grouped" | "by_tank">("detail");
 
   // Fetch inventory with joins
   const { data: inventory = [], isLoading } = useQuery({
@@ -154,6 +154,38 @@ const SemenInventory = () => {
     return Array.from(map.values()).sort((a, b) => a.bullName.localeCompare(b.bullName));
   }, [filtered, viewMode]);
 
+  // Grouped by tank
+  const groupedByTank = useMemo(() => {
+    if (viewMode !== "by_tank") return [];
+    const map = new Map<string, { tankName: string; tankNumber: string; tankId: string; rows: typeof filtered; totalUnits: number }>();
+
+    for (const row of filtered) {
+      if (!map.has(row.tankId)) {
+        map.set(row.tankId, { tankName: row.tankName, tankNumber: row.tankNumber, tankId: row.tankId, rows: [], totalUnits: 0 });
+      }
+      const group = map.get(row.tankId)!;
+      group.rows.push(row);
+      group.totalUnits += row.units;
+    }
+
+    const groups = Array.from(map.values()).sort((a, b) => {
+      const aNum = parseInt(a.tankNumber) || 0;
+      const bNum = parseInt(b.tankNumber) || 0;
+      return aNum - bNum;
+    });
+
+    for (const group of groups) {
+      group.rows.sort((a, b) => {
+        const aCanNum = parseInt(a.canister) || 0;
+        const bCanNum = parseInt(b.canister) || 0;
+        if (aCanNum !== bCanNum) return aCanNum - bCanNum;
+        return a.bullName.localeCompare(b.bullName);
+      });
+    }
+
+    return groups;
+  }, [filtered, viewMode]);
+
   // Stats
   const totalUnits = rows.reduce((s, r) => s + r.units, 0);
   const customerUnits = rows.filter((r) => r.customerId).reduce((s, r) => s + r.units, 0);
@@ -242,12 +274,15 @@ const SemenInventory = () => {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Inventory</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 print:hidden">
             <Button variant="outline" className="gap-2" onClick={handleExportCsv}>
               <FileSpreadsheet className="h-4 w-4" /> Export CSV
             </Button>
             <Button variant="outline" className="gap-2" onClick={handleExportPdf}>
               <FileText className="h-4 w-4" /> Export PDF
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" /> Print
             </Button>
           </div>
         </div>
@@ -303,7 +338,7 @@ const SemenInventory = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex border border-border rounded-md overflow-hidden">
+          <div className="flex border border-border rounded-md overflow-hidden print:hidden">
             <button
               onClick={() => setViewMode("detail")}
               className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
@@ -314,7 +349,13 @@ const SemenInventory = () => {
               onClick={() => setViewMode("grouped")}
               className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
             >
-              Grouped
+              By Bull
+            </button>
+            <button
+              onClick={() => setViewMode("by_tank")}
+              className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "by_tank" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
+            >
+              By Tank
             </button>
           </div>
         </div>
@@ -394,7 +435,7 @@ const SemenInventory = () => {
                 </TableFooter>
               )}
             </Table>
-          ) : (
+          ) : viewMode === "grouped" ? (
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
@@ -454,10 +495,91 @@ const SemenInventory = () => {
                 </TableFooter>
               )}
             </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead>Canister</TableHead>
+                  <TableHead>Bull Name</TableHead>
+                  <TableHead>Bull Code</TableHead>
+                  <TableHead className="text-right">Units</TableHead>
+                  <TableHead>Owner</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  </TableRow>
+                ) : groupedByTank.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      {rows.length === 0 ? "No inventory data." : "No results match your filters."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  groupedByTank.map((group) => (
+                    <tbody key={group.tankId} className="print-tank-group">
+                      {/* Tank header row */}
+                      <TableRow className="bg-muted/40 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/tanks/${group.tankId}`)}>
+                        <TableCell colSpan={3} className="font-semibold">
+                          Tank {group.tankNumber}{group.tankName !== "—" ? ` — ${group.tankName}` : ""}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">{group.totalUnits}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                      {/* Inventory rows */}
+                      {group.rows.map((row) => (
+                        <TableRow key={row.id} className="hover:bg-muted/20">
+                          <TableCell>{row.canister}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            {row.bullName}
+                            {row.itemType === "embryo" && (
+                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{row.bullCode}</TableCell>
+                          <TableCell className="text-right">{row.units}</TableCell>
+                          <TableCell>{row.customer !== "Company" ? row.customer : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </tbody>
+                  ))
+                )}
+              </TableBody>
+              {groupedByTank.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
+                    <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
           )}
         </div>
       </main>
       <AppFooter />
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          nav, footer, .print\\:hidden { display: none !important; }
+          body { background: white !important; color: black !important; }
+          main { padding: 0 !important; }
+          .rounded-lg { border-radius: 0 !important; }
+          table { width: 100% !important; }
+          .print-tank-group { break-inside: avoid; }
+          main::before {
+            content: "Semen Inventory — ${format(new Date(), "MMM d, yyyy")}";
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+          }
+        }
+      `}</style>
     </div>
   );
 };
