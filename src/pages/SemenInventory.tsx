@@ -315,7 +315,7 @@ const SemenInventory = () => {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-border/50 overflow-hidden">
+        <div className="rounded-lg border border-border/50 overflow-x-auto">
           {viewMode === "detail" ? (
             <Table>
               <TableHeader>
