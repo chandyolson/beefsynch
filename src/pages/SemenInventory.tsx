@@ -154,6 +154,38 @@ const SemenInventory = () => {
     return Array.from(map.values()).sort((a, b) => a.bullName.localeCompare(b.bullName));
   }, [filtered, viewMode]);
 
+  // Grouped by tank
+  const groupedByTank = useMemo(() => {
+    if (viewMode !== "by_tank") return [];
+    const map = new Map<string, { tankName: string; tankNumber: string; tankId: string; rows: typeof filtered; totalUnits: number }>();
+
+    for (const row of filtered) {
+      if (!map.has(row.tankId)) {
+        map.set(row.tankId, { tankName: row.tankName, tankNumber: row.tankNumber, tankId: row.tankId, rows: [], totalUnits: 0 });
+      }
+      const group = map.get(row.tankId)!;
+      group.rows.push(row);
+      group.totalUnits += row.units;
+    }
+
+    const groups = Array.from(map.values()).sort((a, b) => {
+      const aNum = parseInt(a.tankNumber) || 0;
+      const bNum = parseInt(b.tankNumber) || 0;
+      return aNum - bNum;
+    });
+
+    for (const group of groups) {
+      group.rows.sort((a, b) => {
+        const aCanNum = parseInt(a.canister) || 0;
+        const bCanNum = parseInt(b.canister) || 0;
+        if (aCanNum !== bCanNum) return aCanNum - bCanNum;
+        return a.bullName.localeCompare(b.bullName);
+      });
+    }
+
+    return groups;
+  }, [filtered, viewMode]);
+
   // Stats
   const totalUnits = rows.reduce((s, r) => s + r.units, 0);
   const customerUnits = rows.filter((r) => r.customerId).reduce((s, r) => s + r.units, 0);
