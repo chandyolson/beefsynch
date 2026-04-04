@@ -496,6 +496,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
 const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) => {
   const queryClient = useQueryClient();
   const [selectedTankId, setSelectedTankId] = useState<string>("");
+  const [tankComboboxOpen, setTankComboboxOpen] = useState(false);
   const [fillDate, setFillDate] = useState<Date>(new Date());
   const [fillSaving, setFillSaving] = useState(false);
 
