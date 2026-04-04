@@ -321,6 +321,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
         </Card>
       )}
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} />
         <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} />
         <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} />
