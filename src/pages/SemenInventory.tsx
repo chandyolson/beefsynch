@@ -46,7 +46,7 @@ const SemenInventory = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
+  const [viewMode, setViewMode] = useState<"detail" | "grouped" | "by_tank">("detail");
 
   // Fetch inventory with joins
   const { data: inventory = [], isLoading } = useQuery({
