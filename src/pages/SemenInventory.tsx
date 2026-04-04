@@ -38,6 +38,7 @@ type SortDir = "asc" | "desc";
 
 const SemenInventory = () => {
   const { orgId } = useOrgRole();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
