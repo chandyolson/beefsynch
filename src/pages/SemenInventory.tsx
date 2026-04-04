@@ -430,7 +430,14 @@ const SemenInventory = () => {
                         <TableRow key={`${group.bullName}-${cust.customer}`} className="hover:bg-muted/20">
                           <TableCell className="pl-6 text-muted-foreground">{cust.customer}</TableCell>
                           <TableCell />
-                          <TableCell className="text-sm text-muted-foreground">{cust.tanks.join(", ")}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {cust.tanks.map((t, i) => (
+                              <span key={t.tankId}>
+                                {i > 0 && ", "}
+                                <span className="text-primary hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/tanks/${t.tankId}`); }}>{t.label}</span>
+                              </span>
+                            ))}
+                          </TableCell>
                           <TableCell className="text-right">{cust.totalUnits}</TableCell>
                         </TableRow>
                       ))}
