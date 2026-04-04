@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  Plus, Trash2, Package, CalendarDays, Loader2, X, Check, Search,
+  Plus, Trash2, Package, CalendarDays, Loader2, X, Search,
   Truck, ClipboardList,
 } from "lucide-react";
 

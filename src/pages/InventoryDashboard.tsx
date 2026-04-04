@@ -5,7 +5,7 @@ import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
-  Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus, Truck, ClipboardList,
+  Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus, Truck,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
