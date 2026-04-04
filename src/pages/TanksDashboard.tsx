@@ -4,8 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Eye, Plus, Search, Users, Package, Archive, Droplets, Sun, Truck,
   AlertTriangle, AlertCircle, Upload, Check, X, FileSpreadsheet,
-  Clock, RotateCcw,
+  Clock, RotateCcw, ChevronsUpDown,
 } from "lucide-react";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { format, parseISO, differenceInDays, startOfMonth, parse, isValid } from "date-fns";
 import Papa from "papaparse";
 
