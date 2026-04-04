@@ -115,6 +115,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/inventory-dashboard")} className="cursor-pointer gap-2">
                 <Layers className="h-4 w-4" /> Inventory
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/pack-tank")} className="cursor-pointer gap-2">
+                <PackagePlus className="h-4 w-4" /> Pack Tank
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
