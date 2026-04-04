@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
@@ -37,6 +38,7 @@ type SortDir = "asc" | "desc";
 
 const SemenInventory = () => {
   const { orgId } = useOrgRole();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
@@ -69,6 +71,7 @@ const SemenInventory = () => {
       bullCode: item.bull_code || "—",
       customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
       customerId: item.customer_id,
+      tankId: item.tank_id,
       tankName: item.tanks?.tank_name || "—",
       tankNumber: item.tanks?.tank_number || "—",
       canister: item.canister,
@@ -126,7 +129,7 @@ const SemenInventory = () => {
   // Grouped by bull
   const groupedByBull = useMemo(() => {
     if (viewMode !== "grouped") return [];
-    const map = new Map<string, { bullName: string; bullCode: string; customers: Map<string, { customer: string; totalUnits: number; tanks: string[] }>; totalUnits: number }>();
+    const map = new Map<string, { bullName: string; bullCode: string; customers: Map<string, { customer: string; totalUnits: number; tanks: { label: string; tankId: string }[] }>; totalUnits: number }>();
 
     for (const row of filtered) {
       const key = row.bullName;
@@ -143,7 +146,9 @@ const SemenInventory = () => {
       const custGroup = group.customers.get(custKey)!;
       custGroup.totalUnits += row.units;
       const tankLabel = row.tankName !== "—" ? row.tankName : row.tankNumber;
-      if (!custGroup.tanks.includes(tankLabel)) custGroup.tanks.push(tankLabel);
+      if (!custGroup.tanks.some(t => t.tankId === row.tankId)) {
+        custGroup.tanks.push({ label: tankLabel, tankId: row.tankId });
+      }
     }
 
     return Array.from(map.values()).sort((a, b) => a.bullName.localeCompare(b.bullName));
@@ -188,7 +193,7 @@ const SemenInventory = () => {
         csvRows.push([`"${group.bullName}"`, `"${group.bullCode}"`, "", "", group.totalUnits].join(","));
         // Customer sub-rows
         for (const [, cust] of group.customers) {
-          csvRows.push(["", "", `"${cust.customer}"`, `"${cust.tanks.join(", ")}"`, cust.totalUnits].join(","));
+          csvRows.push(["", "", `"${cust.customer}"`, `"${cust.tanks.map(t => t.label).join(", ")}"`, cust.totalUnits].join(","));
         }
         csvRows.push(""); // blank separator
       }
@@ -346,7 +351,7 @@ const SemenInventory = () => {
                   </TableRow>
                 ) : (
                   filtered.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-muted/20">
+                    <TableRow key={row.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/tanks/${row.tankId}`)}>
                       <TableCell className="font-medium whitespace-nowrap">
                         {row.bullName}
                         {row.itemType === "embryo" && (
@@ -425,7 +430,14 @@ const SemenInventory = () => {
                         <TableRow key={`${group.bullName}-${cust.customer}`} className="hover:bg-muted/20">
                           <TableCell className="pl-6 text-muted-foreground">{cust.customer}</TableCell>
                           <TableCell />
-                          <TableCell className="text-sm text-muted-foreground">{cust.tanks.join(", ")}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {cust.tanks.map((t, i) => (
+                              <span key={t.tankId}>
+                                {i > 0 && ", "}
+                                <span className="text-primary hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/tanks/${t.tankId}`); }}>{t.label}</span>
+                              </span>
+                            ))}
+                          </TableCell>
                           <TableCell className="text-right">{cust.totalUnits}</TableCell>
                         </TableRow>
                       ))}
