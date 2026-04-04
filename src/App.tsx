@@ -34,6 +34,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import PackTank from "./pages/PackTank";
 import PackDetail from "./pages/PackDetail";
+import UnpackTank from "./pages/UnpackTank";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();

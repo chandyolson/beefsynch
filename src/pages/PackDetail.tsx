@@ -161,8 +161,8 @@ const PackDetail = () => {
           bullCode: ul.bull_code,
           unitsPacked,
           unitsReturned: ul.units_returned,
-          destTankName: ul.tanks?.tank_name || ul.tanks?.tank_number || "—",
-          destCanister: ul.destination_canister,
+          destinationTankName: ul.tanks?.tank_name || ul.tanks?.tank_number || "—",
+          destinationCanister: ul.destination_canister,
         };
       })
     );
