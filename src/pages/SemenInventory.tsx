@@ -129,7 +129,7 @@ const SemenInventory = () => {
   // Grouped by bull
   const groupedByBull = useMemo(() => {
     if (viewMode !== "grouped") return [];
-    const map = new Map<string, { bullName: string; bullCode: string; customers: Map<string, { customer: string; totalUnits: number; tanks: string[] }>; totalUnits: number }>();
+    const map = new Map<string, { bullName: string; bullCode: string; customers: Map<string, { customer: string; totalUnits: number; tanks: { label: string; tankId: string }[] }>; totalUnits: number }>();
 
     for (const row of filtered) {
       const key = row.bullName;
@@ -146,7 +146,9 @@ const SemenInventory = () => {
       const custGroup = group.customers.get(custKey)!;
       custGroup.totalUnits += row.units;
       const tankLabel = row.tankName !== "—" ? row.tankName : row.tankNumber;
-      if (!custGroup.tanks.includes(tankLabel)) custGroup.tanks.push(tankLabel);
+      if (!custGroup.tanks.some(t => t.tankId === row.tankId)) {
+        custGroup.tanks.push({ label: tankLabel, tankId: row.tankId });
+      }
     }
 
     return Array.from(map.values()).sort((a, b) => a.bullName.localeCompare(b.bullName));
