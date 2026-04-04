@@ -393,15 +393,15 @@ const SemenInventory = () => {
                 ) : (
                   filtered.map((row) => (
                     <TableRow key={row.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/tanks/${row.tankId}`)}>
-                      <TableCell className="font-medium whitespace-nowrap">
+                      <TableCell className="font-medium max-w-[160px] truncate">
                         {row.bullName}
                         {row.itemType === "embryo" && (
                           <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.customer}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.tankName}</TableCell>
+                      <TableCell className="max-w-[140px] truncate">{row.customer}</TableCell>
+                      <TableCell className="max-w-[120px] truncate">{row.tankName}</TableCell>
                       <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
                       <TableCell>{row.canister}</TableCell>
                       <TableCell>{row.subCanister}</TableCell>

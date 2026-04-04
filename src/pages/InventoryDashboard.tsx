@@ -392,10 +392,10 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
               ) : (
                 filtered.map((row) => (
                   <TableRow key={row.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium whitespace-nowrap">{row.bullName}</TableCell>
+                    <TableCell className="font-medium max-w-[160px] truncate">{row.bullName}</TableCell>
                     <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.customer}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.tankName}</TableCell>
+                    <TableCell className="max-w-[140px] truncate">{row.customer}</TableCell>
+                    <TableCell className="max-w-[120px] truncate">{row.tankName}</TableCell>
                     <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
                     <TableCell>{row.canister}</TableCell>
                     <TableCell>{row.subCanister}</TableCell>
