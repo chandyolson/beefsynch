@@ -5,7 +5,7 @@ import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
-  Upload, X, CalendarDays, Loader2, Check, AlertTriangle,
+  Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -105,6 +105,7 @@ const emptyLine = (): LineItem => ({
 // INVENTORY TAB
 // ═══════════════════════════════════════════
 const InventoryTab = ({ orgId }: { orgId: string }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
@@ -125,6 +126,23 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
       return (data ?? []) as any[];
     },
   });
+
+  // Active packs
+  const { data: activePacks = [] } = useQuery({
+    queryKey: ["active_packs", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select("id, packed_at, status, packed_by, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name))")
+        .eq("organization_id", orgId)
+        .in("status", ["packed", "in_field"])
+        .order("packed_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
@@ -251,6 +269,57 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" className="gap-2" onClick={handleExportPdf}><FileText className="h-4 w-4" /> Export PDF</Button>
         </div>
       </div>
+
+      {/* Active Packs */}
+      {activePacks.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              Active Packs
+              <Badge variant="secondary" className="text-xs">{activePacks.length}</Badge>
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => navigate("/pack-tank")} className="gap-1.5">
+              <PackagePlus className="h-4 w-4" /> Pack Tank
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="rounded-lg border border-border/50 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Field Tank</TableHead>
+                    <TableHead>Projects</TableHead>
+                    <TableHead>Date Packed</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activePacks.map((p: any) => {
+                    const tankName = p.tanks?.tank_name || p.tanks?.tank_number || "—";
+                    const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
+                    return (
+                      <TableRow key={p.id} className="hover:bg-muted/20">
+                        <TableCell className="font-medium">{tankName}</TableCell>
+                        <TableCell>{projNames || "—"}</TableCell>
+                        <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">{p.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${p.id}`)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} />

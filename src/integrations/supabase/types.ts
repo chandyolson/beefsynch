@@ -1007,6 +1007,218 @@ export type Database = {
           },
         ]
       }
+      tank_pack_lines: {
+        Row: {
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string
+          created_at: string
+          field_canister: string | null
+          id: string
+          source_canister: string | null
+          source_tank_id: string
+          tank_pack_id: string
+          units: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name: string
+          created_at?: string
+          field_canister?: string | null
+          id?: string
+          source_canister?: string | null
+          source_tank_id: string
+          tank_pack_id: string
+          units: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name?: string
+          created_at?: string
+          field_canister?: string | null
+          id?: string
+          source_canister?: string | null
+          source_tank_id?: string
+          tank_pack_id?: string
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_pack_lines_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_lines_source_tank_id_fkey"
+            columns: ["source_tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_lines_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_pack_projects: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          tank_pack_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          tank_pack_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          tank_pack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_pack_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_projects_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_packs: {
+        Row: {
+          created_at: string
+          field_tank_id: string
+          id: string
+          notes: string | null
+          organization_id: string
+          packed_at: string
+          packed_by: string | null
+          status: string
+          unpacked_at: string | null
+          unpacked_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_tank_id: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          packed_at?: string
+          packed_by?: string | null
+          status?: string
+          unpacked_at?: string | null
+          unpacked_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_tank_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          packed_at?: string
+          packed_by?: string | null
+          status?: string
+          unpacked_at?: string | null
+          unpacked_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_packs_field_tank_id_fkey"
+            columns: ["field_tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_packs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tank_unpack_lines: {
+        Row: {
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string
+          created_at: string
+          destination_canister: string | null
+          destination_tank_id: string
+          id: string
+          tank_pack_id: string
+          units_returned: number
+        }
+        Insert: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name: string
+          created_at?: string
+          destination_canister?: string | null
+          destination_tank_id: string
+          id?: string
+          tank_pack_id: string
+          units_returned: number
+        }
+        Update: {
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name?: string
+          created_at?: string
+          destination_canister?: string | null
+          destination_tank_id?: string
+          id?: string
+          tank_pack_id?: string
+          units_returned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_unpack_lines_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_unpack_lines_destination_tank_id_fkey"
+            columns: ["destination_tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_unpack_lines_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tanks: {
         Row: {
           created_at: string

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers, PackagePlus } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -115,6 +115,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/inventory-dashboard")} className="cursor-pointer gap-2">
                 <Layers className="h-4 w-4" /> Inventory
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/pack-tank")} className="cursor-pointer gap-2">
+                <PackagePlus className="h-4 w-4" /> Pack Tank
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
@@ -198,6 +201,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </button>
           <button onClick={() => go("/inventory-dashboard")} className={navBtnClass}>
             <Layers className="h-4 w-4" /> Inventory
+          </button>
+          <button onClick={() => go("/pack-tank")} className={navBtnClass}>
+            <PackagePlus className="h-4 w-4" /> Pack Tank
           </button>
           <div className="border-t border-border/50 my-1" />
           <button onClick={() => go("/bulls")} className={navBtnClass}>

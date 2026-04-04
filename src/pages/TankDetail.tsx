@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun } from "lucide-react";
+import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus } from "lucide-react";
+
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -90,6 +91,78 @@ const ALL_STATUSES = [
   { value: "inactive", label: "Inactive" },
   { value: "bad_tank", label: "Bad Tank" },
 ];
+
+// ───── Pack History Section (for shipper tanks) ─────
+const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (path: string) => void }) => {
+  const { data: packs = [], isLoading } = useQuery({
+    queryKey: ["tank_pack_history", tankId],
+    enabled: !!tankId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select("id, packed_at, packed_by, status, tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(units)")
+        .eq("field_tank_id", tankId)
+        .order("packed_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Pack History</h2>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/pack-tank?tankId=${tankId}`)} className="gap-1.5">
+          <PackagePlus className="h-4 w-4" /> Pack This Tank
+        </Button>
+      </div>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : packs.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No packs recorded for this tank.</p>
+      ) : (
+        <div className="rounded-lg border border-border/50 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead>Date Packed</TableHead>
+                <TableHead>Projects</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {packs.map((p: any) => {
+                const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
+                const totalUnitsForPack = (p.tank_pack_lines || []).reduce((s: number, l: any) => s + (l.units || 0), 0);
+                return (
+                  <TableRow key={p.id} className="hover:bg-muted/20">
+                    <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>{projNames || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        p.status === "packed" || p.status === "in_field" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                        p.status === "unpacked" ? "bg-blue-600/20 text-blue-400 border-blue-600/30" :
+                        "bg-muted text-muted-foreground border-border"
+                      }>{p.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{totalUnitsForPack}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${p.id}`)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TankDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -578,6 +651,9 @@ const TankDetail = () => {
             </Table>
           </div>
         </div>
+
+        {/* ───── Pack History (shipper tanks) ───── */}
+        {tank.tank_type === "shipper" && <PackHistorySection tankId={id!} navigate={navigate} />}
       </main>
 
       {/* ───── Edit Tank Dialog ───── */}
