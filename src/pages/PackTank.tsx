@@ -186,21 +186,46 @@ const PackTank = () => {
       const bullCode = catalog?.naab_code || null;
       const bullCatalogId = pb.bull_catalog_id;
 
-      let invQuery = supabase
-        .from("tank_inventory")
-        .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
-        .eq("organization_id", orgId)
-        .gt("units", 0)
-        .order("units", { ascending: false });
+      let bestSource: any = null;
 
+      // Strategy 1: Match by bull_catalog_id
       if (bullCatalogId) {
-        invQuery = invQuery.eq("bull_catalog_id", bullCatalogId);
-      } else {
-        invQuery = invQuery.eq("custom_bull_name", pb.custom_bull_name);
+        const { data: invRows } = await supabase
+          .from("tank_inventory")
+          .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
+          .eq("organization_id", orgId)
+          .eq("bull_catalog_id", bullCatalogId)
+          .gt("units", 0)
+          .order("units", { ascending: false })
+          .limit(1);
+        if (invRows && invRows.length > 0) bestSource = invRows[0];
       }
 
-      const { data: invRows } = await invQuery.limit(5);
-      const bestSource = invRows && invRows.length > 0 ? invRows[0] : null;
+      // Strategy 2: Match by bull_code / NAAB code
+      if (!bestSource && bullCode) {
+        const { data: invRows } = await supabase
+          .from("tank_inventory")
+          .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
+          .eq("organization_id", orgId)
+          .eq("bull_code", bullCode)
+          .gt("units", 0)
+          .order("units", { ascending: false })
+          .limit(1);
+        if (invRows && invRows.length > 0) bestSource = invRows[0];
+      }
+
+      // Strategy 3: Match by custom_bull_name
+      if (!bestSource) {
+        const { data: invRows } = await supabase
+          .from("tank_inventory")
+          .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
+          .eq("organization_id", orgId)
+          .eq("custom_bull_name", bullName)
+          .gt("units", 0)
+          .order("units", { ascending: false })
+          .limit(1);
+        if (invRows && invRows.length > 0) bestSource = invRows[0];
+      }
 
       newLines.push({
         key: crypto.randomUUID(),
