@@ -8,6 +8,11 @@ interface PackSlipData {
   packedBy: string | null;
   projectNames: string[];
   notes: string | null;
+  packType?: "project" | "shipment";
+  destinationName?: string | null;
+  destinationAddress?: string | null;
+  trackingNumber?: string | null;
+  shippingCarrier?: string | null;
 }
 
 interface PackSlipLine {
@@ -32,7 +37,7 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(100);
-  doc.text("Packing Slip", margin, y);
+  doc.text(pack.packType === "shipment" ? "Shipping Packing List" : "Packing Slip", margin, y);
   doc.setTextColor(0);
   y += 6;
   doc.setDrawColor(180);
@@ -48,8 +53,23 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
   const infoRows: [string, string][] = [
     ["Date Packed", format(new Date(pack.packedAt), "MMMM d, yyyy")],
     ["Packed By", pack.packedBy || "—"],
-    ["Projects", pack.projectNames.join(", ")],
   ];
+
+  if (pack.packType === "shipment") {
+    infoRows.push(["Ship To", pack.destinationName || "—"]);
+    if (pack.destinationAddress) {
+      infoRows.push(["Address", pack.destinationAddress]);
+    }
+    if (pack.shippingCarrier) {
+      infoRows.push(["Carrier", pack.shippingCarrier]);
+    }
+    if (pack.trackingNumber) {
+      infoRows.push(["Tracking #", pack.trackingNumber]);
+    }
+  } else {
+    infoRows.push(["Projects", pack.projectNames.join(", ") || "—"]);
+  }
+
   if (pack.notes) infoRows.push(["Notes", pack.notes]);
 
   doc.setFontSize(10);

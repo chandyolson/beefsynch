@@ -5,7 +5,7 @@ import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
-  Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus,
+  Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus, Truck,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -134,7 +134,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, status, packed_by, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name))")
+        .select("id, packed_at, status, packed_by, pack_type, destination_name, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name))")
         .eq("organization_id", orgId)
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
@@ -298,10 +298,15 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
                   {activePacks.map((p: any) => {
                     const tankName = p.tanks?.tank_name || p.tanks?.tank_number || "—";
                     const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
+                    const isShipment = p.pack_type === "shipment";
                     return (
                       <TableRow key={p.id} className="hover:bg-muted/20">
                         <TableCell className="font-medium">{tankName}</TableCell>
-                        <TableCell>{projNames || "—"}</TableCell>
+                        <TableCell>
+                          {isShipment ? (
+                            <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-muted-foreground" /> Ship to: {p.destination_name || "—"}</span>
+                          ) : (projNames || "—")}
+                        </TableCell>
                         <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">{p.status}</Badge>

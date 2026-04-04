@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus } from "lucide-react";
+import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus, ClipboardList } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -100,7 +100,7 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, packed_by, status, tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(units)")
+        .select("id, packed_at, packed_by, status, pack_type, destination_name, tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(units)")
         .eq("field_tank_id", tankId)
         .order("packed_at", { ascending: false });
       if (error) throw error;
@@ -136,10 +136,16 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
               {packs.map((p: any) => {
                 const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
                 const totalUnitsForPack = (p.tank_pack_lines || []).reduce((s: number, l: any) => s + (l.units || 0), 0);
+                const isShipment = p.pack_type === "shipment";
                 return (
                   <TableRow key={p.id} className="hover:bg-muted/20">
                     <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
-                    <TableCell>{projNames || "—"}</TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1">
+                        {isShipment ? <Truck className="h-3 w-3 text-muted-foreground" /> : <ClipboardList className="h-3 w-3 text-muted-foreground" />}
+                        {isShipment ? `Ship to: ${p.destination_name || "—"}` : (projNames || "—")}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
                         p.status === "packed" || p.status === "in_field" ? "bg-green-600/20 text-green-400 border-green-600/30" :

@@ -1107,39 +1107,57 @@ export type Database = {
       tank_packs: {
         Row: {
           created_at: string
+          destination_address: string | null
+          destination_name: string | null
           field_tank_id: string
           id: string
           notes: string | null
           organization_id: string
+          pack_type: string
           packed_at: string
           packed_by: string | null
+          shipping_carrier: string | null
           status: string
+          tank_return_expected: boolean
+          tracking_number: string | null
           unpacked_at: string | null
           unpacked_by: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          destination_address?: string | null
+          destination_name?: string | null
           field_tank_id: string
           id?: string
           notes?: string | null
           organization_id: string
+          pack_type?: string
           packed_at?: string
           packed_by?: string | null
+          shipping_carrier?: string | null
           status?: string
+          tank_return_expected?: boolean
+          tracking_number?: string | null
           unpacked_at?: string | null
           unpacked_by?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          destination_address?: string | null
+          destination_name?: string | null
           field_tank_id?: string
           id?: string
           notes?: string | null
           organization_id?: string
+          pack_type?: string
           packed_at?: string
           packed_by?: string | null
+          shipping_carrier?: string | null
           status?: string
+          tank_return_expected?: boolean
+          tracking_number?: string | null
           unpacked_at?: string | null
           unpacked_by?: string | null
           updated_at?: string

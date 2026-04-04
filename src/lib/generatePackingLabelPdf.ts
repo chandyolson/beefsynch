@@ -5,6 +5,8 @@ interface LabelData {
   fieldTankName: string;
   packedAt: string;
   projectNames: string[];
+  packType?: "project" | "shipment";
+  destinationName?: string | null;
 }
 
 interface LabelLine {
@@ -20,14 +22,16 @@ export function generatePackingLabelPdf(pack: LabelData, lines: LabelLine[]) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  let projText = pack.projectNames.join(", ");
-  if (doc.getTextWidth(projText) > 272) {
-    while (doc.getTextWidth(projText + "...") > 272 && projText.length > 10) {
-      projText = projText.slice(0, -1);
+  let headerText = pack.packType === "shipment"
+    ? `SHIP TO: ${pack.destinationName || "Unknown"}`
+    : pack.projectNames.join(", ");
+  if (doc.getTextWidth(headerText) > 272) {
+    while (doc.getTextWidth(headerText + "...") > 272 && headerText.length > 10) {
+      headerText = headerText.slice(0, -1);
     }
-    projText += "...";
+    headerText += "...";
   }
-  doc.text(projText, m, y);
+  doc.text(headerText, m, y);
   y += 13;
 
   doc.setFont("helvetica", "normal");

@@ -1,19 +1,26 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, Eye,
+  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen,
+  Truck, ExternalLink, Pencil, Loader2, Check,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter,
 } from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
@@ -27,9 +34,30 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
+function getTrackingUrl(carrier: string | null, trackingNumber: string): string | null {
+  if (!trackingNumber) return null;
+  const num = trackingNumber.trim();
+  switch (carrier?.toLowerCase()) {
+    case "ups":
+      return `https://www.ups.com/track?tracknum=${encodeURIComponent(num)}`;
+    case "fedex":
+      return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(num)}`;
+    case "usps":
+      return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(num)}`;
+    default:
+      return null;
+  }
+}
+
 const PackDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [editingTracking, setEditingTracking] = useState(false);
+  const [editCarrier, setEditCarrier] = useState("");
+  const [editTrackingNumber, setEditTrackingNumber] = useState("");
+  const [savingTracking, setSavingTracking] = useState(false);
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
@@ -92,6 +120,25 @@ const PackDetail = () => {
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
   const projectNames = packProjects.map((pp: any) => pp.projects?.name).filter(Boolean);
   const totalPackedUnits = packLines.reduce((s: number, l: any) => s + (l.units || 0), 0);
+  const packTypeValue = pack?.pack_type || "project";
+  const isShipment = packTypeValue === "shipment";
+
+  const handleSaveTracking = async () => {
+    setSavingTracking(true);
+    try {
+      await supabase.from("tank_packs").update({
+        shipping_carrier: editCarrier || null,
+        tracking_number: editTrackingNumber.trim() || null,
+      }).eq("id", pack.id);
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      setEditingTracking(false);
+      toast({ title: "Tracking updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingTracking(false);
+    }
+  };
 
   const handlePrintSlip = () => {
     generatePackingSlipPdf(
@@ -99,8 +146,13 @@ const PackDetail = () => {
         fieldTankName,
         packedAt: pack.packed_at,
         packedBy: pack.packed_by,
-        projectNames,
+        projectNames: isShipment ? [] : projectNames,
         notes: pack.notes,
+        packType: packTypeValue,
+        destinationName: pack.destination_name,
+        destinationAddress: pack.destination_address,
+        trackingNumber: pack.tracking_number,
+        shippingCarrier: pack.shipping_carrier,
       },
       packLines.map((l: any) => ({
         bullName: l.bull_name,
@@ -115,7 +167,13 @@ const PackDetail = () => {
 
   const handlePrintLabel = () => {
     generatePackingLabelPdf(
-      { fieldTankName, packedAt: pack.packed_at, projectNames },
+      {
+        fieldTankName,
+        packedAt: pack.packed_at,
+        projectNames: isShipment ? [] : projectNames,
+        packType: packTypeValue,
+        destinationName: pack.destination_name,
+      },
       packLines.map((l: any) => ({
         bullName: l.bull_name,
         fieldCanister: l.field_canister,
@@ -136,7 +194,6 @@ const PackDetail = () => {
   };
 
   const handlePrintReturn = () => {
-    // Build a map of packed units per bull for the return slip
     const packedMap = new Map<string, number>();
     for (const pl of packLines) {
       const key = pl.bull_catalog_id || pl.bull_name;
@@ -175,6 +232,8 @@ const PackDetail = () => {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Pack not found.</p></main></div>;
   }
 
+  const trackingUrl = getTrackingUrl(pack.shipping_carrier, pack.tracking_number || "");
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -187,9 +246,14 @@ const PackDetail = () => {
             </Button>
             <h2 className="text-2xl font-bold font-display tracking-tight">Pack — {fieldTankName}</h2>
           </div>
-          <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
-            {pack.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
+              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
+            </Badge>
+            <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
+              {pack.status}
+            </Badge>
+          </div>
         </div>
 
         {/* Details Card */}
@@ -198,13 +262,80 @@ const PackDetail = () => {
             <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Field Tank:</span><span>{fieldTankName}</span></div>
             <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Date Packed:</span><span>{format(new Date(pack.packed_at), "MMMM d, yyyy")}</span></div>
             <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Packed By:</span><span>{pack.packed_by || "—"}</span></div>
-            <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Projects:</span>
-              <div className="flex flex-wrap gap-1">
-                {projectNames.map((name: string, i: number) => (
-                  <Badge key={i} variant="secondary">{name}</Badge>
-                ))}
+
+            {/* Conditional: Project vs Shipment details */}
+            {isShipment ? (
+              <>
+                <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Ship To:</span><span>{pack.destination_name || "—"}</span></div>
+                {pack.destination_address && (
+                  <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Address:</span><span>{pack.destination_address}</span></div>
+                )}
+                <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Carrier:</span><span>{pack.shipping_carrier || "—"}</span></div>
+                <div className="flex gap-2 items-start">
+                  <span className="font-semibold w-28 shrink-0">Tracking:</span>
+                  {editingTracking ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select value={editCarrier} onValueChange={setEditCarrier}>
+                        <SelectTrigger className="w-28 h-8 text-sm">
+                          <SelectValue placeholder="Carrier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UPS">UPS</SelectItem>
+                          <SelectItem value="FedEx">FedEx</SelectItem>
+                          <SelectItem value="USPS">USPS</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        className="w-48 h-8 text-sm"
+                        placeholder="Tracking number"
+                        value={editTrackingNumber}
+                        onChange={e => setEditTrackingNumber(e.target.value)}
+                      />
+                      <Button size="sm" variant="outline" onClick={handleSaveTracking} disabled={savingTracking} className="gap-1 h-8">
+                        {savingTracking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingTracking(false)} className="h-8">Cancel</Button>
+                    </div>
+                  ) : pack.tracking_number ? (
+                    <div className="flex items-center gap-2">
+                      {trackingUrl ? (
+                        <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                          {pack.tracking_number} <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span>{pack.tracking_number}</span>
+                      )}
+                      {pack.shipping_carrier && <span className="text-muted-foreground">({pack.shipping_carrier})</span>}
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditCarrier(pack.shipping_carrier || ""); setEditTrackingNumber(pack.tracking_number || ""); setEditingTracking(true); }}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-auto p-0 text-primary hover:underline" onClick={() => { setEditCarrier(pack.shipping_carrier || ""); setEditTrackingNumber(""); setEditingTracking(true); }}>
+                      <Pencil className="h-3 w-3 mr-1" /> Add tracking
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className="font-semibold w-28 shrink-0">Tank Return:</span>
+                  {pack.tank_return_expected ? (
+                    <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">Expected</Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-amber-600/20 text-amber-400 border-amber-600/30">Not returning</Badge>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Projects:</span>
+                <div className="flex flex-wrap gap-1">
+                  {projectNames.map((name: string, i: number) => (
+                    <Badge key={i} variant="secondary">{name}</Badge>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
             {pack.notes && <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Notes:</span><span>{pack.notes}</span></div>}
           </CardContent>
         </Card>
@@ -247,8 +378,15 @@ const PackDetail = () => {
         <div className="flex flex-wrap gap-2">
           <Button onClick={handlePrintSlip} className="gap-2"><FileText className="h-4 w-4" /> Print Packing Slip</Button>
           <Button variant="outline" onClick={handlePrintLabel} className="gap-2"><Tag className="h-4 w-4" /> Print Label (2×4)</Button>
-          <Button variant="outline" onClick={handlePrintSession} className="gap-2"><ClipboardList className="h-4 w-4" /> Print Session Sheet</Button>
-          {pack.status !== "unpacked" && (
+          {!isShipment && (
+            <Button variant="outline" onClick={handlePrintSession} className="gap-2"><ClipboardList className="h-4 w-4" /> Print Session Sheet</Button>
+          )}
+          {isShipment && (
+            <Button variant="outline" onClick={() => window.open("https://www.ups.com/ship/guided/origin", "_blank")} className="gap-2">
+              <Truck className="h-4 w-4" /> Create UPS Shipment
+            </Button>
+          )}
+          {pack.tank_return_expected !== false && pack.status !== "unpacked" && (
             <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
               <PackageOpen className="h-4 w-4" /> Unpack Tank
             </Button>
