@@ -32,6 +32,8 @@ import NotFound from "./pages/NotFound";
 import TeamManagement from "./pages/TeamManagement";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import PackTank from "./pages/PackTank";
+import PackDetail from "./pages/PackDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
