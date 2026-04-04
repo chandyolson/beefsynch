@@ -338,7 +338,7 @@ const SemenInventory = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex border border-border rounded-md overflow-hidden">
+          <div className="flex border border-border rounded-md overflow-hidden print:hidden">
             <button
               onClick={() => setViewMode("detail")}
               className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
@@ -349,7 +349,13 @@ const SemenInventory = () => {
               onClick={() => setViewMode("grouped")}
               className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
             >
-              Grouped
+              By Bull
+            </button>
+            <button
+              onClick={() => setViewMode("by_tank")}
+              className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "by_tank" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}
+            >
+              By Tank
             </button>
           </div>
         </div>
