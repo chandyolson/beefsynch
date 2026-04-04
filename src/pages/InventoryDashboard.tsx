@@ -144,7 +144,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
   });
 
 
-    id: item.id,
+    const rows = useMemo(() => inventory.map((item: any) => ({
     bullName: item.custom_bull_name || item.bulls_catalog?.bull_name || "—",
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
