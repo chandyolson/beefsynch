@@ -4,8 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Eye, Plus, Search, Users, Package, Archive, Droplets, Sun, Truck,
   AlertTriangle, AlertCircle, Upload, Check, X, FileSpreadsheet,
-  Clock, RotateCcw,
+  Clock, RotateCcw, ChevronsUpDown,
 } from "lucide-react";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { format, parseISO, differenceInDays, startOfMonth, parse, isValid } from "date-fns";
 import Papa from "papaparse";
 
@@ -493,6 +496,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
 const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) => {
   const queryClient = useQueryClient();
   const [selectedTankId, setSelectedTankId] = useState<string>("");
+  const [tankComboboxOpen, setTankComboboxOpen] = useState(false);
   const [fillDate, setFillDate] = useState<Date>(new Date());
   const [fillSaving, setFillSaving] = useState(false);
 
@@ -595,10 +599,30 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1.5 min-w-[240px] flex-1 max-w-sm">
             <Label>Tank</Label>
-            <Select value={selectedTankId} onValueChange={setSelectedTankId}>
-              <SelectTrigger><SelectValue placeholder="Select tank…" /></SelectTrigger>
-              <SelectContent>{tanks.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.tank_number}{t.tank_name ? ` — ${t.tank_name}` : ""}</SelectItem>)}</SelectContent>
-            </Select>
+            <Popover open={tankComboboxOpen} onOpenChange={setTankComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={tankComboboxOpen} className="w-full justify-between font-normal">
+                  {selectedTankId ? (() => { const t = tanks.find((t: any) => t.id === selectedTankId); return t ? `${t.tank_number}${t.tank_name ? ` — ${t.tank_name}` : ""}${t.customers?.name ? ` (${t.customers.name})` : ""}` : "Select tank…"; })() : "Select tank…"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search by number or name…" />
+                  <CommandList>
+                    <CommandEmpty>No tanks found.</CommandEmpty>
+                    <CommandGroup>
+                      {tanks.map((t: any) => (
+                        <CommandItem key={t.id} value={`${t.tank_number} ${t.tank_name || ""} ${t.customers?.name || ""}`} onSelect={() => { setSelectedTankId(t.id); setTankComboboxOpen(false); }}>
+                          <Check className={cn("mr-2 h-4 w-4", selectedTankId === t.id ? "opacity-100" : "opacity-0")} />
+                          {t.tank_number}{t.tank_name ? ` — ${t.tank_name}` : ""}{t.customers?.name ? ` (${t.customers.name})` : ""}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-1.5">
             <Label>Fill Date</Label>
