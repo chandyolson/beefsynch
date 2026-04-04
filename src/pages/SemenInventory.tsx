@@ -351,7 +351,7 @@ const SemenInventory = () => {
                   </TableRow>
                 ) : (
                   filtered.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-muted/20">
+                    <TableRow key={row.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/tanks/${row.tankId}`)}>
                       <TableCell className="font-medium whitespace-nowrap">
                         {row.bullName}
                         {row.itemType === "embryo" && (
