@@ -700,13 +700,13 @@ const PackTank = () => {
           <CardContent className="space-y-4">
             {lines.map((line, i) => (
               <div key={line.key} className={cn("rounded-lg border border-border/50 p-3 space-y-3")}>
-                <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-6")}>
+                <div className={cn("grid gap-3 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_60px_36px]")}>
                   {/* Source Tank */}
                   <div className="space-y-1">
                     <Label className="text-xs">Source Tank</Label>
                     <Select value={line.sourceTankId} onValueChange={v => updateLine(i, { sourceTankId: v })}>
-                      <SelectTrigger className={cn("text-sm", errors[`line_${i}_source`] && "border-destructive")}>
-                        <SelectValue placeholder="Tank…" />
+                      <SelectTrigger className={cn("text-sm h-9", errors[`line_${i}_source`] && "border-destructive")}>
+                        <SelectValue placeholder="Select tank…" />
                       </SelectTrigger>
                       <SelectContent>
                         {sourceTanks.map((t: any) => (
@@ -716,17 +716,21 @@ const PackTank = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {line.sourceTankId && (
-                      <p className="text-[11px] text-muted-foreground">
-                        {sourceTanks.find((t: any) => t.id === line.sourceTankId)?.tank_name ||
-                         sourceTanks.find((t: any) => t.id === line.sourceTankId)?.tank_number || ""}
-                        {line.sourceCanister && ` — Can ${line.sourceCanister}`}
-                      </p>
-                    )}
+                  </div>
+
+                  {/* Source Canister */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Src Can.</Label>
+                    <Input
+                      value={line.sourceCanister}
+                      onChange={e => updateLine(i, { sourceCanister: e.target.value })}
+                      placeholder="#"
+                      className="text-sm h-9"
+                    />
                   </div>
 
                   {/* Bull */}
-                  <div className="space-y-1 col-span-1">
+                  <div className="space-y-1">
                     <Label className="text-xs">Bull</Label>
                     <div className={cn(errors[`line_${i}_bull`] && "ring-1 ring-destructive rounded-md")}>
                       <BullCombobox
@@ -741,25 +745,14 @@ const PackTank = () => {
                     </div>
                   </div>
 
-                  {/* Source Canister */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Src Canister</Label>
-                    <Input
-                      value={line.sourceCanister}
-                      onChange={e => updateLine(i, { sourceCanister: e.target.value })}
-                      placeholder="Can #"
-                      className="text-sm"
-                    />
-                  </div>
-
                   {/* Field Canister */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Field Canister</Label>
+                    <Label className="text-xs">Fld Can.</Label>
                     <Input
                       value={line.fieldCanister}
                       onChange={e => updateLine(i, { fieldCanister: e.target.value })}
-                      placeholder="Can #"
-                      className="text-sm"
+                      placeholder="#"
+                      className="text-sm h-9"
                     />
                   </div>
 
@@ -771,14 +764,14 @@ const PackTank = () => {
                       min={1}
                       value={line.units || ""}
                       onChange={e => updateLine(i, { units: parseInt(e.target.value) || 0 })}
-                      className={cn("text-sm", errors[`line_${i}_units`] && "border-destructive")}
+                      className={cn("text-sm h-9", errors[`line_${i}_units`] && "border-destructive")}
                     />
                   </div>
 
                   {/* Remove */}
-                  <div className="flex items-end">
+                  <div className="flex items-end pb-0.5">
                     {lines.length > 1 && (
-                      <Button variant="ghost" size="icon" onClick={() => removeLine(i)} className="text-destructive">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => removeLine(i)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
