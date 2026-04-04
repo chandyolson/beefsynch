@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Plus, Trash2, Package, CalendarDays, Loader2, X, Search,
@@ -26,6 +26,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface PackLine {
@@ -55,6 +58,7 @@ const PackTank = () => {
   const [searchParams] = useSearchParams();
   const { orgId } = useOrgRole();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   const preselectedTankId = searchParams.get("tankId") || "";
 
@@ -77,6 +81,17 @@ const PackTank = () => {
   const [shippingCarrier, setShippingCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [tankReturnExpected, setTankReturnExpected] = useState(true);
+
+  // Add Tank dialog state
+  const [addTankOpen, setAddTankOpen] = useState(false);
+  const [newTankNumber, setNewTankNumber] = useState("");
+  const [newTankName, setNewTankName] = useState("");
+  const [newTankType, setNewTankType] = useState("shipper");
+  const [savingTank, setSavingTank] = useState(false);
+
+  // Auto-fill state
+  const [pendingAutoFill, setPendingAutoFill] = useState<string | null>(null);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
 
   // Fetch all active tanks (for project packs)
   const { data: allActiveTanks = [] } = useQuery({
@@ -149,10 +164,84 @@ const PackTank = () => {
     return projects.filter((p: any) => p.name.toLowerCase().includes(q));
   }, [projects, projectSearch]);
 
+  // Auto-fill from project bulls
+  const autoFillFromProject = async (projectId: string) => {
+    if (!orgId) return;
+
+    const { data: projBulls, error } = await supabase
+      .from("project_bulls")
+      .select("bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
+      .eq("project_id", projectId);
+
+    if (error || !projBulls || projBulls.length === 0) {
+      toast({ title: "No bulls found", description: "This project has no bulls assigned.", variant: "destructive" });
+      return;
+    }
+
+    const newLines: PackLine[] = [];
+
+    for (const pb of projBulls) {
+      const catalog = pb.bulls_catalog as any;
+      const bullName = catalog?.bull_name || pb.custom_bull_name || "Unknown";
+      const bullCode = catalog?.naab_code || null;
+      const bullCatalogId = pb.bull_catalog_id;
+
+      let invQuery = supabase
+        .from("tank_inventory")
+        .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
+        .eq("organization_id", orgId)
+        .gt("units", 0)
+        .order("units", { ascending: false });
+
+      if (bullCatalogId) {
+        invQuery = invQuery.eq("bull_catalog_id", bullCatalogId);
+      } else {
+        invQuery = invQuery.eq("custom_bull_name", pb.custom_bull_name);
+      }
+
+      const { data: invRows } = await invQuery.limit(5);
+      const bestSource = invRows && invRows.length > 0 ? invRows[0] : null;
+
+      newLines.push({
+        key: crypto.randomUUID(),
+        sourceTankId: bestSource?.tank_id || "",
+        bullName,
+        bullCatalogId,
+        bullCode,
+        sourceCanister: bestSource?.canister || "",
+        fieldCanister: "",
+        units: pb.units || 0,
+      });
+    }
+
+    setLines(prev => {
+      const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+      return hasContent ? [...prev, ...newLines] : newLines;
+    });
+
+    toast({ title: "Lines auto-filled", description: `${newLines.length} bull(s) loaded from project.` });
+  };
+
+  // Process pending auto-fill
+  useEffect(() => {
+    if (pendingAutoFill && orgId) {
+      autoFillFromProject(pendingAutoFill);
+      setPendingAutoFill(null);
+    }
+  }, [pendingAutoFill, orgId]);
+
   const toggleProject = (projId: string) => {
-    setSelectedProjects(prev =>
-      prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId]
-    );
+    setSelectedProjects(prev => {
+      const next = prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId];
+      if (next.length > prev.length) {
+        if (next.length === 1) {
+          setPendingAutoFill(next[0]);
+        } else {
+          setShowProjectPicker(true);
+        }
+      }
+      return next;
+    });
   };
 
   const updateLine = (index: number, updates: Partial<PackLine>) => {
@@ -178,6 +267,38 @@ const PackTank = () => {
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
+  };
+
+  const handleSaveNewTank = async () => {
+    if (!newTankNumber.trim() || !orgId) return;
+    setSavingTank(true);
+    try {
+      const { data: newTank, error } = await supabase
+        .from("tanks")
+        .insert({
+          organization_id: orgId,
+          tank_number: newTankNumber.trim(),
+          tank_name: newTankName.trim() || null,
+          tank_type: newTankType,
+          status: "wet",
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["all_active_tanks"] });
+      queryClient.invalidateQueries({ queryKey: ["shipper_tanks"] });
+      queryClient.invalidateQueries({ queryKey: ["source_tanks_with_inventory"] });
+      setSelectedTankId(newTank.id);
+      setAddTankOpen(false);
+      setNewTankNumber("");
+      setNewTankName("");
+      setNewTankType("shipper");
+      toast({ title: "Tank added" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingTank(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -366,23 +487,30 @@ const PackTank = () => {
             {/* Field Tank */}
             <div className="space-y-1.5">
               <Label>{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
-              <Select value={selectedTankId} onValueChange={setSelectedTankId}>
-                <SelectTrigger className={cn(errors.fieldTank && "border-destructive")}>
-                  <SelectValue placeholder={packType === "shipment" ? "Select shipper tank…" : "Select tank…"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {fieldTankOptions.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <span className="flex items-center gap-2">
-                        {t.tank_name || t.tank_number}
-                        {packType === "project" && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">{TYPE_LABELS[t.tank_type] || t.tank_type}</Badge>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Select value={selectedTankId} onValueChange={setSelectedTankId}>
+                    <SelectTrigger className={cn(errors.fieldTank && "border-destructive")}>
+                      <SelectValue placeholder={packType === "shipment" ? "Select shipper tank…" : "Select tank…"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fieldTankOptions.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span className="flex items-center gap-2">
+                            {t.tank_name || t.tank_number}
+                            {packType === "project" && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">{TYPE_LABELS[t.tank_type] || t.tank_type}</Badge>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setAddTankOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Tank
+                </Button>
+              </div>
               {errors.fieldTank && <p className="text-xs text-destructive">{errors.fieldTank}</p>}
             </div>
 
@@ -437,6 +565,36 @@ const PackTank = () => {
                       );
                     })}
                   </div>
+                )}
+
+                {/* Multi-project picker for auto-fill */}
+                {showProjectPicker && selectedProjects.length > 1 && (
+                  <Card className="mt-2">
+                    <CardContent className="p-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">Which project should we pull the semen list from?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedProjects.map(pid => {
+                          const proj = projects.find((p: any) => p.id === pid);
+                          return (
+                            <Button
+                              key={pid}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setPendingAutoFill(pid);
+                                setShowProjectPicker(false);
+                              }}
+                            >
+                              {proj?.name || "Unknown"}
+                            </Button>
+                          );
+                        })}
+                        <Button variant="ghost" size="sm" onClick={() => setShowProjectPicker(false)}>
+                          Skip
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             )}
@@ -541,7 +699,7 @@ const PackTank = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {lines.map((line, i) => (
-              <div key={line.key} className={cn("rounded-lg border border-border/50 p-3 space-y-3", isMobile ? "" : "")}>
+              <div key={line.key} className={cn("rounded-lg border border-border/50 p-3 space-y-3")}>
                 <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : "grid-cols-6")}>
                   {/* Source Tank */}
                   <div className="space-y-1">
@@ -558,6 +716,13 @@ const PackTank = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {line.sourceTankId && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {sourceTanks.find((t: any) => t.id === line.sourceTankId)?.tank_name ||
+                         sourceTanks.find((t: any) => t.id === line.sourceTankId)?.tank_number || ""}
+                        {line.sourceCanister && ` — Can ${line.sourceCanister}`}
+                      </p>
+                    )}
                   </div>
 
                   {/* Bull */}
@@ -637,6 +802,57 @@ const PackTank = () => {
         </div>
       </main>
       <AppFooter />
+
+      {/* Add Tank Dialog */}
+      <Dialog open={addTankOpen} onOpenChange={setAddTankOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Tank</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Tank Number *</Label>
+              <Input
+                value={newTankNumber}
+                onChange={e => setNewTankNumber(e.target.value)}
+                placeholder="e.g. 4085"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tank Name</Label>
+              <Input
+                value={newTankName}
+                onChange={e => setNewTankName(e.target.value)}
+                placeholder="e.g. Blue Shipper"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tank Type</Label>
+              <Select value={newTankType} onValueChange={setNewTankType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shipper">Shipper</SelectItem>
+                  <SelectItem value="customer_tank">Customer Tank</SelectItem>
+                  <SelectItem value="inventory_tank">Inventory Tank</SelectItem>
+                  <SelectItem value="rental_tank">Rental Tank</SelectItem>
+                  <SelectItem value="communal_tank">Communal Tank</SelectItem>
+                  <SelectItem value="mushroom">Mushroom</SelectItem>
+                  <SelectItem value="freeze_branding">Freeze Branding</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddTankOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveNewTank} disabled={savingTank || !newTankNumber.trim()}>
+              {savingTank ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
