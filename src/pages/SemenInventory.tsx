@@ -71,6 +71,7 @@ const SemenInventory = () => {
       bullCode: item.bull_code || "—",
       customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
       customerId: item.customer_id,
+      tankId: item.tank_id,
       tankName: item.tanks?.tank_name || "—",
       tankNumber: item.tanks?.tank_number || "—",
       canister: item.canister,
