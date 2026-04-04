@@ -134,7 +134,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, status, packed_by, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name))")
+        .select("id, packed_at, status, packed_by, pack_type, destination_name, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name))")
         .eq("organization_id", orgId)
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
