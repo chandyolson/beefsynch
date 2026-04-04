@@ -274,12 +274,15 @@ const SemenInventory = () => {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Inventory</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 print:hidden">
             <Button variant="outline" className="gap-2" onClick={handleExportCsv}>
               <FileSpreadsheet className="h-4 w-4" /> Export CSV
             </Button>
             <Button variant="outline" className="gap-2" onClick={handleExportPdf}>
               <FileText className="h-4 w-4" /> Export PDF
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" /> Print
             </Button>
           </div>
         </div>
