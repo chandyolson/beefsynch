@@ -578,6 +578,9 @@ const TankDetail = () => {
             </Table>
           </div>
         </div>
+
+        {/* ───── Pack History (shipper tanks) ───── */}
+        {tank.tank_type === "shipper" && <PackHistorySection tankId={id!} navigate={navigate} />}
       </main>
 
       {/* ───── Edit Tank Dialog ───── */}
