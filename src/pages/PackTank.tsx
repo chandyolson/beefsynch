@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Plus, Trash2, Package, CalendarDays, Loader2, X, Check, Search,
+  Truck, ClipboardList,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -57,6 +58,7 @@ const PackTank = () => {
 
   const preselectedTankId = searchParams.get("tankId") || "";
 
+  const [packType, setPackType] = useState<"project" | "shipment">("project");
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [packedBy, setPackedBy] = useState("");
@@ -69,14 +71,37 @@ const PackTank = () => {
   const [projectSearch, setProjectSearch] = useState("");
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false);
 
-  // Fetch shipper tanks for field tank dropdown
+  // Shipment fields
+  const [destinationName, setDestinationName] = useState("");
+  const [destinationAddress, setDestinationAddress] = useState("");
+  const [shippingCarrier, setShippingCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [tankReturnExpected, setTankReturnExpected] = useState(true);
+
+  // Fetch all active tanks (for project packs)
+  const { data: allActiveTanks = [] } = useQuery({
+    queryKey: ["all_active_tanks", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number, tank_type")
+        .eq("organization_id", orgId!)
+        .eq("status", "wet")
+        .order("tank_number");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch shipper tanks only (for shipment packs)
   const { data: shipperTanks = [] } = useQuery({
     queryKey: ["shipper_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("id, tank_name, tank_number")
+        .select("id, tank_name, tank_number, tank_type")
         .eq("organization_id", orgId!)
         .eq("tank_type", "shipper")
         .eq("status", "wet")
@@ -85,6 +110,8 @@ const PackTank = () => {
       return data ?? [];
     },
   });
+
+  const fieldTankOptions = packType === "project" ? allActiveTanks : shipperTanks;
 
   // Fetch all tanks with inventory for source tank dropdown
   const { data: sourceTanks = [] } = useQuery({
@@ -139,7 +166,11 @@ const PackTank = () => {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!selectedTankId) errs.fieldTank = "Select a field tank";
-    if (selectedProjects.length === 0) errs.projects = "Select at least one project";
+    if (packType === "project") {
+      if (selectedProjects.length === 0) errs.projects = "Select at least one project";
+    } else {
+      if (!destinationName.trim()) errs.destinationName = "Destination name is required";
+    }
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
       if (!line.bullName.trim()) errs[`line_${i}_bull`] = "Required";
@@ -154,7 +185,7 @@ const PackTank = () => {
     setSubmitting(true);
 
     try {
-      const fieldTank = shipperTanks.find((t: any) => t.id === selectedTankId);
+      const fieldTank = fieldTankOptions.find((t: any) => t.id === selectedTankId);
       const fieldTankName = fieldTank?.tank_name || fieldTank?.tank_number || "Unknown";
       const projectNames = selectedProjects.map(pid => projects.find((p: any) => p.id === pid)?.name || "").filter(Boolean);
 
@@ -164,23 +195,31 @@ const PackTank = () => {
         .insert({
           organization_id: orgId,
           field_tank_id: selectedTankId,
+          pack_type: packType,
           status: "packed",
           packed_at: packedDate.toISOString(),
           packed_by: packedBy.trim() || null,
           notes: notes.trim() || null,
+          destination_name: packType === "shipment" ? destinationName.trim() : null,
+          destination_address: packType === "shipment" ? destinationAddress.trim() || null : null,
+          shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
+          tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
+          tank_return_expected: packType === "shipment" ? tankReturnExpected : true,
         })
         .select()
         .single();
 
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
-      // Step 2: Create tank_pack_projects
-      await supabase.from("tank_pack_projects").insert(
-        selectedProjects.map(projId => ({
-          tank_pack_id: pack.id,
-          project_id: projId,
-        }))
-      );
+      // Step 2: Create tank_pack_projects (only for project packs)
+      if (packType === "project" && selectedProjects.length > 0) {
+        await supabase.from("tank_pack_projects").insert(
+          selectedProjects.map(projId => ({
+            tank_pack_id: pack.id,
+            project_id: projId,
+          }))
+        );
+      }
 
       // Step 3: Process each line
       for (const line of lines) {
@@ -262,7 +301,9 @@ const PackTank = () => {
           custom_bull_name: line.bullName,
           units_change: -line.units,
           transaction_type: "pack_out",
-          notes: `Packed to ${fieldTankName} for ${projectNames.join(", ")}`,
+          notes: packType === "project"
+            ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
+            : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
 
         // e. Addition transaction
@@ -287,11 +328,36 @@ const PackTank = () => {
     }
   };
 
+  const TYPE_LABELS: Record<string, string> = {
+    customer_tank: "Customer", inventory_tank: "Inventory", shipper: "Shipper",
+    mushroom: "Mushroom", rental_tank: "Rental", communal_tank: "Communal", freeze_branding: "Freeze",
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
+
+        {/* Pack Type Toggle */}
+        <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "project" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => { setPackType("project"); setSelectedTankId(""); }}
+          >
+            <ClipboardList className="h-4 w-4" /> Pack for Project
+          </button>
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "shipment" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => { setPackType("shipment"); setSelectedTankId(""); }}
+          >
+            <Truck className="h-4 w-4" /> Pack for Shipment
+          </button>
+        </div>
 
         {/* Section 1: Pack Details */}
         <Card>
@@ -299,15 +365,20 @@ const PackTank = () => {
           <CardContent className="space-y-4">
             {/* Field Tank */}
             <div className="space-y-1.5">
-              <Label>Field Tank *</Label>
+              <Label>{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
               <Select value={selectedTankId} onValueChange={setSelectedTankId}>
                 <SelectTrigger className={cn(errors.fieldTank && "border-destructive")}>
-                  <SelectValue placeholder="Select shipper tank…" />
+                  <SelectValue placeholder={packType === "shipment" ? "Select shipper tank…" : "Select tank…"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {shipperTanks.map((t: any) => (
+                  {fieldTankOptions.map((t: any) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.tank_name || t.tank_number}
+                      <span className="flex items-center gap-2">
+                        {t.tank_name || t.tank_number}
+                        {packType === "project" && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{TYPE_LABELS[t.tank_type] || t.tank_type}</Badge>
+                        )}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -315,58 +386,115 @@ const PackTank = () => {
               {errors.fieldTank && <p className="text-xs text-destructive">{errors.fieldTank}</p>}
             </div>
 
-            {/* Projects multi-select */}
-            <div className="space-y-1.5">
-              <Label>Projects *</Label>
-              <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", errors.projects && "border-destructive", selectedProjects.length === 0 && "text-muted-foreground")}>
-                    {selectedProjects.length === 0
-                      ? "Select projects…"
-                      : `${selectedProjects.length} project${selectedProjects.length > 1 ? "s" : ""} selected`}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-2" align="start">
-                  <div className="relative mb-2">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search projects…"
-                      value={projectSearch}
-                      onChange={e => setProjectSearch(e.target.value)}
-                      className="pl-8 h-8 text-sm"
-                    />
+            {/* Project fields */}
+            {packType === "project" && (
+              <div className="space-y-1.5">
+                <Label>Projects *</Label>
+                <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", errors.projects && "border-destructive", selectedProjects.length === 0 && "text-muted-foreground")}>
+                      {selectedProjects.length === 0
+                        ? "Select projects…"
+                        : `${selectedProjects.length} project${selectedProjects.length > 1 ? "s" : ""} selected`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2" align="start">
+                    <div className="relative mb-2">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search projects…"
+                        value={projectSearch}
+                        onChange={e => setProjectSearch(e.target.value)}
+                        className="pl-8 h-8 text-sm"
+                      />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {filteredProjects.map((p: any) => (
+                        <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={selectedProjects.includes(p.id)}
+                            onCheckedChange={() => toggleProject(p.id)}
+                          />
+                          {p.name}
+                        </label>
+                      ))}
+                      {filteredProjects.length === 0 && (
+                        <p className="text-xs text-muted-foreground px-2 py-2">No projects found.</p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {errors.projects && <p className="text-xs text-destructive">{errors.projects}</p>}
+                {selectedProjects.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {selectedProjects.map(pid => {
+                      const proj = projects.find((p: any) => p.id === pid);
+                      return (
+                        <Badge key={pid} variant="secondary" className="gap-1">
+                          {proj?.name || pid}
+                          <X className="h-3 w-3 cursor-pointer" onClick={() => toggleProject(pid)} />
+                        </Badge>
+                      );
+                    })}
                   </div>
-                  <div className="max-h-48 overflow-y-auto space-y-1">
-                    {filteredProjects.map((p: any) => (
-                      <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm">
-                        <Checkbox
-                          checked={selectedProjects.includes(p.id)}
-                          onCheckedChange={() => toggleProject(p.id)}
-                        />
-                        {p.name}
-                      </label>
-                    ))}
-                    {filteredProjects.length === 0 && (
-                      <p className="text-xs text-muted-foreground px-2 py-2">No projects found.</p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {errors.projects && <p className="text-xs text-destructive">{errors.projects}</p>}
-              {selectedProjects.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {selectedProjects.map(pid => {
-                    const proj = projects.find((p: any) => p.id === pid);
-                    return (
-                      <Badge key={pid} variant="secondary" className="gap-1">
-                        {proj?.name || pid}
-                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleProject(pid)} />
-                      </Badge>
-                    );
-                  })}
+                )}
+              </div>
+            )}
+
+            {/* Shipment fields */}
+            {packType === "shipment" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Ship To *</Label>
+                  <Input
+                    value={destinationName}
+                    onChange={e => setDestinationName(e.target.value)}
+                    placeholder="Recipient name or ranch"
+                    className={cn(errors.destinationName && "border-destructive")}
+                  />
+                  {errors.destinationName && <p className="text-xs text-destructive">{errors.destinationName}</p>}
                 </div>
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  <Label>Shipping Address</Label>
+                  <Input
+                    value={destinationAddress}
+                    onChange={e => setDestinationAddress(e.target.value)}
+                    placeholder="Full shipping address"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Carrier</Label>
+                  <Select value={shippingCarrier} onValueChange={setShippingCarrier}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select carrier..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPS">UPS</SelectItem>
+                      <SelectItem value="FedEx">FedEx</SelectItem>
+                      <SelectItem value="USPS">USPS</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tracking Number</Label>
+                  <Input
+                    value={trackingNumber}
+                    onChange={e => setTrackingNumber(e.target.value)}
+                    placeholder="Enter after shipping"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={tankReturnExpected}
+                    onCheckedChange={(checked) => setTankReturnExpected(!!checked)}
+                  />
+                  <Label className="cursor-pointer" onClick={() => setTankReturnExpected(!tankReturnExpected)}>
+                    Tank will be returned to us
+                  </Label>
+                </div>
+              </>
+            )}
 
             {/* Packed By */}
             <div className="space-y-1.5">
