@@ -100,7 +100,7 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, packed_by, status, tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(units)")
+        .select("id, packed_at, packed_by, status, pack_type, destination_name, tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(units)")
         .eq("field_tank_id", tankId)
         .order("packed_at", { ascending: false });
       if (error) throw error;
