@@ -105,6 +105,7 @@ const emptyLine = (): LineItem => ({
 // INVENTORY TAB
 // ═══════════════════════════════════════════
 const InventoryTab = ({ orgId }: { orgId: string }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
