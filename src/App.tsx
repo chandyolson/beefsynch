@@ -78,6 +78,8 @@ const App = () => (
             <Route path="/tanks-dashboard" element={<ProtectedRoute><TanksDashboard /></ProtectedRoute>} />
             <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
+            <Route path="/pack-tank" element={<ProtectedRoute><PackTank /></ProtectedRoute>} />
+            <Route path="/pack/:id" element={<ProtectedRoute><PackDetail /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
