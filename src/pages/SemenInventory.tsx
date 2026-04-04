@@ -435,7 +435,7 @@ const SemenInventory = () => {
                 </TableFooter>
               )}
             </Table>
-          ) : (
+          ) : viewMode === "grouped" ? (
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
@@ -495,10 +495,91 @@ const SemenInventory = () => {
                 </TableFooter>
               )}
             </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead>Canister</TableHead>
+                  <TableHead>Bull Name</TableHead>
+                  <TableHead>Bull Code</TableHead>
+                  <TableHead className="text-right">Units</TableHead>
+                  <TableHead>Owner</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  </TableRow>
+                ) : groupedByTank.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      {rows.length === 0 ? "No inventory data." : "No results match your filters."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  groupedByTank.map((group) => (
+                    <tbody key={group.tankId} className="print-tank-group">
+                      {/* Tank header row */}
+                      <TableRow className="bg-muted/40 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/tanks/${group.tankId}`)}>
+                        <TableCell colSpan={3} className="font-semibold">
+                          Tank {group.tankNumber}{group.tankName !== "—" ? ` — ${group.tankName}` : ""}
+                        </TableCell>
+                        <TableCell className="text-right font-bold">{group.totalUnits}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                      {/* Inventory rows */}
+                      {group.rows.map((row) => (
+                        <TableRow key={row.id} className="hover:bg-muted/20">
+                          <TableCell>{row.canister}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            {row.bullName}
+                            {row.itemType === "embryo" && (
+                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{row.bullCode}</TableCell>
+                          <TableCell className="text-right">{row.units}</TableCell>
+                          <TableCell>{row.customer !== "Company" ? row.customer : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </tbody>
+                  ))
+                )}
+              </TableBody>
+              {groupedByTank.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
+                    <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
           )}
         </div>
       </main>
       <AppFooter />
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          nav, footer, .print\\:hidden { display: none !important; }
+          body { background: white !important; color: black !important; }
+          main { padding: 0 !important; }
+          .rounded-lg { border-radius: 0 !important; }
+          table { width: 100% !important; }
+          .print-tank-group { break-inside: avoid; }
+          main::before {
+            content: "Semen Inventory — ${format(new Date(), "MMM d, yyyy")}";
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+          }
+        }
+      `}</style>
     </div>
   );
 };
