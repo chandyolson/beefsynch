@@ -193,7 +193,7 @@ const SemenInventory = () => {
         csvRows.push([`"${group.bullName}"`, `"${group.bullCode}"`, "", "", group.totalUnits].join(","));
         // Customer sub-rows
         for (const [, cust] of group.customers) {
-          csvRows.push(["", "", `"${cust.customer}"`, `"${cust.tanks.join(", ")}"`, cust.totalUnits].join(","));
+          csvRows.push(["", "", `"${cust.customer}"`, `"${cust.tanks.map(t => t.label).join(", ")}"`, cust.totalUnits].join(","));
         }
         csvRows.push(""); // blank separator
       }
