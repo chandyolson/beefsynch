@@ -366,17 +366,17 @@ const SemenInventory = () => {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
-                  <TableHead className="whitespace-nowrap">Bull Code</TableHead>
-                  <TableHead><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
-                  <TableHead><SortHeader label="Tank" sortKeyVal="tank" /></TableHead>
-                  <TableHead className="whitespace-nowrap">Tank #</TableHead>
-                  <TableHead>Canister</TableHead>
-                  <TableHead className="whitespace-nowrap">Sub-can</TableHead>
-                  <TableHead className="text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
-                  <TableHead className="whitespace-nowrap">Storage</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
+                  <TableHead className="w-[160px]"><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
+                  <TableHead className="w-[90px] whitespace-nowrap">Bull Code</TableHead>
+                  <TableHead className="w-[140px]"><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
+                  <TableHead className="w-[120px]"><SortHeader label="Tank" sortKeyVal="tank" /></TableHead>
+                  <TableHead className="w-[60px] whitespace-nowrap">Tank #</TableHead>
+                  <TableHead className="w-[55px]">Can.</TableHead>
+                  <TableHead className="w-[55px] whitespace-nowrap">Sub</TableHead>
+                  <TableHead className="w-[55px] text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
+                  <TableHead className="w-[80px] whitespace-nowrap">Storage</TableHead>
+                  <TableHead className="w-[70px]">Owner</TableHead>
+                  <TableHead className="w-[100px] whitespace-nowrap">Inventoried</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
