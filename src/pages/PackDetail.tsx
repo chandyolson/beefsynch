@@ -148,8 +148,10 @@ const PackDetail = () => {
         fieldTankName,
         packedAt: pack.packed_at,
         unpackedAt: pack.unpacked_at,
+        packedBy: pack.packed_by,
         unpackedBy: pack.unpacked_by,
         projectNames,
+        notes: pack.notes,
       },
       unpackLines.map((ul: any) => {
         const key = ul.bull_catalog_id || ul.bull_name;
