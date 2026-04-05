@@ -258,6 +258,15 @@ const PackTank = () => {
     }
   }, [pendingAutoFill, orgId]);
 
+  // Pre-select project from URL param
+  useEffect(() => {
+    if (preselectedProjectId && orgId && !didPreselect) {
+      setDidPreselect(true);
+      setSelectedProjects([preselectedProjectId]);
+      setPendingAutoFill(preselectedProjectId);
+    }
+  }, [preselectedProjectId, orgId, didPreselect]);
+
   const toggleProject = (projId: string) => {
     setSelectedProjects(prev => {
       const next = prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId];
