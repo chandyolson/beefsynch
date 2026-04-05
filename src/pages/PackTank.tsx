@@ -13,6 +13,7 @@ import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -800,10 +801,7 @@ const PackTank = () => {
                       size="icon"
                       className="h-9 w-9"
                       disabled={!line.bullName || !line.units}
-                      onClick={() => {
-                        const { generateTankLabelPdf } = require("@/lib/generateTankLabelPdf");
-                        generateTankLabelPdf(line.bullName, line.units);
-                      }}
+                      onClick={() => generateTankLabelPdf(line.bullName, line.units)}
                     >
                       <Printer className="h-4 w-4" />
                     </Button>
