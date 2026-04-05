@@ -722,10 +722,10 @@ const PackTank = () => {
               <Plus className="h-4 w-4 mr-1" /> Add Line
             </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {lines.map((line, i) => (
-              <div key={line.key} className={cn("rounded-lg border border-border/50 p-3 space-y-3")}>
-                <div className={cn("grid gap-3 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_60px_36px]")}>
+              <div key={line.key} className={cn("rounded-lg border border-border/50 p-2 space-y-2")}>
+                <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px]")}>
                   {/* Source Tank */}
                   <div className="space-y-1">
                     <Label className="text-xs">Source Tank</Label>
@@ -782,7 +782,7 @@ const PackTank = () => {
                   </div>
 
                   {/* Units */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-[80px]">
                     <Label className="text-xs">Units</Label>
                     <Input
                       type="number"
