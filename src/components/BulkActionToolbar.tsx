@@ -93,6 +93,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
     setBusy(true);
     const failed: string[] = [];
     for (const p of selectedProjects) {
+      await supabase.from("google_calendar_events").delete().eq("project_id", p.id);
       await supabase.from("protocol_events").delete().eq("project_id", p.id);
       await supabase.from("project_bulls").delete().eq("project_id", p.id);
       const { error } = await supabase.from("projects").delete().eq("id", p.id);

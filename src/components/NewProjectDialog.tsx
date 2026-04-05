@@ -245,6 +245,8 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         projectId = editData.id;
 
         // Delete old events, then re-insert
+        const { error: delSyncErr } = await supabase.from("google_calendar_events").delete().eq("project_id", projectId);
+        if (delSyncErr) console.error("Failed to clean up calendar sync records:", delSyncErr);
         const { error: delErr } = await supabase.from("protocol_events").delete().eq("project_id", projectId);
         if (delErr) throw delErr;
 
