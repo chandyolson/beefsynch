@@ -62,6 +62,7 @@ const PackTank = () => {
   const queryClient = useQueryClient();
 
   const preselectedTankId = searchParams.get("tankId") || "";
+  const preselectedProjectId = searchParams.get("projectId") || "";
 
   const [packType, setPackType] = useState<"project" | "shipment">("project");
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
@@ -93,6 +94,7 @@ const PackTank = () => {
   // Auto-fill state
   const [pendingAutoFill, setPendingAutoFill] = useState<string | null>(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [didPreselect, setDidPreselect] = useState(false);
 
   // Fetch all active tanks (for project packs)
   const { data: allActiveTanks = [] } = useQuery({
@@ -255,6 +257,15 @@ const PackTank = () => {
       setPendingAutoFill(null);
     }
   }, [pendingAutoFill, orgId]);
+
+  // Pre-select project from URL param
+  useEffect(() => {
+    if (preselectedProjectId && orgId && !didPreselect) {
+      setDidPreselect(true);
+      setSelectedProjects([preselectedProjectId]);
+      setPendingAutoFill(preselectedProjectId);
+    }
+  }, [preselectedProjectId, orgId, didPreselect]);
 
   const toggleProject = (projId: string) => {
     setSelectedProjects(prev => {
