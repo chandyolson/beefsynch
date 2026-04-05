@@ -100,7 +100,7 @@ interface BullRow {
 const statusColor: Record<string, string> = {
   Tentative: "bg-warning/20 text-warning",
   Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-success/20 text-success",
+  Complete: "bg-emerald-500 text-white",
 };
 
 const ProjectDetail = () => {
