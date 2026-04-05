@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Plus, Trash2, Package, CalendarDays, Loader2, X, Search,
-  Truck, ClipboardList,
+  Truck, ClipboardList, Printer,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -13,6 +13,7 @@ import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -725,7 +726,7 @@ const PackTank = () => {
           <CardContent className="space-y-3">
             {lines.map((line, i) => (
               <div key={line.key} className={cn("rounded-lg border border-border/50 p-2 space-y-2")}>
-                <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px]")}>
+                <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px_36px]")}>
                   {/* Source Tank */}
                   <div className="space-y-1">
                     <Label className="text-xs">Source Tank</Label>
@@ -791,6 +792,19 @@ const PackTank = () => {
                       onChange={e => updateLine(i, { units: parseInt(e.target.value) || 0 })}
                       className={cn("text-sm h-9", errors[`line_${i}_units`] && "border-destructive")}
                     />
+                  </div>
+
+                  {/* Print Label */}
+                  <div className={cn("flex items-end pb-0.5", isMobile && "hidden")}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      disabled={!line.bullName || !line.units}
+                      onClick={() => generateTankLabelPdf(line.bullName, line.units)}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Remove */}
