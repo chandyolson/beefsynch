@@ -28,10 +28,8 @@ const STORAGE_BADGES: Record<string, string> = {
   inventory: "bg-purple-500/15 text-purple-400 border-purple-500/30",
 };
 
-const OWNER_BADGES: Record<string, string> = {
-  CATL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  Select: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-};
+
+
 
 type SortKey = "bull_name" | "customer" | "tank" | "units";
 type SortDir = "asc" | "desc";
@@ -412,10 +410,8 @@ const SemenInventory = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {row.owner ? (
-                          <Badge variant="outline" className={OWNER_BADGES[row.owner] || "bg-muted text-muted-foreground border-border"}>
-                            {row.owner}
-                          </Badge>
+                      {row.owner ? (
+                          <span>{row.owner}</span>
                         ) : "—"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
