@@ -725,7 +725,7 @@ const PackTank = () => {
           <CardContent className="space-y-3">
             {lines.map((line, i) => (
               <div key={line.key} className={cn("rounded-lg border border-border/50 p-2 space-y-2")}>
-                <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "<div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px_36px]")}>")}>
+                <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px_36px]")}>
                   {/* Source Tank */}
                   <div className="space-y-1">
                     <Label className="text-xs">Source Tank</Label>
