@@ -826,7 +826,7 @@ const ProjectDetail = () => {
         {/* Synchronization Schedule */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Synchronization Schedule</CardTitle>
+            <CardTitle className="text-lg">Synchronization Schedule {project.protocol && <span className="font-normal text-muted-foreground">— {project.protocol}</span>}</CardTitle>
           </CardHeader>
           <CardContent>
             {events.length === 0 ? (
