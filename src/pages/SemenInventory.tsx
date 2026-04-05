@@ -412,10 +412,8 @@ const SemenInventory = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {row.owner ? (
-                          <Badge variant="outline" className={OWNER_BADGES[row.owner] || "bg-muted text-muted-foreground border-border"}>
-                            {row.owner}
-                          </Badge>
+                      {row.owner ? (
+                          <span>{row.owner}</span>
                         ) : "—"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">

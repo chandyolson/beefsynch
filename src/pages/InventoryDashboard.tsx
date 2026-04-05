@@ -404,7 +404,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
                       <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>{row.storageType}</Badge>
                     </TableCell>
                     <TableCell>
-                      {row.owner ? <Badge variant="outline" className={OWNER_BADGES[row.owner] || "bg-muted text-muted-foreground border-border"}>{row.owner}</Badge> : "—"}
+                      {row.owner ? <span>{row.owner}</span> : "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}</TableCell>
                   </TableRow>
