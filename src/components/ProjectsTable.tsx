@@ -22,7 +22,7 @@ type SortDir = "asc" | "desc";
 
 const statusStyles: Record<string, string> = {
   Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-success/20 text-success",
+  Complete: "bg-emerald-500 text-white",
   Tentative: "bg-warning/20 text-warning",
 };
 
