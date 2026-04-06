@@ -119,7 +119,7 @@ const CustomerDetail = () => {
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -134,7 +134,7 @@ const CustomerDetail = () => {
         .eq("organization_id", orgId!)
         .eq("customer_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -150,7 +150,7 @@ const CustomerDetail = () => {
         .eq("customer_id", id!)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
