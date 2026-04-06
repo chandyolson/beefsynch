@@ -150,7 +150,7 @@ const ProjectBilling = () => {
   /* ── debounced save helper ── */
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  function debouncedSave(key: string, fn: () => Promise<any>, delay = 500) {
+  function debouncedSave(key: string, fn: () => PromiseLike<any>, delay = 500) {
     if (debounceRef.current[key]) clearTimeout(debounceRef.current[key]);
     debounceRef.current[key] = setTimeout(async () => {
       const { error } = await fn();
