@@ -350,6 +350,24 @@ const PackTank = () => {
     setLines(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Compute remaining available units for a line, subtracting what other lines
+  // have already committed from the same source tank + bull combination
+  const computeAvailable = (line: PackLine, lineIndex: number): number => {
+    if (line.availableUnits === null) return 0;
+    const committed = lines.reduce((sum, l, i) => {
+      if (i === lineIndex) return sum;
+      const sameTank = l.sourceTankId === line.sourceTankId;
+      const sameBull = line.bullCatalogId
+        ? l.bullCatalogId === line.bullCatalogId
+        : l.bullName === line.bullName;
+      const sameCanister = line.sourceCanister
+        ? l.sourceCanister === line.sourceCanister
+        : true;
+      return sameTank && sameBull && sameCanister ? sum + (l.units || 0) : sum;
+    }, 0);
+    return Math.max(0, line.availableUnits - committed);
+  };
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!selectedTankId) errs.fieldTank = "Select a field tank";
@@ -362,7 +380,7 @@ const PackTank = () => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
       if (!line.bullName.trim()) errs[`line_${i}_bull`] = "Required";
       if (line.units <= 0) errs[`line_${i}_units`] = "Must be > 0";
-      if (line.availableUnits !== null && line.units > line.availableUnits) errs[`line_${i}_units`] = `Max ${line.availableUnits} units available`;
+      if (line.availableUnits !== null && line.units > computeAvailable(line, i)) errs[`line_${i}_units`] = `Max ${computeAvailable(line, i)} units available`;
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -834,7 +852,17 @@ const PackTank = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Semen to Pack</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setLines(prev => [...prev, emptyLine()])}>
+            <Button variant="outline" size="sm" onClick={() => setLines(prev => {
+              const last = prev[prev.length - 1];
+              return [...prev, {
+                ...emptyLine(),
+                bullName: last?.bullName || "",
+                bullCatalogId: last?.bullCatalogId || null,
+                bullCode: last?.bullCode || null,
+                sourceTankId: last?.sourceTankId || "",
+                availableUnits: last?.availableUnits ?? null,
+              }];
+            })}>
               <Plus className="h-4 w-4 mr-1" /> Add Line
             </Button>
           </CardHeader>
@@ -918,7 +946,14 @@ const PackTank = () => {
 
                   {/* Units */}
                   <div className="space-y-1 min-w-[80px]">
-                    <Label className="text-xs">Units</Label>
+                    <Label className="text-xs">
+                      Units
+                      {line.availableUnits !== null && (
+                        <span className={cn("ml-1 font-normal", line.units > 0 && line.units > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
+                          ({computeAvailable(line, i)} avail.)
+                        </span>
+                      )}
+                    </Label>
                     <Input
                       type="number"
                       min={1}
@@ -926,11 +961,6 @@ const PackTank = () => {
                       onChange={e => updateLine(i, { units: parseInt(e.target.value) || 0 })}
                       className={cn("text-sm h-9", errors[`line_${i}_units`] && "border-destructive")}
                     />
-                    {line.availableUnits !== null && (
-                      <p className={cn("text-xs", line.units > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
-                        {line.availableUnits} available
-                      </p>
-                    )}
                   </div>
 
                   {/* Print Label */}
