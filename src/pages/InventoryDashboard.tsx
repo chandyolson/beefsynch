@@ -787,19 +787,25 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
         else matchFilter.custom_bull_name = line.bullName;
 
         const { data: existing } = await supabase.from("tank_inventory").select("id, units").match(matchFilter).maybeSingle();
-        if (existing) await supabase.from("tank_inventory").update({ units: existing.units + line.units }).eq("id", existing.id);
-        else await supabase.from("tank_inventory").insert({
-          organization_id: orgId, tank_id: line.tankId, canister: line.canister.trim(),
-          bull_catalog_id: line.bullCatalogId, custom_bull_name: line.bullCatalogId ? null : line.bullName,
-          units: line.units, storage_type: "inventory",
-        });
+        if (existing) {
+          const { error: invUpdateErr } = await supabase.from("tank_inventory").update({ units: existing.units + line.units }).eq("id", existing.id);
+          if (invUpdateErr) throw invUpdateErr;
+        } else {
+          const { error: invInsertErr } = await supabase.from("tank_inventory").insert({
+            organization_id: orgId, tank_id: line.tankId, canister: line.canister.trim(),
+            bull_catalog_id: line.bullCatalogId, custom_bull_name: line.bullCatalogId ? null : line.bullName,
+            units: line.units, storage_type: "inventory",
+          });
+          if (invInsertErr) throw invInsertErr;
+        }
 
-        await supabase.from("inventory_transactions").insert({
+        const { error: txnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId, tank_id: line.tankId, bull_catalog_id: line.bullCatalogId,
           custom_bull_name: line.bullName, units_change: line.units, transaction_type: "received",
           shipment_id: shipmentId, order_id: selectedOrderId || null, performed_by: userId,
           notes: `Received from ${receivedFrom.trim()}`,
         });
+        if (txnErr) throw txnErr;
       }
 
       if (selectedOrderId) {
@@ -812,8 +818,10 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
         const newStatus = totalReceived >= totalOrdered ? "delivered" : "partially_filled";
         const { data: currentOrder } = await supabase.from("semen_orders").select("fulfillment_status").eq("id", selectedOrderId).single();
         const statusRank: Record<string, number> = { pending: 0, backordered: 1, ordered: 2, partially_filled: 3, shipped: 4, delivered: 5 };
-        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0))
-          await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
+        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)) {
+          const { error: orderUpdateErr } = await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
+          if (orderUpdateErr) throw orderUpdateErr;
+        }
       }
 
       toast({ title: "Shipment received", description: `${totalUnits} units added to inventory` });

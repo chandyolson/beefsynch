@@ -36,12 +36,13 @@ const Onboarding = () => {
         // to prevent a redirect loop between / and /onboarding
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         if (currentUser) {
-          await supabase
+          const { error: profileErr } = await supabase
             .from("profiles")
             .upsert(
               { user_id: currentUser.id, has_completed_onboarding: true },
               { onConflict: "user_id" }
             );
+          if (profileErr) console.error("Failed to mark onboarding complete:", profileErr.message);
         }
         navigate("/dashboard", { replace: true });
       }
@@ -101,7 +102,8 @@ const Onboarding = () => {
     }
 
     // Mark onboarding complete
-    await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
+    const { error: profileCreateErr } = await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
+    if (profileCreateErr) console.error("Failed to mark onboarding complete:", profileCreateErr.message);
 
     toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
     setLoading(false);
@@ -172,12 +174,13 @@ const Onboarding = () => {
       }
 
       // Also mark any pending_invites for this email as accepted
-      await supabase
+      const { error: inviteErr } = await supabase
         .from("pending_invites")
         .update({ accepted: true })
         .eq("organization_id", org.id)
         .eq("invited_email", userEmail)
         .eq("accepted", false);
+      if (inviteErr) console.error("Failed to mark pending invite as accepted:", inviteErr.message);
     } else {
       // No pending row exists — insert a fresh one
       const { error: memberError } = await supabase
@@ -209,7 +212,8 @@ const Onboarding = () => {
     }
 
     // Mark onboarding complete
-    await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
+    const { error: profileJoinErr } = await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
+    if (profileJoinErr) console.error("Failed to mark onboarding complete:", profileJoinErr.message);
 
     toast({ title: `Welcome to ${org.name}!`, description: "You now have access to all team projects." });
     setLoading(false);
