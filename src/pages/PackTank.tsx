@@ -44,6 +44,7 @@ interface PackLine {
   sourceCanister: string;
   fieldCanister: string;
   units: number;
+  availableUnits: number | null;
 }
 
 const emptyLine = (): PackLine => ({
@@ -55,6 +56,7 @@ const emptyLine = (): PackLine => ({
   sourceCanister: "",
   fieldCanister: "",
   units: 0,
+  availableUnits: null,
 });
 
 const PackTank = () => {
@@ -173,6 +175,57 @@ const PackTank = () => {
     return projects.filter((p: any) => p.name.toLowerCase().includes(q));
   }, [projects, projectSearch]);
 
+  // Inventory summary: bull -> list of { tankName, canister, units }
+  const [inventorySummary, setInventorySummary] = useState<Record<string, { bullName: string; locations: { tankName: string; canister: string; units: number }[] }>>({});
+
+  const loadInventorySummary = async (projectId: string) => {
+    if (!orgId) return;
+    const { data: projBulls, error } = await supabase
+      .from("project_bulls")
+      .select("bull_catalog_id, custom_bull_name, bulls_catalog(bull_name, naab_code)")
+      .eq("project_id", projectId);
+    if (error || !projBulls) return;
+
+    const summary: Record<string, { bullName: string; locations: { tankName: string; canister: string; units: number }[] }> = {};
+
+    for (const pb of projBulls) {
+      const catalog = (pb as any).bulls_catalog as any;
+      const bullName = catalog?.bull_name || (pb as any).custom_bull_name || "Unknown";
+      const bullKey = (pb as any).bull_catalog_id || bullName;
+
+      let invRows: any[] = [];
+      if ((pb as any).bull_catalog_id) {
+        const { data } = await supabase
+          .from("tank_inventory")
+          .select("canister, units, tanks!inner(tank_name, tank_number)")
+          .eq("organization_id", orgId)
+          .eq("bull_catalog_id", (pb as any).bull_catalog_id)
+          .gt("units", 0)
+          .order("units", { ascending: false });
+        invRows = data ?? [];
+      } else {
+        const { data } = await supabase
+          .from("tank_inventory")
+          .select("canister, units, tanks!inner(tank_name, tank_number)")
+          .eq("organization_id", orgId)
+          .eq("custom_bull_name", bullName)
+          .gt("units", 0)
+          .order("units", { ascending: false });
+        invRows = data ?? [];
+      }
+
+      summary[bullKey] = {
+        bullName,
+        locations: invRows.map((r: any) => ({
+          tankName: r.tanks?.tank_name || `Tank #${r.tanks?.tank_number}` || "Unknown Tank",
+          canister: r.canister,
+          units: r.units,
+        })),
+      };
+    }
+    setInventorySummary(summary);
+  };
+
   // Auto-fill from project bulls
   const autoFillFromProject = async (projectId: string) => {
     if (!orgId) return;
@@ -244,7 +297,8 @@ const PackTank = () => {
         bullCode,
         sourceCanister: bestSource?.canister || "",
         fieldCanister: "",
-        units: pb.units || 0,
+        units: 0,
+        availableUnits: bestSource?.units ?? null,
       });
     }
 
@@ -254,6 +308,7 @@ const PackTank = () => {
     });
 
     toast({ title: "Lines auto-filled", description: `${newLines.length} bull(s) loaded from project.` });
+    await loadInventorySummary(projectId);
   };
 
   // Process pending auto-fill
@@ -307,6 +362,7 @@ const PackTank = () => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
       if (!line.bullName.trim()) errs[`line_${i}_bull`] = "Required";
       if (line.units <= 0) errs[`line_${i}_units`] = "Must be > 0";
+      if (line.availableUnits !== null && line.units > line.availableUnits) errs[`line_${i}_units`] = `Max ${line.availableUnits} units available`;
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -749,6 +805,31 @@ const PackTank = () => {
           </CardContent>
         </Card>
 
+        {/* Inventory Summary — project packs only */}
+        {packType === "project" && selectedProjects.length > 0 && Object.keys(inventorySummary).length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">Available Inventory</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {Object.values(inventorySummary).map((bull) => (
+                <div key={bull.bullName}>
+                  <p className="text-sm font-semibold mb-1">{bull.bullName}</p>
+                  {bull.locations.length === 0 ? (
+                    <p className="text-xs text-muted-foreground pl-3">No inventory on hand</p>
+                  ) : (
+                    <div className="space-y-0.5 pl-3">
+                      {bull.locations.map((loc, idx) => (
+                        <p key={idx} className="text-xs text-muted-foreground">
+                          {loc.tankName} — Canister {loc.canister} — {loc.units} units
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Section 2: Pack Lines */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -845,6 +926,11 @@ const PackTank = () => {
                       onChange={e => updateLine(i, { units: parseInt(e.target.value) || 0 })}
                       className={cn("text-sm h-9", errors[`line_${i}_units`] && "border-destructive")}
                     />
+                    {line.availableUnits !== null && (
+                      <p className={cn("text-xs", line.units > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
+                        {line.availableUnits} available
+                      </p>
+                    )}
                   </div>
 
                   {/* Print Label */}
