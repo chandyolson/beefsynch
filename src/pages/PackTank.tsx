@@ -79,6 +79,9 @@ const PackTank = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false);
+  const [fieldTankOpen, setFieldTankOpen] = useState(false);
+  const [fieldTankSearch, setFieldTankSearch] = useState("");
+  const [sourcePopoverOpen, setSourcePopoverOpen] = useState<Record<number, boolean>>({});
 
   // Shipment fields
   const [destinationName, setDestinationName] = useState("");
