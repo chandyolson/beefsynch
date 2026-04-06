@@ -124,7 +124,7 @@ const TankFills = () => {
         .eq("organization_id", orgId!)
         .order("tank_number", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -139,7 +139,7 @@ const TankFills = () => {
         .eq("organization_id", orgId!)
         .order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -193,7 +193,7 @@ const TankFills = () => {
       tank_id: selectedTankId,
       fill_date: format(fillDate, "yyyy-MM-dd"),
       filled_by: userId,
-    } as any);
+    });
     setFillSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not record fill.", variant: "destructive" });
@@ -265,7 +265,7 @@ const TankFills = () => {
       filled_by: userId,
       notes: "Bulk import",
     }));
-    const { error } = await supabase.from("tank_fills").insert(inserts as any);
+    const { error } = await supabase.from("tank_fills").insert(inserts);
     setBulkImporting(false);
     if (error) {
       toast({ title: "Import failed", description: error.message, variant: "destructive" });

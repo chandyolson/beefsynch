@@ -109,7 +109,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
         .eq("organization_id", orgId)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -125,7 +125,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

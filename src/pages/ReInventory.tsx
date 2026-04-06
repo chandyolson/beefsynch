@@ -81,7 +81,7 @@ const ReInventory = () => {
         .eq("id", tankId!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -114,7 +114,7 @@ const ReInventory = () => {
       query = query.order("canister", { ascending: true }).order("sub_canister", { ascending: true }).limit(10000);
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -208,7 +208,7 @@ const ReInventory = () => {
           // Still update inventoried_at
           await supabase
             .from("tank_inventory")
-            .update({ inventoried_at: now, inventoried_by: userId } as any)
+            .update({ inventoried_at: now, inventoried_by: userId })
             .eq("id", row.id);
           continue;
         }
@@ -216,7 +216,7 @@ const ReInventory = () => {
         // Update inventory
         await supabase
           .from("tank_inventory")
-          .update({ units: row.actual, inventoried_at: now, inventoried_by: userId } as any)
+          .update({ units: row.actual, inventoried_at: now, inventoried_by: userId })
           .eq("id", row.id);
 
         // Log transaction
@@ -235,7 +235,7 @@ const ReInventory = () => {
             reason: diff < 0 ? "Missing/used" : "Found/added",
             notes: notes.trim() || null,
             performed_by: userId,
-          } as any);
+          });
       }
 
       // Insert new rows
@@ -262,7 +262,7 @@ const ReInventory = () => {
             inventoried_by: userId,
             storage_type: "customer",
             item_type: nr.item_type,
-          } as any)
+          })
           .select("id")
           .single();
 
@@ -272,7 +272,7 @@ const ReInventory = () => {
             .insert({
               organization_id: orgId,
               tank_id: tankId,
-              inventory_item_id: (inserted as any).id,
+              inventory_item_id: inserted.id,
               customer_id: customerId || null,
               bull_catalog_id: nr.bull_catalog_id || null,
               custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
@@ -282,7 +282,7 @@ const ReInventory = () => {
               reason: "Found during re-inventory",
               notes: notes.trim() || null,
               performed_by: userId,
-            } as any);
+            });
         }
       }
 

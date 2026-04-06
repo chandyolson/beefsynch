@@ -67,7 +67,7 @@ const TanksOut = () => {
         .eq("status", "out")
         .order("tank_number");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -85,7 +85,7 @@ const TanksOut = () => {
         .in("movement_type", ["picked_up", "shipped_out"])
         .order("movement_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -102,7 +102,7 @@ const TanksOut = () => {
         .in("movement_type", ["returned", "received_back"])
         .gte("movement_date", monthStart);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -154,13 +154,13 @@ const TanksOut = () => {
       tank_status_after: returnStatus,
       performed_by: userId,
       notes: returnNotes.trim() || null,
-    } as any);
+    });
     if (moveErr) {
       setReturnSaving(false);
       toast({ title: "Error", description: "Could not record return.", variant: "destructive" });
       return;
     }
-    await supabase.from("tanks").update({ status: returnStatus } as any).eq("id", returnTankId);
+    await supabase.from("tanks").update({ status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tanks_out"] });
     queryClient.invalidateQueries({ queryKey: ["returns_this_month"] });

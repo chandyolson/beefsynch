@@ -57,7 +57,7 @@ const UnpackTank = () => {
         .eq("id", packId!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -72,7 +72,7 @@ const UnpackTank = () => {
         .eq("tank_pack_id", packId!)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -86,7 +86,7 @@ const UnpackTank = () => {
         .select("*, projects!tank_pack_projects_project_id_fkey(name)")
         .eq("tank_pack_id", packId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -101,7 +101,7 @@ const UnpackTank = () => {
         .eq("organization_id", orgId!)
         .order("tank_number");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

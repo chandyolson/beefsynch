@@ -128,17 +128,17 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
         supabase.from("project_bulls").select("*, bulls_catalog(bull_name, company, registration_number)").in("project_id", ids),
       ]);
 
-      const projectsData = (pRes.data ?? []) as any[];
+      const projectsData = pRes.data ?? [];
       const orderedProjects = ids.map((id) => projectsData.find((p: any) => p.id === id)).filter(Boolean);
 
       const eventsByProject: Record<string, any[]> = {};
-      for (const ev of (eRes.data ?? []) as any[]) {
+      for (const ev of (eRes.data ?? [])) {
         if (!eventsByProject[ev.project_id]) eventsByProject[ev.project_id] = [];
         eventsByProject[ev.project_id].push(ev);
       }
 
       const bullsByProject: Record<string, any[]> = {};
-      for (const b of (bRes.data ?? []) as any[]) {
+      for (const b of (bRes.data ?? [])) {
         if (!bullsByProject[b.project_id]) bullsByProject[b.project_id] = [];
         bullsByProject[b.project_id].push(b);
       }

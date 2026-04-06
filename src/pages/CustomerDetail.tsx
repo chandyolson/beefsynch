@@ -174,7 +174,7 @@ const CustomerDetail = () => {
         .select("*") // TODO: narrow select columns
         .in("id", communalTankIds);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -199,7 +199,7 @@ const CustomerDetail = () => {
         .or(`customer_id.eq.${id},customer_id.is.null`)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -346,7 +346,7 @@ const CustomerDetail = () => {
         email: formEmail.trim() || null,
         address: formAddress.trim() || null,
         notes: formNotes.trim() || null,
-      } as any)
+      })
       .eq("id", id);
     setSaving(false);
     if (error) {
@@ -376,7 +376,7 @@ const CustomerDetail = () => {
         model: tankModel.trim() || null,
         serial_number: tankSerial.trim() || null,
         description: tankDesc.trim() || null,
-      } as any);
+      });
     setTankSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not add tank.", variant: "destructive" });
@@ -412,7 +412,7 @@ const CustomerDetail = () => {
         units: parseInt(semenUnits) || 0,
         storage_type: semenStorageType,
         notes: semenNotes.trim() || null,
-      } as any);
+      });
     setSemenSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not add semen.", variant: "destructive" });
@@ -453,7 +453,7 @@ const CustomerDetail = () => {
       tank_id: tankId,
       fill_date: format(new Date(), "yyyy-MM-dd"),
       filled_by: user?.id ?? null,
-    } as any);
+    });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
