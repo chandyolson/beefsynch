@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { FULFILLMENT_COLORS, BILLING_COLORS } from "@/lib/constants";
 
 type TabKey = "inventory" | "orders" | "receive";
 
@@ -60,19 +61,6 @@ type SortKey = "bull_name" | "customer" | "tank" | "units";
 type SortDir = "asc" | "desc";
 
 // ─── Orders Tab Constants ───
-const fulfillmentColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
-};
-const billingColors: Record<string, string> = {
-  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  paid: "bg-green-500/20 text-green-300 border-green-500/30",
-};
 
 // ─── Receive Tab Types ───
 interface OrderItem {
@@ -615,8 +603,8 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                   <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                   <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                   <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", FULFILLMENT_COLORS[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", BILLING_COLORS[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}><Eye className="h-4 w-4" /></Button>

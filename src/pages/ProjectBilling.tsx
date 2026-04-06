@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 import { formatTime12 } from "@/lib/formatting";
+import { BILLING_STATUS_COLORS } from "@/lib/constants";
 
 /* ────────────────── types ────────────────── */
 
@@ -91,13 +92,6 @@ interface LaborLine {
 }
 
 /* ────────────────── helpers ────────────────── */
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  review: "bg-warning/20 text-warning",
-  invoiced: "bg-primary/20 text-primary",
-  paid: "bg-emerald-500 text-white",
-};
 
 const BILLING_STATUSES = ["draft", "review", "invoiced", "paid"];
 

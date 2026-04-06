@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
+import { PROJECT_STATUS_COLORS } from "@/lib/constants";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
@@ -98,11 +99,6 @@ interface BullRow {
   bulls_catalog: { bull_name: string; company: string; registration_number: string; breed: string } | null;
 }
 
-const statusColor: Record<string, string> = {
-  Tentative: "bg-warning/20 text-warning",
-  Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-emerald-500 text-white",
-};
 
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
@@ -685,7 +681,7 @@ const ProjectDetail = () => {
             </Badge>
             <Badge
               className={
-                statusColor[project.status] ??
+                PROJECT_STATUS_COLORS[project.status] ??
                 "bg-muted text-muted-foreground"
               }
             >
