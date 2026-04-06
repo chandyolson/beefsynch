@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_products: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          default_price: number | null
+          doses_per_unit: number | null
+          drug_name: string | null
+          id: string
+          is_default: boolean | null
+          organization_id: string
+          product_category: string
+          product_name: string
+          qbo_item_name: string | null
+          sort_order: number | null
+          unit_label: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          default_price?: number | null
+          doses_per_unit?: number | null
+          drug_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          organization_id: string
+          product_category: string
+          product_name: string
+          qbo_item_name?: string | null
+          sort_order?: number | null
+          unit_label?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          default_price?: number | null
+          doses_per_unit?: number | null
+          drug_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          organization_id?: string
+          product_category?: string
+          product_name?: string
+          qbo_item_name?: string | null
+          sort_order?: number | null
+          unit_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bull_favorites: {
         Row: {
           bull_catalog_id: string | null
@@ -402,6 +458,292 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      project_billing: {
+        Row: {
+          catl_invoice_number: string | null
+          created_at: string | null
+          detection_type: string | null
+          id: string
+          mass_breed_head: number | null
+          notes: string | null
+          organization_id: string
+          project_id: string
+          qbo_invoice_id: string | null
+          qbo_synced_at: string | null
+          select_sires_invoice_number: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          catl_invoice_number?: string | null
+          created_at?: string | null
+          detection_type?: string | null
+          id?: string
+          mass_breed_head?: number | null
+          notes?: string | null
+          organization_id: string
+          project_id: string
+          qbo_invoice_id?: string | null
+          qbo_synced_at?: string | null
+          select_sires_invoice_number?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          catl_invoice_number?: string | null
+          created_at?: string | null
+          detection_type?: string | null
+          id?: string
+          mass_breed_head?: number | null
+          notes?: string | null
+          organization_id?: string
+          project_id?: string
+          qbo_invoice_id?: string | null
+          qbo_synced_at?: string | null
+          select_sires_invoice_number?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_billing_labor: {
+        Row: {
+          amount: number | null
+          billing_id: string
+          created_at: string | null
+          description: string
+          id: string
+          labor_dates: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          amount?: number | null
+          billing_id: string
+          created_at?: string | null
+          description: string
+          id?: string
+          labor_dates?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          amount?: number | null
+          billing_id?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          labor_dates?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_labor_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_billing_products: {
+        Row: {
+          billing_id: string
+          billing_product_id: string | null
+          created_at: string | null
+          doses: number
+          doses_per_unit: number | null
+          event_date: string | null
+          id: string
+          line_total: number | null
+          product_category: string | null
+          product_name: string
+          protocol_event_label: string | null
+          sort_order: number | null
+          unit_label: string | null
+          unit_price: number | null
+          units_billed: number | null
+          units_calculated: number | null
+          units_returned: number | null
+        }
+        Insert: {
+          billing_id: string
+          billing_product_id?: string | null
+          created_at?: string | null
+          doses?: number
+          doses_per_unit?: number | null
+          event_date?: string | null
+          id?: string
+          line_total?: number | null
+          product_category?: string | null
+          product_name: string
+          protocol_event_label?: string | null
+          sort_order?: number | null
+          unit_label?: string | null
+          unit_price?: number | null
+          units_billed?: number | null
+          units_calculated?: number | null
+          units_returned?: number | null
+        }
+        Update: {
+          billing_id?: string
+          billing_product_id?: string | null
+          created_at?: string | null
+          doses?: number
+          doses_per_unit?: number | null
+          event_date?: string | null
+          id?: string
+          line_total?: number | null
+          product_category?: string | null
+          product_name?: string
+          protocol_event_label?: string | null
+          sort_order?: number | null
+          unit_label?: string | null
+          unit_price?: number | null
+          units_billed?: number | null
+          units_calculated?: number | null
+          units_returned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_products_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_products_billing_product_id_fkey"
+            columns: ["billing_product_id"]
+            isOneToOne: false
+            referencedRelation: "billing_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_billing_semen: {
+        Row: {
+          billing_id: string
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string
+          created_at: string | null
+          id: string
+          line_total: number | null
+          sort_order: number | null
+          unit_price: number | null
+          units_billable: number | null
+          units_blown: number | null
+          units_packed: number | null
+          units_returned: number | null
+        }
+        Insert: {
+          billing_id: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name: string
+          created_at?: string | null
+          id?: string
+          line_total?: number | null
+          sort_order?: number | null
+          unit_price?: number | null
+          units_billable?: number | null
+          units_blown?: number | null
+          units_packed?: number | null
+          units_returned?: number | null
+        }
+        Update: {
+          billing_id?: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name?: string
+          created_at?: string | null
+          id?: string
+          line_total?: number | null
+          sort_order?: number | null
+          unit_price?: number | null
+          units_billable?: number | null
+          units_blown?: number | null
+          units_packed?: number | null
+          units_returned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_semen_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_semen_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_billing_sessions: {
+        Row: {
+          billing_id: string
+          created_at: string | null
+          crew: string | null
+          head_count: number | null
+          id: string
+          notes: string | null
+          session_date: string
+          session_label: string | null
+          sort_order: number | null
+          time_of_day: string | null
+        }
+        Insert: {
+          billing_id: string
+          created_at?: string | null
+          crew?: string | null
+          head_count?: number | null
+          id?: string
+          notes?: string | null
+          session_date: string
+          session_label?: string | null
+          sort_order?: number | null
+          time_of_day?: string | null
+        }
+        Update: {
+          billing_id?: string
+          created_at?: string | null
+          crew?: string | null
+          head_count?: number | null
+          id?: string
+          notes?: string | null
+          session_date?: string
+          session_label?: string | null
+          sort_order?: number | null
+          time_of_day?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_sessions_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_bulls: {
         Row: {
