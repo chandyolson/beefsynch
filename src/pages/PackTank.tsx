@@ -764,18 +764,37 @@ const PackTank = () => {
                   {/* Source Tank */}
                   <div className="space-y-1">
                     <Label className="text-xs">Source Tank</Label>
-                    <Select value={line.sourceTankId} onValueChange={v => updateLine(i, { sourceTankId: v })}>
-                      <SelectTrigger className={cn("text-sm h-9", errors[`line_${i}_source`] && "border-destructive")}>
-                        <SelectValue placeholder="Select tank…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sourceTanks.map((t: any) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.tank_name || t.tank_number}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={!!sourcePopoverOpen[i]} onOpenChange={v => setSourcePopoverOpen(prev => ({ ...prev, [i]: v }))}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal text-sm h-9", errors[`line_${i}_source`] && "border-destructive", !line.sourceTankId && "text-muted-foreground")}>
+                          {line.sourceTankId
+                            ? (() => { const t = sourceTanks.find((t: any) => t.id === line.sourceTankId); return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select…"; })()
+                            : "Select tank…"}
+                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search tanks…" />
+                          <CommandList>
+                            <CommandEmpty>No tanks found.</CommandEmpty>
+                            {sourceTanks.map((t: any) => {
+                              const label = t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number;
+                              return (
+                                <CommandItem
+                                  key={t.id}
+                                  value={`${t.tank_name || ""} ${t.tank_number}`}
+                                  onSelect={() => { updateLine(i, { sourceTankId: t.id }); setSourcePopoverOpen(prev => ({ ...prev, [i]: false })); }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", line.sourceTankId === t.id ? "opacity-100" : "opacity-0")} />
+                                  {label}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Source Canister */}
