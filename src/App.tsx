@@ -35,6 +35,7 @@ import Terms from "./pages/Terms";
 import PackTank from "./pages/PackTank";
 import PackDetail from "./pages/PackDetail";
 import UnpackTank from "./pages/UnpackTank";
+import ProjectBilling from "./pages/ProjectBilling";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+            <Route path="/project/:id/billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
             <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
             <Route path="/semen-orders" element={<ProtectedRoute><SemenOrders /></ProtectedRoute>} />
