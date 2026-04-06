@@ -477,48 +477,70 @@ const PackTank = () => {
         });
 
         // b. Deduct from source tank inventory
-        let query = supabase.from("tank_inventory").select("id, units")
+        // Try three strategies in order: bull_catalog_id → bull_code → custom_bull_name
+        let invRow: { id: string; units: number } | null = null;
+
+        const baseInvQuery = () => supabase.from("tank_inventory").select("id, units")
           .eq("tank_id", line.sourceTankId)
           .eq("organization_id", orgId);
-        if (line.bullCatalogId) {
-          query = query.eq("bull_catalog_id", line.bullCatalogId);
-        } else {
-          query = query.eq("custom_bull_name", line.bullName);
-        }
-        if (line.sourceCanister) {
-          query = query.eq("canister", line.sourceCanister);
-        }
-        const { data: invRows } = await query.limit(1);
 
-        if (invRows && invRows.length > 0) {
-          const inv = invRows[0];
-          if ((inv.units as number) - line.units <= 0) {
-            await supabase.from("tank_inventory").delete().eq("id", inv.id);
+        const withCanister = (q: any) => line.sourceCanister ? q.eq("canister", line.sourceCanister) : q;
+
+        if (line.bullCatalogId) {
+          const { data } = await withCanister(baseInvQuery().eq("bull_catalog_id", line.bullCatalogId)).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow && line.bullCode) {
+          const { data } = await withCanister(baseInvQuery().eq("bull_code", line.bullCode)).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow) {
+          const { data } = await withCanister(baseInvQuery().eq("custom_bull_name", line.bullName)).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+
+        if (invRow) {
+          if ((invRow.units as number) - line.units <= 0) {
+            const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
+            if (delErr) throw new Error(`Failed to deduct inventory: ${delErr.message}`);
           } else {
-            await supabase.from("tank_inventory").update({ units: (inv.units as number) - line.units }).eq("id", inv.id);
+            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - line.units }).eq("id", invRow.id);
+            if (updErr) throw new Error(`Failed to deduct inventory: ${updErr.message}`);
           }
+        } else {
+          console.warn("Pack: no inventory row found for deduction", { bull: line.bullName, tank: line.sourceTankId, canister: line.sourceCanister, catalogId: line.bullCatalogId, code: line.bullCode });
         }
 
         // c. Add to field tank inventory (upsert)
-        let fieldQuery = supabase.from("tank_inventory").select("id, units")
+        // Same three-strategy lookup as deduction
+        let fieldInvRow: { id: string; units: number } | null = null;
+
+        const baseFieldQuery = () => supabase.from("tank_inventory").select("id, units")
           .eq("tank_id", selectedTankId)
           .eq("organization_id", orgId);
-        if (line.bullCatalogId) {
-          fieldQuery = fieldQuery.eq("bull_catalog_id", line.bullCatalogId);
-        } else {
-          fieldQuery = fieldQuery.eq("custom_bull_name", line.bullName);
-        }
-        if (line.fieldCanister) {
-          fieldQuery = fieldQuery.eq("canister", line.fieldCanister);
-        }
-        const { data: fieldInvRows } = await fieldQuery.limit(1);
 
-        if (fieldInvRows && fieldInvRows.length > 0) {
-          await supabase.from("tank_inventory").update({
-            units: (fieldInvRows[0].units as number) + line.units,
-          }).eq("id", fieldInvRows[0].id);
+        const withFieldCanister = (q: any) => line.fieldCanister ? q.eq("canister", line.fieldCanister) : q;
+
+        if (line.bullCatalogId) {
+          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_catalog_id", line.bullCatalogId)).limit(1);
+          if (data && data.length > 0) fieldInvRow = data[0];
+        }
+        if (!fieldInvRow && line.bullCode) {
+          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_code", line.bullCode)).limit(1);
+          if (data && data.length > 0) fieldInvRow = data[0];
+        }
+        if (!fieldInvRow) {
+          const { data } = await withFieldCanister(baseFieldQuery().eq("custom_bull_name", line.bullName)).limit(1);
+          if (data && data.length > 0) fieldInvRow = data[0];
+        }
+
+        if (fieldInvRow) {
+          const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({
+            units: (fieldInvRow.units as number) + line.units,
+          }).eq("id", fieldInvRow.id);
+          if (fieldUpdErr) throw new Error(`Failed to update field tank inventory: ${fieldUpdErr.message}`);
         } else {
-          await supabase.from("tank_inventory").insert({
+          const { error: fieldInsErr } = await supabase.from("tank_inventory").insert({
             tank_id: selectedTankId,
             organization_id: orgId,
             canister: line.fieldCanister || "1",
@@ -528,6 +550,7 @@ const PackTank = () => {
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             bull_code: line.bullCode,
           });
+          if (fieldInsErr) throw new Error(`Failed to insert field tank inventory: ${fieldInsErr.message}`);
         }
 
         // d. Deduction transaction
