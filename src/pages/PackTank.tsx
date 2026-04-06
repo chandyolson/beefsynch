@@ -161,7 +161,7 @@ const PackTank = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, name")
+        .select("id, name, head_count")
         .eq("organization_id", orgId!)
         .order("name");
       if (error) throw error;
@@ -177,12 +177,13 @@ const PackTank = () => {
 
   // Inventory summary: bull -> list of { tankName, canister, units }
   const [inventorySummary, setInventorySummary] = useState<Record<string, { bullName: string; locations: { tankName: string; canister: string; units: number }[] }>>({});
+  const [projectBullUnits, setProjectBullUnits] = useState<{ bullName: string; units: number }[]>([]);
 
   const loadInventorySummary = async (projectId: string) => {
     if (!orgId) return;
     const { data: projBulls, error } = await supabase
       .from("project_bulls")
-      .select("bull_catalog_id, custom_bull_name, bulls_catalog(bull_name, naab_code)")
+      .select("bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
       .eq("project_id", projectId);
     if (error || !projBulls) return;
 
@@ -224,6 +225,12 @@ const PackTank = () => {
       };
     }
     setInventorySummary(summary);
+
+    const bullUnitsList = (projBulls ?? []).map((b: any) => ({
+      bullName: b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown",
+      units: b.units ?? 0,
+    }));
+    setProjectBullUnits(bullUnitsList);
   };
 
   // Auto-fill from project bulls
@@ -337,6 +344,10 @@ const PackTank = () => {
         } else {
           setShowProjectPicker(true);
         }
+      }
+      if (next.length === 0) {
+        setInventorySummary({});
+        setProjectBullUnits([]);
       }
       return next;
     });
@@ -724,7 +735,24 @@ const PackTank = () => {
                       );
                     })}
                   </div>
-                )}
+                 )}
+                {projectBullUnits.length > 0 && (() => {
+                  const proj = projects.find((p: any) => p.id === selectedProjects[0]);
+                  const headCount = proj?.head_count;
+                  return (
+                    <div className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm space-y-1">
+                      {headCount != null && (
+                        <p className="text-muted-foreground font-medium">{headCount} head</p>
+                      )}
+                      {projectBullUnits.map((b, i) => (
+                        <div key={i} className="flex justify-between text-muted-foreground">
+                          <span>{b.bullName}</span>
+                          <span>{b.units} units assigned</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Multi-project picker for auto-fill */}
                 {showProjectPicker && selectedProjects.length > 1 && (
