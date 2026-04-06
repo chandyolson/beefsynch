@@ -532,23 +532,40 @@ const PackTank = () => {
               <Label>{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <Select value={selectedTankId} onValueChange={setSelectedTankId}>
-                    <SelectTrigger className={cn(errors.fieldTank && "border-destructive")}>
-                      <SelectValue placeholder={packType === "shipment" ? "Select shipper tank…" : "Select tank…"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fieldTankOptions.map((t: any) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          <span className="flex items-center gap-2">
-                            {t.tank_name || t.tank_number}
-                            {packType === "project" && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0">{TYPE_LABELS[t.tank_type] || t.tank_type}</Badge>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={fieldTankOpen} onOpenChange={setFieldTankOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" aria-expanded={fieldTankOpen} className={cn("w-full justify-between font-normal", errors.fieldTank && "border-destructive", !selectedTankId && "text-muted-foreground")}>
+                        {selectedTankId
+                          ? (() => { const t = fieldTankOptions.find((t: any) => t.id === selectedTankId); return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select tank…"; })()
+                          : (packType === "shipment" ? "Select shipper tank…" : "Select tank…")}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search tanks…" />
+                        <CommandList>
+                          <CommandEmpty>No tanks found.</CommandEmpty>
+                          {fieldTankOptions.map((t: any) => {
+                            const label = t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number;
+                            return (
+                              <CommandItem
+                                key={t.id}
+                                value={`${t.tank_name || ""} ${t.tank_number}`}
+                                onSelect={() => { setSelectedTankId(t.id); setFieldTankOpen(false); }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", selectedTankId === t.id ? "opacity-100" : "opacity-0")} />
+                                {label}
+                                {packType === "project" && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">{TYPE_LABELS[t.tank_type] || t.tank_type}</Badge>
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setAddTankOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" /> Add Tank
