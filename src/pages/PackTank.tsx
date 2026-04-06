@@ -812,17 +812,17 @@ const PackTank = () => {
             )}
 
             {/* Packed By */}
-            <div className="space-y-1.5">
-              <Label>Packed By</Label>
-              <Input value={packedBy} onChange={e => setPackedBy(e.target.value)} placeholder="Who packed this tank?" />
+            <div className="flex items-center gap-4">
+              <Label className="w-28 shrink-0 text-right">Packed By</Label>
+              <Input value={packedBy} onChange={e => setPackedBy(e.target.value)} placeholder="Who packed this tank?" className="flex-1" />
             </div>
 
             {/* Date Packed */}
-            <div className="space-y-1.5">
-              <Label>Date Packed</Label>
+            <div className="flex items-center gap-4">
+              <Label className="w-28 shrink-0 text-right">Date Packed</Label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button variant="outline" className="flex-1 justify-start text-left font-normal">
                     <CalendarDays className="mr-2 h-4 w-4" />
                     {format(packedDate, "PPP")}
                   </Button>
@@ -839,9 +839,9 @@ const PackTank = () => {
             </div>
 
             {/* Notes */}
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Optional notes…" />
+            <div className="flex items-start gap-4">
+              <Label className="w-28 shrink-0 text-right pt-2">Notes</Label>
+              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Optional notes…" className="flex-1" />
             </div>
           </CardContent>
         </Card>
