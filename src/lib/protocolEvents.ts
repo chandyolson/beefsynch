@@ -30,6 +30,18 @@ function fmt(d: Date, includeTime: boolean): { event_date: string; event_time: s
   };
 }
 
+/**
+ * Protocol offset values use fractional days to encode hours:
+ *   .25 = 6 hours    .375 = 9 hours
+ *   .5  = 12 hours   .625 = 15 hours
+ *   .75 = 18 hours
+ *
+ * Negative offsets are days BEFORE the breeding date.
+ * Example: -9.625 = 9 days and 15 hours before breeding.
+ */
+const RETURN_HEAT_DAYS = 20;
+const GESTATION_DAYS = 280;
+
 type ProtocolStep = { name: string; offset: number; hasTime: boolean };
 
 const protocolSteps: Record<string, ProtocolStep[]> = {
@@ -101,13 +113,13 @@ export function calculateProtocolEvents(
   const breedFmt = fmt(base, true);
   events.push({ event_name: "Timed Breeding", ...breedFmt });
 
-  // Return Heat = breeding + 20 days (no time)
-  const returnHeat = addDays(base, 20);
+  // Return Heat = breeding + RETURN_HEAT_DAYS days (no time)
+  const returnHeat = addDays(base, RETURN_HEAT_DAYS);
   const rhFmt = fmt(returnHeat, false);
   events.push({ event_name: "Return Heat", ...rhFmt });
 
-  // Estimated Calving = breeding + 280 days (no time)
-  const calving = addDays(base, 280);
+  // Estimated Calving = breeding + GESTATION_DAYS days (no time)
+  const calving = addDays(base, GESTATION_DAYS);
   const cFmt = fmt(calving, false);
   events.push({ event_name: "Estimated Calving", ...cFmt });
 
