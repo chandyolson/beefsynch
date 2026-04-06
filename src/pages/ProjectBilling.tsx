@@ -19,6 +19,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
+import { formatTime12 } from "@/lib/formatting";
+import { BILLING_STATUS_COLORS } from "@/lib/constants";
 
 /* ────────────────── types ────────────────── */
 
@@ -91,13 +93,6 @@ interface LaborLine {
 
 /* ────────────────── helpers ────────────────── */
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  review: "bg-warning/20 text-warning",
-  invoiced: "bg-primary/20 text-primary",
-  paid: "bg-emerald-500 text-white",
-};
-
 const BILLING_STATUSES = ["draft", "review", "invoiced", "paid"];
 
 function calcUnits(doses: number, dpu: number | null) {
@@ -108,14 +103,6 @@ function calcUnits(doses: number, dpu: number | null) {
 function formatCurrency(v: number | null) {
   if (v == null) return "$0.00";
   return `$${v.toFixed(2)}`;
-}
-
-function formatTime12(t: string | null) {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 /* ────────────────── component ────────────────── */
@@ -168,10 +155,10 @@ const ProjectBilling = () => {
     setLoading(true);
 
     const [projRes, eventsRes, bullsRes, productsRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", projectId).single(),
-      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"),
+      supabase.from("projects").select("*").eq("id", projectId).single(), // TODO: narrow select columns
+      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"), // TODO: narrow select columns
       supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number)").eq("project_id", projectId),
-      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"),
+      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"), // TODO: narrow select columns
     ]);
 
     if (projRes.error || !projRes.data) {
@@ -188,7 +175,7 @@ const ProjectBilling = () => {
     // Check if billing record exists
     const { data: existingBilling } = await supabase
       .from("project_billing")
-      .select("*")
+      .select("*") // TODO: narrow select columns
       .eq("project_id", projectId)
       .maybeSingle();
 
@@ -211,10 +198,10 @@ const ProjectBilling = () => {
 
   async function loadBillingChildren(bId: string) {
     const [prodRes, sessRes, semRes, labRes] = await Promise.all([
-      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);

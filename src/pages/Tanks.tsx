@@ -109,7 +109,7 @@ const Tanks = () => {
         .eq("organization_id", orgId!)
         .order("tank_number", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -124,7 +124,7 @@ const Tanks = () => {
         .eq("organization_id", orgId!)
         .order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -139,7 +139,7 @@ const Tanks = () => {
         .eq("organization_id", orgId!)
         .order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -154,7 +154,7 @@ const Tanks = () => {
         .eq("organization_id", orgId!)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -225,7 +225,7 @@ const Tanks = () => {
         model: tankModel.trim() || null,
         serial_number: tankSerial.trim() || null,
         description: tankDesc.trim() || null,
-      } as any);
+      });
     setSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not add tank.", variant: "destructive" });

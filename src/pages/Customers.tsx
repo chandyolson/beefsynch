@@ -44,12 +44,12 @@ const Customers = () => {
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("customers" as any)
-        .select("*")
+        .from("customers")
+        .select("id, name, phone, email")
         .eq("organization_id", orgId!)
         .order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -59,11 +59,11 @@ const Customers = () => {
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("tanks" as any)
+        .from("tanks")
         .select("id, customer_id")
         .eq("organization_id", orgId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -73,11 +73,11 @@ const Customers = () => {
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("tank_inventory" as any)
+        .from("tank_inventory")
         .select("customer_id, units, inventoried_at")
         .eq("organization_id", orgId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -129,7 +129,7 @@ const Customers = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from("customers" as any)
+        .from("customers")
         .insert({
           organization_id: orgId!,
           name: formName.trim(),
@@ -137,7 +137,7 @@ const Customers = () => {
           email: formEmail.trim() || null,
           address: formAddress.trim() || null,
           notes: formNotes.trim() || null,
-        } as any);
+        });
       if (error) throw error;
     },
     onSuccess: () => {

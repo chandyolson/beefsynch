@@ -57,7 +57,7 @@ const SemenInventory = () => {
         .eq("organization_id", orgId!)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

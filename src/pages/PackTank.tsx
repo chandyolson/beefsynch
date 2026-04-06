@@ -377,12 +377,13 @@ const PackTank = () => {
 
       // Step 2: Create tank_pack_projects (only for project packs)
       if (packType === "project" && selectedProjects.length > 0) {
-        await supabase.from("tank_pack_projects").insert(
+        const { error: projErr } = await supabase.from("tank_pack_projects").insert(
           selectedProjects.map(projId => ({
             tank_pack_id: pack.id,
             project_id: projId,
           }))
         );
+        if (projErr) throw projErr;
       }
 
       // Step 3: Process each line
@@ -391,7 +392,7 @@ const PackTank = () => {
         const sourceTankName = sourceTank?.tank_name || sourceTank?.tank_number || "Unknown";
 
         // a. Insert pack line
-        await supabase.from("tank_pack_lines").insert({
+        const { error: packLineErr } = await supabase.from("tank_pack_lines").insert({
           tank_pack_id: pack.id,
           source_tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -401,6 +402,7 @@ const PackTank = () => {
           field_canister: line.fieldCanister || null,
           units: line.units,
         });
+        if (packLineErr) throw packLineErr;
 
         // b. Deduct from source tank inventory
         let query = supabase.from("tank_inventory").select("id, units")
@@ -419,9 +421,11 @@ const PackTank = () => {
         if (invRows && invRows.length > 0) {
           const inv = invRows[0];
           if ((inv.units as number) - line.units <= 0) {
-            await supabase.from("tank_inventory").delete().eq("id", inv.id);
+            const { error: srcDelErr } = await supabase.from("tank_inventory").delete().eq("id", inv.id);
+            if (srcDelErr) throw srcDelErr;
           } else {
-            await supabase.from("tank_inventory").update({ units: (inv.units as number) - line.units }).eq("id", inv.id);
+            const { error: srcUpdErr } = await supabase.from("tank_inventory").update({ units: (inv.units as number) - line.units }).eq("id", inv.id);
+            if (srcUpdErr) throw srcUpdErr;
           }
         }
 
@@ -440,11 +444,12 @@ const PackTank = () => {
         const { data: fieldInvRows } = await fieldQuery.limit(1);
 
         if (fieldInvRows && fieldInvRows.length > 0) {
-          await supabase.from("tank_inventory").update({
+          const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({
             units: (fieldInvRows[0].units as number) + line.units,
           }).eq("id", fieldInvRows[0].id);
+          if (fieldUpdErr) throw fieldUpdErr;
         } else {
-          await supabase.from("tank_inventory").insert({
+          const { error: fieldInsErr } = await supabase.from("tank_inventory").insert({
             tank_id: selectedTankId,
             organization_id: orgId,
             canister: line.fieldCanister || "1",
@@ -454,10 +459,11 @@ const PackTank = () => {
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             bull_code: line.bullCode,
           });
+          if (fieldInsErr) throw fieldInsErr;
         }
 
         // d. Deduction transaction
-        await supabase.from("inventory_transactions").insert({
+        const { error: txnOutErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -469,9 +475,10 @@ const PackTank = () => {
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
+        if (txnOutErr) throw txnOutErr;
 
         // e. Addition transaction
-        await supabase.from("inventory_transactions").insert({
+        const { error: txnInErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: selectedTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -481,6 +488,7 @@ const PackTank = () => {
           transaction_type: "pack_in",
           notes: `Packed from ${sourceTankName}`,
         });
+        if (txnInErr) throw txnInErr;
       }
 
       toast({ title: "Tank packed", description: "Packing slip ready to print." });

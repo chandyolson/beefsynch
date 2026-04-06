@@ -96,7 +96,7 @@ const BullList = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bulls_catalog")
-        .select("*")
+        .select("id, bull_name, registration_number, breed, company, naab_code, active")
         .order("bull_name");
       if (error) throw error;
       return data;

@@ -57,7 +57,7 @@ const UnpackTank = () => {
         .eq("id", packId!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -72,7 +72,7 @@ const UnpackTank = () => {
         .eq("tank_pack_id", packId!)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -86,7 +86,7 @@ const UnpackTank = () => {
         .select("*, projects!tank_pack_projects_project_id_fkey(name)")
         .eq("tank_pack_id", packId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -101,7 +101,7 @@ const UnpackTank = () => {
         .eq("organization_id", orgId!)
         .order("tank_number");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -146,7 +146,7 @@ const UnpackTank = () => {
 
         if (line.unitsReturning > 0) {
           // a. Insert unpack line
-          await supabase.from("tank_unpack_lines").insert({
+          const { error: unpackLineErr } = await supabase.from("tank_unpack_lines").insert({
             tank_pack_id: packId,
             destination_tank_id: line.destinationTankId,
             bull_catalog_id: line.bullCatalogId,
@@ -155,6 +155,7 @@ const UnpackTank = () => {
             destination_canister: line.destinationCanister || null,
             units_returned: line.unitsReturning,
           });
+          if (unpackLineErr) throw unpackLineErr;
 
           // b. Deduct from field tank inventory
           let fieldQuery = supabase.from("tank_inventory").select("id, units")
@@ -172,9 +173,11 @@ const UnpackTank = () => {
           if (fieldInv && fieldInv[0]) {
             const newUnits = fieldInv[0].units - line.unitsReturning;
             if (newUnits <= 0) {
-              await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
+              const { error: fieldDelErr } = await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
+              if (fieldDelErr) throw fieldDelErr;
             } else {
-              await supabase.from("tank_inventory").update({ units: newUnits }).eq("id", fieldInv[0].id);
+              const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({ units: newUnits }).eq("id", fieldInv[0].id);
+              if (fieldUpdErr) throw fieldUpdErr;
             }
           }
 
@@ -192,9 +195,10 @@ const UnpackTank = () => {
           }
           const { data: destInv } = await destQuery.limit(1);
           if (destInv && destInv.length > 0) {
-            await supabase.from("tank_inventory").update({ units: destInv[0].units + line.unitsReturning }).eq("id", destInv[0].id);
+            const { error: destUpdErr } = await supabase.from("tank_inventory").update({ units: destInv[0].units + line.unitsReturning }).eq("id", destInv[0].id);
+            if (destUpdErr) throw destUpdErr;
           } else {
-            await supabase.from("tank_inventory").insert({
+            const { error: destInsErr } = await supabase.from("tank_inventory").insert({
               tank_id: line.destinationTankId,
               organization_id: orgId!,
               canister: line.destinationCanister || "1",
@@ -204,10 +208,11 @@ const UnpackTank = () => {
               custom_bull_name: line.bullName,
               bull_code: line.bullCode,
             });
+            if (destInsErr) throw destInsErr;
           }
 
           // d. Transaction: field tank deduction
-          await supabase.from("inventory_transactions").insert({
+          const { error: txnOutErr } = await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
             tank_id: fieldTankId,
             bull_catalog_id: line.bullCatalogId,
@@ -218,9 +223,10 @@ const UnpackTank = () => {
             notes: `Returned to ${destTankName}`,
             performed_by: null,
           });
+          if (txnOutErr) throw txnOutErr;
 
           // e. Transaction: destination tank addition
-          await supabase.from("inventory_transactions").insert({
+          const { error: txnReturnErr } = await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
             tank_id: line.destinationTankId,
             bull_catalog_id: line.bullCatalogId,
@@ -231,10 +237,11 @@ const UnpackTank = () => {
             notes: `Returned from ${fieldTankName} — ${projectNames.join(", ")}`,
             performed_by: null,
           });
+          if (txnReturnErr) throw txnReturnErr;
         } else {
           // All semen used
           // a. Insert unpack line with 0
-          await supabase.from("tank_unpack_lines").insert({
+          const { error: unpackLineZeroErr } = await supabase.from("tank_unpack_lines").insert({
             tank_pack_id: packId,
             destination_tank_id: line.destinationTankId,
             bull_catalog_id: line.bullCatalogId,
@@ -243,6 +250,7 @@ const UnpackTank = () => {
             destination_canister: line.destinationCanister || null,
             units_returned: 0,
           });
+          if (unpackLineZeroErr) throw unpackLineZeroErr;
 
           // b. Delete field tank inventory row
           let fieldQuery = supabase.from("tank_inventory").select("id")
@@ -258,11 +266,12 @@ const UnpackTank = () => {
           }
           const { data: fieldInv } = await fieldQuery.limit(1);
           if (fieldInv && fieldInv[0]) {
-            await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
+            const { error: usedDelErr } = await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
+            if (usedDelErr) throw usedDelErr;
           }
 
           // c. Transaction: used in field
-          await supabase.from("inventory_transactions").insert({
+          const { error: txnUsedErr } = await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
             tank_id: fieldTankId,
             bull_catalog_id: line.bullCatalogId,
@@ -273,15 +282,17 @@ const UnpackTank = () => {
             notes: `Used during ${projectNames.join(", ")}`,
             performed_by: null,
           });
+          if (txnUsedErr) throw txnUsedErr;
         }
       }
 
       // Step 2: Update pack status
-      await supabase.from("tank_packs").update({
+      const { error: packStatusErr } = await supabase.from("tank_packs").update({
         status: "unpacked",
         unpacked_at: new Date().toISOString(),
         unpacked_by: unpackedBy.trim() || null,
       }).eq("id", packId);
+      if (packStatusErr) throw packStatusErr;
 
       toast.success("Tank unpacked", { description: "Return slip ready to print." });
       navigate(`/pack/${packId}`);

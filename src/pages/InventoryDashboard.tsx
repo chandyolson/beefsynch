@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { FULFILLMENT_COLORS, BILLING_COLORS } from "@/lib/constants";
 
 type TabKey = "inventory" | "orders" | "receive";
 
@@ -60,19 +61,6 @@ type SortKey = "bull_name" | "customer" | "tank" | "units";
 type SortDir = "asc" | "desc";
 
 // ─── Orders Tab Constants ───
-const fulfillmentColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
-};
-const billingColors: Record<string, string> = {
-  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  paid: "bg-green-500/20 text-green-300 border-green-500/30",
-};
 
 // ─── Receive Tab Types ───
 interface OrderItem {
@@ -121,7 +109,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
         .eq("organization_id", orgId)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -137,7 +125,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -615,8 +603,8 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                   <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                   <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                   <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", FULFILLMENT_COLORS[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", BILLING_COLORS[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}><Eye className="h-4 w-4" /></Button>
@@ -799,19 +787,25 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
         else matchFilter.custom_bull_name = line.bullName;
 
         const { data: existing } = await supabase.from("tank_inventory").select("id, units").match(matchFilter).maybeSingle();
-        if (existing) await supabase.from("tank_inventory").update({ units: existing.units + line.units }).eq("id", existing.id);
-        else await supabase.from("tank_inventory").insert({
-          organization_id: orgId, tank_id: line.tankId, canister: line.canister.trim(),
-          bull_catalog_id: line.bullCatalogId, custom_bull_name: line.bullCatalogId ? null : line.bullName,
-          units: line.units, storage_type: "inventory",
-        });
+        if (existing) {
+          const { error: invUpdateErr } = await supabase.from("tank_inventory").update({ units: existing.units + line.units }).eq("id", existing.id);
+          if (invUpdateErr) throw invUpdateErr;
+        } else {
+          const { error: invInsertErr } = await supabase.from("tank_inventory").insert({
+            organization_id: orgId, tank_id: line.tankId, canister: line.canister.trim(),
+            bull_catalog_id: line.bullCatalogId, custom_bull_name: line.bullCatalogId ? null : line.bullName,
+            units: line.units, storage_type: "inventory",
+          });
+          if (invInsertErr) throw invInsertErr;
+        }
 
-        await supabase.from("inventory_transactions").insert({
+        const { error: txnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId, tank_id: line.tankId, bull_catalog_id: line.bullCatalogId,
           custom_bull_name: line.bullName, units_change: line.units, transaction_type: "received",
           shipment_id: shipmentId, order_id: selectedOrderId || null, performed_by: userId,
           notes: `Received from ${receivedFrom.trim()}`,
         });
+        if (txnErr) throw txnErr;
       }
 
       if (selectedOrderId) {
@@ -824,8 +818,10 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
         const newStatus = totalReceived >= totalOrdered ? "delivered" : "partially_filled";
         const { data: currentOrder } = await supabase.from("semen_orders").select("fulfillment_status").eq("id", selectedOrderId).single();
         const statusRank: Record<string, number> = { pending: 0, backordered: 1, ordered: 2, partially_filled: 3, shipped: 4, delivered: 5 };
-        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0))
-          await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
+        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)) {
+          const { error: orderUpdateErr } = await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
+          if (orderUpdateErr) throw orderUpdateErr;
+        }
       }
 
       toast({ title: "Shipment received", description: `${totalUnits} units added to inventory` });

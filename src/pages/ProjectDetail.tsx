@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
+import { PROJECT_STATUS_COLORS } from "@/lib/constants";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
@@ -97,11 +99,6 @@ interface BullRow {
   bulls_catalog: { bull_name: string; company: string; registration_number: string; breed: string } | null;
 }
 
-const statusColor: Record<string, string> = {
-  Tentative: "bg-warning/20 text-warning",
-  Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-emerald-500 text-white",
-};
 
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
@@ -176,7 +173,7 @@ const ProjectDetail = () => {
     if (!id) return;
     const { data } = await supabase
       .from("project_contacts")
-      .select("*")
+      .select("*") // TODO: narrow select columns
       .eq("project_id", id)
       .order("contact_date", { ascending: false });
     setContacts(data ?? []);
@@ -261,10 +258,10 @@ const ProjectDetail = () => {
   const load = async () => {
     if (!id) return;
     const [pRes, eRes, bRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", id).single(),
+      supabase.from("projects").select("*").eq("id", id).single(), // TODO: narrow select columns
       supabase
         .from("protocol_events")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("project_id", id)
         .order("event_date", { ascending: true }),
       supabase
@@ -352,19 +349,6 @@ const ProjectDetail = () => {
       </div>
     );
   }
-
-  const isNoTimeEvent = (name: string) => {
-    const exact = ["Return Heat", "Estimated Calving"];
-    const contains = ["CIDR Insert", "GnRH"];
-    return exact.includes(name) || contains.some((k) => name.includes(k));
-  };
-
-  const formatTime12 = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
 
   const breedingDisplay = project.breeding_date
     ? format(parseISO(project.breeding_date), "MMMM d, yyyy")
@@ -697,7 +681,7 @@ const ProjectDetail = () => {
             </Badge>
             <Badge
               className={
-                statusColor[project.status] ??
+                PROJECT_STATUS_COLORS[project.status] ??
                 "bg-muted text-muted-foreground"
               }
             >

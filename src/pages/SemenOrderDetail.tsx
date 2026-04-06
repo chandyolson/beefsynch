@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FULFILLMENT_COLORS, BILLING_COLORS } from "@/lib/constants";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileDown, Pencil } from "lucide-react";
@@ -51,21 +52,6 @@ interface ProjectRef {
   name: string;
 }
 
-const fulfillmentColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
-};
-
-const billingColors: Record<string, string> = {
-  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  paid: "bg-green-500/20 text-green-300 border-green-500/30",
-};
-
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -80,7 +66,7 @@ const SemenOrderDetail = () => {
   const load = async () => {
     if (!id) return;
     const [oRes, iRes] = await Promise.all([
-      supabase.from("semen_orders").select("*").eq("id", id).single(),
+      supabase.from("semen_orders").select("*").eq("id", id).single(), // TODO: narrow select columns
       supabase
         .from("semen_order_items")
         .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
@@ -205,10 +191,10 @@ const SemenOrderDetail = () => {
             Order Date: {format(parseISO(order.order_date), "MMMM d, yyyy")}
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>
+            <Badge variant="outline" className={cn("capitalize text-xs", FULFILLMENT_COLORS[order.fulfillment_status] || "")}>
               {order.fulfillment_status}
             </Badge>
-            <Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>
+            <Badge variant="outline" className={cn("capitalize text-xs", BILLING_COLORS[order.billing_status] || "")}>
               {order.billing_status}
             </Badge>
           </div>
