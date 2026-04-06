@@ -6,6 +6,7 @@ import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
   Upload, X, CalendarDays, Loader2, Check, AlertTriangle, PackagePlus, Truck,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -132,7 +133,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, status, packed_by, pack_type, destination_name, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(bull_name, units)")
+        .select("id, packed_at, status, packed_by, pack_type, destination_name, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(bull_name, units, field_canister)")
         .eq("organization_id", orgId)
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
@@ -141,6 +142,9 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
     },
   });
 
+
+  const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
+  const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
@@ -308,12 +312,25 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
                         </TableCell>
                         <TableCell>
                           {(p.tank_pack_lines || []).length > 0 ? (
-                            <div className="space-y-0.5">
-                              {(p.tank_pack_lines as any[]).map((l: any, idx: number) => (
-                                <div key={idx} className="text-xs text-muted-foreground">
-                                  {l.bull_name} — {l.units} units
+                            <div>
+                              <button
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => togglePackExpand(p.id)}
+                              >
+                                {expandedPacks[p.id]
+                                  ? <ChevronUp className="h-3 w-3" />
+                                  : <ChevronDown className="h-3 w-3" />}
+                                {(p.tank_pack_lines as any[]).length} bull{(p.tank_pack_lines as any[]).length !== 1 ? "s" : ""}
+                              </button>
+                              {expandedPacks[p.id] && (
+                                <div className="mt-1 space-y-0.5">
+                                  {(p.tank_pack_lines as any[]).map((l: any, idx: number) => (
+                                    <div key={idx} className="text-xs text-muted-foreground pl-1">
+                                      {l.bull_name}{l.field_canister ? ` — Can. ${l.field_canister}` : ""} — {l.units} units
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
                             </div>
                           ) : "—"}
                         </TableCell>

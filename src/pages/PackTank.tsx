@@ -625,9 +625,9 @@ const PackTank = () => {
           <CardHeader><CardTitle>Pack Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {/* Field Tank */}
-            <div className="space-y-1.5">
-              <Label>{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
-              <div className="flex items-center gap-2">
+            <div className="flex items-start gap-4">
+              <Label className="w-28 shrink-0 text-right pt-2">{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
+              <div className="flex items-center gap-2 flex-1">
                 <div className="flex-1">
                   <Popover open={fieldTankOpen} onOpenChange={setFieldTankOpen}>
                     <PopoverTrigger asChild>
@@ -668,13 +668,15 @@ const PackTank = () => {
                   <Plus className="h-4 w-4 mr-1" /> Add Tank
                 </Button>
               </div>
-              {errors.fieldTank && <p className="text-xs text-destructive">{errors.fieldTank}</p>}
             </div>
+            {errors.fieldTank && <p className="text-xs text-destructive pl-32">{errors.fieldTank}</p>}
 
             {/* Project fields */}
             {packType === "project" && (
               <div className="space-y-1.5">
-                <Label>Projects *</Label>
+                <div className="flex items-start gap-4">
+              <Label className="w-28 shrink-0 text-right pt-2">Projects *</Label>
+              <div className="flex-1">
                 <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full justify-start text-left font-normal", errors.projects && "border-destructive", selectedProjects.length === 0 && "text-muted-foreground")}>
@@ -754,6 +756,8 @@ const PackTank = () => {
                   </Card>
                 )}
               </div>
+              </div>
+            </div>
             )}
 
             {/* Shipment fields */}
