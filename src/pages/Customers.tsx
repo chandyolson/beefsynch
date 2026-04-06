@@ -45,7 +45,7 @@ const Customers = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers" as any)
-        .select("*")
+        .select("id, name, phone, email")
         .eq("organization_id", orgId!)
         .order("name", { ascending: true });
       if (error) throw error;

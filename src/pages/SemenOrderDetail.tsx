@@ -66,7 +66,7 @@ const SemenOrderDetail = () => {
   const load = async () => {
     if (!id) return;
     const [oRes, iRes] = await Promise.all([
-      supabase.from("semen_orders").select("*").eq("id", id).single(),
+      supabase.from("semen_orders").select("*").eq("id", id).single(), // TODO: narrow select columns
       supabase
         .from("semen_order_items")
         .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")

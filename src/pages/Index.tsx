@@ -69,7 +69,7 @@ const Index = () => {
   const fetchProjects = useCallback(async () => {
     let query = supabase
       .from("projects")
-      .select("*")
+      .select("id, name, cattle_type, protocol, head_count, breeding_date, breeding_time, status, user_id, last_contacted_date")
       .order("created_at", { ascending: false });
 
     if (orgId) {

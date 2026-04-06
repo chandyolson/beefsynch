@@ -209,7 +209,7 @@ const TankDetail = () => {
     queryKey: ["tank_detail", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks").select("*").eq("id", id!).single();
+      const { data, error } = await supabase.from("tanks").select("*").eq("id", id!).single(); // TODO: narrow select columns
       if (error) throw error;
       return data as any;
     },
@@ -239,7 +239,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_fills")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("tank_id", id!)
         .order("fill_date", { ascending: false });
       if (error) throw error;

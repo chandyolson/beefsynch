@@ -125,7 +125,7 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryKey: ["customers", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers" as any).select("*").eq("organization_id", orgId).order("name", { ascending: true });
+      const { data, error } = await supabase.from("customers" as any).select("*").eq("organization_id", orgId).order("name", { ascending: true }); // TODO: narrow select columns
       if (error) throw error;
       return (data ?? []) as any[];
     },

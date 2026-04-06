@@ -173,7 +173,7 @@ const ProjectDetail = () => {
     if (!id) return;
     const { data } = await supabase
       .from("project_contacts")
-      .select("*")
+      .select("*") // TODO: narrow select columns
       .eq("project_id", id)
       .order("contact_date", { ascending: false });
     setContacts(data ?? []);
@@ -258,10 +258,10 @@ const ProjectDetail = () => {
   const load = async () => {
     if (!id) return;
     const [pRes, eRes, bRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", id).single(),
+      supabase.from("projects").select("*").eq("id", id).single(), // TODO: narrow select columns
       supabase
         .from("protocol_events")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("project_id", id)
         .order("event_date", { ascending: true }),
       supabase

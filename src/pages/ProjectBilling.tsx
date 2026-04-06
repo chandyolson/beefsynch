@@ -155,10 +155,10 @@ const ProjectBilling = () => {
     setLoading(true);
 
     const [projRes, eventsRes, bullsRes, productsRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", projectId).single(),
-      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"),
+      supabase.from("projects").select("*").eq("id", projectId).single(), // TODO: narrow select columns
+      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"), // TODO: narrow select columns
       supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number)").eq("project_id", projectId),
-      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"),
+      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"), // TODO: narrow select columns
     ]);
 
     if (projRes.error || !projRes.data) {
@@ -175,7 +175,7 @@ const ProjectBilling = () => {
     // Check if billing record exists
     const { data: existingBilling } = await supabase
       .from("project_billing")
-      .select("*")
+      .select("*") // TODO: narrow select columns
       .eq("project_id", projectId)
       .maybeSingle();
 
@@ -198,10 +198,10 @@ const ProjectBilling = () => {
 
   async function loadBillingChildren(bId: string) {
     const [prodRes, sessRes, semRes, labRes] = await Promise.all([
-      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);

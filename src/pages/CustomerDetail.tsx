@@ -115,7 +115,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -130,7 +130,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("organization_id", orgId!)
         .eq("customer_id", id!);
       if (error) throw error;
@@ -171,7 +171,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .in("id", communalTankIds);
       if (error) throw error;
       return (data ?? []) as any[];
@@ -210,7 +210,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_fills")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("organization_id", orgId!)
         .in("tank_id", allTankIds)
         .order("fill_date", { ascending: false });
