@@ -11,7 +11,7 @@ import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { BreedingProject } from "@/data/mockData";
+import { BreedingProject } from "@/types/project";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
