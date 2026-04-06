@@ -258,37 +258,8 @@ const ProjectBilling = () => {
       const eventLabel = evt.event_name;
       const eventDate = evt.event_date;
 
-      if (en.includes("cidr in") || en.includes("cidr insert")) {
-        if (!isMGA) {
-          const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
-          if (cidrProd) {
-            const u = calcUnits(hc, cidrProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: cidrProd.id, product_name: cidrProd.product_name,
-              product_category: "cidr", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: cidrProd.doses_per_unit, unit_label: cidrProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: cidrProd.default_price, line_total: u * (cidrProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
-        }
-        if (en.includes("gnrh")) {
-          const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-          if (gnrhProd) {
-            const u = calcUnits(hc, gnrhProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-              product_category: "gnrh", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
-        }
-      } else if (en.includes("pgf") && en.includes("cidr insert")) {
-        // 7&7 first step: PGF + CIDR Insert
+      if (en.includes("pgf") && en.includes("cidr insert")) {
+        // 7&7 first step: PGF + CIDR Insert (must come before generic cidr insert check)
         const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
         if (pgfProd) {
           const u = calcUnits(hc, pgfProd.doses_per_unit);
