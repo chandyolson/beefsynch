@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
@@ -352,19 +353,6 @@ const ProjectDetail = () => {
       </div>
     );
   }
-
-  const isNoTimeEvent = (name: string) => {
-    const exact = ["Return Heat", "Estimated Calving"];
-    const contains = ["CIDR Insert", "GnRH"];
-    return exact.includes(name) || contains.some((k) => name.includes(k));
-  };
-
-  const formatTime12 = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
 
   const breedingDisplay = project.breeding_date
     ? format(parseISO(project.breeding_date), "MMMM d, yyyy")

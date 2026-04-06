@@ -19,6 +19,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
+import { formatTime12 } from "@/lib/formatting";
 
 /* ────────────────── types ────────────────── */
 
@@ -108,14 +109,6 @@ function calcUnits(doses: number, dpu: number | null) {
 function formatCurrency(v: number | null) {
   if (v == null) return "$0.00";
   return `$${v.toFixed(2)}`;
-}
-
-function formatTime12(t: string | null) {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 /* ────────────────── component ────────────────── */
