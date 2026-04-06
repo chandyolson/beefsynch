@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
@@ -667,6 +667,9 @@ const ProjectDetail = () => {
             </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" title="Pack Tank" onClick={() => navigate(`/pack-tank?projectId=${project.id}`)}>
               <Package className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="h-9 w-9" title="Billing Sheet" onClick={() => navigate(`/project/${project.id}/billing`)}>
+              <ClipboardList className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" title="Edit" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" />
