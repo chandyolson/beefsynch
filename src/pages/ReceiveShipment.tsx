@@ -405,6 +405,22 @@ const ReceiveShipment = () => {
     });
   };
 
+  const fillFromExistingLocation = (group: BullGroup, loc: ExistingLocation) => {
+    const groupLines = group.items;
+    const targetLine =
+      groupLines.find(l => !l.tankId && !l.canister) ??
+      groupLines[groupLines.length - 1];
+    if (!targetLine) return;
+    updateLine(targetLine.key, {
+      tankId: loc.tankId,
+      canister: loc.canister,
+    });
+    toast({
+      title: "Location applied",
+      description: `${loc.tankName} · canister ${loc.canister}`,
+    });
+  };
+
   // Validation
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
