@@ -108,13 +108,34 @@ const ReceiveShipment = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, customer_name, order_date")
+        .select("id, customer_name, order_date, fulfillment_status")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
       return data ?? [];
     },
     enabled: !!orgId,
+  });
+
+  // Check if selected order already received
+  const selectedOrder = orders.find((o) => o.id === selectedOrderId);
+  const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
+  const selectedOrderAlreadyReceived = selectedOrder && alreadyReceivedStatuses.includes(selectedOrder.fulfillment_status);
+
+  // Fetch existing shipments for the selected order (for linking)
+  const { data: existingShipmentsForOrder = [] } = useQuery({
+    queryKey: ["existing-shipments-for-order", selectedOrderId],
+    queryFn: async () => {
+      if (!selectedOrderId) return [];
+      const { data } = await supabase
+        .from("shipments")
+        .select("id, confirmed_at")
+        .eq("semen_order_id", selectedOrderId)
+        .eq("status", "confirmed")
+        .order("confirmed_at", { ascending: false });
+      return data ?? [];
+    },
+    enabled: !!selectedOrderId && !!selectedOrderAlreadyReceived,
   });
 
   // Fetch tanks
