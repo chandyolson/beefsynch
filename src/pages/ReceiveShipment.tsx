@@ -796,7 +796,14 @@ const ReceiveShipment = () => {
                     <SelectItem value="__none">No order — manual entry</SelectItem>
                     {orders.map((o) => (
                       <SelectItem key={o.id} value={o.id}>
-                        {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
+                        <span className="flex items-center gap-2">
+                          {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
+                          {alreadyReceivedStatuses.includes(o.fulfillment_status) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                              ✓ {o.fulfillment_status.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
