@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Printer, ArrowLeft, Pencil, Trash2, Lock, ShieldAlert, Check, AlertTriangle, Plus, X } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, Pencil, Trash2, ShieldAlert, Check, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { RECONCILIATION_STATUS_COLORS } from "@/lib/constants";
