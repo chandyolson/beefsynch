@@ -923,6 +923,29 @@ const ReceiveShipment = () => {
           </CardContent>
         </Card>
 
+        {/* Duplicate receive warning */}
+        {selectedOrderAlreadyReceived && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">This order has already been received</p>
+              <p className="text-amber-300/80 mt-0.5">
+                Status: <strong>{selectedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Receiving against it again will create a second shipment record and add to inventory a second time. Proceed only if you're sure (backorder, replacement).
+              </p>
+              {existingShipmentsForOrder.length === 1 && (
+                <Link to={`/receive-shipment/preview/${existingShipmentsForOrder[0].id}`} className="text-primary hover:underline text-xs mt-1 inline-block">
+                  View existing shipment →
+                </Link>
+              )}
+              {existingShipmentsForOrder.length > 1 && (
+                <Link to={`/shipments?order=${selectedOrderId}`} className="text-primary hover:underline text-xs mt-1 inline-block">
+                  View {existingShipmentsForOrder.length} existing shipments →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Line Items — Grouped by Bull */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
