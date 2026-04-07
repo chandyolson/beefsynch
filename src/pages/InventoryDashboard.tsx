@@ -656,7 +656,6 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     </div>
   );
 };
-  const navigate = useNavigate();
 
 
 // ═══════════════════════════════════════════
@@ -664,6 +663,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 // ═══════════════════════════════════════════
 const InventoryDashboard = () => {
   const { orgId } = useOrgRole();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as TabKey) || "inventory";
 
