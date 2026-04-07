@@ -157,9 +157,9 @@ const ReceiveShipment = () => {
     return Array.from(keys).sort();
   }, [lines]);
 
-  // Fetch existing inventory for the bulls in the form (paginated)
+  // Fetch existing inventory for the bulls in the form (paginated), filtered by semen owner
   const { data: existingInventory = [] } = useQuery({
-    queryKey: ["receive-existing-inventory", orgId, bullKeysForQuery],
+    queryKey: ["receive-existing-inventory", orgId, bullKeysForQuery, semenOwnerId],
     queryFn: async () => {
       if (!orgId || bullKeysForQuery.length === 0) return [];
       const catalogIds = lines.filter(l => l.bullCatalogId).map(l => l.bullCatalogId!);
@@ -177,6 +177,13 @@ const ReceiveShipment = () => {
           .eq("organization_id", orgId)
           .gt("units", 0)
           .range(from, from + pageSize - 1);
+
+        // Apply ownership filter
+        if (semenOwnerId === null) {
+          query = query.is("customer_id", null);
+        } else {
+          query = query.eq("customer_id", semenOwnerId);
+        }
 
         // Build OR filter
         const orFilters: string[] = [];
