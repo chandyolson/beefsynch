@@ -442,7 +442,7 @@ const ReceiveShipmentPreview = () => {
                 <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">DRAFT</Badge>
               )}
               {isConfirmed && (
-                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                <Badge className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20">
                   <Check className="h-3 w-3 mr-1" /> Confirmed
                 </Badge>
               )}
@@ -597,13 +597,13 @@ const ReceiveShipmentPreview = () => {
         <div className="flex flex-wrap gap-3 pb-8">
           {isDraft && (
             <>
-              <Button onClick={() => navigate(`/receive-shipment/${id}`)}>
+              <Button variant="outline" onClick={() => navigate(`/receive-shipment/${id}`)}>
                 <Pencil className="h-4 w-4 mr-2" /> Edit Draft
               </Button>
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="default" className="bg-green-600 hover:bg-green-700">
+                  <Button variant="default">
                     <Check className="h-4 w-4 mr-2" /> Confirm & Add to Inventory
                   </Button>
                 </AlertDialogTrigger>
@@ -626,7 +626,7 @@ const ReceiveShipmentPreview = () => {
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
+                  <Button variant="ghost" className="text-muted-foreground hover:text-rose-400">
                     <Trash2 className="h-4 w-4 mr-2" /> Delete Draft
                   </Button>
                 </AlertDialogTrigger>
@@ -651,17 +651,17 @@ const ReceiveShipmentPreview = () => {
 
           {isConfirmed && (
             <>
-              <Button onClick={handlePrintPdf}>
+              <Button variant="outline" onClick={handlePrintPdf}>
                 <Printer className="h-4 w-4 mr-2" /> Print / Save PDF
               </Button>
-              <Button variant="outline" onClick={() => navigate("/inventory-dashboard")}>
+              <Button variant="ghost" onClick={() => navigate("/inventory-dashboard")}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Back
               </Button>
 
               {isOwner && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10">
+                    <Button variant="outline" className="text-amber-400 border-amber-500/20 hover:bg-amber-500/10">
                       <ShieldAlert className="h-4 w-4 mr-2" /> Override Lock
                     </Button>
                   </AlertDialogTrigger>

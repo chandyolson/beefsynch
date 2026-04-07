@@ -456,7 +456,7 @@ const ReceiveShipment = () => {
           <span className="text-muted-foreground">Ordered: {orderedQty}</span>
           <span className={cn(
             "font-medium",
-            isFull ? "text-primary" : isPartial ? "text-accent-foreground" : "text-destructive"
+            isFull ? "text-primary" : isPartial ? "text-accent-foreground" : "text-amber-400"
           )}>
             {isFull && <Check className="inline h-3 w-3 mr-0.5" />}
             {isPartial && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
