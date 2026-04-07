@@ -656,6 +656,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     </div>
   );
 };
+  const navigate = useNavigate();
 
 
 // ═══════════════════════════════════════════
@@ -705,8 +706,12 @@ const InventoryDashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
+        {/* Tabs + Receive button */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => navigate("/receive-shipment")} variant="outline" size="sm">
+            <Package className="h-4 w-4 mr-2" />
+            Receive Shipment
+          </Button>
           {TAB_LABELS.map(({ key, label }) => (
             <button
               key={key}
