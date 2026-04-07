@@ -712,7 +712,7 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
   const groups: BullGroup[] = useMemo(() => {
     const map = new Map<string, LineItem[]>();
     for (const line of lines) {
-      const groupKey = line.bullCatalogId || line.bullName || line.key;
+      const groupKey = line.groupId;
       if (!map.has(groupKey)) map.set(groupKey, []);
       map.get(groupKey)!.push(line);
     }
@@ -753,7 +753,7 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
       if (data && data.length > 0) {
         const items = data as unknown as OrderItem[];
         setLines(items.map((item) => ({
-          key: crypto.randomUUID(), bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
+          key: crypto.randomUUID(), groupId: crypto.randomUUID(), bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
           bullCatalogId: item.bull_catalog_id, units: item.units, tankId: "", canister: "",
         })));
         const qtyMap = new Map<string, number>();
@@ -783,12 +783,12 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
 
   const updateLine = (key: string, patch: Partial<LineItem>) => setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const updateBullForGroup = (groupKey: string, bullName: string, bullCatalogId: string | null) => {
-    setLines((prev) => prev.map((l) => { const lKey = l.bullCatalogId || l.bullName || l.key; return lKey === groupKey ? { ...l, bullName, bullCatalogId } : l; }));
+    setLines((prev) => prev.map((l) => (l.groupId === groupKey ? { ...l, bullName, bullCatalogId } : l)));
   };
   const removeLine = (key: string) => setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
   const removeGroup = (group: BullGroup) => { if (groups.length <= 1) return; const keys = new Set(group.items.map((i) => i.key)); setLines((prev) => prev.filter((l) => !keys.has(l.key))); };
   const addSplitToGroup = (group: BullGroup) => {
-    const newLine: LineItem = { key: crypto.randomUUID(), bullName: group.bullName, bullCatalogId: group.bullCatalogId, units: 0, tankId: "", canister: "" };
+    const newLine: LineItem = { key: crypto.randomUUID(), groupId: group.groupKey, bullName: group.bullName, bullCatalogId: group.bullCatalogId, units: 0, tankId: "", canister: "" };
     const lastKey = group.items[group.items.length - 1].key;
     setLines((prev) => { const idx = prev.findIndex((l) => l.key === lastKey); const copy = [...prev]; copy.splice(idx + 1, 0, newLine); return copy; });
   };
@@ -931,7 +931,7 @@ const ReceiveTab = ({ orgId }: { orgId: string }) => {
           </div>
           {groups.length > 1 && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeGroup(group)}><Trash2 className="h-4 w-4" /></Button>}
         </div>
-        {!firstLine.bullName && (
+        {!firstLine.bullCatalogId && (
           <div className="px-3 py-2 border-b border-border">
             <Label className="text-xs">Bull *</Label>
             <BullCombobox value={firstLine.bullName} catalogId={firstLine.bullCatalogId} onChange={(name, catId) => updateBullForGroup(group.groupKey, name, catId)} />
