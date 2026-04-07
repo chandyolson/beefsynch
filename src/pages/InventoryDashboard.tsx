@@ -118,7 +118,7 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, customers(name), tanks(tank_name, tank_number), bulls_catalog(bull_name, company)")
+        .select("*, customers(name), tanks(tank_name, tank_number)")
         .eq("organization_id", orgId)
         .limit(10000);
       if (error) throw error;
