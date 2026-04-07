@@ -51,13 +51,22 @@ const SemenInventory = () => {
     queryKey: ["semen-inventory", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tank_inventory")
-        .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company)")
-        .eq("organization_id", orgId!)
-        .limit(10000);
-      if (error) throw error;
-      return (data ?? []) as any[];
+      const PAGE = 1000;
+      const allRows: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("tank_inventory")
+          .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company)")
+          .eq("organization_id", orgId!)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = data ?? [];
+        allRows.push(...rows);
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+      return allRows;
     },
   });
 
