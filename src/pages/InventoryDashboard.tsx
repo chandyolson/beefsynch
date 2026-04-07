@@ -84,6 +84,7 @@ interface OrderItem {
 }
 interface LineItem {
   key: string;
+  groupId: string;
   bullName: string;
   bullCatalogId: string | null;
   units: number;
@@ -97,7 +98,7 @@ interface BullGroup {
   items: LineItem[];
 }
 const emptyLine = (): LineItem => ({
-  key: crypto.randomUUID(), bullName: "", bullCatalogId: null, units: 0, tankId: "", canister: "",
+  key: crypto.randomUUID(), groupId: crypto.randomUUID(), bullName: "", bullCatalogId: null, units: 0, tankId: "", canister: "",
 });
 
 // ═══════════════════════════════════════════
