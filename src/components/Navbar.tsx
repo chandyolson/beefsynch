@@ -118,9 +118,6 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/pack-tank")} className="cursor-pointer gap-2">
                 <PackagePlus className="h-4 w-4" /> Pack Tank
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/receive-shipment")} className="cursor-pointer gap-2">
-                <Truck className="h-4 w-4" /> Receive Shipment
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/shipments")} className="cursor-pointer gap-2">
                 <Truck className="h-4 w-4" /> Shipments
               </DropdownMenuItem>
@@ -210,9 +207,6 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           </button>
           <button onClick={() => go("/pack-tank")} className={navBtnClass}>
             <PackagePlus className="h-4 w-4" /> Pack Tank
-          </button>
-          <button onClick={() => go("/receive-shipment")} className={navBtnClass}>
-            <Truck className="h-4 w-4" /> Receive Shipment
           </button>
           <button onClick={() => go("/shipments")} className={navBtnClass}>
             <Truck className="h-4 w-4" /> Shipments
