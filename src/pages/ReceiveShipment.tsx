@@ -147,6 +147,90 @@ const ReceiveShipment = () => {
     enabled: !!orgId,
   });
 
+  // Build stable list of bull keys for existing-inventory lookup
+  const bullKeysForQuery = useMemo(() => {
+    const keys = new Set<string>();
+    for (const line of lines) {
+      const key = line.bullCatalogId || line.bullName;
+      if (key) keys.add(key);
+    }
+    return Array.from(keys).sort();
+  }, [lines]);
+
+  // Fetch existing inventory for the bulls in the form (paginated)
+  const { data: existingInventory = [] } = useQuery({
+    queryKey: ["receive-existing-inventory", orgId, bullKeysForQuery],
+    queryFn: async () => {
+      if (!orgId || bullKeysForQuery.length === 0) return [];
+      const catalogIds = lines.filter(l => l.bullCatalogId).map(l => l.bullCatalogId!);
+      const customNames = lines.filter(l => !l.bullCatalogId && l.bullName).map(l => l.bullName);
+
+      const allRows: any[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase
+          .from("tank_inventory")
+          .select("id, bull_catalog_id, custom_bull_name, tank_id, canister, units, item_type, customer_id, owner")
+          .eq("organization_id", orgId)
+          .gt("units", 0)
+          .range(from, from + pageSize - 1);
+
+        // Build OR filter
+        const orFilters: string[] = [];
+        if (catalogIds.length > 0) orFilters.push(`bull_catalog_id.in.(${catalogIds.join(",")})`);
+        if (customNames.length > 0) orFilters.push(`custom_bull_name.in.(${customNames.join(",")})`);
+        if (orFilters.length > 0) query = query.or(orFilters.join(","));
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (data) allRows.push(...data);
+        hasMore = (data?.length ?? 0) === pageSize;
+        from += pageSize;
+      }
+      return allRows;
+    },
+    enabled: !!orgId && bullKeysForQuery.length > 0,
+  });
+
+  type ExistingLocation = {
+    inventoryId: string;
+    tankId: string;
+    tankName: string;
+    canister: string;
+    units: number;
+    itemType: string;
+    ownerName: string | null;
+  };
+
+  const existingByBull: Map<string, ExistingLocation[]> = useMemo(() => {
+    const map = new Map<string, ExistingLocation[]>();
+    for (const row of existingInventory) {
+      const key = row.bull_catalog_id || row.custom_bull_name;
+      if (!key) continue;
+      const tank = tanks.find(t => t.id === row.tank_id);
+      const customer = row.customer_id ? customers.find(c => c.id === row.customer_id) : null;
+      const loc: ExistingLocation = {
+        inventoryId: row.id,
+        tankId: row.tank_id,
+        tankName: tank?.tank_name || tank?.tank_number || "Unknown tank",
+        canister: row.canister,
+        units: row.units,
+        itemType: row.item_type,
+        ownerName: customer?.name ?? (row.customer_id ? null : "Company"),
+      };
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(loc);
+    }
+    for (const locs of map.values()) {
+      locs.sort((a, b) => a.tankName.localeCompare(b.tankName) || a.canister.localeCompare(b.canister));
+    }
+    return map;
+  }, [existingInventory, tanks, customers]);
+
+
   // Load existing draft if editing
   useEffect(() => {
     if (!editId || !orgId || draftLoaded) return;
@@ -318,6 +402,22 @@ const ReceiveShipment = () => {
       const copy = [...prev];
       copy.splice(idx + 1, 0, newLine);
       return copy;
+    });
+  };
+
+  const fillFromExistingLocation = (group: BullGroup, loc: ExistingLocation) => {
+    const groupLines = group.items;
+    const targetLine =
+      groupLines.find(l => !l.tankId && !l.canister) ??
+      groupLines[groupLines.length - 1];
+    if (!targetLine) return;
+    updateLine(targetLine.key, {
+      tankId: loc.tankId,
+      canister: loc.canister,
+    });
+    toast({
+      title: "Location applied",
+      description: `${loc.tankName} · canister ${loc.canister}`,
     });
   };
 
@@ -512,6 +612,39 @@ const ReceiveShipment = () => {
             {errors[`line_${firstIdx}_bull`] && <p className="text-xs text-destructive mt-1">{errors[`line_${firstIdx}_bull`]}</p>}
           </div>
         )}
+
+        {/* Existing inventory panel */}
+        {(() => {
+          const lookupKey = group.bullCatalogId || group.bullName;
+          const locations = lookupKey ? (existingByBull.get(lookupKey) ?? []) : [];
+          const totalExistingUnits = locations.reduce((s, l) => s + l.units, 0);
+          if (!firstLine.bullName || locations.length === 0) return null;
+          return (
+            <div className="px-3 py-2 bg-muted/30 border-b border-border">
+              <div className="text-xs font-medium text-muted-foreground mb-2">
+                Already in inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {locations.map(loc => (
+                  <button
+                    type="button"
+                    key={loc.inventoryId}
+                    onClick={() => fillFromExistingLocation(group, loc)}
+                    className="text-xs px-2 py-1 rounded border border-border bg-background hover:bg-secondary hover:border-primary/40 transition-colors text-left"
+                    title="Click to use this tank and canister for the active line"
+                  >
+                    <span className="font-medium text-foreground">{loc.tankName}</span>
+                    <span className="text-muted-foreground"> · canister {loc.canister}</span>
+                    <span className="text-muted-foreground"> · {loc.units} units</span>
+                    {loc.ownerName && loc.ownerName !== "Company" && (
+                      <span className="text-muted-foreground"> · {loc.ownerName}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Destination rows */}
         <div className="divide-y divide-border">
