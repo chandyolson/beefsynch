@@ -198,18 +198,20 @@ const PackTank = () => {
       if ((pb as any).bull_catalog_id) {
         const { data } = await supabase
           .from("tank_inventory")
-          .select("canister, units, tanks!inner(tank_name, tank_number)")
+          .select("canister, units, customer_id, tanks!inner(tank_name, tank_number)")
           .eq("organization_id", orgId)
           .eq("bull_catalog_id", (pb as any).bull_catalog_id)
+          .is("customer_id", null)
           .gt("units", 0)
           .order("units", { ascending: false });
         invRows = data ?? [];
       } else {
         const { data } = await supabase
           .from("tank_inventory")
-          .select("canister, units, tanks!inner(tank_name, tank_number)")
+          .select("canister, units, customer_id, tanks!inner(tank_name, tank_number)")
           .eq("organization_id", orgId)
           .eq("custom_bull_name", bullName)
+          .is("customer_id", null)
           .gt("units", 0)
           .order("units", { ascending: false });
         invRows = data ?? [];
