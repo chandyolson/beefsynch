@@ -143,9 +143,18 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryKey: ["tank_inventory_for_customers", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tank_inventory" as any).select("customer_id, units, inventoried_at").eq("organization_id", orgId);
-      if (error) throw error;
-      return (data ?? []) as any[];
+      const PAGE = 1000;
+      const allRows: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase.from("tank_inventory" as any).select("customer_id, units, inventoried_at").eq("organization_id", orgId).range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = data ?? [];
+        allRows.push(...rows);
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+      return allRows;
     },
   });
 
@@ -324,9 +333,18 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
     queryKey: ["tank_inventory_sums", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tank_inventory").select("tank_id, units").eq("organization_id", orgId).limit(10000);
-      if (error) throw error;
-      return (data ?? []) as any[];
+      const PAGE = 1000;
+      const allRows: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase.from("tank_inventory").select("tank_id, units").eq("organization_id", orgId).range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = data ?? [];
+        allRows.push(...rows);
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+      return allRows;
     },
   });
 
