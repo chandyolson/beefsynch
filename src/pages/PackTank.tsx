@@ -883,7 +883,7 @@ const PackTank = () => {
         {/* Inventory Summary — project packs only */}
         {packType === "project" && selectedProjects.length > 0 && Object.keys(inventorySummary).length > 0 && (
           <Card>
-            <CardHeader><CardTitle className="text-base">Available Inventory</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Available in Company Inventory</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {Object.values(inventorySummary).map((bull) => (
                 <div key={bull.bullName}>
