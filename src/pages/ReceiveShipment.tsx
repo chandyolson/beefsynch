@@ -613,6 +613,39 @@ const ReceiveShipment = () => {
           </div>
         )}
 
+        {/* Existing inventory panel */}
+        {(() => {
+          const lookupKey = group.bullCatalogId || group.bullName;
+          const locations = lookupKey ? (existingByBull.get(lookupKey) ?? []) : [];
+          const totalExistingUnits = locations.reduce((s, l) => s + l.units, 0);
+          if (!firstLine.bullName || locations.length === 0) return null;
+          return (
+            <div className="px-3 py-2 bg-muted/30 border-b border-border">
+              <div className="text-xs font-medium text-muted-foreground mb-2">
+                Already in inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {locations.map(loc => (
+                  <button
+                    type="button"
+                    key={loc.inventoryId}
+                    onClick={() => fillFromExistingLocation(group, loc)}
+                    className="text-xs px-2 py-1 rounded border border-border bg-background hover:bg-secondary hover:border-primary/40 transition-colors text-left"
+                    title="Click to use this tank and canister for the active line"
+                  >
+                    <span className="font-medium text-foreground">{loc.tankName}</span>
+                    <span className="text-muted-foreground"> · canister {loc.canister}</span>
+                    <span className="text-muted-foreground"> · {loc.units} units</span>
+                    {loc.ownerName && loc.ownerName !== "Company" && (
+                      <span className="text-muted-foreground"> · {loc.ownerName}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Destination rows */}
         <div className="divide-y divide-border">
           {group.items.map((line) => {
