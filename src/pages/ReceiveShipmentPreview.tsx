@@ -515,6 +515,19 @@ const ReceiveShipmentPreview = () => {
           </div>
         )}
 
+        {/* Duplicate receive warning (drafts only) */}
+        {showDuplicateWarning && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">This order has already been received</p>
+              <p className="text-amber-300/80 mt-0.5">
+                Status: <strong>{linkedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Confirming this draft will create a second shipment and add to inventory again.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Reconciliation Table */}
         <Card>
           <CardHeader>
