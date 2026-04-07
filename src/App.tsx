@@ -22,6 +22,7 @@ import TankFills from "./pages/TankFills";
 import TanksOut from "./pages/TanksOut";
 import SemenInventory from "./pages/SemenInventory";
 import ReceiveShipment from "./pages/ReceiveShipment";
+import ReceiveShipmentPreview from "./pages/ReceiveShipmentPreview";
 import TanksDashboard from "./pages/TanksDashboard";
 import InventoryDashboard from "./pages/InventoryDashboard";
 import Auth from "./pages/Auth";
@@ -78,6 +79,8 @@ const App = () => (
             <Route path="/tanks-out" element={<ProtectedRoute><TanksOut /></ProtectedRoute>} />
             <Route path="/semen-inventory" element={<ProtectedRoute><SemenInventory /></ProtectedRoute>} />
             <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
+            <Route path="/receive-shipment/preview/:id" element={<ProtectedRoute><ReceiveShipmentPreview /></ProtectedRoute>} />
+            <Route path="/receive-shipment/:id" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
             <Route path="/tanks-dashboard" element={<ProtectedRoute><TanksDashboard /></ProtectedRoute>} />
             <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
