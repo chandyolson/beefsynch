@@ -35,6 +35,7 @@ interface OrderItem {
 
 interface LineItem {
   key: string;
+  groupId: string;
   bullName: string;
   bullCatalogId: string | null;
   units: number;
@@ -52,6 +53,7 @@ interface BullGroup {
 
 const emptyLine = (): LineItem => ({
   key: crypto.randomUUID(),
+  groupId: crypto.randomUUID(),
   bullName: "",
   bullCatalogId: null,
   units: 0,
@@ -84,7 +86,7 @@ const ReceiveShipment = () => {
   const groups: BullGroup[] = useMemo(() => {
     const map = new Map<string, LineItem[]>();
     for (const line of lines) {
-      const groupKey = line.bullCatalogId || line.bullName || line.key;
+      const groupKey = line.groupId;
       if (!map.has(groupKey)) map.set(groupKey, []);
       map.get(groupKey)!.push(line);
     }
@@ -167,6 +169,7 @@ const ReceiveShipment = () => {
         const items = data as unknown as OrderItem[];
         const newLines: LineItem[] = items.map((item) => ({
           key: crypto.randomUUID(),
+          groupId: crypto.randomUUID(),
           bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
           bullCatalogId: item.bull_catalog_id,
           units: item.units,
@@ -227,8 +230,7 @@ const ReceiveShipment = () => {
   const updateBullForGroup = (groupKey: string, bullName: string, bullCatalogId: string | null) => {
     setLines((prev) =>
       prev.map((l) => {
-        const lKey = l.bullCatalogId || l.bullName || l.key;
-        if (lKey === groupKey) {
+        if (l.groupId === groupKey) {
           return { ...l, bullName, bullCatalogId };
         }
         return l;
@@ -249,6 +251,7 @@ const ReceiveShipment = () => {
   const addSplitToGroup = (group: BullGroup) => {
     const newLine: LineItem = {
       key: crypto.randomUUID(),
+      groupId: group.groupKey,
       bullName: group.bullName,
       bullCatalogId: group.bullCatalogId,
       units: 0,
