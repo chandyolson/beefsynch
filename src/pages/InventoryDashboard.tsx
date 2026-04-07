@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
-  X, PackagePlus, Truck,
+  PackagePlus, Truck,
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
@@ -15,7 +15,6 @@ import StatCard from "@/components/StatCard";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +42,32 @@ const TAB_LABELS: { key: TabKey; label: string }[] = [
   { key: "inventory", label: "Inventory" },
   { key: "orders", label: "Orders" },
 ];
+
+// ─── Inventory Tab Constants ───
+const STORAGE_BADGES: Record<string, string> = {
+  customer: "bg-teal-500/15 text-teal-400 border-teal-500/30",
+  communal: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  rental: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  inventory: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+};
+
+type SortKey = "bull_name" | "customer" | "tank" | "units";
+type SortDir = "asc" | "desc";
+
+// ─── Orders Tab Constants ───
+const fulfillmentColors: Record<string, string> = {
+  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
+  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
+};
+const billingColors: Record<string, string> = {
+  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  paid: "bg-green-500/20 text-green-300 border-green-500/30",
+};
 
 // ═══════════════════════════════════════════
 // INVENTORY TAB
