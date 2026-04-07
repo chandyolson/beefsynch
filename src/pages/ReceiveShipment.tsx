@@ -157,9 +157,9 @@ const ReceiveShipment = () => {
     return Array.from(keys).sort();
   }, [lines]);
 
-  // Fetch existing inventory for the bulls in the form (paginated)
+  // Fetch existing inventory for the bulls in the form (paginated), filtered by semen owner
   const { data: existingInventory = [] } = useQuery({
-    queryKey: ["receive-existing-inventory", orgId, bullKeysForQuery],
+    queryKey: ["receive-existing-inventory", orgId, bullKeysForQuery, semenOwnerId],
     queryFn: async () => {
       if (!orgId || bullKeysForQuery.length === 0) return [];
       const catalogIds = lines.filter(l => l.bullCatalogId).map(l => l.bullCatalogId!);
@@ -177,6 +177,13 @@ const ReceiveShipment = () => {
           .eq("organization_id", orgId)
           .gt("units", 0)
           .range(from, from + pageSize - 1);
+
+        // Apply ownership filter
+        if (semenOwnerId === null) {
+          query = query.is("customer_id", null);
+        } else {
+          query = query.eq("customer_id", semenOwnerId);
+        }
 
         // Build OR filter
         const orFilters: string[] = [];
@@ -618,11 +625,21 @@ const ReceiveShipment = () => {
           const lookupKey = group.bullCatalogId || group.bullName;
           const locations = lookupKey ? (existingByBull.get(lookupKey) ?? []) : [];
           const totalExistingUnits = locations.reduce((s, l) => s + l.units, 0);
-          if (!firstLine.bullName || locations.length === 0) return null;
+          const ownerLabel = semenOwnerId
+            ? (customers.find(c => c.id === semenOwnerId)?.name ?? "customer") + "'s"
+            : "company";
+          if (!firstLine.bullName) return null;
+          if (locations.length === 0) {
+            return (
+              <div className="px-3 py-2 bg-muted/30 border-b border-border">
+                <p className="text-xs text-muted-foreground">Not currently in {ownerLabel} inventory</p>
+              </div>
+            );
+          }
           return (
             <div className="px-3 py-2 bg-muted/30 border-b border-border">
               <div className="text-xs font-medium text-muted-foreground mb-2">
-                Already in inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
+                Already in {ownerLabel} inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {locations.map(loc => (
