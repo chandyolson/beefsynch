@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -65,6 +65,7 @@ const emptyLine = (): LineItem => ({
 const ReceiveShipment = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id: editId } = useParams<{ id?: string }>();
   const { orgId } = useOrgRole();
   const isMobile = useIsMobile();
 
@@ -81,6 +82,8 @@ const ReceiveShipment = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [orderedQtyMap, setOrderedQtyMap] = useState<Map<string, number>>(new Map());
   const [semenOwnerId, setSemenOwnerId] = useState<string | null>(null);
+  const [existingDocPath, setExistingDocPath] = useState<string | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   // Derive groups from lines
   const groups: BullGroup[] = useMemo(() => {
@@ -144,20 +147,66 @@ const ReceiveShipment = () => {
     enabled: !!orgId,
   });
 
-  // Pre-select order from query param
+  // Load existing draft if editing
   useEffect(() => {
+    if (!editId || !orgId || draftLoaded) return;
+    (async () => {
+      const { data: shipment, error } = await supabase
+        .from("shipments")
+        .select("*")
+        .eq("id", editId)
+        .single();
+      if (error || !shipment) {
+        toast({ title: "Not found", description: "Shipment not found", variant: "destructive" });
+        navigate("/receive-shipment");
+        return;
+      }
+      if (shipment.status !== "draft") {
+        navigate(`/receive-shipment/preview/${editId}`);
+        return;
+      }
+      // Populate form from draft
+      setReceivedFrom(shipment.received_from || "");
+      setReceivedBy(shipment.received_by || "");
+      setReceivedDate(new Date(shipment.received_date + "T00:00:00"));
+      setNotes(shipment.notes || "");
+      setSelectedOrderId(shipment.semen_order_id || "");
+      setExistingDocPath(shipment.document_path);
+
+      const snapshot = shipment.reconciliation_snapshot as any;
+      if (snapshot?.draft_lines) {
+        setSemenOwnerId(snapshot.semen_owner_id || null);
+        const loadedLines: LineItem[] = snapshot.draft_lines.map((dl: any) => ({
+          key: crypto.randomUUID(),
+          groupId: dl.groupId || crypto.randomUUID(),
+          bullName: dl.bullName || "",
+          bullCatalogId: dl.bullCatalogId || null,
+          units: dl.units || 0,
+          tankId: dl.tankId || "",
+          canister: dl.canister || "",
+          itemType: dl.itemType || "semen",
+        }));
+        if (loadedLines.length > 0) setLines(loadedLines);
+      }
+      setDraftLoaded(true);
+    })();
+  }, [editId, orgId, draftLoaded, navigate]);
+
+  // Pre-select order from query param (only for new shipments)
+  useEffect(() => {
+    if (editId) return;
     const orderId = searchParams.get("order");
     if (orderId) setSelectedOrderId(orderId);
-  }, [searchParams]);
+  }, [searchParams, editId]);
 
-  // When order is selected, pre-fill lines
+  // When order is selected, pre-fill lines (only for new shipments or if not draft-loaded)
   useEffect(() => {
     if (!selectedOrderId || selectedOrderId === "__none") {
       setOrderedQtyMap(new Map());
       return;
     }
     const order = orders.find((o) => o.id === selectedOrderId);
-    if (order) {
+    if (order && !editId) {
       setReceivedFrom(order.customer_name);
     }
     (async () => {
@@ -167,17 +216,20 @@ const ReceiveShipment = () => {
         .eq("semen_order_id", selectedOrderId);
       if (data && data.length > 0) {
         const items = data as unknown as OrderItem[];
-        const newLines: LineItem[] = items.map((item) => ({
-          key: crypto.randomUUID(),
-          groupId: crypto.randomUUID(),
-          bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
-          bullCatalogId: item.bull_catalog_id,
-          units: item.units,
-          tankId: "",
-          canister: "",
-          itemType: "semen" as const,
-        }));
-        setLines(newLines);
+        // Only set lines from order if NOT editing existing draft
+        if (!editId || !draftLoaded) {
+          const newLines: LineItem[] = items.map((item) => ({
+            key: crypto.randomUUID(),
+            groupId: crypto.randomUUID(),
+            bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
+            bullCatalogId: item.bull_catalog_id,
+            units: item.units,
+            tankId: "",
+            canister: "",
+            itemType: "semen" as const,
+          }));
+          setLines(newLines);
+        }
 
         const qtyMap = new Map<string, number>();
         for (const item of items) {
@@ -187,7 +239,7 @@ const ReceiveShipment = () => {
         setOrderedQtyMap(qtyMap);
       }
     })();
-  }, [selectedOrderId, orders]);
+  }, [selectedOrderId, orders, editId, draftLoaded]);
 
   const handleOrderChange = (val: string) => {
     if (val === "__none") {
@@ -220,6 +272,7 @@ const ReceiveShipment = () => {
     setFile(null);
     if (filePreview) URL.revokeObjectURL(filePreview);
     setFilePreview(null);
+    setExistingDocPath(null);
   };
 
   // Line item helpers
@@ -259,7 +312,6 @@ const ReceiveShipment = () => {
       canister: "",
       itemType: group.items[0]?.itemType || "semen",
     };
-    // Insert after the last line of this group
     const lastKey = group.items[group.items.length - 1].key;
     setLines((prev) => {
       const idx = prev.findIndex((l) => l.key === lastKey);
@@ -292,9 +344,9 @@ const ReceiveShipment = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id ?? null;
-      const shipmentId = crypto.randomUUID();
 
-      let documentPath: string | null = null;
+      // Upload file if new
+      let documentPath: string | null = existingDocPath;
       if (file) {
         const path = `${orgId}/${crypto.randomUUID()}/${file.name}`;
         const { error: upErr } = await supabase.storage
@@ -304,8 +356,24 @@ const ReceiveShipment = () => {
         documentPath = path;
       }
 
-      const { error: shipErr } = await supabase.from("shipments").insert({
-        id: shipmentId,
+      // Build draft snapshot
+      const draftLines = lines.map((l) => ({
+        groupId: l.groupId,
+        bullCatalogId: l.bullCatalogId,
+        bullName: l.bullName,
+        tankId: l.tankId,
+        canister: l.canister.trim(),
+        units: l.units,
+        itemType: l.itemType,
+      }));
+
+      const snapshot = {
+        version: 1,
+        draft_lines: draftLines,
+        semen_owner_id: semenOwnerId,
+      };
+
+      const shipmentData = {
         organization_id: orgId,
         semen_order_id: selectedOrderId || null,
         received_from: receivedFrom.trim(),
@@ -314,101 +382,35 @@ const ReceiveShipment = () => {
         notes: notes.trim() || null,
         received_by: receivedBy.trim() || null,
         created_by: userId,
-      });
-      if (shipErr) throw shipErr;
+        status: "draft" as const,
+        reconciliation_snapshot: snapshot as any,
+      };
 
-      let totalUnits = 0;
-      for (const line of lines) {
-        totalUnits += line.units;
+      let shipmentId: string;
 
-        const matchFilter: Record<string, string> = {
-          organization_id: orgId,
-          tank_id: line.tankId,
-          canister: line.canister.trim(),
-          item_type: line.itemType,
-        };
-
-        if (line.bullCatalogId) {
-          matchFilter.bull_catalog_id = line.bullCatalogId;
-        } else {
-          matchFilter.custom_bull_name = line.bullName;
-        }
-
-        const { data: existing } = await supabase
-          .from("tank_inventory")
-          .select("id, units")
-          .match(matchFilter)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from("tank_inventory")
-            .update({ units: existing.units + line.units })
-            .eq("id", existing.id);
-        } else {
-          const ownerName = semenOwnerId ? customers.find(c => c.id === semenOwnerId)?.name || null : null;
-          await supabase.from("tank_inventory").insert({
-            organization_id: orgId,
-            tank_id: line.tankId,
-            canister: line.canister.trim(),
-            bull_catalog_id: line.bullCatalogId,
-            custom_bull_name: line.bullCatalogId ? null : line.bullName,
-            units: line.units,
-            storage_type: "inventory",
-            item_type: line.itemType,
-            customer_id: semenOwnerId || null,
-            owner: ownerName,
-          });
-        }
-
-        await supabase.from("inventory_transactions").insert({
-          organization_id: orgId,
-          tank_id: line.tankId,
-          bull_catalog_id: line.bullCatalogId,
-          custom_bull_name: line.bullName,
-          units_change: line.units,
-          transaction_type: "received",
-          shipment_id: shipmentId,
-          order_id: selectedOrderId || null,
-          performed_by: userId,
-          notes: `Received from ${receivedFrom.trim()}`,
-        });
-      }
-
-      if (selectedOrderId) {
-        const [{ data: orderItems }, { data: txns }] = await Promise.all([
-          supabase.from("semen_order_items").select("units").eq("semen_order_id", selectedOrderId),
-          supabase.from("inventory_transactions").select("units_change").eq("order_id", selectedOrderId).eq("transaction_type", "received").limit(10000),
-        ]);
-        const totalOrdered = (orderItems ?? []).reduce((s, i) => s + i.units, 0);
-        const totalReceived = (txns ?? []).reduce((s, t) => s + t.units_change, 0);
-        const newStatus = totalReceived >= totalOrdered ? "delivered" : "partially_filled";
-
-        const { data: currentOrder } = await supabase
-          .from("semen_orders")
-          .select("fulfillment_status")
-          .eq("id", selectedOrderId)
-          .single();
-
-        const statusRank: Record<string, number> = {
-          pending: 0, backordered: 1, ordered: 2, partially_filled: 3, shipped: 4, delivered: 5,
-        };
-
-        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)) {
-          await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", selectedOrderId);
-        }
-      }
-
-      toast({ title: "Shipment received", description: `${totalUnits} units added to inventory` });
-
-      if (selectedOrderId) {
-        navigate(`/semen-orders/${selectedOrderId}`);
+      if (editId) {
+        // Update existing draft
+        const { error: updErr } = await supabase
+          .from("shipments")
+          .update(shipmentData)
+          .eq("id", editId);
+        if (updErr) throw updErr;
+        shipmentId = editId;
       } else {
-        navigate("/semen-inventory");
+        // Insert new draft
+        shipmentId = crypto.randomUUID();
+        const { error: shipErr } = await supabase.from("shipments").insert({
+          id: shipmentId,
+          ...shipmentData,
+        });
+        if (shipErr) throw shipErr;
       }
+
+      toast({ title: "Draft saved", description: "Redirecting to preview..." });
+      navigate(`/receive-shipment/preview/${shipmentId}`);
     } catch (err: any) {
       console.error(err);
-      toast({ title: "Error", description: err.message || "Failed to receive shipment", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to save draft", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -447,7 +449,7 @@ const ReceiveShipment = () => {
     const orderedQty = orderedQtyMap.get(orderedKey);
 
     if (orderedQty != null) {
-          const isFull = totalAllocated >= orderedQty;
+      const isFull = totalAllocated >= orderedQty;
       const isPartial = totalAllocated > 0 && totalAllocated < orderedQty;
       return (
         <div className="flex items-center gap-2 text-xs">
@@ -532,7 +534,7 @@ const ReceiveShipment = () => {
                     <Input value={line.canister} onChange={(e) => updateLine(line.key, { canister: e.target.value })} placeholder="e.g. 1, 2, A" />
                     {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive">{errors[`line_${idx}_canister`]}</p>}
                   </div>
-                   <div className="space-y-1">
+                  <div className="space-y-1">
                     <Label className="text-xs">Units *</Label>
                     <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
                     {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
@@ -597,8 +599,12 @@ const ReceiveShipment = () => {
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-4xl">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Receive Shipment</h1>
-          <p className="text-sm text-muted-foreground">Log incoming semen and add to inventory</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {editId ? "Edit Draft Shipment" : "Receive Shipment"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {editId ? "Update this draft and preview the reconciliation report" : "Log incoming semen and preview before confirming"}
+          </p>
         </div>
 
         {/* Shipment Details */}
@@ -702,6 +708,14 @@ const ReceiveShipment = () => {
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                ) : existingDocPath ? (
+                  <div className="flex items-center gap-2 p-2 border border-border rounded-md bg-secondary/50">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-sm truncate flex-1">{existingDocPath.split("/").pop()}</span>
+                    <Button variant="ghost" size="icon" onClick={removeFile} type="button">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
                   <label className="flex items-center gap-2 cursor-pointer p-2 border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors">
                     <Upload className="h-4 w-4 text-muted-foreground" />
@@ -759,7 +773,7 @@ const ReceiveShipment = () => {
         <div className={isMobile ? "sticky bottom-0 bg-background border-t border-border p-4 -mx-4" : ""}>
           <Button onClick={handleSubmit} disabled={submitting} className={isMobile ? "w-full" : "w-full md:w-auto"} size="lg">
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {submitting ? "Processing..." : "Receive & Add to Inventory"}
+            {submitting ? "Saving..." : "Save Draft & Preview"}
           </Button>
         </div>
       </main>
