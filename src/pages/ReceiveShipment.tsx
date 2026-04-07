@@ -625,11 +625,21 @@ const ReceiveShipment = () => {
           const lookupKey = group.bullCatalogId || group.bullName;
           const locations = lookupKey ? (existingByBull.get(lookupKey) ?? []) : [];
           const totalExistingUnits = locations.reduce((s, l) => s + l.units, 0);
-          if (!firstLine.bullName || locations.length === 0) return null;
+          const ownerLabel = semenOwnerId
+            ? (customers.find(c => c.id === semenOwnerId)?.name ?? "customer") + "'s"
+            : "company";
+          if (!firstLine.bullName) return null;
+          if (locations.length === 0) {
+            return (
+              <div className="px-3 py-2 bg-muted/30 border-b border-border">
+                <p className="text-xs text-muted-foreground">Not currently in {ownerLabel} inventory</p>
+              </div>
+            );
+          }
           return (
             <div className="px-3 py-2 bg-muted/30 border-b border-border">
               <div className="text-xs font-medium text-muted-foreground mb-2">
-                Already in inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
+                Already in {ownerLabel} inventory ({totalExistingUnits} units across {locations.length} location{locations.length === 1 ? '' : 's'})
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {locations.map(loc => (
