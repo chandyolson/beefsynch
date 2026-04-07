@@ -23,6 +23,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
   const [loading, setLoading] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastSentValue = useRef(value);
 
   // Fetch user favorites on mount
   useEffect(() => {
@@ -39,8 +40,13 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
     })();
   }, []);
 
-  // Sync external value changes
-  useEffect(() => { setQuery(value); }, [value]);
+  // Sync external value changes, but ignore the echo from our own onChange calls
+  useEffect(() => {
+    if (value !== lastSentValue.current) {
+      setQuery(value);
+      lastSentValue.current = value;
+    }
+  }, [value]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -85,6 +91,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
 
   const handleInputChange = (val: string) => {
     setQuery(val);
+    lastSentValue.current = val;
     onChange(val, null, null);
     setOpen(true);
   };
