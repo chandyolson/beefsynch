@@ -499,7 +499,7 @@ const ReceiveShipment = () => {
         </div>
 
         {/* Bull Combobox — only on first line, or if bull not yet chosen */}
-        {!firstLine.bullName && (
+        {!firstLine.bullCatalogId && !group.bullCatalogId && (
           <div className="px-3 py-2 border-b border-border">
             <Label className="text-xs">Bull *</Label>
             <BullCombobox
