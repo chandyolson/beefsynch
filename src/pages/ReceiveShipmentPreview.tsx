@@ -119,7 +119,7 @@ const ReceiveShipmentPreview = () => {
 
   const isDraft = shipment?.status === "draft";
   const isConfirmed = shipment?.status === "confirmed";
-  const isOwner = role === "owner";
+  const _isOwner = role === "owner";
   const canOverride = role === "owner" || role === "admin";
   const snapshot = shipment?.reconciliation_snapshot as any;
 
