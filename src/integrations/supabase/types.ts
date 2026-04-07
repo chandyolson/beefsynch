@@ -920,6 +920,50 @@ export type Database = {
           },
         ]
       }
+      receiving_report_audit_log: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          organization_id: string
+          reason: string | null
+          shipment_id: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id: string
+          reason?: string | null
+          shipment_id: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id?: string
+          reason?: string | null
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receiving_report_audit_log_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       semen_companies: {
         Row: {
           created_at: string
@@ -1066,6 +1110,8 @@ export type Database = {
       }
       shipments: {
         Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -1076,11 +1122,15 @@ export type Database = {
           received_by: string | null
           received_date: string
           received_from: string | null
+          reconciliation_snapshot: Json | null
           semen_company_id: string | null
           semen_order_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1091,11 +1141,15 @@ export type Database = {
           received_by?: string | null
           received_date?: string
           received_from?: string | null
+          reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1106,8 +1160,10 @@ export type Database = {
           received_by?: string | null
           received_date?: string
           received_from?: string | null
+          reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
