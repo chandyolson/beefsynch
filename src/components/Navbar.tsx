@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers, PackagePlus, Truck } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers, PackagePlus, Truck, PackageOpen } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
