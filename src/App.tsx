@@ -34,6 +34,7 @@ import TeamManagement from "./pages/TeamManagement";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import PackTank from "./pages/PackTank";
+import Shipments from "./pages/Shipments";
 import PackDetail from "./pages/PackDetail";
 import UnpackTank from "./pages/UnpackTank";
 import ProjectBilling from "./pages/ProjectBilling";
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
             <Route path="/receive-shipment/preview/:id" element={<ProtectedRoute><ReceiveShipmentPreview /></ProtectedRoute>} />
             <Route path="/receive-shipment/:id" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
+            <Route path="/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
             <Route path="/tanks-dashboard" element={<ProtectedRoute><TanksDashboard /></ProtectedRoute>} />
             <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
