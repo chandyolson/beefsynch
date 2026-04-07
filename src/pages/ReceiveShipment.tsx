@@ -108,13 +108,34 @@ const ReceiveShipment = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, customer_name, order_date")
+        .select("id, customer_name, order_date, fulfillment_status")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
       return data ?? [];
     },
     enabled: !!orgId,
+  });
+
+  // Check if selected order already received
+  const selectedOrder = orders.find((o) => o.id === selectedOrderId);
+  const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
+  const selectedOrderAlreadyReceived = selectedOrder && alreadyReceivedStatuses.includes(selectedOrder.fulfillment_status);
+
+  // Fetch existing shipments for the selected order (for linking)
+  const { data: existingShipmentsForOrder = [] } = useQuery({
+    queryKey: ["existing-shipments-for-order", selectedOrderId],
+    queryFn: async () => {
+      if (!selectedOrderId) return [];
+      const { data } = await supabase
+        .from("shipments")
+        .select("id, confirmed_at")
+        .eq("semen_order_id", selectedOrderId)
+        .eq("status", "confirmed")
+        .order("confirmed_at", { ascending: false });
+      return data ?? [];
+    },
+    enabled: !!selectedOrderId && !!selectedOrderAlreadyReceived,
   });
 
   // Fetch tanks
@@ -775,7 +796,14 @@ const ReceiveShipment = () => {
                     <SelectItem value="__none">No order — manual entry</SelectItem>
                     {orders.map((o) => (
                       <SelectItem key={o.id} value={o.id}>
-                        {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
+                        <span className="flex items-center gap-2">
+                          {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
+                          {alreadyReceivedStatuses.includes(o.fulfillment_status) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                              ✓ {o.fulfillment_status.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -894,6 +922,29 @@ const ReceiveShipment = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Duplicate receive warning */}
+        {selectedOrderAlreadyReceived && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">This order has already been received</p>
+              <p className="text-amber-300/80 mt-0.5">
+                Status: <strong>{selectedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Receiving against it again will create a second shipment record and add to inventory a second time. Proceed only if you're sure (backorder, replacement).
+              </p>
+              {existingShipmentsForOrder.length === 1 && (
+                <Link to={`/receive-shipment/preview/${existingShipmentsForOrder[0].id}`} className="text-primary hover:underline text-xs mt-1 inline-block">
+                  View existing shipment →
+                </Link>
+              )}
+              {existingShipmentsForOrder.length > 1 && (
+                <Link to={`/shipments?order=${selectedOrderId}`} className="text-primary hover:underline text-xs mt-1 inline-block">
+                  View {existingShipmentsForOrder.length} existing shipments →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Line Items — Grouped by Bull */}
         <Card>

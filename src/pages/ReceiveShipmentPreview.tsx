@@ -119,8 +119,27 @@ const ReceiveShipmentPreview = () => {
 
   const isDraft = shipment?.status === "draft";
   const isConfirmed = shipment?.status === "confirmed";
-  const isOwner = role === "owner";
+  const _isOwner = role === "owner";
+  const canOverride = role === "owner" || role === "admin";
   const snapshot = shipment?.reconciliation_snapshot as any;
+
+  // Check if linked order was already received (for duplicate warning on drafts)
+  const { data: linkedOrder } = useQuery({
+    queryKey: ["linked-order-status", shipment?.semen_order_id],
+    queryFn: async () => {
+      if (!shipment?.semen_order_id) return null;
+      const { data } = await supabase
+        .from("semen_orders")
+        .select("fulfillment_status, customer_name")
+        .eq("id", shipment.semen_order_id)
+        .single();
+      return data;
+    },
+    enabled: !!shipment?.semen_order_id && isDraft,
+  });
+
+  const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
+  const showDuplicateWarning = isDraft && linkedOrder && alreadyReceivedStatuses.includes(linkedOrder.fulfillment_status);
 
   // Build reconciliation
   const { reconciliation, totals } = useMemo(() => {
@@ -496,6 +515,19 @@ const ReceiveShipmentPreview = () => {
           </div>
         )}
 
+        {/* Duplicate receive warning (drafts only) */}
+        {showDuplicateWarning && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">This order has already been received</p>
+              <p className="text-amber-300/80 mt-0.5">
+                Status: <strong>{linkedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Confirming this draft will create a second shipment and add to inventory again.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Reconciliation Table */}
         <Card>
           <CardHeader>
@@ -658,7 +690,7 @@ const ReceiveShipmentPreview = () => {
                 <ArrowLeft className="h-4 w-4 mr-2" /> Back
               </Button>
 
-              {isOwner && (
+              {canOverride && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" className="text-amber-400 border-amber-500/20 hover:bg-amber-500/10">
@@ -674,7 +706,24 @@ const ReceiveShipmentPreview = () => {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => navigate(`/receive-shipment/${id}`)}>
+                      <AlertDialogAction onClick={async () => {
+                        // Write audit log
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          await supabase.from("receiving_report_audit_log").insert({
+                            shipment_id: shipment!.id,
+                            organization_id: orgId!,
+                            edited_by: user!.id,
+                            field_name: "override_edit",
+                            old_value: JSON.stringify({ previous_confirmed_at: shipment!.confirmed_at }),
+                            new_value: null,
+                            reason: null,
+                          });
+                        } catch (e) {
+                          console.error("Audit log write failed:", e);
+                        }
+                        navigate(`/receive-shipment/${id}`);
+                      }}>
                         I Understand — Edit
                       </AlertDialogAction>
                     </AlertDialogFooter>
