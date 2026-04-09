@@ -947,6 +947,71 @@ const PackTank = () => {
               </>
             )}
 
+            {/* Order fields */}
+            {packType === "order" && (
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Orders *</Label>
+                  <div className="flex-1">
+                    <Popover open={orderPopoverOpen} onOpenChange={setOrderPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", errors.orders && "border-destructive", selectedOrders.length === 0 && "text-muted-foreground")}>
+                          {selectedOrders.length === 0
+                            ? "Select orders…"
+                            : `${selectedOrders.length} order${selectedOrders.length > 1 ? "s" : ""} selected`}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-2" align="start">
+                        <div className="relative mb-2">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search orders…"
+                            value={orderSearch}
+                            onChange={e => setOrderSearch(e.target.value)}
+                            className="pl-8 h-8 text-sm"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {filteredOrders.map((o: any) => (
+                            <label key={o.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                              <Checkbox
+                                checked={selectedOrders.includes(o.id)}
+                                onCheckedChange={() => toggleOrder(o.id)}
+                              />
+                              <span className="flex-1">
+                                {o.customer_name || "No customer"}
+                                <span className="text-muted-foreground ml-1 text-xs">
+                                  {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                </span>
+                              </span>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">{o.fulfillment_status}</Badge>
+                            </label>
+                          ))}
+                          {filteredOrders.length === 0 && (
+                            <p className="text-xs text-muted-foreground px-2 py-2">No open orders found.</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    {errors.orders && <p className="text-xs text-destructive">{errors.orders}</p>}
+                    {selectedOrders.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {selectedOrders.map(oid => {
+                          const order = availableOrders.find((o: any) => o.id === oid);
+                          return (
+                            <Badge key={oid} variant="secondary" className="gap-1">
+                              {order?.customer_name || "Order"}
+                              <X className="h-3 w-3 cursor-pointer" onClick={() => toggleOrder(oid)} />
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Packed By */}
             <div className="flex items-center gap-4">
               <Label className="w-28 shrink-0 text-right">Packed By</Label>
