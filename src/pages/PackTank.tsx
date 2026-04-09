@@ -542,7 +542,7 @@ const PackTank = () => {
 
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
-      // Step 2: Create tank_pack_projects (only for project packs)
+      // Step 2: Create tank_pack_projects or tank_pack_orders
       if (packType === "project" && selectedProjects.length > 0) {
         await supabase.from("tank_pack_projects").insert(
           selectedProjects.map(projId => ({
@@ -550,6 +550,18 @@ const PackTank = () => {
             project_id: projId,
           }))
         );
+      }
+
+      if (packType === "order" && selectedOrders.length > 0) {
+        const { error: orderLinkErr } = await supabase
+          .from("tank_pack_orders")
+          .insert(selectedOrders.map(orderId => ({
+            tank_pack_id: pack.id,
+            semen_order_id: orderId,
+          })));
+        if (orderLinkErr) {
+          toast({ title: "Pack created but order links failed", description: orderLinkErr.message, variant: "destructive" });
+        }
       }
 
       // Step 3: Process each line
