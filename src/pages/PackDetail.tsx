@@ -103,6 +103,20 @@ const PackDetail = () => {
     },
   });
 
+  // Fetch pack orders
+  const { data: packOrders = [] } = useQuery({
+    queryKey: ["pack_orders", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_pack_orders")
+        .select("semen_order_id, semen_orders(id, customer_name, order_date, fulfillment_status)")
+        .eq("tank_pack_id", id!);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
   // Fetch unpack lines if unpacked
   const { data: unpackLines = [] } = useQuery({
     queryKey: ["unpack_lines", id],
