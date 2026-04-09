@@ -270,17 +270,26 @@ CASCADE;
 
 ### Step 2.3 — Import Auth Users (Optional)
 
+The export ZIP includes `auth_users.jsonl` and `auth_identities.jsonl`.
+
 **What to do:**
-1. Import `auth.users` and `auth.identities`:
-   ```bash
-   psql "<NEW_DATABASE_CONNECTION_STRING>" -f beefsynch_auth_users.sql
-   ```
-2. The `handle_new_user` trigger will auto-create `profiles` rows — if you already imported profiles data, disable the trigger first:
+1. Convert `auth_users.jsonl` to SQL INSERTs targeting `auth.users` (same conversion pattern as Step 2.2).
+2. Convert `auth_identities.jsonl` to SQL INSERTs targeting `auth.identities`.
+3. Disable the `handle_new_user` trigger to prevent duplicate profile rows:
    ```sql
    ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
-   -- import auth users
+   ```
+4. Import users then identities:
+   ```bash
+   psql "<NEW_DATABASE_CONNECTION_STRING>" -f auth_users.sql
+   psql "<NEW_DATABASE_CONNECTION_STRING>" -f auth_identities.sql
+   ```
+5. Re-enable the trigger:
+   ```sql
    ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
    ```
+
+**If `auth_users_ERROR.json` exists instead:** The service role couldn't export auth data. You'll need to have users re-register, or manually create them via the Supabase Dashboard.
 
 **What to verify:**
 - Users can log in with their existing credentials.
