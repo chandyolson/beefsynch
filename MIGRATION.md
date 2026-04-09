@@ -19,17 +19,37 @@ This document describes how to migrate the BeefSynch project from Lovable Cloud 
 
 ### Step 1.1 — Export the Database Schema
 
-The schema is already captured in the `supabase/migrations/` directory (32 migration files as of this writing). These are your source of truth.
+> **⚠️ IMPORTANT:** The `supabase/migrations/` directory only contains incremental migrations — it does **not** have complete DDL for every table. Only 7 of 33 tables were originally created via migration files; the other 26 were created directly in the Lovable Cloud SQL Editor.
+>
+> The authoritative, complete schema is in **`supabase/baseline_schema.sql`**. This file contains `CREATE TABLE IF NOT EXISTS` statements for all 26 missing tables plus all functions, triggers, indexes, unique constraints, foreign keys, and RLS policies.
 
 **What to do:**
-1. Confirm all migrations are present in the repo: `ls supabase/migrations/*.sql | wc -l`
-2. Review the latest migration to ensure it matches the current live schema.
+1. Open `supabase/baseline_schema.sql` and review the contents.
+2. On your **new** Supabase project, run the baseline schema first (via the SQL Editor or `psql`):
+   ```bash
+   psql "$NEW_DB_CONNECTION_STRING" -f supabase/baseline_schema.sql
+   ```
+3. Then apply the incremental migrations in order:
+   ```bash
+   for f in supabase/migrations/*.sql; do
+     echo "Applying $f ..."
+     psql "$NEW_DB_CONNECTION_STRING" -f "$f" 2>&1 | grep -i error || true
+   done
+   ```
+   Many will report "already exists" errors — that's expected and safe since the baseline already created them.
 
 **What to verify:**
-- The migration file count matches what you expect.
-- No migrations were applied via the Lovable Cloud UI that aren't in the repo (check the Cloud UI migration history if available).
+- Run `\dt public.*` in `psql` and confirm all 33 tables exist.
+- Run `SELECT count(*) FROM pg_policies WHERE schemaname = 'public';` — you should see 60+ RLS policies.
+- Confirm all functions exist: `\df public.*` should list `user_org_ids`, `get_org_role`, `get_org_members`, `accept_org_invite`, `lookup_invite_by_token`, `handle_new_user`, etc.
 
-**Rollback:** N/A — this is read-only.
+**Rollback:** Drop and recreate the database, or restore from the Supabase dashboard's point-in-time recovery.
+
+**Tables covered by `baseline_schema.sql` (26):**
+organizations, organization_members, pending_invites, customers, semen_companies, tanks, tank_inventory, tank_fills, tank_movements, shipments, inventory_transactions, bull_favorites, billing_products, project_contacts, project_billing, project_billing_labor, project_billing_products, project_billing_semen, project_billing_sessions, tank_packs, tank_pack_lines, tank_pack_projects, tank_pack_orders, tank_unpack_lines, google_calendar_events, receiving_report_audit_log
+
+**Tables covered by existing migrations (7):**
+bulls_catalog, profiles, projects, protocol_events, project_bulls, semen_orders, semen_order_items
 
 ---
 
