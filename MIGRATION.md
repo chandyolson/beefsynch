@@ -33,36 +33,43 @@ The schema is already captured in the `supabase/migrations/` directory (32 migra
 
 ---
 
-### Step 1.2 — Export Data
+### Step 1.2 — Export Data (via `full-export` Edge Function)
 
-Use `pg_dump` with the Lovable Cloud database connection string to export all data.
+Lovable Cloud does not expose a direct Postgres connection string, so `pg_dump` is not available. Instead, use the `full-export` Edge Function deployed in the project. It exports all 33 public-schema tables, auth users/identities, and storage file metadata as a ZIP of JSONL files.
 
 **What to do:**
-1. Run a data-only dump:
+1. Call the function with the service role key:
    ```bash
-   pg_dump --data-only --no-owner --no-privileges \
-     --exclude-schema=auth --exclude-schema=storage \
-     --exclude-schema=supabase_functions --exclude-schema=realtime \
-     --exclude-schema=vault --exclude-schema=extensions \
-     --exclude-schema=pgsodium --exclude-schema=_realtime \
-     -f beefsynch_data.sql \
-     "<LOVABLE_CLOUD_CONNECTION_STRING>"
+   curl -o beefsynch_export.zip \
+     -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
+     "https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/full-export"
    ```
-2. Separately export `auth.users` if you want to migrate user accounts (requires service role access):
+   Replace `<SERVICE_ROLE_KEY>` and `<SUPABASE_PROJECT_REF>` with your actual values.
+
+2. Unzip and inspect:
    ```bash
-   pg_dump --data-only --no-owner --no-privileges \
-     -t auth.users -t auth.identities \
-     -f beefsynch_auth_users.sql \
-     "<LOVABLE_CLOUD_CONNECTION_STRING>"
+   unzip beefsynch_export.zip -d beefsynch_export/
+   cat beefsynch_export/manifest.json
    ```
 
+**What the ZIP contains:**
+- One `.jsonl` file per public table (e.g., `organizations.jsonl`, `tank_inventory.jsonl`)
+- `auth_users.jsonl` and `auth_identities.jsonl` (or an error file if auth export failed)
+- `storage_shipment_documents.jsonl` and `storage_email_assets.jsonl` (file metadata only — paths, sizes, mimetypes)
+- `manifest.json` with export timestamp, row counts, and tables in foreign-key dependency order
+
 **What to verify:**
-- Open `beefsynch_data.sql` and confirm it contains INSERT statements for your tables (organizations, projects, tanks, etc.).
-- Spot-check row counts: `grep -c "INSERT INTO public.projects" beefsynch_data.sql`
+- `manifest.json` lists all 33 tables with non-zero row counts for tables you know have data.
+- Spot-check a JSONL file: `head -3 beefsynch_export/projects.jsonl`
+- Auth users count matches what you expect.
+- Storage metadata lists all files you know exist.
 
 **Rollback:** N/A — this is read-only.
 
-**⚠️ BeefSynch-specific:** The `bulls_catalog` table is global (not org-scoped) and can be large. Verify it's included.
+**⚠️ BeefSynch-specific:**
+- The function paginates internally (1000 rows per request) so large tables like `tank_inventory` and `inventory_transactions` are fully exported.
+- The `bulls_catalog` table is global (not org-scoped) and can be large. Verify it's included.
+- UUIDs are preserved as strings, timestamps as ISO 8601, JSONB as nested objects.
 
 ---
 
