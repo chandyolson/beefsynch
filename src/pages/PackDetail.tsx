@@ -341,6 +341,22 @@ const PackDetail = () => {
                   )}
                 </div>
               </>
+            ) : isOrder ? (
+              <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Orders:</span>
+                <div className="flex flex-wrap gap-1">
+                  {packOrders.map((link: any) => (
+                    <Badge
+                      key={link.semen_order_id}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-secondary/80"
+                      onClick={() => navigate(`/semen-orders/${link.semen_order_id}`)}
+                    >
+                      {link.semen_orders?.customer_name || "Order"}{" "}
+                      <ExternalLink className="h-3 w-3 ml-1 inline" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Projects:</span>
                 <div className="flex flex-wrap gap-1">
