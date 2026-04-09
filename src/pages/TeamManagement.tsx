@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw, Download } from "lucide-react";
+import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw, Download, Archive } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateFullExport } from "@/lib/generateFullExport";
 
