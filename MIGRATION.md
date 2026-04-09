@@ -182,20 +182,56 @@ Record the current auth settings:
 
 ---
 
-### Step 2.2 — Import Data
+### Step 2.2 — Import Data (from JSONL export)
 
-**Tools:** `psql`
+**Tools:** `psql`, a conversion script (Node.js or Python)
+
+Since the export is JSONL (not SQL), you need to convert each `.jsonl` file into SQL INSERT statements or use a script to insert via the Supabase client.
 
 **What to do:**
-1. Temporarily disable triggers to avoid conflicts during import:
+1. Write a conversion script. Example in Node.js:
+   ```js
+   // convert-jsonl-to-sql.js
+   const fs = require('fs');
+   const path = require('path');
+   const manifest = JSON.parse(fs.readFileSync('beefsynch_export/manifest.json', 'utf8'));
+
+   for (const { name } of manifest.tables) {
+     const lines = fs.readFileSync(`beefsynch_export/${name}.jsonl`, 'utf8')
+       .split('\n').filter(Boolean);
+     if (lines.length === 0) continue;
+
+     const out = fs.createWriteStream(`beefsynch_export/${name}.sql`);
+     for (const line of lines) {
+       const row = JSON.parse(line);
+       const cols = Object.keys(row);
+       const vals = cols.map(c => {
+         const v = row[c];
+         if (v === null) return 'NULL';
+         if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
+         if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+         if (typeof v === 'number') return String(v);
+         return `'${String(v).replace(/'/g, "''")}'`;
+       });
+       out.write(`INSERT INTO public.${name} (${cols.join(', ')}) VALUES (${vals.join(', ')});\n`);
+     }
+     out.end();
+   }
+   console.log('Done. SQL files written to beefsynch_export/');
+   ```
+2. Run the conversion: `node convert-jsonl-to-sql.js`
+3. Temporarily disable triggers:
    ```sql
    SET session_replication_role = 'replica';
    ```
-2. Import the public schema data:
+4. Import tables in dependency order (as listed in `manifest.json`):
    ```bash
-   psql "<NEW_DATABASE_CONNECTION_STRING>" -f beefsynch_data.sql
+   for table in $(node -e "const m=require('./beefsynch_export/manifest.json'); m.tables.forEach(t=>console.log(t.name))"); do
+     echo "Importing $table..."
+     psql "<NEW_DATABASE_CONNECTION_STRING>" -f "beefsynch_export/${table}.sql"
+   done
    ```
-3. Re-enable triggers:
+5. Re-enable triggers:
    ```sql
    SET session_replication_role = 'origin';
    ```
@@ -211,7 +247,7 @@ Record the current auth settings:
   UNION ALL SELECT 'shipments', count(*) FROM shipments
   UNION ALL SELECT 'semen_orders', count(*) FROM semen_orders;
   ```
-- Compare counts against the source database.
+- Compare counts against `manifest.json`.
 
 **Rollback:**
 ```sql
