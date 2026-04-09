@@ -1,0 +1,293 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
+// @deno-types="https://deno.land/x/zipjs@v2.7.52/index.d.ts"
+import { BlobWriter, ZipWriter, TextReader } from "https://deno.land/x/zipjs@v2.7.52/index.js";
+
+/**
+ * full-export Edge Function
+ *
+ * Exports every public-schema table (plus auth.users, auth.identities, and
+ * storage metadata) as a ZIP of JSONL files with a dependency-ordered manifest.
+ *
+ * Auth: service-role key only (passed in Authorization header).
+ */
+
+// Tables in foreign-key dependency order (parents first).
+const TABLES_IN_ORDER: string[] = [
+  "organizations",
+  "organization_members",
+  "pending_invites",
+  "profiles",
+  "bulls_catalog",
+  "bull_favorites",
+  "customers",
+  "semen_companies",
+  "tanks",
+  "projects",
+  "protocol_events",
+  "project_bulls",
+  "project_contacts",
+  "project_billing",
+  "project_billing_labor",
+  "project_billing_products",
+  "project_billing_semen",
+  "project_billing_sessions",
+  "billing_products",
+  "tank_inventory",
+  "tank_fills",
+  "tank_movements",
+  "semen_orders",
+  "semen_order_items",
+  "shipments",
+  "inventory_transactions",
+  "tank_packs",
+  "tank_pack_lines",
+  "tank_pack_projects",
+  "tank_pack_orders",
+  "tank_unpack_lines",
+  "google_calendar_events",
+  "receiving_report_audit_log",
+];
+
+const PAGE_SIZE = 1000;
+
+/**
+ * Fetch all rows from a table, paginating through the 1000-row PostgREST cap.
+ */
+async function fetchAllRows(
+  supabase: ReturnType<typeof createClient>,
+  table: string,
+): Promise<Record<string, unknown>[]> {
+  const allRows: Record<string, unknown>[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      throw new Error(`Failed to fetch ${table} (offset ${from}): ${error.message}`);
+    }
+
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+
+    if (data.length < PAGE_SIZE) break; // last page
+    from += PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
+/**
+ * Convert an array of row objects into JSONL (one JSON object per line).
+ */
+function toJsonl(rows: Record<string, unknown>[]): string {
+  return rows.map((r) => JSON.stringify(r)).join("\n");
+}
+
+Deno.serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    // --- Auth: service role only ------------------------------------------------
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized — service role key required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // --- Build ZIP --------------------------------------------------------------
+    const blobWriter = new BlobWriter("application/zip");
+    const zipWriter = new ZipWriter(blobWriter);
+
+    const manifest: {
+      exported_at: string;
+      tables: { name: string; row_count: number }[];
+      auth_users_count: number | null;
+      auth_identities_count: number | null;
+      storage_files: { bucket: string; file_count: number }[];
+    } = {
+      exported_at: new Date().toISOString(),
+      tables: [],
+      auth_users_count: null,
+      auth_identities_count: null,
+      storage_files: [],
+    };
+
+    // 1. Export all public tables ------------------------------------------------
+    for (const table of TABLES_IN_ORDER) {
+      const rows = await fetchAllRows(supabase, table);
+      const jsonl = toJsonl(rows);
+      await zipWriter.add(`${table}.jsonl`, new TextReader(jsonl));
+      manifest.tables.push({ name: table, row_count: rows.length });
+    }
+
+    // 2. Export auth.users and auth.identities -----------------------------------
+    try {
+      // Use admin API to list all users (paginated)
+      const allUsers: Record<string, unknown>[] = [];
+      let page = 1;
+      while (true) {
+        const { data, error } = await supabase.auth.admin.listUsers({
+          page,
+          perPage: 1000,
+        });
+        if (error) throw error;
+        if (!data?.users || data.users.length === 0) break;
+        allUsers.push(
+          ...data.users.map((u: Record<string, unknown>) => ({
+            ...u,
+          })),
+        );
+        if (data.users.length < 1000) break;
+        page++;
+      }
+
+      // Extract identities from user objects
+      const allIdentities: Record<string, unknown>[] = [];
+      for (const user of allUsers) {
+        const identities = (user as any).identities;
+        if (Array.isArray(identities)) {
+          allIdentities.push(...identities);
+        }
+      }
+
+      // Write users without embedded identities (to avoid duplication)
+      const usersClean = allUsers.map((u: any) => {
+        const { identities: _, ...rest } = u;
+        return rest;
+      });
+
+      await zipWriter.add("auth_users.jsonl", new TextReader(toJsonl(usersClean)));
+      manifest.auth_users_count = usersClean.length;
+
+      await zipWriter.add("auth_identities.jsonl", new TextReader(toJsonl(allIdentities)));
+      manifest.auth_identities_count = allIdentities.length;
+    } catch (authErr: any) {
+      // If we can't access auth, write a note
+      const note = JSON.stringify({
+        error: "Could not export auth tables",
+        message: authErr?.message ?? String(authErr),
+        hint: "You may need to re-create users manually in the new project.",
+      });
+      await zipWriter.add("auth_users_ERROR.json", new TextReader(note));
+      manifest.auth_users_count = null;
+      manifest.auth_identities_count = null;
+    }
+
+    // 3. Export storage metadata --------------------------------------------------
+    const buckets = ["shipment-documents", "email-assets"];
+    for (const bucket of buckets) {
+      try {
+        const allFiles: Record<string, unknown>[] = [];
+        let offset = 0;
+        while (true) {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .list("", { limit: 1000, offset, sortBy: { column: "name", order: "asc" } });
+
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+
+          for (const file of data) {
+            // Skip folder placeholders
+            if (file.id) {
+              allFiles.push({
+                bucket,
+                path: file.name,
+                size: (file.metadata as any)?.size ?? null,
+                mimetype: (file.metadata as any)?.mimetype ?? null,
+                created_at: file.created_at,
+                updated_at: file.updated_at,
+              });
+            }
+          }
+
+          if (data.length < 1000) break;
+          offset += 1000;
+        }
+
+        // Also recurse one level of folders
+        const { data: topLevel } = await supabase.storage
+          .from(bucket)
+          .list("", { limit: 1000, sortBy: { column: "name", order: "asc" } });
+
+        if (topLevel) {
+          for (const item of topLevel) {
+            // If it looks like a folder (no id), list its contents
+            if (!item.id) {
+              let folderOffset = 0;
+              while (true) {
+                const { data: folderFiles, error: folderErr } = await supabase.storage
+                  .from(bucket)
+                  .list(item.name, { limit: 1000, offset: folderOffset, sortBy: { column: "name", order: "asc" } });
+                if (folderErr || !folderFiles || folderFiles.length === 0) break;
+                for (const f of folderFiles) {
+                  if (f.id) {
+                    allFiles.push({
+                      bucket,
+                      path: `${item.name}/${f.name}`,
+                      size: (f.metadata as any)?.size ?? null,
+                      mimetype: (f.metadata as any)?.mimetype ?? null,
+                      created_at: f.created_at,
+                      updated_at: f.updated_at,
+                    });
+                  }
+                }
+                if (folderFiles.length < 1000) break;
+                folderOffset += 1000;
+              }
+            }
+          }
+        }
+
+        await zipWriter.add(`storage_${bucket.replace(/-/g, "_")}.jsonl`, new TextReader(toJsonl(allFiles)));
+        manifest.storage_files.push({ bucket, file_count: allFiles.length });
+      } catch (storageErr: any) {
+        const note = JSON.stringify({
+          error: `Could not list files in bucket ${bucket}`,
+          message: storageErr?.message ?? String(storageErr),
+        });
+        await zipWriter.add(`storage_${bucket.replace(/-/g, "_")}_ERROR.json`, new TextReader(note));
+        manifest.storage_files.push({ bucket, file_count: 0 });
+      }
+    }
+
+    // 4. Write manifest -----------------------------------------------------------
+    await zipWriter.add("manifest.json", new TextReader(JSON.stringify(manifest, null, 2)));
+
+    // 5. Finalize ZIP -------------------------------------------------------------
+    await zipWriter.close();
+    const zipBlob = await blobWriter.getData();
+    const arrayBuffer = await zipBlob.arrayBuffer();
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    return new Response(new Uint8Array(arrayBuffer), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="beefsynch_export_${dateStr}.zip"`,
+      },
+    });
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({ error: err.message ?? String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
