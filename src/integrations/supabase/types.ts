@@ -1741,6 +1741,8 @@ export type Database = {
         Returns: Json
       }
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
+      export_auth_identities: { Args: never; Returns: Json[] }
+      export_auth_users: { Args: never; Returns: Json[] }
       get_org_members: {
         Args: { _organization_id: string }
         Returns: {

@@ -169,49 +169,21 @@ Deno.serve(async (req) => {
       manifest.tables.push({ name: table, row_count: rows.length });
     }
 
-    // 2. Export auth.users and auth.identities -----------------------------------
+    // 2. Export auth.users and auth.identities via SQL functions -----------------
     try {
-      // Use admin API to list all users (paginated)
-      const allUsers: Record<string, unknown>[] = [];
-      let page = 1;
-      while (true) {
-        const { data, error } = await supabase.auth.admin.listUsers({
-          page,
-          perPage: 1000,
-        });
-        if (error) throw error;
-        if (!data?.users || data.users.length === 0) break;
-        allUsers.push(
-          ...data.users.map((u: Record<string, unknown>) => ({
-            ...u,
-          })),
-        );
-        if (data.users.length < 1000) break;
-        page++;
-      }
+      // Use SECURITY DEFINER functions that query auth schema directly
+      const { data: usersRows, error: usersErr } = await supabase.rpc("export_auth_users");
+      if (usersErr) throw new Error(`export_auth_users failed: ${usersErr.message}`);
 
-      // Extract identities from user objects
-      const allIdentities: Record<string, unknown>[] = [];
-      for (const user of allUsers) {
-        const identities = (user as any).identities;
-        if (Array.isArray(identities)) {
-          allIdentities.push(...identities);
-        }
-      }
+      const { data: identitiesRows, error: idErr } = await supabase.rpc("export_auth_identities");
+      if (idErr) throw new Error(`export_auth_identities failed: ${idErr.message}`);
 
-      // Write users without embedded identities (to avoid duplication)
-      const usersClean = allUsers.map((u: any) => {
-        const { identities: _, ...rest } = u;
-        return rest;
-      });
+      await zipWriter.add("auth_users.jsonl", new TextReader(toJsonl(usersRows ?? [])));
+      manifest.auth_users_count = (usersRows ?? []).length;
 
-      await zipWriter.add("auth_users.jsonl", new TextReader(toJsonl(usersClean)));
-      manifest.auth_users_count = usersClean.length;
-
-      await zipWriter.add("auth_identities.jsonl", new TextReader(toJsonl(allIdentities)));
-      manifest.auth_identities_count = allIdentities.length;
+      await zipWriter.add("auth_identities.jsonl", new TextReader(toJsonl(identitiesRows ?? [])));
+      manifest.auth_identities_count = (identitiesRows ?? []).length;
     } catch (authErr: any) {
-      // If we can't access auth, write a note
       const note = JSON.stringify({
         error: "Could not export auth tables",
         message: authErr?.message ?? String(authErr),
