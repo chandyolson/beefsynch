@@ -669,6 +669,8 @@ const PackTank = () => {
           transaction_type: "pack_out",
           notes: packType === "project"
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
+            : packType === "order"
+            ? `Packed to ${fieldTankName} for order(s)`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
 
