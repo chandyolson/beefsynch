@@ -365,6 +365,50 @@ const PackTank = () => {
     }
   }, [preselectedProjectId, orgId, didPreselect]);
 
+  // Pre-fill pack lines from selected orders
+  useEffect(() => {
+    if (packType !== "order" || selectedOrders.length === 0) return;
+
+    (async () => {
+      const { data: items } = await supabase
+        .from("semen_order_items")
+        .select("semen_order_id, bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
+        .in("semen_order_id", selectedOrders);
+
+      if (!items || items.length === 0) return;
+
+      const bullMap = new Map<string, { bullName: string; bullCatalogId: string | null; bullCode: string | null; orderCount: number }>();
+      for (const item of items as any[]) {
+        const key = item.bull_catalog_id ?? `custom:${item.custom_bull_name}`;
+        const existing = bullMap.get(key);
+        if (existing) {
+          existing.orderCount += 1;
+        } else {
+          bullMap.set(key, {
+            bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "Unknown",
+            bullCatalogId: item.bull_catalog_id,
+            bullCode: item.bulls_catalog?.naab_code ?? null,
+            orderCount: 1,
+          });
+        }
+      }
+
+      const newLines: PackLine[] = Array.from(bullMap.values()).map((b) => ({
+        key: crypto.randomUUID(),
+        sourceTankId: "",
+        bullName: b.orderCount > 1 ? `${b.bullName} (from ${b.orderCount} orders)` : b.bullName,
+        bullCatalogId: b.bullCatalogId,
+        bullCode: b.bullCode,
+        sourceCanister: "",
+        fieldCanister: "",
+        units: 0,
+        availableUnits: null,
+      }));
+
+      setLines(newLines.length > 0 ? newLines : [emptyLine()]);
+    })();
+  }, [packType, selectedOrders.join(",")]);
+
   const toggleProject = (projId: string) => {
     setSelectedProjects(prev => {
       const next = prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId];
@@ -381,6 +425,12 @@ const PackTank = () => {
       }
       return next;
     });
+  };
+
+  const toggleOrder = (orderId: string) => {
+    setSelectedOrders(prev =>
+      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+    );
   };
 
   const updateLine = (index: number, updates: Partial<PackLine>) => {
