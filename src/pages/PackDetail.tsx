@@ -136,6 +136,7 @@ const PackDetail = () => {
   const totalPackedUnits = packLines.reduce((s: number, l: any) => s + (l.units || 0), 0);
   const packTypeValue = pack?.pack_type || "project";
   const isShipment = packTypeValue === "shipment";
+  const isOrder = packTypeValue === "order";
 
   const handleSaveTracking = async () => {
     setSavingTracking(true);
