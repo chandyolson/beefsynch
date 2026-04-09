@@ -95,17 +95,50 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // --- Auth: service role only ------------------------------------------------
+    // --- Auth: service role key OR authenticated owner/admin --------------------
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const authHeader = req.headers.get("Authorization");
-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
+
+    if (authHeader === `Bearer ${serviceRoleKey}`) {
+      // Service role access — OK
+    } else if (authHeader) {
+      // Try as user JWT — verify they are an org owner or admin
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: { user }, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized — invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Check that user is owner or admin of at least one org
+      const svcClient = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: membership } = await svcClient
+        .from("organization_members")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("accepted", true)
+        .in("role", ["owner", "admin"])
+        .limit(1);
+      if (!membership || membership.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden — owner or admin role required" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } else {
       return new Response(
-        JSON.stringify({ error: "Unauthorized — service role key required" }),
+        JSON.stringify({ error: "Unauthorized — no credentials provided" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

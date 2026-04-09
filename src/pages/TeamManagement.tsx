@@ -60,6 +60,7 @@ const TeamManagement = () => {
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenDialog, setShowRegenDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
 
   const canManage = myRole === "owner" || myRole === "admin";
 
