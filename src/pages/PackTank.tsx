@@ -464,8 +464,10 @@ const PackTank = () => {
     if (!selectedTankId) errs.fieldTank = "Select a field tank";
     if (packType === "project") {
       if (selectedProjects.length === 0) errs.projects = "Select at least one project";
-    } else {
+    } else if (packType === "shipment") {
       if (!destinationName.trim()) errs.destinationName = "Destination name is required";
+    } else if (packType === "order") {
+      if (selectedOrders.length === 0) errs.orders = "Select at least one order";
     }
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
