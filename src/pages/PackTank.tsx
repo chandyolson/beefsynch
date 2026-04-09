@@ -708,22 +708,30 @@ const PackTank = () => {
         <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
 
         {/* Pack Type Toggle */}
-        <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+        <div className="inline-flex rounded-lg border border-border/50 overflow-hidden flex-wrap">
           <button
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "project" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("project"); setSelectedTankId(""); }}
+            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); }}
           >
-            <ClipboardList className="h-4 w-4" /> Pack for Project
+            <ClipboardList className="h-4 w-4" /> Project
+          </button>
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "order" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => { setPackType("order"); setSelectedTankId(""); setSelectedProjects([]); setInventorySummary({}); setProjectBullUnits([]); }}
+          >
+            <ClipboardList className="h-4 w-4" /> Order
           </button>
           <button
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "shipment" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("shipment"); setSelectedTankId(""); }}
+            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); }}
           >
-            <Truck className="h-4 w-4" /> Pack for Shipment
+            <Truck className="h-4 w-4" /> Shipment
           </button>
         </div>
 
