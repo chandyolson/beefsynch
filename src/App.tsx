@@ -38,6 +38,7 @@ import Shipments from "./pages/Shipments";
 import PackDetail from "./pages/PackDetail";
 import UnpackTank from "./pages/UnpackTank";
 import Unpacks from "./pages/Unpacks";
+import Packs from "./pages/Packs";
 import ProjectBilling from "./pages/ProjectBilling";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/pack/:id" element={<ProtectedRoute><PackDetail /></ProtectedRoute>} />
             <Route path="/unpack/:packId" element={<ProtectedRoute><UnpackTank /></ProtectedRoute>} />
             <Route path="/unpacks" element={<ProtectedRoute><Unpacks /></ProtectedRoute>} />
+            <Route path="/packs" element={<ProtectedRoute><Packs /></ProtectedRoute>} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
