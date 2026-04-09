@@ -1466,6 +1466,42 @@ export type Database = {
           },
         ]
       }
+      tank_pack_orders: {
+        Row: {
+          created_at: string
+          id: string
+          semen_order_id: string
+          tank_pack_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          semen_order_id: string
+          tank_pack_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          semen_order_id?: string
+          tank_pack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_pack_orders_semen_order_id_fkey"
+            columns: ["semen_order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_orders_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tank_pack_projects: {
         Row: {
           created_at: string
