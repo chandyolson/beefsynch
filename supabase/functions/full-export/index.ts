@@ -169,49 +169,83 @@ Deno.serve(async (req) => {
       manifest.tables.push({ name: table, row_count: rows.length });
     }
 
-    // 2. Export auth.users and auth.identities -----------------------------------
+    // 2. Export auth.users and auth.identities via direct SQL --------------------
     try {
-      // Use admin API to list all users (paginated)
-      const allUsers: Record<string, unknown>[] = [];
-      let page = 1;
-      while (true) {
-        const { data, error } = await supabase.auth.admin.listUsers({
-          page,
-          perPage: 1000,
-        });
-        if (error) throw error;
-        if (!data?.users || data.users.length === 0) break;
-        allUsers.push(
-          ...data.users.map((u: Record<string, unknown>) => ({
-            ...u,
-          })),
-        );
-        if (data.users.length < 1000) break;
-        page++;
-      }
+      // Query auth.users directly — gets ALL columns including encrypted_password
+      const { data: authUsers, error: authUsersErr } = await supabase
+        .from("users")
+        .select("*")
+        .schema("auth");
 
-      // Extract identities from user objects
-      const allIdentities: Record<string, unknown>[] = [];
-      for (const user of allUsers) {
-        const identities = (user as any).identities;
-        if (Array.isArray(identities)) {
-          allIdentities.push(...identities);
+      // Fallback: if schema-scoped query fails, use raw SQL via rpc
+      let usersRows: Record<string, unknown>[] = [];
+      if (authUsersErr || !authUsers) {
+        // Try via postgres function — service role can read auth schema
+        const res = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+        }).catch(() => null);
+        // If RPC also fails, fall back to admin API
+        if (!res || !res.ok) {
+          const allUsers: Record<string, unknown>[] = [];
+          let page = 1;
+          while (true) {
+            const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+            if (error) throw error;
+            if (!data?.users || data.users.length === 0) break;
+            allUsers.push(...data.users.map((u: Record<string, unknown>) => ({ ...u })));
+            if (data.users.length < 1000) break;
+            page++;
+          }
+          usersRows = allUsers.map((u: any) => {
+            const { identities: _, ...rest } = u;
+            return rest;
+          });
         }
+      } else {
+        usersRows = authUsers as Record<string, unknown>[];
       }
 
-      // Write users without embedded identities (to avoid duplication)
-      const usersClean = allUsers.map((u: any) => {
-        const { identities: _, ...rest } = u;
-        return rest;
-      });
+      await zipWriter.add("auth_users.jsonl", new TextReader(toJsonl(usersRows)));
+      manifest.auth_users_count = usersRows.length;
 
-      await zipWriter.add("auth_users.jsonl", new TextReader(toJsonl(usersClean)));
-      manifest.auth_users_count = usersClean.length;
+      // Query auth.identities directly — gets ALL columns
+      let identitiesRows: Record<string, unknown>[] = [];
+      const { data: authIdentities, error: authIdErr } = await supabase
+        .from("identities")
+        .select("*")
+        .schema("auth");
 
-      await zipWriter.add("auth_identities.jsonl", new TextReader(toJsonl(allIdentities)));
-      manifest.auth_identities_count = allIdentities.length;
+      if (authIdErr || !authIdentities) {
+        // Fallback: extract from admin API user objects if we used that path
+        if (usersRows.length > 0) {
+          // If we got users from admin API, identities may be embedded
+          // but we already stripped them — re-fetch
+          let page = 1;
+          while (true) {
+            const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+            if (error) break;
+            if (!data?.users || data.users.length === 0) break;
+            for (const u of data.users) {
+              if (Array.isArray((u as any).identities)) {
+                identitiesRows.push(...(u as any).identities);
+              }
+            }
+            if (data.users.length < 1000) break;
+            page++;
+          }
+        }
+      } else {
+        identitiesRows = authIdentities as Record<string, unknown>[];
+      }
+
+      await zipWriter.add("auth_identities.jsonl", new TextReader(toJsonl(identitiesRows)));
+      manifest.auth_identities_count = identitiesRows.length;
     } catch (authErr: any) {
-      // If we can't access auth, write a note
       const note = JSON.stringify({
         error: "Could not export auth tables",
         message: authErr?.message ?? String(authErr),
