@@ -193,8 +193,6 @@ Deno.serve(async (req) => {
       manifest.auth_users_count = null;
       manifest.auth_identities_count = null;
     }
-      manifest.auth_identities_count = null;
-    }
 
     // 3. Export storage metadata --------------------------------------------------
     const buckets = ["shipment-documents", "email-assets"];
