@@ -262,8 +262,8 @@ const PackDetail = () => {
             <h2 className="text-2xl font-bold font-display tracking-tight">Pack — {fieldTankName}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
-              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
+            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : isOrder ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
+              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
             </Badge>
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
               {pack.status}
