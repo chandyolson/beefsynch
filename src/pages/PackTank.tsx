@@ -69,7 +69,7 @@ const PackTank = () => {
   const preselectedTankId = searchParams.get("tankId") || "";
   const preselectedProjectId = searchParams.get("projectId") || "";
 
-  const [packType, setPackType] = useState<"project" | "shipment">("project");
+  const [packType, setPackType] = useState<"project" | "shipment" | "order">("project");
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [packedBy, setPackedBy] = useState("");
@@ -84,6 +84,11 @@ const PackTank = () => {
   const [fieldTankOpen, setFieldTankOpen] = useState(false);
   const [fieldTankSearch, setFieldTankSearch] = useState("");
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState<Record<number, boolean>>({});
+
+  // Order fields
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
 
   // Shipment fields
   const [destinationName, setDestinationName] = useState("");
@@ -137,7 +142,30 @@ const PackTank = () => {
     },
   });
 
-  const fieldTankOptions = packType === "project" ? allActiveTanks : shipperTanks;
+  const fieldTankOptions = packType === "shipment" ? shipperTanks : allActiveTanks;
+
+  // Fetch orders for "order" pack type
+  const { data: availableOrders = [] } = useQuery({
+    queryKey: ["orders-for-pack", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("semen_orders")
+        .select("id, customer_name, order_date, fulfillment_status")
+        .eq("organization_id", orgId)
+        .not("fulfillment_status", "in", "(delivered,cancelled)")
+        .order("order_date", { ascending: false })
+        .limit(200);
+      return data ?? [];
+    },
+    enabled: !!orgId && packType === "order",
+  });
+
+  const filteredOrders = useMemo(() => {
+    if (!orderSearch) return availableOrders;
+    const q = orderSearch.toLowerCase();
+    return availableOrders.filter((o: any) => (o.customer_name || "").toLowerCase().includes(q));
+  }, [availableOrders, orderSearch]);
 
   // Fetch all tanks with inventory for source tank dropdown
   const { data: sourceTanks = [] } = useQuery({
@@ -337,6 +365,50 @@ const PackTank = () => {
     }
   }, [preselectedProjectId, orgId, didPreselect]);
 
+  // Pre-fill pack lines from selected orders
+  useEffect(() => {
+    if (packType !== "order" || selectedOrders.length === 0) return;
+
+    (async () => {
+      const { data: items } = await supabase
+        .from("semen_order_items")
+        .select("semen_order_id, bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
+        .in("semen_order_id", selectedOrders);
+
+      if (!items || items.length === 0) return;
+
+      const bullMap = new Map<string, { bullName: string; bullCatalogId: string | null; bullCode: string | null; orderCount: number }>();
+      for (const item of items as any[]) {
+        const key = item.bull_catalog_id ?? `custom:${item.custom_bull_name}`;
+        const existing = bullMap.get(key);
+        if (existing) {
+          existing.orderCount += 1;
+        } else {
+          bullMap.set(key, {
+            bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "Unknown",
+            bullCatalogId: item.bull_catalog_id,
+            bullCode: item.bulls_catalog?.naab_code ?? null,
+            orderCount: 1,
+          });
+        }
+      }
+
+      const newLines: PackLine[] = Array.from(bullMap.values()).map((b) => ({
+        key: crypto.randomUUID(),
+        sourceTankId: "",
+        bullName: b.orderCount > 1 ? `${b.bullName} (from ${b.orderCount} orders)` : b.bullName,
+        bullCatalogId: b.bullCatalogId,
+        bullCode: b.bullCode,
+        sourceCanister: "",
+        fieldCanister: "",
+        units: 0,
+        availableUnits: null,
+      }));
+
+      setLines(newLines.length > 0 ? newLines : [emptyLine()]);
+    })();
+  }, [packType, selectedOrders.join(",")]);
+
   const toggleProject = (projId: string) => {
     setSelectedProjects(prev => {
       const next = prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId];
@@ -353,6 +425,12 @@ const PackTank = () => {
       }
       return next;
     });
+  };
+
+  const toggleOrder = (orderId: string) => {
+    setSelectedOrders(prev =>
+      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+    );
   };
 
   const updateLine = (index: number, updates: Partial<PackLine>) => {
@@ -386,8 +464,10 @@ const PackTank = () => {
     if (!selectedTankId) errs.fieldTank = "Select a field tank";
     if (packType === "project") {
       if (selectedProjects.length === 0) errs.projects = "Select at least one project";
-    } else {
+    } else if (packType === "shipment") {
       if (!destinationName.trim()) errs.destinationName = "Destination name is required";
+    } else if (packType === "order") {
+      if (selectedOrders.length === 0) errs.orders = "Select at least one order";
     }
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
@@ -462,7 +542,7 @@ const PackTank = () => {
 
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
-      // Step 2: Create tank_pack_projects (only for project packs)
+      // Step 2: Create tank_pack_projects or tank_pack_orders
       if (packType === "project" && selectedProjects.length > 0) {
         await supabase.from("tank_pack_projects").insert(
           selectedProjects.map(projId => ({
@@ -470,6 +550,18 @@ const PackTank = () => {
             project_id: projId,
           }))
         );
+      }
+
+      if (packType === "order" && selectedOrders.length > 0) {
+        const { error: orderLinkErr } = await supabase
+          .from("tank_pack_orders")
+          .insert(selectedOrders.map(orderId => ({
+            tank_pack_id: pack.id,
+            semen_order_id: orderId,
+          })));
+        if (orderLinkErr) {
+          toast({ title: "Pack created but order links failed", description: orderLinkErr.message, variant: "destructive" });
+        }
       }
 
       // Step 3: Process each line
@@ -577,6 +669,8 @@ const PackTank = () => {
           transaction_type: "pack_out",
           notes: packType === "project"
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
+            : packType === "order"
+            ? `Packed to ${fieldTankName} for order(s)`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
 
@@ -614,22 +708,30 @@ const PackTank = () => {
         <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
 
         {/* Pack Type Toggle */}
-        <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+        <div className="inline-flex rounded-lg border border-border/50 overflow-hidden flex-wrap">
           <button
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "project" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("project"); setSelectedTankId(""); }}
+            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); }}
           >
-            <ClipboardList className="h-4 w-4" /> Pack for Project
+            <ClipboardList className="h-4 w-4" /> Project
+          </button>
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "order" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => { setPackType("order"); setSelectedTankId(""); setSelectedProjects([]); setInventorySummary({}); setProjectBullUnits([]); }}
+          >
+            <ClipboardList className="h-4 w-4" /> Order
           </button>
           <button
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "shipment" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("shipment"); setSelectedTankId(""); }}
+            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); }}
           >
-            <Truck className="h-4 w-4" /> Pack for Shipment
+            <Truck className="h-4 w-4" /> Shipment
           </button>
         </div>
 
@@ -843,6 +945,71 @@ const PackTank = () => {
                   </Label>
                 </div>
               </>
+            )}
+
+            {/* Order fields */}
+            {packType === "order" && (
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Orders *</Label>
+                  <div className="flex-1">
+                    <Popover open={orderPopoverOpen} onOpenChange={setOrderPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", errors.orders && "border-destructive", selectedOrders.length === 0 && "text-muted-foreground")}>
+                          {selectedOrders.length === 0
+                            ? "Select orders…"
+                            : `${selectedOrders.length} order${selectedOrders.length > 1 ? "s" : ""} selected`}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-2" align="start">
+                        <div className="relative mb-2">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search orders…"
+                            value={orderSearch}
+                            onChange={e => setOrderSearch(e.target.value)}
+                            className="pl-8 h-8 text-sm"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {filteredOrders.map((o: any) => (
+                            <label key={o.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                              <Checkbox
+                                checked={selectedOrders.includes(o.id)}
+                                onCheckedChange={() => toggleOrder(o.id)}
+                              />
+                              <span className="flex-1">
+                                {o.customer_name || "No customer"}
+                                <span className="text-muted-foreground ml-1 text-xs">
+                                  {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                </span>
+                              </span>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">{o.fulfillment_status}</Badge>
+                            </label>
+                          ))}
+                          {filteredOrders.length === 0 && (
+                            <p className="text-xs text-muted-foreground px-2 py-2">No open orders found.</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    {errors.orders && <p className="text-xs text-destructive">{errors.orders}</p>}
+                    {selectedOrders.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {selectedOrders.map(oid => {
+                          const order = availableOrders.find((o: any) => o.id === oid);
+                          return (
+                            <Badge key={oid} variant="secondary" className="gap-1">
+                              {order?.customer_name || "Order"}
+                              <X className="h-3 w-3 cursor-pointer" onClick={() => toggleOrder(oid)} />
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Packed By */}

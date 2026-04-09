@@ -103,6 +103,20 @@ const PackDetail = () => {
     },
   });
 
+  // Fetch pack orders
+  const { data: packOrders = [] } = useQuery({
+    queryKey: ["pack_orders", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_pack_orders")
+        .select("semen_order_id, semen_orders(id, customer_name, order_date, fulfillment_status)")
+        .eq("tank_pack_id", id!);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
   // Fetch unpack lines if unpacked
   const { data: unpackLines = [] } = useQuery({
     queryKey: ["unpack_lines", id],
@@ -122,6 +136,7 @@ const PackDetail = () => {
   const totalPackedUnits = packLines.reduce((s: number, l: any) => s + (l.units || 0), 0);
   const packTypeValue = pack?.pack_type || "project";
   const isShipment = packTypeValue === "shipment";
+  const isOrder = packTypeValue === "order";
 
   const handleSaveTracking = async () => {
     setSavingTracking(true);
@@ -247,8 +262,8 @@ const PackDetail = () => {
             <h2 className="text-2xl font-bold font-display tracking-tight">Pack — {fieldTankName}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
-              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
+            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : isOrder ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
+              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
             </Badge>
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
               {pack.status}
@@ -326,6 +341,22 @@ const PackDetail = () => {
                   )}
                 </div>
               </>
+            ) : isOrder ? (
+              <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Orders:</span>
+                <div className="flex flex-wrap gap-1">
+                  {packOrders.map((link: any) => (
+                    <Badge
+                      key={link.semen_order_id}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-secondary/80"
+                      onClick={() => navigate(`/semen-orders/${link.semen_order_id}`)}
+                    >
+                      {link.semen_orders?.customer_name || "Order"}{" "}
+                      <ExternalLink className="h-3 w-3 ml-1 inline" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Projects:</span>
                 <div className="flex flex-wrap gap-1">
