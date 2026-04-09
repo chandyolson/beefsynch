@@ -142,7 +142,30 @@ const PackTank = () => {
     },
   });
 
-  const fieldTankOptions = packType === "project" ? allActiveTanks : shipperTanks;
+  const fieldTankOptions = packType === "shipment" ? shipperTanks : allActiveTanks;
+
+  // Fetch orders for "order" pack type
+  const { data: availableOrders = [] } = useQuery({
+    queryKey: ["orders-for-pack", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("semen_orders")
+        .select("id, customer_name, order_date, fulfillment_status")
+        .eq("organization_id", orgId)
+        .not("fulfillment_status", "in", "(delivered,cancelled)")
+        .order("order_date", { ascending: false })
+        .limit(200);
+      return data ?? [];
+    },
+    enabled: !!orgId && packType === "order",
+  });
+
+  const filteredOrders = useMemo(() => {
+    if (!orderSearch) return availableOrders;
+    const q = orderSearch.toLowerCase();
+    return availableOrders.filter((o: any) => (o.customer_name || "").toLowerCase().includes(q));
+  }, [availableOrders, orderSearch]);
 
   // Fetch all tanks with inventory for source tank dropdown
   const { data: sourceTanks = [] } = useQuery({
