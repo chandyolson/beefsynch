@@ -33,36 +33,43 @@ The schema is already captured in the `supabase/migrations/` directory (32 migra
 
 ---
 
-### Step 1.2 — Export Data
+### Step 1.2 — Export Data (via `full-export` Edge Function)
 
-Use `pg_dump` with the Lovable Cloud database connection string to export all data.
+Lovable Cloud does not expose a direct Postgres connection string, so `pg_dump` is not available. Instead, use the `full-export` Edge Function deployed in the project. It exports all 33 public-schema tables, auth users/identities, and storage file metadata as a ZIP of JSONL files.
 
 **What to do:**
-1. Run a data-only dump:
+1. Call the function with the service role key:
    ```bash
-   pg_dump --data-only --no-owner --no-privileges \
-     --exclude-schema=auth --exclude-schema=storage \
-     --exclude-schema=supabase_functions --exclude-schema=realtime \
-     --exclude-schema=vault --exclude-schema=extensions \
-     --exclude-schema=pgsodium --exclude-schema=_realtime \
-     -f beefsynch_data.sql \
-     "<LOVABLE_CLOUD_CONNECTION_STRING>"
+   curl -o beefsynch_export.zip \
+     -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
+     "https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/full-export"
    ```
-2. Separately export `auth.users` if you want to migrate user accounts (requires service role access):
+   Replace `<SERVICE_ROLE_KEY>` and `<SUPABASE_PROJECT_REF>` with your actual values.
+
+2. Unzip and inspect:
    ```bash
-   pg_dump --data-only --no-owner --no-privileges \
-     -t auth.users -t auth.identities \
-     -f beefsynch_auth_users.sql \
-     "<LOVABLE_CLOUD_CONNECTION_STRING>"
+   unzip beefsynch_export.zip -d beefsynch_export/
+   cat beefsynch_export/manifest.json
    ```
 
+**What the ZIP contains:**
+- One `.jsonl` file per public table (e.g., `organizations.jsonl`, `tank_inventory.jsonl`)
+- `auth_users.jsonl` and `auth_identities.jsonl` (or an error file if auth export failed)
+- `storage_shipment_documents.jsonl` and `storage_email_assets.jsonl` (file metadata only — paths, sizes, mimetypes)
+- `manifest.json` with export timestamp, row counts, and tables in foreign-key dependency order
+
 **What to verify:**
-- Open `beefsynch_data.sql` and confirm it contains INSERT statements for your tables (organizations, projects, tanks, etc.).
-- Spot-check row counts: `grep -c "INSERT INTO public.projects" beefsynch_data.sql`
+- `manifest.json` lists all 33 tables with non-zero row counts for tables you know have data.
+- Spot-check a JSONL file: `head -3 beefsynch_export/projects.jsonl`
+- Auth users count matches what you expect.
+- Storage metadata lists all files you know exist.
 
 **Rollback:** N/A — this is read-only.
 
-**⚠️ BeefSynch-specific:** The `bulls_catalog` table is global (not org-scoped) and can be large. Verify it's included.
+**⚠️ BeefSynch-specific:**
+- The function paginates internally (1000 rows per request) so large tables like `tank_inventory` and `inventory_transactions` are fully exported.
+- The `bulls_catalog` table is global (not org-scoped) and can be large. Verify it's included.
+- UUIDs are preserved as strings, timestamps as ISO 8601, JSONB as nested objects.
 
 ---
 
@@ -175,20 +182,56 @@ Record the current auth settings:
 
 ---
 
-### Step 2.2 — Import Data
+### Step 2.2 — Import Data (from JSONL export)
 
-**Tools:** `psql`
+**Tools:** `psql`, a conversion script (Node.js or Python)
+
+Since the export is JSONL (not SQL), you need to convert each `.jsonl` file into SQL INSERT statements or use a script to insert via the Supabase client.
 
 **What to do:**
-1. Temporarily disable triggers to avoid conflicts during import:
+1. Write a conversion script. Example in Node.js:
+   ```js
+   // convert-jsonl-to-sql.js
+   const fs = require('fs');
+   const path = require('path');
+   const manifest = JSON.parse(fs.readFileSync('beefsynch_export/manifest.json', 'utf8'));
+
+   for (const { name } of manifest.tables) {
+     const lines = fs.readFileSync(`beefsynch_export/${name}.jsonl`, 'utf8')
+       .split('\n').filter(Boolean);
+     if (lines.length === 0) continue;
+
+     const out = fs.createWriteStream(`beefsynch_export/${name}.sql`);
+     for (const line of lines) {
+       const row = JSON.parse(line);
+       const cols = Object.keys(row);
+       const vals = cols.map(c => {
+         const v = row[c];
+         if (v === null) return 'NULL';
+         if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
+         if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+         if (typeof v === 'number') return String(v);
+         return `'${String(v).replace(/'/g, "''")}'`;
+       });
+       out.write(`INSERT INTO public.${name} (${cols.join(', ')}) VALUES (${vals.join(', ')});\n`);
+     }
+     out.end();
+   }
+   console.log('Done. SQL files written to beefsynch_export/');
+   ```
+2. Run the conversion: `node convert-jsonl-to-sql.js`
+3. Temporarily disable triggers:
    ```sql
    SET session_replication_role = 'replica';
    ```
-2. Import the public schema data:
+4. Import tables in dependency order (as listed in `manifest.json`):
    ```bash
-   psql "<NEW_DATABASE_CONNECTION_STRING>" -f beefsynch_data.sql
+   for table in $(node -e "const m=require('./beefsynch_export/manifest.json'); m.tables.forEach(t=>console.log(t.name))"); do
+     echo "Importing $table..."
+     psql "<NEW_DATABASE_CONNECTION_STRING>" -f "beefsynch_export/${table}.sql"
+   done
    ```
-3. Re-enable triggers:
+5. Re-enable triggers:
    ```sql
    SET session_replication_role = 'origin';
    ```
@@ -204,7 +247,7 @@ Record the current auth settings:
   UNION ALL SELECT 'shipments', count(*) FROM shipments
   UNION ALL SELECT 'semen_orders', count(*) FROM semen_orders;
   ```
-- Compare counts against the source database.
+- Compare counts against `manifest.json`.
 
 **Rollback:**
 ```sql
@@ -227,17 +270,26 @@ CASCADE;
 
 ### Step 2.3 — Import Auth Users (Optional)
 
+The export ZIP includes `auth_users.jsonl` and `auth_identities.jsonl`.
+
 **What to do:**
-1. Import `auth.users` and `auth.identities`:
-   ```bash
-   psql "<NEW_DATABASE_CONNECTION_STRING>" -f beefsynch_auth_users.sql
-   ```
-2. The `handle_new_user` trigger will auto-create `profiles` rows — if you already imported profiles data, disable the trigger first:
+1. Convert `auth_users.jsonl` to SQL INSERTs targeting `auth.users` (same conversion pattern as Step 2.2).
+2. Convert `auth_identities.jsonl` to SQL INSERTs targeting `auth.identities`.
+3. Disable the `handle_new_user` trigger to prevent duplicate profile rows:
    ```sql
    ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
-   -- import auth users
+   ```
+4. Import users then identities:
+   ```bash
+   psql "<NEW_DATABASE_CONNECTION_STRING>" -f auth_users.sql
+   psql "<NEW_DATABASE_CONNECTION_STRING>" -f auth_identities.sql
+   ```
+5. Re-enable the trigger:
+   ```sql
    ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
    ```
+
+**If `auth_users_ERROR.json` exists instead:** The service role couldn't export auth data. You'll need to have users re-register, or manually create them via the Supabase Dashboard.
 
 **What to verify:**
 - Users can log in with their existing credentials.
