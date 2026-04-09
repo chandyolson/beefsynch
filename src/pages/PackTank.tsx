@@ -85,6 +85,11 @@ const PackTank = () => {
   const [fieldTankSearch, setFieldTankSearch] = useState("");
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState<Record<number, boolean>>({});
 
+  // Order fields
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+
   // Shipment fields
   const [destinationName, setDestinationName] = useState("");
   const [destinationAddress, setDestinationAddress] = useState("");
