@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen,
-  Truck, ExternalLink, Pencil, Loader2, Check,
+  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck,
+  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -21,6 +21,15 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
@@ -31,6 +40,7 @@ const STATUS_BADGE: Record<string, string> = {
   packed: "bg-green-600/20 text-green-400 border-green-600/30",
   in_field: "bg-green-600/20 text-green-400 border-green-600/30",
   unpacked: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  returned: "bg-purple-600/20 text-purple-400 border-purple-600/30",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
@@ -53,6 +63,7 @@ const PackDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { orgId } = useOrgRole();
 
   const [editingTracking, setEditingTracking] = useState(false);
   const [editCarrier, setEditCarrier] = useState("");
@@ -63,6 +74,12 @@ const PackDetail = () => {
   const [editReturnCarrier, setEditReturnCarrier] = useState("");
   const [editReturnTrackingNumber, setEditReturnTrackingNumber] = useState("");
   const [savingReturnTracking, setSavingReturnTracking] = useState(false);
+
+  const [closeOutOpen, setCloseOutOpen] = useState(false);
+  const [closingOut, setClosingOut] = useState(false);
+  const [closeOutDate, setCloseOutDate] = useState<Date>(new Date());
+  const [closeOutBy, setCloseOutBy] = useState("");
+  const [closeOutNotes, setCloseOutNotes] = useState("");
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
@@ -260,6 +277,80 @@ const PackDetail = () => {
         };
       })
     );
+  };
+
+  const handleCloseOut = async () => {
+    if (!pack || !orgId) return;
+    setClosingOut(true);
+    try {
+      const { error: updateErr } = await supabase
+        .from("tank_packs")
+        .update({
+          status: "returned",
+          closed_at: closeOutDate.toISOString(),
+          closed_by: closeOutBy.trim() || null,
+          notes: [pack.notes, closeOutNotes.trim()].filter(Boolean).join(" | ") || null,
+        } as any)
+        .eq("id", pack.id);
+      if (updateErr) throw updateErr;
+
+      const { data: packLinesData, error: linesErr } = await supabase
+        .from("tank_pack_lines")
+        .select("id, bull_name, bull_code, bull_catalog_id, units")
+        .eq("tank_pack_id", pack.id);
+      if (linesErr) throw linesErr;
+
+      for (const line of (packLinesData || [])) {
+        let invRow: any = null;
+        const baseQ = () => supabase.from("tank_inventory").select("id, units")
+          .eq("tank_id", pack.field_tank_id)
+          .eq("organization_id", orgId);
+
+        if (line.bull_catalog_id) {
+          const { data } = await baseQ().eq("bull_catalog_id", line.bull_catalog_id).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow && line.bull_code) {
+          const { data } = await baseQ().eq("bull_code", line.bull_code).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow) {
+          const { data } = await baseQ().eq("custom_bull_name", line.bull_name).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+
+        if (invRow) {
+          const remaining = (invRow.units || 0) - line.units;
+          if (remaining <= 0) {
+            const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
+            if (delErr) throw delErr;
+          } else {
+            const { error: updErr } = await supabase.from("tank_inventory").update({ units: remaining }).eq("id", invRow.id);
+            if (updErr) throw updErr;
+          }
+        }
+
+        const { error: txnErr } = await supabase.from("inventory_transactions").insert({
+          organization_id: orgId,
+          tank_id: pack.field_tank_id,
+          bull_catalog_id: line.bull_catalog_id,
+          bull_code: line.bull_code,
+          custom_bull_name: line.bull_name,
+          units_change: -line.units,
+          transaction_type: "used_in_field",
+          notes: `Close-out: all semen used. Pack ${pack.id.slice(0, 8)}`,
+        });
+        if (txnErr) throw txnErr;
+      }
+
+      toast({ title: "Pack closed out", description: "Tank marked as returned. All semen recorded as used in field." });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      setCloseOutOpen(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setClosingOut(false);
+    }
   };
 
   if (isLoading) {
@@ -488,12 +579,61 @@ const PackDetail = () => {
               <Truck className="h-4 w-4" /> Create UPS Shipment
             </Button>
           )}
-          {pack.tank_return_expected !== false && pack.status !== "unpacked" && (
-            <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
-              <PackageOpen className="h-4 w-4" /> Unpack Tank
-            </Button>
+          {pack.tank_return_expected !== false && pack.status !== "unpacked" && pack.status !== "returned" && (
+            <>
+              <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
+                <PackageOpen className="h-4 w-4" /> Unpack Tank
+              </Button>
+              <Button variant="outline" onClick={() => setCloseOutOpen(true)} className="gap-2">
+                <PackageCheck className="h-4 w-4" /> Close Out
+              </Button>
+            </>
           )}
         </div>
+
+        {/* Close Out Dialog */}
+        <AlertDialog open={closeOutOpen} onOpenChange={setCloseOutOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Out Pack</AlertDialogTitle>
+              <AlertDialogDescription>
+                This marks the pack as complete — all semen was used in the field and the tank has been returned.
+                Field tank inventory will be zeroed out and transactions logged as "used in field."
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-sm font-medium">Return Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !closeOutDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(closeOutDate, "MMMM d, yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={closeOutDate} onSelect={(d) => d && setCloseOutDate(d)} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Returned By</label>
+                <Input value={closeOutBy} onChange={(e) => setCloseOutBy(e.target.value)} placeholder="Who confirmed the return?" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notes (optional)</label>
+                <Textarea value={closeOutNotes} onChange={(e) => setCloseOutNotes(e.target.value)} placeholder="e.g., Tank empty, good condition" className="mt-1" />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCloseOut} disabled={closingOut}>
+                {closingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Close Out Pack
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Unpack Details (if unpacked) */}
         {pack.status === "unpacked" && (
@@ -555,6 +695,18 @@ const PackDetail = () => {
               <Button onClick={handlePrintReturn} className="gap-2"><FileText className="h-4 w-4" /> Print Return Slip</Button>
             </div>
           </>
+        )}
+
+        {/* Close Out Details (if returned) */}
+        {pack.status === "returned" && (
+          <Card>
+            <CardHeader><CardTitle>Close Out Details</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Date Returned:</span><span>{pack.closed_at ? format(new Date(pack.closed_at), "MMMM d, yyyy") : "—"}</span></div>
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Returned By:</span><span>{(pack as any).closed_by || "—"}</span></div>
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Outcome:</span><span>All semen used in field</span></div>
+            </CardContent>
+          </Card>
         )}
       </main>
       <AppFooter />

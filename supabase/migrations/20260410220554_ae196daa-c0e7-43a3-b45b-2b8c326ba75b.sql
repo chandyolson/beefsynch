@@ -1,0 +1,1 @@
+ALTER TABLE public.tank_packs ADD COLUMN IF NOT EXISTS closed_at timestamptz, ADD COLUMN IF NOT EXISTS closed_by text;
