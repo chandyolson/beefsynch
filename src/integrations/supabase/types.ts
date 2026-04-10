@@ -1540,6 +1540,8 @@ export type Database = {
       }
       tank_packs: {
         Row: {
+          closed_at: string | null
+          closed_by: string | null
           created_at: string
           destination_address: string | null
           destination_name: string | null
@@ -1559,6 +1561,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           destination_address?: string | null
           destination_name?: string | null
@@ -1578,6 +1582,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           destination_address?: string | null
           destination_name?: string | null
