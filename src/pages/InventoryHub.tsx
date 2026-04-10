@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Package, Users, Truck, PackagePlus, Droplets, ShoppingCart, Plus,
-  Layers, ClipboardList, PackageOpen, BarChart3, ScrollText
+  Layers, ScrollText
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -82,7 +82,7 @@ const InventoryHub = () => {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
       <Navbar onNewProject={() => setDialogOpen(true)} />
-      <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onProjectCreated={() => {}} />
 
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
         {/* Page title */}
