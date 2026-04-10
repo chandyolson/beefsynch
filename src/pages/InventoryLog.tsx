@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { Search, ArrowUpDown, ClipboardList, BarChart3, PackageCheck } from "lucide-react";
+import { Search, ClipboardList, BarChart3, PackageCheck } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -19,16 +19,6 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 1000;
 
-const TRANSACTION_TYPES = [
-  "received",
-  "pack_out",
-  "unpack_return",
-  "adjustment",
-  "reinventory",
-  "transfer_in",
-  "transfer_out",
-];
-
 const formatType = (t: string) =>
   t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -46,7 +36,7 @@ interface TxnRow {
 }
 
 const InventoryLog = () => {
-  const { organizationId } = useOrgRole();
+  const { orgId: organizationId } = useOrgRole();
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
