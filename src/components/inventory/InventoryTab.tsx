@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -33,11 +33,21 @@ const STORAGE_BADGES: Record<string, string> = {
 type SortKey = "bull_name" | "customer" | "tank" | "units";
 type SortDir = "asc" | "desc";
 
-const InventoryTab = ({ orgId }: { orgId: string }) => {
+interface InventoryTabProps {
+  orgId: string;
+  initialOwnerFilter?: "all" | "company" | "customer";
+  onFilterReset?: () => void;
+}
+
+const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: InventoryTabProps) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
-  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState<string>(initialOwnerFilter);
+
+  useEffect(() => {
+    setOwnerFilter(initialOwnerFilter);
+  }, [initialOwnerFilter]);
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
@@ -104,7 +114,13 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
   const filtered = useMemo(() => {
     let result = rows;
     if (storageFilter !== "all") result = result.filter((r) => r.storageType === storageFilter);
-    if (ownerFilter !== "all") result = result.filter((r) => r.owner === ownerFilter);
+    if (ownerFilter === "company") {
+      result = result.filter((r) => !r.customerId);
+    } else if (ownerFilter === "customer") {
+      result = result.filter((r) => !!r.customerId);
+    } else if (ownerFilter !== "all") {
+      result = result.filter((r) => r.owner === ownerFilter);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((r) =>
@@ -313,10 +329,12 @@ const InventoryTab = ({ orgId }: { orgId: string }) => {
           </Select>
         </div>
         <div className="w-36">
-          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+          <Select value={ownerFilter} onValueChange={(v) => { setOwnerFilter(v); onFilterReset?.(); }}>
             <SelectTrigger><SelectValue placeholder="Owner" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Owners</SelectItem>
+              <SelectItem value="company">Company Only</SelectItem>
+              <SelectItem value="customer">Customer Only</SelectItem>
               <SelectItem value="CATL">CATL</SelectItem>
               <SelectItem value="Select">Select</SelectItem>
             </SelectContent>
