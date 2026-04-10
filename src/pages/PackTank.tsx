@@ -544,12 +544,13 @@ const PackTank = () => {
 
       // Step 2: Create tank_pack_projects or tank_pack_orders
       if (packType === "project" && selectedProjects.length > 0) {
-        await supabase.from("tank_pack_projects").insert(
+        const { error: tankPackProjectsErr } = await supabase.from("tank_pack_projects").insert(
           selectedProjects.map(projId => ({
             tank_pack_id: pack.id,
             project_id: projId,
           }))
         );
+        if (tankPackProjectsErr) throw new Error(`Failed to write tank_pack_projects: ${tankPackProjectsErr.message}`);
       }
 
       if (packType === "order" && selectedOrders.length > 0) {
@@ -570,7 +571,7 @@ const PackTank = () => {
         const sourceTankName = sourceTank?.tank_name || sourceTank?.tank_number || "Unknown";
 
         // a. Insert pack line
-        await supabase.from("tank_pack_lines").insert({
+        const { error: tankPackLinesErr } = await supabase.from("tank_pack_lines").insert({
           tank_pack_id: pack.id,
           source_tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -580,6 +581,7 @@ const PackTank = () => {
           field_canister: line.fieldCanister || null,
           units: line.units,
         });
+        if (tankPackLinesErr) throw new Error(`Failed to write tank_pack_lines: ${tankPackLinesErr.message}`);
 
         // b. Deduct from source tank inventory
         // Try three strategies in order: bull_catalog_id → bull_code → custom_bull_name
@@ -613,7 +615,7 @@ const PackTank = () => {
             if (updErr) throw new Error(`Failed to deduct inventory: ${updErr.message}`);
           }
         } else {
-          console.warn("Pack: no inventory row found for deduction", { bull: line.bullName, tank: line.sourceTankId, canister: line.sourceCanister, catalogId: line.bullCatalogId, code: line.bullCode });
+          throw new Error(`Could not find inventory row to deduct from for "${line.bullName}" in source tank. Check that the bull name in the pack line exactly matches the inventory row.`);
         }
 
         // c. Add to field tank inventory (upsert)
@@ -659,7 +661,7 @@ const PackTank = () => {
         }
 
         // d. Deduction transaction
-        await supabase.from("inventory_transactions").insert({
+        const { error: deductTxnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -673,9 +675,10 @@ const PackTank = () => {
             ? `Packed to ${fieldTankName} for order(s)`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
+        if (deductTxnErr) throw new Error(`Failed to write deduction transaction: ${deductTxnErr.message}`);
 
         // e. Addition transaction
-        await supabase.from("inventory_transactions").insert({
+        const { error: addTxnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
           tank_id: selectedTankId,
           bull_catalog_id: line.bullCatalogId,
@@ -685,6 +688,7 @@ const PackTank = () => {
           transaction_type: "pack_in",
           notes: `Packed from ${sourceTankName}`,
         });
+        if (addTxnErr) throw new Error(`Failed to write addition transaction: ${addTxnErr.message}`);
       }
 
       toast({ title: "Tank packed", description: "Packing slip ready to print." });
