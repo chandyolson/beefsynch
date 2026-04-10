@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers, PackagePlus, Truck, PackageOpen } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -109,23 +109,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/dashboard")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Projects
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/tanks-dashboard")} className="cursor-pointer gap-2">
-                <Package className="h-4 w-4" /> Tanks
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/inventory-dashboard")} className="cursor-pointer gap-2">
-                <Layers className="h-4 w-4" /> Inventory
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/pack-tank")} className="cursor-pointer gap-2">
-                <PackagePlus className="h-4 w-4" /> Pack Tank
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/packs")} className="cursor-pointer gap-2">
-                <Package className="h-4 w-4" /> Packs
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/shipments")} className="cursor-pointer gap-2">
-                <Truck className="h-4 w-4" /> Shipments
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/unpacks")} className="cursor-pointer gap-2">
-                <PackageOpen className="h-4 w-4" /> Unpacks
+              <DropdownMenuItem onClick={() => go("/inventory-hub")} className="cursor-pointer gap-2">
+                <Layers className="h-4 w-4" /> Inventory Hub
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
@@ -205,23 +190,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/dashboard")} className={navBtnClass}>
             <List className="h-4 w-4" /> Projects
           </button>
-          <button onClick={() => go("/tanks-dashboard")} className={navBtnClass}>
-            <Package className="h-4 w-4" /> Tanks
-          </button>
-          <button onClick={() => go("/inventory-dashboard")} className={navBtnClass}>
-            <Layers className="h-4 w-4" /> Inventory
-          </button>
-          <button onClick={() => go("/pack-tank")} className={navBtnClass}>
-            <PackagePlus className="h-4 w-4" /> Pack Tank
-          </button>
-          <button onClick={() => go("/packs")} className={navBtnClass}>
-            <Package className="h-4 w-4" /> Packs
-          </button>
-          <button onClick={() => go("/shipments")} className={navBtnClass}>
-            <Truck className="h-4 w-4" /> Shipments
-          </button>
-          <button onClick={() => go("/unpacks")} className={navBtnClass}>
-            <PackageOpen className="h-4 w-4" /> Unpacks
+          <button onClick={() => go("/inventory-hub")} className={navBtnClass}>
+            <Layers className="h-4 w-4" /> Inventory Hub
           </button>
           <div className="border-t border-border/50 my-1" />
           <button onClick={() => go("/bulls")} className={navBtnClass}>
