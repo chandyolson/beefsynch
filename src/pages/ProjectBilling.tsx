@@ -756,11 +756,11 @@ const ProjectBilling = () => {
                   <TableRow>
                     <TableHead className="w-[70px]">Date</TableHead>
                     <TableHead className="w-[140px]">Event</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="w-[80px] text-right">Doses</TableHead>
+                    <TableHead className="w-[180px]">Product</TableHead>
+                    <TableHead className="w-[100px] text-right">Doses</TableHead>
                     <TableHead className="w-[100px] text-right">Units</TableHead>
-                    <TableHead className="w-[80px] text-right">Price</TableHead>
-                    <TableHead className="w-[90px] text-right">Total</TableHead>
+                    <TableHead className="w-[100px] text-right">Price</TableHead>
+                    <TableHead className="w-[100px] text-right">Total</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -801,7 +801,7 @@ const ProjectBilling = () => {
                         <TableCell className="text-right">
                           <Input
                             type="number"
-                            className="h-8 w-[70px] text-right text-xs ml-auto"
+                            className="h-8 w-[90px] text-right text-xs ml-auto"
                             value={line.doses}
                             onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
                           />
@@ -813,7 +813,7 @@ const ProjectBilling = () => {
                           <Input
                             type="number"
                             step="0.01"
-                            className="h-8 w-[70px] text-right text-xs ml-auto"
+                            className="h-8 w-[90px] text-right text-xs ml-auto"
                             value={line.unit_price ?? 0}
                             onChange={(e) => saveProductLine(idx, { unit_price: Number(e.target.value) || 0 })}
                           />
