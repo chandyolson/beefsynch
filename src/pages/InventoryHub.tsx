@@ -57,10 +57,12 @@ const InventoryHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [inventoryOwnerFilter, setInventoryOwnerFilter] = useState<"all" | "company" | "customer">("all");
-
   const activeTab = (searchParams.get("tab") as TabKey) || "inventory";
-  const setTab = (tab: TabKey) => setSearchParams({ tab }, { replace: true });
+  const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "all";
+
+  const setTab = (tab: TabKey, extra?: Record<string, string>) => {
+    setSearchParams({ tab, ...extra }, { replace: true });
+  };
 
   const { data: companyUnits = 0 } = useQuery({
     queryKey: ["inv-hub-company", orgId],
@@ -99,7 +101,7 @@ const InventoryHub = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Company inventory card */}
           <button
-            onClick={() => { setInventoryOwnerFilter("company"); setTab("inventory"); }}
+            onClick={() => setTab("inventory", { owner: "company" })}
             className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
             style={{
               background: "linear-gradient(135deg, #0d8a8a 0%, #1a5a8a 100%)",
@@ -117,7 +119,7 @@ const InventoryHub = () => {
 
           {/* Customer inventory card */}
           <button
-            onClick={() => { setInventoryOwnerFilter("customer"); setTab("inventory"); }}
+            onClick={() => setTab("inventory", { owner: "customer" })}
             className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
             style={{
               background: "linear-gradient(135deg, #b45309 0%, #d97706 100%)",
@@ -169,7 +171,7 @@ const InventoryHub = () => {
         {/* Tab content */}
         <div className="rounded-xl border border-border/40 bg-card/40 p-4">
           {activeTab === "inventory" && orgId && (
-            <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setInventoryOwnerFilter("all")} />
+            <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
           )}
           {activeTab === "orders" && orgId && <OrdersTab orgId={orgId} />}
           {activeTab === "receiving" && orgId && <ReceivingTab orgId={orgId} />}
