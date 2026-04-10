@@ -9,7 +9,7 @@ import {
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
-import BullCombobox from "@/components/BullCombobox";
+import InventoryBullPicker from "@/components/InventoryBullPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1145,18 +1145,15 @@ const PackTank = () => {
                     />
                   </div>
 
-                  {/* Bull */}
+                  {/* Bull (from inventory) */}
                   <div className="space-y-1">
                     <Label className="text-xs">Bull</Label>
                     <div className={cn(errors[`line_${i}_bull`] && "ring-1 ring-destructive rounded-md")}>
-                      <BullCombobox
+                      <InventoryBullPicker
+                        sourceTankId={line.sourceTankId}
+                        organizationId={orgId}
                         value={line.bullName}
-                        catalogId={line.bullCatalogId}
-                        onChange={(name, catId, naabCode) => updateLine(i, {
-                          bullName: name,
-                          bullCatalogId: catId,
-                          bullCode: naabCode ?? null,
-                        })}
+                        onChange={(updates) => updateLine(i, updates)}
                       />
                     </div>
                   </div>
