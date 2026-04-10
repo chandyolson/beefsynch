@@ -8,7 +8,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Preview,
   Text,
 } from 'npm:@react-email/components@0.0.22'
@@ -23,13 +22,6 @@ export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => 
     <Preview>Your BeefSynch verification code</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img
-          src="https://qgpufoqjjxyecimxusze.supabase.co/storage/v1/object/public/email-assets/beefsynch-logo.png"
-          width="160"
-          height="auto"
-          alt="BeefSynch"
-          style={{ marginBottom: '24px' }}
-        />
         <Heading style={h1}>Verify your identity</Heading>
         <Text style={text}>Use this code to confirm your identity:</Text>
         <Text style={codeStyle}>{token}</Text>

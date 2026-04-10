@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Link,
   Preview,
   Text,
@@ -31,13 +30,6 @@ export const InviteEmail = ({
     <Preview>You've been invited to join BeefSynch</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img
-          src="https://qgpufoqjjxyecimxusze.supabase.co/storage/v1/object/public/email-assets/beefsynch-logo.png"
-          width="160"
-          height="auto"
-          alt="BeefSynch"
-          style={{ marginBottom: '24px' }}
-        />
         <Heading style={h1}>You've been invited</Heading>
         <Text style={text}>
           Your team is using{' '}
