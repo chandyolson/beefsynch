@@ -9,6 +9,8 @@ import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
+import PackingTab from "@/components/inventory/PackingTab";
+import TanksTabContent from "@/components/inventory/TanksTabContent";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
@@ -51,7 +53,7 @@ const QUICK_ACTIONS = [
 const InventoryHub = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { orgId } = useOrgRole();
+  const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const activeTab = (searchParams.get("tab") as TabKey) || "inventory";
@@ -165,7 +167,9 @@ const InventoryHub = () => {
         <div className="rounded-xl border border-border/40 bg-card/40 p-4">
           {activeTab === "inventory" && orgId && <InventoryTab orgId={orgId} />}
           {activeTab === "orders" && orgId && <OrdersTab orgId={orgId} />}
-          {activeTab !== "inventory" && activeTab !== "orders" && (
+          {activeTab === "packing" && orgId && <PackingTab orgId={orgId} />}
+          {activeTab === "tanks" && orgId && <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />}
+          {!["inventory", "orders", "packing", "tanks"].includes(activeTab) && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <currentTab.icon className="h-12 w-12 mb-4 opacity-30" />
               <p className="text-lg font-medium">{currentTab.label} content coming soon</p>
