@@ -279,6 +279,80 @@ const PackDetail = () => {
     );
   };
 
+  const handleCloseOut = async () => {
+    if (!pack || !orgId) return;
+    setClosingOut(true);
+    try {
+      const { error: updateErr } = await supabase
+        .from("tank_packs")
+        .update({
+          status: "returned",
+          closed_at: closeOutDate.toISOString(),
+          closed_by: closeOutBy.trim() || null,
+          notes: [pack.notes, closeOutNotes.trim()].filter(Boolean).join(" | ") || null,
+        } as any)
+        .eq("id", pack.id);
+      if (updateErr) throw updateErr;
+
+      const { data: packLinesData, error: linesErr } = await supabase
+        .from("tank_pack_lines")
+        .select("id, bull_name, bull_code, bull_catalog_id, units")
+        .eq("tank_pack_id", pack.id);
+      if (linesErr) throw linesErr;
+
+      for (const line of (packLinesData || [])) {
+        let invRow: any = null;
+        const baseQ = () => supabase.from("tank_inventory").select("id, units")
+          .eq("tank_id", pack.field_tank_id)
+          .eq("organization_id", orgId);
+
+        if (line.bull_catalog_id) {
+          const { data } = await baseQ().eq("bull_catalog_id", line.bull_catalog_id).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow && line.bull_code) {
+          const { data } = await baseQ().eq("bull_code", line.bull_code).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+        if (!invRow) {
+          const { data } = await baseQ().eq("custom_bull_name", line.bull_name).limit(1);
+          if (data && data.length > 0) invRow = data[0];
+        }
+
+        if (invRow) {
+          const remaining = (invRow.units || 0) - line.units;
+          if (remaining <= 0) {
+            const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
+            if (delErr) throw delErr;
+          } else {
+            const { error: updErr } = await supabase.from("tank_inventory").update({ units: remaining }).eq("id", invRow.id);
+            if (updErr) throw updErr;
+          }
+        }
+
+        const { error: txnErr } = await supabase.from("inventory_transactions").insert({
+          organization_id: orgId,
+          tank_id: pack.field_tank_id,
+          bull_catalog_id: line.bull_catalog_id,
+          bull_code: line.bull_code,
+          custom_bull_name: line.bull_name,
+          units_change: -line.units,
+          transaction_type: "used_in_field",
+          notes: `Close-out: all semen used. Pack ${pack.id.slice(0, 8)}`,
+        });
+        if (txnErr) throw txnErr;
+      }
+
+      toast({ title: "Pack closed out", description: "Tank marked as returned. All semen recorded as used in field." });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      setCloseOutOpen(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setClosingOut(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
   }
