@@ -707,7 +707,7 @@ const PackDetail = () => {
               <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Outcome:</span><span>All semen used in field</span></div>
             </CardContent>
           </Card>
-        )
+        )}
       </main>
       <AppFooter />
     </div>
