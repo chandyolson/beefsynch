@@ -31,6 +31,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   packed: { label: "Packed", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   in_field: { label: "In Field", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   unpacked: { label: "Unpacked", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  returned: { label: "Returned", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -191,8 +192,10 @@ const PacksList = ({ orgId }: { orgId: string }) => {
           <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="packed">Packed</SelectItem>
             <SelectItem value="in_field">In Field</SelectItem>
             <SelectItem value="unpacked">Unpacked</SelectItem>
+            <SelectItem value="returned">Returned</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
