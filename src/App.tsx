@@ -26,6 +26,7 @@ import ReceiveShipmentPreview from "./pages/ReceiveShipmentPreview";
 import TanksDashboard from "./pages/TanksDashboard";
 import InventoryDashboard from "./pages/InventoryDashboard";
 import InventoryLog from "./pages/InventoryLog";
+import InventoryHub from "./pages/InventoryHub";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
             <Route path="/tanks-dashboard" element={<ProtectedRoute><TanksDashboard /></ProtectedRoute>} />
             <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
+            <Route path="/inventory-hub" element={<ProtectedRoute><InventoryHub /></ProtectedRoute>} />
             <Route path="/inventory-log" element={<ProtectedRoute><InventoryLog /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
             <Route path="/pack-tank" element={<ProtectedRoute><PackTank /></ProtectedRoute>} />
