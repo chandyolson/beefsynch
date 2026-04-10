@@ -43,7 +43,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
-  const [ownerFilter, setOwnerFilter] = useState(initialOwnerFilter);
+  const [ownerFilter, setOwnerFilter] = useState<string>(initialOwnerFilter);
 
   useEffect(() => {
     setOwnerFilter(initialOwnerFilter);
