@@ -5,7 +5,7 @@ import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
-  PackagePlus, Truck,
+  PackagePlus, Truck, ClipboardList,
   ChevronDown, ChevronUp,
 } from "lucide-react";
 
@@ -711,6 +711,9 @@ const InventoryDashboard = () => {
           <Button onClick={() => navigate("/receive-shipment")} variant="outline" size="sm">
             <Package className="h-4 w-4 mr-2" />
             Receive Shipment
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/inventory-log")} className="gap-1.5">
+            <ClipboardList className="h-4 w-4" /> Transaction Log
           </Button>
           {TAB_LABELS.map(({ key, label }) => (
             <button
