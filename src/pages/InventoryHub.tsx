@@ -11,6 +11,7 @@ import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
 import PackingTab from "@/components/inventory/PackingTab";
 import TanksTabContent from "@/components/inventory/TanksTabContent";
+import LogTab from "@/components/inventory/LogTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
@@ -169,11 +170,12 @@ const InventoryHub = () => {
           {activeTab === "orders" && orgId && <OrdersTab orgId={orgId} />}
           {activeTab === "packing" && orgId && <PackingTab orgId={orgId} />}
           {activeTab === "tanks" && orgId && <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />}
-          {!["inventory", "orders", "packing", "tanks"].includes(activeTab) && (
+          {activeTab === "log" && orgId && <LogTab orgId={orgId} />}
+          {activeTab === "receiving" && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <currentTab.icon className="h-12 w-12 mb-4 opacity-30" />
-              <p className="text-lg font-medium">{currentTab.label} content coming soon</p>
-              <p className="text-sm">{currentTab.desc}</p>
+              <p className="text-lg font-medium">Receiving content coming soon</p>
+              <p className="text-sm">This tab will show received shipments with packing slip attachments.</p>
             </div>
           )}
         </div>
