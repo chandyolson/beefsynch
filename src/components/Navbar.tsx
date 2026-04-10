@@ -196,6 +196,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/inventory-hub")} className={navBtnClass}>
             <Layers className="h-4 w-4" /> Inventory Hub
           </button>
+          <button onClick={() => go("/customers")} className={navBtnClass}>
+            <Users className="h-4 w-4" /> Customers
+          </button>
           <div className="border-t border-border/50 my-1" />
           <button onClick={() => go("/bulls")} className={navBtnClass}>
             <List className="h-4 w-4" /> Bull Catalog
