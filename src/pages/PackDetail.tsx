@@ -59,6 +59,11 @@ const PackDetail = () => {
   const [editTrackingNumber, setEditTrackingNumber] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
 
+  const [editingReturnTracking, setEditingReturnTracking] = useState(false);
+  const [editReturnCarrier, setEditReturnCarrier] = useState("");
+  const [editReturnTrackingNumber, setEditReturnTrackingNumber] = useState("");
+  const [savingReturnTracking, setSavingReturnTracking] = useState(false);
+
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
     queryKey: ["pack_detail", id],
@@ -152,6 +157,23 @@ const PackDetail = () => {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
     } finally {
       setSavingTracking(false);
+    }
+  };
+
+  const handleSaveReturnTracking = async () => {
+    setSavingReturnTracking(true);
+    try {
+      await supabase.from("tank_packs").update({
+        return_carrier: editReturnCarrier || null,
+        return_tracking_number: editReturnTrackingNumber.trim() || null,
+      } as any).eq("id", pack.id);
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      setEditingReturnTracking(false);
+      toast({ title: "Return tracking updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingReturnTracking(false);
     }
   };
 
@@ -338,6 +360,55 @@ const PackDetail = () => {
                     <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">Expected</Badge>
                   ) : (
                     <Badge variant="outline" className="bg-amber-600/20 text-amber-400 border-amber-600/30">Not returning</Badge>
+                  )}
+                </div>
+                <div className="flex gap-2 items-start">
+                  <span className="font-semibold w-28 shrink-0">Return Track:</span>
+                  {editingReturnTracking ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select value={editReturnCarrier} onValueChange={setEditReturnCarrier}>
+                        <SelectTrigger className="w-28 h-8 text-sm">
+                          <SelectValue placeholder="Carrier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UPS">UPS</SelectItem>
+                          <SelectItem value="FedEx">FedEx</SelectItem>
+                          <SelectItem value="USPS">USPS</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        className="w-48 h-8 text-sm"
+                        placeholder="Return tracking number"
+                        value={editReturnTrackingNumber}
+                        onChange={e => setEditReturnTrackingNumber(e.target.value)}
+                      />
+                      <Button size="sm" variant="outline" onClick={handleSaveReturnTracking} disabled={savingReturnTracking} className="gap-1 h-8">
+                        {savingReturnTracking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingReturnTracking(false)} className="h-8">Cancel</Button>
+                    </div>
+                  ) : (pack as any).return_tracking_number ? (
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const returnUrl = getTrackingUrl((pack as any).return_carrier, (pack as any).return_tracking_number || "");
+                        return returnUrl ? (
+                          <a href={returnUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            {(pack as any).return_tracking_number} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span>{(pack as any).return_tracking_number}</span>
+                        );
+                      })()}
+                      {(pack as any).return_carrier && <span className="text-muted-foreground">({(pack as any).return_carrier})</span>}
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditReturnCarrier((pack as any).return_carrier || ""); setEditReturnTrackingNumber((pack as any).return_tracking_number || ""); setEditingReturnTracking(true); }}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-auto p-0 text-primary hover:underline" onClick={() => { setEditReturnCarrier((pack as any).return_carrier || ""); setEditReturnTrackingNumber(""); setEditingReturnTracking(true); }}>
+                      <Pencil className="h-3 w-3 mr-1" /> Add return tracking
+                    </Button>
                   )}
                 </div>
               </>
