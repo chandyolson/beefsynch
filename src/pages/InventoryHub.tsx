@@ -7,6 +7,8 @@ import {
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import InventoryTab from "@/components/inventory/InventoryTab";
+import OrdersTab from "@/components/inventory/OrdersTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
@@ -159,13 +161,17 @@ const InventoryHub = () => {
           ))}
         </div>
 
-        {/* Tab content placeholder */}
-        <div className="rounded-xl border border-border/40 bg-card/40">
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <currentTab.icon className="h-12 w-12 mb-4 opacity-30" />
-            <p className="text-lg font-medium">{currentTab.label} content coming soon</p>
-            <p className="text-sm">{currentTab.desc}</p>
-          </div>
+        {/* Tab content */}
+        <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+          {activeTab === "inventory" && orgId && <InventoryTab orgId={orgId} />}
+          {activeTab === "orders" && orgId && <OrdersTab orgId={orgId} />}
+          {activeTab !== "inventory" && activeTab !== "orders" && (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <currentTab.icon className="h-12 w-12 mb-4 opacity-30" />
+              <p className="text-lg font-medium">{currentTab.label} content coming soon</p>
+              <p className="text-sm">{currentTab.desc}</p>
+            </div>
+          )}
         </div>
       </main>
 
