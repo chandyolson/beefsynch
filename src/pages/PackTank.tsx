@@ -899,54 +899,65 @@ const PackTank = () => {
             {/* Shipment fields */}
             {packType === "shipment" && (
               <>
-                <div className="space-y-1.5">
-                  <Label>Ship To *</Label>
-                  <Input
-                    value={destinationName}
-                    onChange={e => setDestinationName(e.target.value)}
-                    placeholder="Recipient name or ranch"
-                    className={cn(errors.destinationName && "border-destructive")}
-                  />
-                  {errors.destinationName && <p className="text-xs text-destructive">{errors.destinationName}</p>}
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Ship To *</Label>
+                  <div className="flex-1">
+                    <Input
+                      value={destinationName}
+                      onChange={e => setDestinationName(e.target.value)}
+                      placeholder="Recipient name or ranch"
+                      className={cn(errors.destinationName && "border-destructive")}
+                    />
+                    {errors.destinationName && <p className="text-xs text-destructive mt-1">{errors.destinationName}</p>}
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Shipping Address</Label>
-                  <Input
-                    value={destinationAddress}
-                    onChange={e => setDestinationAddress(e.target.value)}
-                    placeholder="Full shipping address"
-                  />
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Shipping Address</Label>
+                  <div className="flex-1">
+                    <Input
+                      value={destinationAddress}
+                      onChange={e => setDestinationAddress(e.target.value)}
+                      placeholder="Full shipping address"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Carrier</Label>
-                  <Select value={shippingCarrier} onValueChange={setShippingCarrier}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select carrier..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="UPS">UPS</SelectItem>
-                      <SelectItem value="FedEx">FedEx</SelectItem>
-                      <SelectItem value="USPS">USPS</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Carrier</Label>
+                  <div className="flex-1">
+                    <Select value={shippingCarrier} onValueChange={setShippingCarrier}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select carrier..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UPS">UPS</SelectItem>
+                        <SelectItem value="FedEx">FedEx</SelectItem>
+                        <SelectItem value="USPS">USPS</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Tracking Number</Label>
-                  <Input
-                    value={trackingNumber}
-                    onChange={e => setTrackingNumber(e.target.value)}
-                    placeholder="Enter after shipping"
-                  />
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Tracking Number</Label>
+                  <div className="flex-1">
+                    <Input
+                      value={trackingNumber}
+                      onChange={e => setTrackingNumber(e.target.value)}
+                      placeholder="Enter after shipping"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={tankReturnExpected}
-                    onCheckedChange={(checked) => setTankReturnExpected(!!checked)}
-                  />
-                  <Label className="cursor-pointer" onClick={() => setTankReturnExpected(!tankReturnExpected)}>
-                    Tank will be returned to us
-                  </Label>
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Tank Return</Label>
+                  <div className="flex-1 flex items-center gap-2 pt-2">
+                    <Checkbox
+                      checked={tankReturnExpected}
+                      onCheckedChange={(checked) => setTankReturnExpected(!!checked)}
+                    />
+                    <Label className="cursor-pointer" onClick={() => setTankReturnExpected(!tankReturnExpected)}>
+                      Tank will be returned to us
+                    </Label>
+                  </div>
                 </div>
               </>
             )}
