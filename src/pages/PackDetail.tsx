@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen,
-  Truck, ExternalLink, Pencil, Loader2, Check,
+  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck,
+  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -21,6 +21,15 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
@@ -31,6 +40,7 @@ const STATUS_BADGE: Record<string, string> = {
   packed: "bg-green-600/20 text-green-400 border-green-600/30",
   in_field: "bg-green-600/20 text-green-400 border-green-600/30",
   unpacked: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  returned: "bg-purple-600/20 text-purple-400 border-purple-600/30",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
@@ -53,6 +63,7 @@ const PackDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { orgId } = useOrgRole();
 
   const [editingTracking, setEditingTracking] = useState(false);
   const [editCarrier, setEditCarrier] = useState("");
@@ -63,6 +74,12 @@ const PackDetail = () => {
   const [editReturnCarrier, setEditReturnCarrier] = useState("");
   const [editReturnTrackingNumber, setEditReturnTrackingNumber] = useState("");
   const [savingReturnTracking, setSavingReturnTracking] = useState(false);
+
+  const [closeOutOpen, setCloseOutOpen] = useState(false);
+  const [closingOut, setClosingOut] = useState(false);
+  const [closeOutDate, setCloseOutDate] = useState<Date>(new Date());
+  const [closeOutBy, setCloseOutBy] = useState("");
+  const [closeOutNotes, setCloseOutNotes] = useState("");
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
