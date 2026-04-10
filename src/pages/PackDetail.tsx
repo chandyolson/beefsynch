@@ -579,12 +579,61 @@ const PackDetail = () => {
               <Truck className="h-4 w-4" /> Create UPS Shipment
             </Button>
           )}
-          {pack.tank_return_expected !== false && pack.status !== "unpacked" && (
-            <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
-              <PackageOpen className="h-4 w-4" /> Unpack Tank
-            </Button>
+          {pack.tank_return_expected !== false && pack.status !== "unpacked" && pack.status !== "returned" && (
+            <>
+              <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
+                <PackageOpen className="h-4 w-4" /> Unpack Tank
+              </Button>
+              <Button variant="outline" onClick={() => setCloseOutOpen(true)} className="gap-2">
+                <PackageCheck className="h-4 w-4" /> Close Out
+              </Button>
+            </>
           )}
         </div>
+
+        {/* Close Out Dialog */}
+        <AlertDialog open={closeOutOpen} onOpenChange={setCloseOutOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Out Pack</AlertDialogTitle>
+              <AlertDialogDescription>
+                This marks the pack as complete — all semen was used in the field and the tank has been returned.
+                Field tank inventory will be zeroed out and transactions logged as "used in field."
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-sm font-medium">Return Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !closeOutDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(closeOutDate, "MMMM d, yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={closeOutDate} onSelect={(d) => d && setCloseOutDate(d)} className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Returned By</label>
+                <Input value={closeOutBy} onChange={(e) => setCloseOutBy(e.target.value)} placeholder="Who confirmed the return?" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notes (optional)</label>
+                <Textarea value={closeOutNotes} onChange={(e) => setCloseOutNotes(e.target.value)} placeholder="e.g., Tank empty, good condition" className="mt-1" />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCloseOut} disabled={closingOut}>
+                {closingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Close Out Pack
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Unpack Details (if unpacked) */}
         {pack.status === "unpacked" && (
@@ -647,6 +696,18 @@ const PackDetail = () => {
             </div>
           </>
         )}
+
+        {/* Close Out Details (if returned) */}
+        {pack.status === "returned" && (
+          <Card>
+            <CardHeader><CardTitle>Close Out Details</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Date Returned:</span><span>{pack.closed_at ? format(new Date(pack.closed_at), "MMMM d, yyyy") : "—"}</span></div>
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Returned By:</span><span>{(pack as any).closed_by || "—"}</span></div>
+              <div className="flex gap-2"><span className="font-semibold w-32 shrink-0">Outcome:</span><span>All semen used in field</span></div>
+            </CardContent>
+          </Card>
+        )
       </main>
       <AppFooter />
     </div>
