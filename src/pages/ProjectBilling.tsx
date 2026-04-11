@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Plus, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Check, Trash2, RotateCcw } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
@@ -137,6 +137,9 @@ const ProjectBilling = () => {
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
+
+  const [suggestedDoses, setSuggestedDoses] = useState<Record<string, number>>({});
+  const [suggestedPackedUnits, setSuggestedPackedUnits] = useState<Record<string, number>>({});
 
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
