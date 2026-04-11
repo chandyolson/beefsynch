@@ -748,7 +748,7 @@ const PackTank = () => {
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "project" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); }}
+            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); setPickupCustomerId(""); }}
           >
             <ClipboardList className="h-4 w-4" /> Project
           </button>
