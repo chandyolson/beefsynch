@@ -212,6 +212,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
             <SelectItem value="project">Project</SelectItem>
             <SelectItem value="shipment">Shipment</SelectItem>
             <SelectItem value="order">Order</SelectItem>
+            <SelectItem value="pickup">Pickup</SelectItem>
           </SelectContent>
         </Select>
         <Popover>
