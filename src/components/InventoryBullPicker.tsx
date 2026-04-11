@@ -26,7 +26,7 @@ interface InventoryBullPickerProps {
   customerId?: string;
 }
 
-const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange }: InventoryBullPickerProps) => {
+const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, customerId }: InventoryBullPickerProps) => {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<InventoryRow[]>([]);
   const [open, setOpen] = useState(false);
