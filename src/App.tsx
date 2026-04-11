@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { OrgRoleProvider } from "@/hooks/useOrgRole";
-import Index from "./pages/Index";
 import RootRedirect from "./components/RootRedirect";
 import ProjectDetail from "./pages/ProjectDetail";
 import MasterCalendar from "./pages/MasterCalendar";
@@ -22,7 +21,7 @@ import TanksOut from "./pages/TanksOut";
 import SemenInventory from "./pages/SemenInventory";
 import ReceiveShipment from "./pages/ReceiveShipment";
 import ReceiveShipmentPreview from "./pages/ReceiveShipmentPreview";
-import InventoryHub from "./pages/InventoryHub";
+import OperationsDashboard from "./pages/OperationsDashboard";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
@@ -59,7 +58,7 @@ const App = () => (
 
             {/* Protected routes */}
             <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/operations" element={<ProtectedRoute><OperationsDashboard /></ProtectedRoute>} />
             <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             <Route path="/project/:id/billing" element={<ProtectedRoute><ProjectBilling /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
@@ -78,20 +77,21 @@ const App = () => (
             <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
             <Route path="/receive-shipment/preview/:id" element={<ProtectedRoute><ReceiveShipmentPreview /></ProtectedRoute>} />
             <Route path="/receive-shipment/:id" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
-            <Route path="/inventory-hub" element={<ProtectedRoute><InventoryHub /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
             <Route path="/pack-tank" element={<ProtectedRoute><PackTank /></ProtectedRoute>} />
             <Route path="/pack/:id" element={<ProtectedRoute><PackDetail /></ProtectedRoute>} />
             <Route path="/unpack/:packId" element={<ProtectedRoute><UnpackTank /></ProtectedRoute>} />
 
-            {/* Old routes → redirect to Inventory Hub */}
-            <Route path="/inventory-dashboard" element={<Navigate to="/inventory-hub?tab=inventory" replace />} />
-            <Route path="/tanks-dashboard" element={<Navigate to="/inventory-hub?tab=tanks" replace />} />
-            <Route path="/packs" element={<Navigate to="/inventory-hub?tab=packing" replace />} />
-            <Route path="/unpacks" element={<Navigate to="/inventory-hub?tab=packing" replace />} />
-            <Route path="/shipments" element={<Navigate to="/inventory-hub?tab=receiving" replace />} />
-            <Route path="/inventory-log" element={<Navigate to="/inventory-hub?tab=log" replace />} />
-            <Route path="/semen-orders" element={<Navigate to="/inventory-hub?tab=orders" replace />} />
+            {/* Redirects */}
+            <Route path="/dashboard" element={<Navigate to="/operations?tab=projects" replace />} />
+            <Route path="/inventory-hub" element={<Navigate to="/operations" replace />} />
+            <Route path="/inventory-dashboard" element={<Navigate to="/operations?tab=inventory" replace />} />
+            <Route path="/tanks-dashboard" element={<Navigate to="/operations?tab=tanks" replace />} />
+            <Route path="/packs" element={<Navigate to="/operations?tab=packing" replace />} />
+            <Route path="/unpacks" element={<Navigate to="/operations?tab=packing" replace />} />
+            <Route path="/shipments" element={<Navigate to="/operations?tab=receiving" replace />} />
+            <Route path="/inventory-log" element={<Navigate to="/operations?tab=log" replace />} />
+            <Route path="/semen-orders" element={<Navigate to="/operations?tab=orders" replace />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

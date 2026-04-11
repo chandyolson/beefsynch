@@ -56,7 +56,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
     <header className="border-b border-border/50 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         {/* Logo */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/dashboard")}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/operations?tab=projects")}>
           <img src={beefsynchIcon} alt="BeefSynch logo" className="h-9 w-9 object-contain rounded" />
           <div>
             <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
@@ -106,11 +106,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="z-50 w-52 bg-popover border border-border shadow-lg">
-              <DropdownMenuItem onClick={() => go("/dashboard")} className="cursor-pointer gap-2">
-                <List className="h-4 w-4" /> Projects
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/inventory-hub")} className="cursor-pointer gap-2">
-                <Layers className="h-4 w-4" /> Inventory Hub
+              <DropdownMenuItem onClick={() => go("/operations")} className="cursor-pointer gap-2">
+                <Layers className="h-4 w-4" /> Operations
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/customers")} className="cursor-pointer gap-2">
                 <Users className="h-4 w-4" /> Customers
@@ -190,11 +187,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
       {/* Mobile dropdown panel */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-popover/95 backdrop-blur-md px-4 py-3 space-y-1 animate-fade-in">
-          <button onClick={() => go("/dashboard")} className={navBtnClass}>
-            <List className="h-4 w-4" /> Projects
-          </button>
-          <button onClick={() => go("/inventory-hub")} className={navBtnClass}>
-            <Layers className="h-4 w-4" /> Inventory Hub
+          <button onClick={() => go("/operations")} className={navBtnClass}>
+            <Layers className="h-4 w-4" /> Operations
           </button>
           <button onClick={() => go("/customers")} className={navBtnClass}>
             <Users className="h-4 w-4" /> Customers
