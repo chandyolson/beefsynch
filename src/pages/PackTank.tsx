@@ -495,6 +495,8 @@ const PackTank = () => {
       if (!destinationName.trim()) errs.destinationName = "Destination name is required";
     } else if (packType === "order") {
       if (selectedOrders.length === 0) errs.orders = "Select at least one order";
+    } else if (packType === "pickup") {
+      if (!pickupCustomerId) errs.pickupCustomer = "Select a customer";
     }
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
