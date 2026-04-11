@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  PackagePlus, Truck, ChevronDown, ChevronUp,
+  PackagePlus, Truck, ChevronDown, ChevronUp, MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -18,9 +18,14 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { toast } from "sonner";
 
 // ─── Inventory Tab Constants ───
 const STORAGE_BADGES: Record<string, string> = {
