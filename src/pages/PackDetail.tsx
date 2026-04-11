@@ -88,7 +88,7 @@ const PackDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("*, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number)")
+        .select("*, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), customers(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
