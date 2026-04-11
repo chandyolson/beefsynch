@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
-  Search, Eye, Trash2, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
+  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -19,13 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -47,8 +41,6 @@ const billingColors: Record<string, string> = {
 const OrdersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
   const { role } = useOrgRole();
-  const queryClient = useQueryClient();
-  const canDelete = role === "owner" || role === "admin";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editOrder, setEditOrder] = useState<EditOrderData | null>(null);
@@ -64,7 +56,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
+        .select("*, customers(id, name), semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false });
       if (error) throw error;
@@ -72,17 +64,8 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("semen_orders").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["semen_orders"] }); toast({ title: "Order deleted" }); },
-    onError: () => { toast({ title: "Error", description: "Could not delete order.", variant: "destructive" }); },
-  });
-
   const filtered = useMemo(() => orders.filter((o: any) => {
-    if (search && !(o.customer_name || "").toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !(o.customers?.name || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (fulfillmentFilter !== "all" && o.fulfillment_status !== fulfillmentFilter) return false;
     if (billingFilter !== "all" && o.billing_status !== billingFilter) return false;
     if (dateFrom && isBefore(parseISO(o.order_date), dateFrom)) return false;
@@ -170,46 +153,23 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
               <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
               <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
               <TableHead className="whitespace-nowrap">Billing</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">{orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">{orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}</TableCell></TableRow>
             ) : (
               filtered.map((order: any) => (
-                <TableRow key={order.id} className="hover:bg-muted/20">
-                  <TableCell className="font-medium whitespace-nowrap">{order.customer_name || "—"}</TableCell>
+                <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
+                  <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                   <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                   <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
                   <TableCell><Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
                   <TableCell><Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}><Eye className="h-4 w-4" /></Button>
-                      {canDelete && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete order?</AlertDialogTitle>
-                              <AlertDialogDescription>This will permanently delete the order for {order.customer_name || "this customer"}. This cannot be undone.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteMutation.mutate(order.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </TableCell>
                 </TableRow>
               ))
             )}
