@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,15 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check, X, ArrowUp, ArrowDown, ArrowLeft, Download, Star, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Download, Star, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { toast } from "@/hooks/use-toast";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { format } from "date-fns";
 
 const COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
@@ -37,6 +41,7 @@ const COMPANY_COLORS: Record<string, string> = {
   "ST Genetics": "border-l-emerald-400",
   "Select Sires": "border-l-amber-400",
   Genex: "border-l-purple-400",
+  Custom: "border-l-gray-400",
 };
 
 type SortKey = "bull_name" | "registration_number" | "breed" | "company";
@@ -50,6 +55,8 @@ interface CatalogBull {
   company: string;
   naab_code: string | null;
   active: boolean;
+  is_custom?: boolean;
+  notes?: string | null;
 }
 
 const buildCsv = (bulls: CatalogBull[]): string => {
@@ -81,6 +88,8 @@ const downloadCsv = (csv: string) => {
 const BullList = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { orgId, userId } = useOrgRole();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [companyFilter, setCompanyFilter] = useState("all");
@@ -91,6 +100,13 @@ const BullList = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { favoritedIds, toggleFavorite } = useBullFavorites();
 
+  // Custom bull modal state
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [editingBull, setEditingBull] = useState<CatalogBull | null>(null);
+  const [customForm, setCustomForm] = useState({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "" });
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const { data: bulls = [], isLoading } = useQuery({
     queryKey: ["bulls_catalog"],
     queryFn: async () => {
@@ -99,7 +115,7 @@ const BullList = () => {
         .select("*")
         .order("bull_name");
       if (error) throw error;
-      return data;
+      return data as CatalogBull[];
     },
   });
 
@@ -122,6 +138,11 @@ const BullList = () => {
       const matchesBreed =
         breedFilter === "all" || b.breed === breedFilter;
       const matchesStarred = !starredOnly || favoritedIds.has(b.id);
+
+      // Tab-level filtering
+      if (activeTab === "custom") return b.is_custom && matchesSearch && matchesBreed && matchesStarred;
+      if (activeTab === "select_sires") return !b.is_custom && matchesSearch && matchesCompany && matchesBreed && matchesStarred;
+
       return matchesSearch && matchesCompany && matchesBreed && matchesStarred;
     });
 
@@ -134,7 +155,7 @@ const BullList = () => {
     });
 
     return list;
-  }, [bulls, search, companyFilter, breedFilter, starredOnly, favoritedIds, sortKey, sortDir]);
+  }, [bulls, search, companyFilter, breedFilter, starredOnly, favoritedIds, sortKey, sortDir, activeTab]);
 
   // Clear selection when filters change
   const clearSelection = useCallback(() => {
@@ -210,8 +231,108 @@ const BullList = () => {
     return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
   };
 
+  // Custom bull handlers
+  const openAddCustom = () => {
+    setEditingBull(null);
+    setCustomForm({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "" });
+    setShowCustomModal(true);
+  };
+
+  const openEditCustom = (bull: CatalogBull) => {
+    setEditingBull(bull);
+    setCustomForm({
+      bull_name: bull.bull_name,
+      naab_code: bull.naab_code || "",
+      registration_number: bull.registration_number || "",
+      breed: bull.breed || "",
+      notes: (bull as any).notes || "",
+    });
+    setShowCustomModal(true);
+  };
+
+  const handleSaveCustom = async () => {
+    if (!customForm.bull_name.trim()) {
+      toast({ title: "Bull name is required", variant: "destructive" });
+      return;
+    }
+    if (!orgId || !userId) {
+      toast({ title: "You must be logged in to an organization", variant: "destructive" });
+      return;
+    }
+    setSavingCustom(true);
+    try {
+      if (editingBull) {
+        const { error } = await supabase
+          .from("bulls_catalog")
+          .update({
+            bull_name: customForm.bull_name.trim(),
+            naab_code: customForm.naab_code.trim() || null,
+            registration_number: customForm.registration_number.trim() || "N/A",
+            breed: customForm.breed.trim() || "Unknown",
+            notes: customForm.notes.trim() || null,
+          } as any)
+          .eq("id", editingBull.id);
+        if (error) throw error;
+        toast({ title: "Custom bull updated" });
+      } else {
+        const { error } = await supabase
+          .from("bulls_catalog")
+          .insert({
+            bull_name: customForm.bull_name.trim(),
+            naab_code: customForm.naab_code.trim() || null,
+            registration_number: customForm.registration_number.trim() || "N/A",
+            breed: customForm.breed.trim() || "Unknown",
+            company: "Custom",
+            is_custom: true,
+            created_by: userId,
+            organization_id: orgId,
+            notes: customForm.notes.trim() || null,
+          } as any);
+        if (error) throw error;
+        toast({ title: "Custom bull created" });
+      }
+      setShowCustomModal(false);
+      queryClient.invalidateQueries({ queryKey: ["bulls_catalog"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingCustom(false);
+    }
+  };
+
+  const handleDeleteCustom = async (bull: CatalogBull) => {
+    // Check if bull is in use
+    setDeletingId(bull.id);
+    try {
+      const [inv, pb, pl, oi] = await Promise.all([
+        supabase.from("tank_inventory").select("id", { count: "exact", head: true }).eq("bull_catalog_id", bull.id),
+        supabase.from("project_bulls").select("id", { count: "exact", head: true }).eq("bull_catalog_id", bull.id),
+        supabase.from("tank_pack_lines").select("id", { count: "exact", head: true }).eq("bull_catalog_id", bull.id),
+        supabase.from("semen_order_items").select("id", { count: "exact", head: true }).eq("bull_catalog_id", bull.id),
+      ]);
+      const total = (inv.count || 0) + (pb.count || 0) + (pl.count || 0) + (oi.count || 0);
+      if (total > 0) {
+        toast({ title: `Cannot delete — this bull is in use in ${total} place${total !== 1 ? "s" : ""}.`, variant: "destructive" });
+        setDeletingId(null);
+        return;
+      }
+      if (!confirm(`Delete "${bull.bull_name}"? This cannot be undone.`)) {
+        setDeletingId(null);
+        return;
+      }
+      const { error } = await supabase.from("bulls_catalog").delete().eq("id", bull.id);
+      if (error) throw error;
+      toast({ title: "Custom bull deleted" });
+      queryClient.invalidateQueries({ queryKey: ["bulls_catalog"] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Shared row renderer for both desktop table and mobile cards
-  const renderMobileCard = (bull: CatalogBull) => {
+  const renderMobileCard = (bull: CatalogBull, showActions = false) => {
     const ssUrl = selectSiresUrl(bull);
     return (
     <div
@@ -241,8 +362,21 @@ const BullList = () => {
               {bull.bull_name}
             </p>
           )}
+          {bull.is_custom && (
+            <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-muted text-muted-foreground">Custom</Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {showActions && (
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditCustom(bull)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteCustom(bull)} disabled={deletingId === bull.id}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </>
+          )}
           <Badge
             variant="secondary"
             className={`text-[10px] px-1.5 py-0 ${
@@ -251,6 +385,7 @@ const BullList = () => {
                 "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
                 "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
                 Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
               } as Record<string, string>)[bull.company] ?? ""
             }`}
           >
@@ -269,7 +404,7 @@ const BullList = () => {
   );
   };
 
-  const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean) => {
+  const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean, showActions = false) => {
     const ssUrl = selectSiresUrl(bull);
     return (
     <TableRow
@@ -303,6 +438,9 @@ const BullList = () => {
             ({bull.naab_code})
           </span>
         )}
+        {bull.is_custom && (
+          <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-2 bg-muted text-muted-foreground">Custom</Badge>
+        )}
       </TableCell>
       <TableCell>
         <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
@@ -319,15 +457,30 @@ const BullList = () => {
               "ST Genetics": "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
               "Select Sires": "bg-amber-500/20 text-amber-300 border-amber-500/30",
               Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+              Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
             } as Record<string, string>)[bull.company] ?? ""
           }`}
         >
           {bull.company}
         </Badge>
       </TableCell>
+      {showActions && (
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditCustom(bull)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteCustom(bull)} disabled={deletingId === bull.id}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      )}
     </TableRow>
   );
   };
+
+  const customBullCount = useMemo(() => bulls.filter(b => b.is_custom).length, [bulls]);
 
   return (
     <div className="min-h-screen">
@@ -347,37 +500,53 @@ const BullList = () => {
                 Bull Catalog
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {activeTab === "all"
-                  ? `${filtered.length} of ${bulls.length} bulls`
-                  : `${favoriteBulls.length} favorite${favoriteBulls.length !== 1 ? "s" : ""}`}
+                {activeTab === "favorites"
+                  ? `${favoriteBulls.length} favorite${favoriteBulls.length !== 1 ? "s" : ""}`
+                  : `${filtered.length} of ${bulls.length} bulls`}
               </p>
             </div>
-            {activeTab === "all" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportAllVisible}
-                disabled={filtered.length === 0}
-                className="hidden sm:inline-flex"
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                Export All Visible
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {activeTab === "custom" && (
+                <Button size="sm" onClick={openAddCustom}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Add Custom Bull
+                </Button>
+              )}
+              {activeTab === "all" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportAllVisible}
+                  disabled={filtered.length === 0}
+                  className="hidden sm:inline-flex"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export All Visible
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList>
             <TabsTrigger value="all">All Bulls</TabsTrigger>
+            <TabsTrigger value="select_sires">Select Sires</TabsTrigger>
+            <TabsTrigger value="custom">
+              Custom Bulls
+              {customBullCount > 0 && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">{customBullCount}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="favorites">
               <Star className="h-3.5 w-3.5 mr-1.5" />
               My Favorites
             </TabsTrigger>
           </TabsList>
 
-          {/* ===== ALL BULLS TAB ===== */}
-          <TabsContent value="all" className="mt-4 space-y-6">
+          {/* ===== ALL BULLS / SELECT SIRES / CUSTOM TABS ===== */}
+          {(["all", "select_sires", "custom"] as const).map((tab) => (
+          <TabsContent key={tab} value={tab} className="mt-4 space-y-6">
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1 max-w-md">
@@ -389,19 +558,21 @@ const BullList = () => {
                   className="pl-9"
                 />
               </div>
-              <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Companies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Companies</SelectItem>
-                  {COMPANIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {tab !== "custom" && (
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Companies" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {COMPANIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={breedFilter} onValueChange={setBreedFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="All Breeds" />
@@ -425,20 +596,22 @@ const BullList = () => {
                 <Star className={`h-3.5 w-3.5 ${starredOnly ? "fill-teal-400" : ""}`} />
                 Starred Only
               </Toggle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportAllVisible}
-                disabled={filtered.length === 0}
-                className="sm:hidden"
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                Export All Visible
-              </Button>
+              {tab === "all" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportAllVisible}
+                  disabled={filtered.length === 0}
+                  className="sm:hidden"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Export All Visible
+                </Button>
+              )}
             </div>
 
             {/* Bulk action toolbar */}
-            {someSelected && (
+            {tab === "all" && someSelected && (
               <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
                 <span className="text-sm font-medium text-foreground">
                   {selectedIds.size} bull{selectedIds.size !== 1 ? "s" : ""} selected
@@ -463,7 +636,7 @@ const BullList = () => {
               ) : filtered.length === 0 ? (
                 <p className="text-center py-12 text-muted-foreground">No bulls found.</p>
               ) : (
-                filtered.map((bull) => renderMobileCard(bull))
+                filtered.map((bull) => renderMobileCard(bull, tab === "custom"))
               )}
             </div>
 
@@ -473,12 +646,14 @@ const BullList = () => {
                 <TableHeader>
                   <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                     <TableHead className="w-8"></TableHead>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allVisibleSelected && filtered.length > 0}
-                        onCheckedChange={toggleAll}
-                      />
-                    </TableHead>
+                    {tab === "all" && (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allVisibleSelected && filtered.length > 0}
+                          onCheckedChange={toggleAll}
+                        />
+                      </TableHead>
+                    )}
                     {(
                       [
                         ["bull_name", "Bull Name"],
@@ -496,28 +671,30 @@ const BullList = () => {
                         <SortIcon col={key} />
                       </TableHead>
                     ))}
+                    {tab === "custom" && <TableHead className="w-24 text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={tab === "custom" ? 7 : 6} className="text-center py-12 text-muted-foreground">
                         Loading bulls...
                       </TableCell>
                     </TableRow>
                   ) : filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={tab === "custom" ? 7 : 6} className="text-center py-12 text-muted-foreground">
                         No bulls found.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((bull) => renderDesktopRow(bull, true))
+                    filtered.map((bull) => renderDesktopRow(bull, tab === "all", tab === "custom"))
                   )}
                 </TableBody>
               </Table>
             </div>
           </TabsContent>
+          ))}
 
           {/* ===== MY FAVORITES TAB ===== */}
           <TabsContent value="favorites" className="mt-4">
@@ -560,6 +737,64 @@ const BullList = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Custom Bull Modal */}
+      <Dialog open={showCustomModal} onOpenChange={setShowCustomModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingBull ? "Edit Custom Bull" : "Add Custom Bull"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Bull Name *</Label>
+              <Input
+                value={customForm.bull_name}
+                onChange={(e) => setCustomForm((p) => ({ ...p, bull_name: e.target.value }))}
+                placeholder="Bull name"
+              />
+            </div>
+            <div>
+              <Label>NAAB Code</Label>
+              <Input
+                value={customForm.naab_code}
+                onChange={(e) => setCustomForm((p) => ({ ...p, naab_code: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Registration Number</Label>
+              <Input
+                value={customForm.registration_number}
+                onChange={(e) => setCustomForm((p) => ({ ...p, registration_number: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Breed</Label>
+              <Input
+                value={customForm.breed}
+                onChange={(e) => setCustomForm((p) => ({ ...p, breed: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={customForm.notes}
+                onChange={(e) => setCustomForm((p) => ({ ...p, notes: e.target.value }))}
+                placeholder="Optional"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCustomModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveCustom} disabled={savingCustom}>
+              {savingCustom ? "Saving…" : editingBull ? "Save" : "Add Bull"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
