@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  PackagePlus, Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  Truck, ChevronDown, ChevronUp, MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";

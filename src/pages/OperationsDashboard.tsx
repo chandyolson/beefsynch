@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
-  Package, Users, Truck, PackagePlus, ShoppingCart, Plus,
+  Package, Users, Truck, PackagePlus, ShoppingCart,
   Layers, ScrollText, List,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
-import NewOrderDialog from "@/components/NewOrderDialog";
+
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
@@ -18,7 +18,7 @@ import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+
 
 const PAGE_SIZE = 1000;
 
@@ -49,11 +49,9 @@ const TABS = [
 type TabKey = typeof TABS[number]["key"];
 
 const OperationsDashboard = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "projects";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "all";
 
