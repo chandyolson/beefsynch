@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Command, CommandInput, CommandList, CommandEmpty, CommandItem,
+  Command, CommandInput, CommandList, CommandEmpty, CommandItem, CommandGroup, CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -75,6 +75,7 @@ const SemenCompanyPicker = ({ value, onChange, orgId, className }: SemenCompanyP
     onChange(data.id);
     setCreateOpen(false);
     setNewName("");
+    setSearch("");
     toast({ title: "Company created" });
   };
 
@@ -95,6 +96,21 @@ const SemenCompanyPicker = ({ value, onChange, orgId, className }: SemenCompanyP
           <Command shouldFilter={false}>
             <CommandInput placeholder="Search companies..." value={search} onValueChange={setSearch} />
             <CommandList>
+              <CommandGroup>
+                <CommandItem
+                  value="__create_new__"
+                  onSelect={() => {
+                    setNewName(search);
+                    setCreateOpen(true);
+                    setOpen(false);
+                  }}
+                  className="text-primary font-medium cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {search.trim() ? `Add "${search.trim()}"` : "Add new company"}
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
               <CommandEmpty>No companies found.</CommandEmpty>
               {filtered.map((company) => (
                 <CommandItem
@@ -109,17 +125,6 @@ const SemenCompanyPicker = ({ value, onChange, orgId, className }: SemenCompanyP
                   <span className="font-medium">{company.name}</span>
                 </CommandItem>
               ))}
-              <CommandItem
-                onSelect={() => {
-                  setNewName(search);
-                  setCreateOpen(true);
-                  setOpen(false);
-                }}
-                className="text-primary"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                + Add new company{search.trim() ? `: ${search.trim()}` : ""}
-              </CommandItem>
             </CommandList>
           </Command>
         </PopoverContent>
