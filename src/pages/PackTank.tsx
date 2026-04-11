@@ -1074,6 +1074,73 @@ const PackTank = () => {
               </div>
             )}
 
+            {/* Pickup fields */}
+            {packType === "pickup" && (
+              <div className="space-y-4">
+                {/* Customer selector */}
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Customer *</Label>
+                  <div className="flex-1">
+                    <Popover open={pickupCustomerOpen} onOpenChange={setPickupCustomerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn("w-full justify-between font-normal", errors.pickupCustomer && "border-destructive", !pickupCustomerId && "text-muted-foreground")}
+                        >
+                          {pickupCustomerId
+                            ? customers.find((c: any) => c.id === pickupCustomerId)?.name ?? "Select customer…"
+                            : "Select customer…"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search customers…"
+                            value={pickupCustomerSearch}
+                            onValueChange={setPickupCustomerSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No customers found.</CommandEmpty>
+                            {filteredPickupCustomers.map((c: any) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  setPickupCustomerId(c.id);
+                                  setPickupCustomerOpen(false);
+                                  setPickupCustomerSearch("");
+                                  setLines([emptyLine()]);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", pickupCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {errors.pickupCustomer && <p className="text-xs text-destructive mt-1">{errors.pickupCustomer}</p>}
+                  </div>
+                </div>
+
+                {/* Tank return checkbox */}
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Tank Return</Label>
+                  <div className="flex-1 flex items-center gap-2 pt-2">
+                    <Checkbox
+                      checked={tankReturnExpectedPickup}
+                      onCheckedChange={(checked) => setTankReturnExpectedPickup(!!checked)}
+                    />
+                    <Label className="cursor-pointer" onClick={() => setTankReturnExpectedPickup(!tankReturnExpectedPickup)}>
+                      Tank will be returned to us
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Packed By */}
             <div className="flex items-center gap-4">
               <Label className="w-28 shrink-0 text-right">Packed By</Label>
