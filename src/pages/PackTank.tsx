@@ -572,6 +572,16 @@ const PackTank = () => {
 
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
+      // Set field tank status to "out"
+      const { error: tankStatusErr } = await supabase
+        .from("tanks")
+        .update({ status: "out" })
+        .eq("id", selectedTankId);
+
+      if (tankStatusErr) {
+        toast({ title: "Warning", description: "Pack created but tank status could not be updated.", variant: "destructive" });
+      }
+
       // Step 2: Create tank_pack_projects or tank_pack_orders
       if (packType === "project" && selectedProjects.length > 0) {
         const { error: tankPackProjectsErr } = await supabase.from("tank_pack_projects").insert(

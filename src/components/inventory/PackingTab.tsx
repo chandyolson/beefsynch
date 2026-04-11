@@ -39,6 +39,7 @@ const TYPE_BADGE: Record<string, string> = {
   project: "Project",
   shipment: "Shipment",
   order: "Order",
+  pickup: "Pickup",
 };
 
 /* ── PacksList ── */
@@ -60,11 +61,12 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       let query = supabase
         .from("tank_packs")
         .select(`
-          id, packed_at, packed_by, status, pack_type, destination_name, field_tank_id, notes,
+          id, packed_at, packed_by, status, pack_type, destination_name, field_tank_id, notes, customer_id,
           tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number),
           tank_pack_lines(id, units),
           tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)),
-          tank_pack_orders(semen_order_id, semen_orders(customer_name))
+          tank_pack_orders(semen_order_id, semen_orders(customer_name)),
+          customers(name)
         `)
         .eq("organization_id", orgId)
         .order("packed_at", { ascending: false })
@@ -104,7 +106,11 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   };
 
   const getDestination = (row: any): string => {
-    if (row.pack_type === "shipment") return row.destination_name || "—";
+    if (row.pack_type === "pickup") {
+      const custName = (row.customers as any)?.name;
+      return custName ? `Customer: ${custName}` : "Customer pickup";
+    }
+    if (row.pack_type === "shipment") return row.destination_name ? `Ship to: ${row.destination_name}` : "—";
     if (row.pack_type === "order") {
       const orders = (row.tank_pack_orders as any[]) || [];
       if (orders.length === 0) return "—";
@@ -206,6 +212,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
             <SelectItem value="project">Project</SelectItem>
             <SelectItem value="shipment">Shipment</SelectItem>
             <SelectItem value="order">Order</SelectItem>
+            <SelectItem value="pickup">Pickup</SelectItem>
           </SelectContent>
         </Select>
         <Popover>
