@@ -226,7 +226,7 @@ const ProjectBilling = () => {
   }
 
   /* ── compute suggestions from project data (head_count + pack lines) ── */
-  async function computeSuggestions(proj: any, evts: any[], bulls: any[]) {
+  async function computeSuggestions(proj: any, evts: any[], _bulls?: any[]) {
     const hc = proj.head_count || 0;
 
     // Dose suggestions: one per event→product mapping using same matching logic
@@ -446,7 +446,7 @@ const ProjectBilling = () => {
     await computeSuggestions(project, evts, bulls);
 
     // Rebuild zeroed product lines
-    const hc = project.head_count || 0;
+    const _ = project.head_count || 0; // unused but kept for reference
     const getDefaultProduct = (cat: string) => products.find(p => p.product_category === cat && p.is_default);
     const getProduct = (cat: string) => products.find(p => p.product_category === cat);
     const skipEvents = ["Return Heat", "Estimated Calving", "MGA Start", "MGA End", "Bulls In"];
