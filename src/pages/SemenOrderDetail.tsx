@@ -22,9 +22,7 @@ import ClickableRegNumber from "@/components/ClickableRegNumber";
 
 interface OrderRow {
   id: string;
-  customer_name: string;
-  customer_phone: string | null;
-  customer_email: string | null;
+  customer_id: string | null;
   order_date: string;
   fulfillment_status: string;
   billing_status: string;
@@ -33,6 +31,7 @@ interface OrderRow {
   notes: string | null;
   placed_by: string | null;
   order_type: string;
+  customers: { name: string; phone: string | null; email: string | null } | null;
 }
 
 interface ItemRow {
@@ -84,7 +83,7 @@ const SemenOrderDetail = () => {
   const load = async () => {
     if (!id) return;
     const [oRes, iRes] = await Promise.all([
-      supabase.from("semen_orders").select("*").eq("id", id).single(),
+      supabase.from("semen_orders").select("*, customers(name, phone, email)").eq("id", id).single(),
       supabase
         .from("semen_order_items")
         .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
@@ -144,9 +143,7 @@ const SemenOrderDetail = () => {
     if (!order) return null;
     return {
       id: order.id,
-      customer_name: order.customer_name,
-      customer_phone: order.customer_phone,
-      customer_email: order.customer_email,
+      customer_id: order.customer_id,
       order_date: order.order_date,
       fulfillment_status: order.fulfillment_status,
       billing_status: order.billing_status,
@@ -164,10 +161,19 @@ const SemenOrderDetail = () => {
     };
   };
 
+  const customerName = order?.customers?.name || "—";
+
   const handleExportPdf = () => {
     if (!order) return;
     generateOrderPdf(
-      { ...order, project_name: project?.name || null },
+      {
+        customer_name: customerName,
+        order_date: order.order_date,
+        fulfillment_status: order.fulfillment_status,
+        billing_status: order.billing_status,
+        notes: order.notes,
+        project_name: project?.name || null,
+      },
       items
     );
     toast({ title: "PDF downloaded" });
@@ -231,7 +237,7 @@ const SemenOrderDetail = () => {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold font-display tracking-tight">{order.customer_name || "—"}</h1>
+            <h1 className="text-2xl font-bold font-display tracking-tight">{customerName}</h1>
             {order.order_type === "inventory" && (
               <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
                 Inventory Order
@@ -258,16 +264,22 @@ const SemenOrderDetail = () => {
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-muted-foreground">Customer Name</span>
-              <p className="font-medium">{order.customer_name || "—"}</p>
+              <span className="text-muted-foreground">Customer</span>
+              <p className="font-medium">
+                {order.customer_id ? (
+                  <Link to={`/customers/${order.customer_id}`} className="text-primary hover:underline">
+                    {customerName}
+                  </Link>
+                ) : customerName}
+              </p>
             </div>
             <div>
               <span className="text-muted-foreground">Phone</span>
-              <p className="font-medium">{order.customer_phone || "—"}</p>
+              <p className="font-medium">{order.customers?.phone || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Email</span>
-              <p className="font-medium">{order.customer_email || "—"}</p>
+              <p className="font-medium">{order.customers?.email || "—"}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Order Date</span>
