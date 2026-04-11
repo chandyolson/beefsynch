@@ -225,8 +225,63 @@ const ProjectBilling = () => {
     setLaborLines((labRes.data ?? []) as LaborLine[]);
   }
 
-  /* ── auto-fill logic ── */
-  async function createAndAutoFill(proj: any, evts: any[], bulls: any[], products: BillingProduct[]) {
+  /* ── compute suggestions from project data (head_count + pack lines) ── */
+  async function computeSuggestions(proj: any, evts: any[], bulls: any[]) {
+    const hc = proj.head_count || 0;
+
+    // Dose suggestions: one per event→product mapping using same matching logic
+    const doseMap: Record<string, number> = {};
+    const skipEvents = ["Return Heat", "Estimated Calving", "MGA Start", "MGA End", "Bulls In"];
+    const isMGA = proj.protocol?.toLowerCase().includes("mga");
+
+    for (const evt of evts) {
+      const en = (evt.event_name || "").toLowerCase();
+      if (skipEvents.some(s => en.includes(s.toLowerCase()))) continue;
+      const eventDate = evt.event_date;
+
+      // Build keys matching the product lines that will be/were created
+      if (en.includes("pgf") && en.includes("cidr insert")) {
+        doseMap[`pgf-${eventDate}`] = hc;
+        if (!isMGA) doseMap[`cidr-${eventDate}`] = hc;
+      } else if (en.includes("cidr in") || en.includes("cidr insert")) {
+        if (!isMGA) doseMap[`cidr-${eventDate}`] = hc;
+        if (en.includes("gnrh")) doseMap[`gnrh-${eventDate}`] = hc;
+      } else if (en.includes("pgf") || en.includes("cidr out")) {
+        doseMap[`pgf-${eventDate}`] = hc;
+        if (en.includes("cidr out") && !isMGA) doseMap[`patch-${eventDate}`] = hc;
+      } else if (en.includes("gnrh")) {
+        doseMap[`gnrh-${eventDate}`] = hc;
+      } else if (en.includes("timed breeding") || en.includes("tai") || en.includes("breed")) {
+        doseMap[`gnrh-${eventDate}`] = hc;
+        doseMap[`service-${eventDate}`] = hc;
+      }
+    }
+    setSuggestedDoses(doseMap);
+
+    // Packed units suggestions from pack data
+    const packedMap: Record<string, number> = {};
+    const { data: packProjects } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id")
+      .eq("project_id", proj.id);
+
+    if (packProjects && packProjects.length > 0) {
+      const packIds = packProjects.map(pp => pp.tank_pack_id);
+      const { data: packLines } = await supabase
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, units")
+        .in("tank_pack_id", packIds);
+
+      for (const pl of packLines ?? []) {
+        const key = pl.bull_catalog_id || pl.bull_name;
+        packedMap[key] = (packedMap[key] || 0) + pl.units;
+      }
+    }
+    setSuggestedPackedUnits(packedMap);
+  }
+
+  /* ── create blank billing with zeroed quantities ── */
+  async function createBlankWithSuggestions(proj: any, evts: any[], bulls: any[], products: BillingProduct[]) {
     const { data: billing, error } = await supabase
       .from("project_billing")
       .insert({ project_id: proj.id, organization_id: orgId!, status: "draft" })
@@ -242,9 +297,11 @@ const ProjectBilling = () => {
     setBillingRecord(billing);
 
     const bId = billing.id;
-    const hc = proj.head_count || 0;
 
-    // ── Products from protocol events ──
+    // Compute suggestions first
+    await computeSuggestions(proj, evts, bulls);
+
+    // ── Products from protocol events (zeroed out) ──
     const newProducts: Omit<ProductLine, "id">[] = [];
     let sortIdx = 0;
 
@@ -261,128 +318,46 @@ const ProjectBilling = () => {
       const eventLabel = evt.event_name;
       const eventDate = evt.event_date;
 
+      const makeLine = (prod: BillingProduct, cat: string, label: string): Omit<ProductLine, "id"> => ({
+        billing_id: bId, billing_product_id: prod.id, product_name: prod.product_name,
+        product_category: cat, protocol_event_label: label, event_date: eventDate,
+        doses: 0, doses_per_unit: prod.doses_per_unit, unit_label: prod.unit_label,
+        units_calculated: 0, units_billed: 0, units_returned: 0,
+        unit_price: prod.default_price, line_total: 0,
+        sort_order: sortIdx++,
+      });
+
       if (en.includes("pgf") && en.includes("cidr insert")) {
-        // 7&7 first step: PGF + CIDR Insert (must come before generic cidr insert check)
         const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
-        if (pgfProd) {
-          const u = calcUnits(hc, pgfProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: pgfProd.id, product_name: pgfProd.product_name,
-            product_category: "pgf", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: pgfProd.doses_per_unit, unit_label: pgfProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: pgfProd.default_price, line_total: u * (pgfProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel));
         if (!isMGA) {
           const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
-          if (cidrProd) {
-            const u = calcUnits(hc, cidrProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: cidrProd.id, product_name: cidrProd.product_name,
-              product_category: "cidr", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: cidrProd.doses_per_unit, unit_label: cidrProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: cidrProd.default_price, line_total: u * (cidrProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel));
         }
       } else if (en.includes("cidr in") || en.includes("cidr insert")) {
         if (!isMGA) {
           const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
-          if (cidrProd) {
-            const u = calcUnits(hc, cidrProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: cidrProd.id, product_name: cidrProd.product_name,
-              product_category: "cidr", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: cidrProd.doses_per_unit, unit_label: cidrProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: cidrProd.default_price, line_total: u * (cidrProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel));
         }
         if (en.includes("gnrh")) {
           const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-          if (gnrhProd) {
-            const u = calcUnits(hc, gnrhProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-              product_category: "gnrh", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel));
         }
       } else if (en.includes("pgf") || en.includes("cidr out")) {
         const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
-        if (pgfProd) {
-          const u = calcUnits(hc, pgfProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: pgfProd.id, product_name: pgfProd.product_name,
-            product_category: "pgf", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: pgfProd.doses_per_unit, unit_label: pgfProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: pgfProd.default_price, line_total: u * (pgfProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel));
         if (en.includes("cidr out") && !isMGA) {
           const patchProd = getDefaultProduct("patch") || getProduct("patch");
-          if (patchProd) {
-            const u = calcUnits(hc, patchProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: patchProd.id, product_name: patchProd.product_name,
-              product_category: "patch", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: patchProd.doses_per_unit, unit_label: patchProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: patchProd.default_price, line_total: u * (patchProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (patchProd) newProducts.push(makeLine(patchProd, "patch", eventLabel));
         }
       } else if (en.includes("gnrh")) {
         const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-        if (gnrhProd) {
-          const u = calcUnits(hc, gnrhProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-            product_category: "gnrh", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel));
       } else if (en.includes("timed breeding") || en.includes("tai") || en.includes("breed")) {
         const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-        if (gnrhProd) {
-          const u = calcUnits(hc, gnrhProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-            product_category: "gnrh", protocol_event_label: "Breeding (Mass GnRH)", event_date: eventDate,
-            doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", "Breeding (Mass GnRH)"));
         const svcProd = getDefaultProduct("service") || getProduct("service");
-        if (svcProd) {
-          const u = calcUnits(hc, svcProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: svcProd.id, product_name: svcProd.product_name,
-            product_category: "service", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: svcProd.doses_per_unit, unit_label: svcProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: svcProd.default_price, line_total: u * (svcProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (svcProd) newProducts.push(makeLine(svcProd, "service", eventLabel));
       }
     }
 
@@ -391,7 +366,7 @@ const ProjectBilling = () => {
       setProductLines((inserted ?? []) as ProductLine[]);
     }
 
-    // ── Sessions from protocol events ──
+    // ── Sessions from protocol events (dates/labels pre-fill, quantities blank) ──
     const sessionSkip = ["return heat", "estimated calving"];
     const newSessions: Omit<SessionLine, "id">[] = evts
       .filter(e => !sessionSkip.some(s => (e.event_name || "").toLowerCase().includes(s)))
@@ -411,57 +386,21 @@ const ProjectBilling = () => {
       setSessions((inserted ?? []) as SessionLine[]);
     }
 
-    // ── Semen from project bulls ──
-    // Also check for pack data
-    let packUnitsMap = new Map<string, number>();
-    let unpackUnitsMap = new Map<string, number>();
-
-    const { data: packProjects } = await supabase
-      .from("tank_pack_projects")
-      .select("tank_pack_id")
-      .eq("project_id", proj.id);
-
-    if (packProjects && packProjects.length > 0) {
-      const packIds = packProjects.map(pp => pp.tank_pack_id);
-      const { data: packLines } = await supabase
-        .from("tank_pack_lines")
-        .select("bull_catalog_id, bull_name, units")
-        .in("tank_pack_id", packIds);
-
-      for (const pl of packLines ?? []) {
-        const key = pl.bull_catalog_id || pl.bull_name;
-        packUnitsMap.set(key, (packUnitsMap.get(key) || 0) + pl.units);
-      }
-
-      const { data: unpackLines } = await supabase
-        .from("tank_unpack_lines")
-        .select("bull_catalog_id, bull_name, units_returned")
-        .in("tank_pack_id", packIds);
-
-      for (const ul of unpackLines ?? []) {
-        const key = ul.bull_catalog_id || ul.bull_name;
-        unpackUnitsMap.set(key, (unpackUnitsMap.get(key) || 0) + ul.units_returned);
-      }
-    }
-
+    // ── Semen from project bulls (zeroed out) ──
     const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
       const bullName = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
-      const key = catalogId || bullName;
-      const packed = packUnitsMap.get(key) || 0;
-      const returned = unpackUnitsMap.get(key) || 0;
-      const billable = Math.max(0, packed - returned);
 
       return {
         billing_id: bId,
         bull_catalog_id: catalogId,
         bull_name: bullName,
         bull_code: bullCode,
-        units_packed: packed,
-        units_returned: returned,
+        units_packed: 0,
+        units_returned: 0,
         units_blown: 0,
-        units_billable: billable,
+        units_billable: 0,
         unit_price: 0,
         line_total: 0,
         sort_order: i,
@@ -474,6 +413,135 @@ const ProjectBilling = () => {
     }
 
     setLaborLines([]);
+  }
+
+  /* ── reset sheet ── */
+  async function handleResetSheet() {
+    if (!billingId || !projectId || !project) return;
+    await Promise.all([
+      supabase.from("project_billing_products").delete().eq("billing_id", billingId),
+      supabase.from("project_billing_sessions").delete().eq("billing_id", billingId),
+      supabase.from("project_billing_semen").delete().eq("billing_id", billingId),
+      supabase.from("project_billing_labor").delete().eq("billing_id", billingId),
+    ]);
+    setProductLines([]);
+    setSessions([]);
+    setSemenLines([]);
+    setLaborLines([]);
+
+    // Re-fetch project data for fresh suggestions
+    const [eventsRes, bullsRes, productsRes] = await Promise.all([
+      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"),
+      supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number)").eq("project_id", projectId),
+      supabase.from("billing_products").select("*").eq("organization_id", orgId!).eq("active", true).order("sort_order"),
+    ]);
+
+    // Re-use existing billing record, just rebuild children
+    const bId = billingId;
+    const evts = eventsRes.data ?? [];
+    const bulls = bullsRes.data ?? [];
+    const products = (productsRes.data ?? []) as BillingProduct[];
+
+    // Compute suggestions
+    await computeSuggestions(project, evts, bulls);
+
+    // Rebuild zeroed product lines
+    const hc = project.head_count || 0;
+    const getDefaultProduct = (cat: string) => products.find(p => p.product_category === cat && p.is_default);
+    const getProduct = (cat: string) => products.find(p => p.product_category === cat);
+    const skipEvents = ["Return Heat", "Estimated Calving", "MGA Start", "MGA End", "Bulls In"];
+    const isMGA = project.protocol?.toLowerCase().includes("mga");
+
+    const newProducts: Omit<ProductLine, "id">[] = [];
+    let sortIdx = 0;
+
+    const makeLine = (prod: BillingProduct, cat: string, label: string, eventDate: string): Omit<ProductLine, "id"> => ({
+      billing_id: bId!, billing_product_id: prod.id, product_name: prod.product_name,
+      product_category: cat, protocol_event_label: label, event_date: eventDate,
+      doses: 0, doses_per_unit: prod.doses_per_unit, unit_label: prod.unit_label,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: prod.default_price, line_total: 0,
+      sort_order: sortIdx++,
+    });
+
+    for (const evt of evts) {
+      const en = (evt.event_name || "").toLowerCase();
+      if (skipEvents.some(s => en.includes(s.toLowerCase()))) continue;
+      const eventLabel = evt.event_name;
+      const eventDate = evt.event_date;
+
+      if (en.includes("pgf") && en.includes("cidr insert")) {
+        const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel, eventDate));
+        if (!isMGA) {
+          const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel, eventDate));
+        }
+      } else if (en.includes("cidr in") || en.includes("cidr insert")) {
+        if (!isMGA) {
+          const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel, eventDate));
+        }
+        if (en.includes("gnrh")) {
+          const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
+          if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel, eventDate));
+        }
+      } else if (en.includes("pgf") || en.includes("cidr out")) {
+        const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel, eventDate));
+        if (en.includes("cidr out") && !isMGA) {
+          const patchProd = getDefaultProduct("patch") || getProduct("patch");
+          if (patchProd) newProducts.push(makeLine(patchProd, "patch", eventLabel, eventDate));
+        }
+      } else if (en.includes("gnrh")) {
+        const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel, eventDate));
+      } else if (en.includes("timed breeding") || en.includes("tai") || en.includes("breed")) {
+        const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", "Breeding (Mass GnRH)", eventDate));
+        const svcProd = getDefaultProduct("service") || getProduct("service");
+        if (svcProd) newProducts.push(makeLine(svcProd, "service", eventLabel, eventDate));
+      }
+    }
+
+    if (newProducts.length > 0) {
+      const { data: inserted } = await supabase.from("project_billing_products").insert(newProducts).select();
+      setProductLines((inserted ?? []) as ProductLine[]);
+    }
+
+    // Sessions
+    const sessionSkip = ["return heat", "estimated calving"];
+    const newSessions: Omit<SessionLine, "id">[] = evts
+      .filter(e => !sessionSkip.some(s => (e.event_name || "").toLowerCase().includes(s)))
+      .map((e, i) => ({
+        billing_id: bId!,
+        session_date: e.event_date,
+        session_label: e.event_name,
+        time_of_day: e.event_time ? formatTime12(e.event_time) : null,
+        head_count: null, crew: null, notes: null, sort_order: i,
+      }));
+
+    if (newSessions.length > 0) {
+      const { data: inserted } = await supabase.from("project_billing_sessions").insert(newSessions).select();
+      setSessions((inserted ?? []) as SessionLine[]);
+    }
+
+    // Semen
+    const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => ({
+      billing_id: bId!,
+      bull_catalog_id: b.bull_catalog_id,
+      bull_name: b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown",
+      bull_code: b.bulls_catalog?.naab_code || null,
+      units_packed: 0, units_returned: 0, units_blown: 0, units_billable: 0,
+      unit_price: 0, line_total: 0, sort_order: i,
+    }));
+
+    if (newSemen.length > 0) {
+      const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemen).select();
+      setSemenLines((inserted ?? []) as SemenLine[]);
+    }
+
+    toast({ title: "Billing sheet reset" });
   }
 
   useEffect(() => {
