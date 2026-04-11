@@ -702,6 +702,8 @@ const PackTank = () => {
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
             : packType === "order"
             ? `Packed to ${fieldTankName} for order(s)`
+            : packType === "pickup"
+            ? `Customer pickup — ${customers.find((c: any) => c.id === pickupCustomerId)?.name ?? "Unknown customer"}`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
         if (deductTxnErr) throw new Error(`Failed to write deduction transaction: ${deductTxnErr.message}`);
