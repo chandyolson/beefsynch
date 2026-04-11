@@ -329,6 +329,21 @@ const CustomerDetail = () => {
   }, [allFills]);
 
   // Edit customer handlers
+  const handleDeleteCustomer = async () => {
+    if (!id || !orgId) return;
+    setDeletingCustomer(true);
+    try {
+      const { error } = await supabase.from("customers").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Customer deleted" });
+      navigate("/tanks-dashboard?tab=customers");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingCustomer(false);
+    }
+  };
+
   const openEdit = () => {
     if (!customer) return;
     setFormName(customer.name || "");
