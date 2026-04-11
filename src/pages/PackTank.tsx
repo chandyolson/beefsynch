@@ -565,6 +565,7 @@ const PackTank = () => {
           shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
           tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
           tank_return_expected: packType === "shipment" ? tankReturnExpected : packType === "pickup" ? tankReturnExpectedPickup : true,
+          customer_id: packType === "pickup" ? pickupCustomerId : null,
         })
         .select()
         .single();
@@ -685,6 +686,7 @@ const PackTank = () => {
             bull_catalog_id: line.bullCatalogId,
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
             bull_code: line.bullCode,
+            customer_id: packType === "pickup" ? pickupCustomerId : null,
           });
           if (fieldInsErr) throw new Error(`Failed to insert field tank inventory: ${fieldInsErr.message}`);
         }
