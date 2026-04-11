@@ -128,6 +128,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     },
   });
 
+  const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
   const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
 
   const rows = useMemo(() => inventory.map((item: any) => ({
