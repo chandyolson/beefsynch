@@ -105,8 +105,12 @@ export type Database = {
           breed: string
           bull_name: string
           company: string
+          created_by: string | null
           id: string
+          is_custom: boolean
           naab_code: string | null
+          notes: string | null
+          organization_id: string | null
           registration_number: string
         }
         Insert: {
@@ -114,8 +118,12 @@ export type Database = {
           breed: string
           bull_name: string
           company: string
+          created_by?: string | null
           id?: string
+          is_custom?: boolean
           naab_code?: string | null
+          notes?: string | null
+          organization_id?: string | null
           registration_number: string
         }
         Update: {
@@ -123,11 +131,23 @@ export type Database = {
           breed?: string
           bull_name?: string
           company?: string
+          created_by?: string | null
           id?: string
+          is_custom?: boolean
           naab_code?: string | null
+          notes?: string | null
+          organization_id?: string | null
           registration_number?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bulls_catalog_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
