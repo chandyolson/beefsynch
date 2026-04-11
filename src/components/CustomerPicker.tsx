@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Command, CommandInput, CommandList, CommandEmpty, CommandItem,
+  Command, CommandInput, CommandList, CommandEmpty, CommandItem, CommandGroup, CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -84,6 +84,7 @@ const CustomerPicker = ({ value, onChange, orgId, className }: CustomerPickerPro
     setNewPhone("");
     setNewEmail("");
     setNewAddress("");
+    setSearch("");
     toast({ title: "Customer created" });
   };
 
@@ -104,6 +105,21 @@ const CustomerPicker = ({ value, onChange, orgId, className }: CustomerPickerPro
           <Command shouldFilter={false}>
             <CommandInput placeholder="Search customers..." value={search} onValueChange={setSearch} />
             <CommandList>
+              <CommandGroup>
+                <CommandItem
+                  value="__create_new__"
+                  onSelect={() => {
+                    setNewName(search);
+                    setCreateOpen(true);
+                    setOpen(false);
+                  }}
+                  className="text-primary font-medium cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {search.trim() ? `Add "${search.trim()}"` : "Add new customer"}
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
               <CommandEmpty>No customers found.</CommandEmpty>
               {filtered.map((c) => (
                 <CommandItem
@@ -121,17 +137,6 @@ const CustomerPicker = ({ value, onChange, orgId, className }: CustomerPickerPro
                   </div>
                 </CommandItem>
               ))}
-              <CommandItem
-                onSelect={() => {
-                  setNewName(search);
-                  setCreateOpen(true);
-                  setOpen(false);
-                }}
-                className="text-primary"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                + Add new customer{search.trim() ? `: ${search.trim()}` : ""}
-              </CommandItem>
             </CommandList>
           </Command>
         </PopoverContent>
