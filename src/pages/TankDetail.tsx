@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus, ClipboardList } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -26,6 +26,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
@@ -178,6 +181,7 @@ const TankDetail = () => {
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingTank, setDeletingTank] = useState(false);
   const [eTankNumber, setETankNumber] = useState("");
   const [eTankName, setETankName] = useState("");
   const [eTankEid, setETankEid] = useState("");
@@ -487,7 +491,33 @@ const TankDetail = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Edit className="h-4 w-4" /> Edit</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEdit}>Edit</DropdownMenuItem>
+                <DropdownMenuItem>Report</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    const hasInventory = inventory.length > 0;
+                    if (confirm(
+                      hasInventory
+                        ? "⚠ This tank has inventory. Deleting it will remove the tank record but inventory rows may remain orphaned. Delete anyway?"
+                        : "Delete this tank? This cannot be undone."
+                    )) {
+                      handleDeleteTank();
+                    }
+                  }}
+                >
+                  {deletingTank ? "Deleting…" : "Delete"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {tank.status === "dry" ? (
               <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
             ) : (
