@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Plus, Search, Package, Droplets, Sun, Truck } from "lucide-react";
+import { Plus, Search, Package, Droplets, Sun, Truck } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
