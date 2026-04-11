@@ -882,12 +882,20 @@ const ProjectBilling = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            className="h-8 w-[90px] text-right text-xs ml-auto"
-                            value={line.doses}
-                            onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
-                          />
+                          <div className="flex items-center gap-1.5 justify-end">
+                            {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
+                              <span className="text-xs text-teal-400 whitespace-nowrap">
+                                {suggestedDoses[`${line.product_category}-${line.event_date}`]} suggested
+                              </span>
+                            )}
+                            <Input
+                              type="number"
+                              className="h-8 w-[80px] text-right text-xs ml-auto"
+                              value={line.doses || ""}
+                              placeholder="0"
+                              onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="text-right text-xs">
                           {(line.units_billed ?? line.units_calculated ?? 0).toFixed(1)} {line.unit_label || ""}
@@ -934,7 +942,13 @@ const ProjectBilling = () => {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-[10px] text-muted-foreground">Doses</label>
-                      <Input type="number" className="h-8 text-xs" value={line.doses}
+                      {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
+                        <span className="text-[10px] text-teal-400 ml-1">
+                          ({suggestedDoses[`${line.product_category}-${line.event_date}`]} suggested)
+                        </span>
+                      )}
+                      <Input type="number" className="h-8 text-xs" value={line.doses || ""}
+                        placeholder="0"
                         onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
@@ -985,9 +999,17 @@ const ProjectBilling = () => {
                       <TableCell className="text-sm font-medium">{line.bull_name}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
                       <TableCell className="text-right">
-                        <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_packed ?? 0}
-                          onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
+                        <div className="flex items-center gap-1.5 justify-end">
+                          {suggestedPackedUnits[line.bull_catalog_id || line.bull_name] != null && (
+                            <span className="text-xs text-teal-400 whitespace-nowrap">
+                              {suggestedPackedUnits[line.bull_catalog_id || line.bull_name]} packed
+                            </span>
+                          )}
+                          <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
+                            value={line.units_packed ?? ""}
+                            placeholder="0"
+                            onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
@@ -1020,7 +1042,13 @@ const ProjectBilling = () => {
                   <div className="grid grid-cols-4 gap-2">
                     <div>
                       <label className="text-[10px] text-muted-foreground">Packed</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_packed ?? 0}
+                      {suggestedPackedUnits[line.bull_catalog_id || line.bull_name] != null && (
+                        <span className="text-[10px] text-teal-400 ml-1">
+                          ({suggestedPackedUnits[line.bull_catalog_id || line.bull_name]})
+                        </span>
+                      )}
+                      <Input type="number" className="h-8 text-xs" value={line.units_packed ?? ""}
+                        placeholder="0"
                         onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
