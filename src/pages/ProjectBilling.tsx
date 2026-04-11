@@ -894,7 +894,7 @@ const ProjectBilling = () => {
                           <div className="flex items-center gap-1.5 justify-end">
                             {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
                               <span className="text-xs text-teal-400 whitespace-nowrap">
-                                {suggestedDoses[`${line.product_category}-${line.event_date}`]} suggested
+                                {suggestedDoses[`${line.product_category}-${line.event_date}`]}
                               </span>
                             )}
                             <Input
@@ -953,7 +953,7 @@ const ProjectBilling = () => {
                       <label className="text-[10px] text-muted-foreground">Doses</label>
                       {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
                         <span className="text-[10px] text-teal-400 ml-1">
-                          ({suggestedDoses[`${line.product_category}-${line.event_date}`]} suggested)
+                          ({suggestedDoses[`${line.product_category}-${line.event_date}`]})
                         </span>
                       )}
                       <Input type="number" className="h-8 text-xs" value={line.doses || ""}
@@ -1011,7 +1011,7 @@ const ProjectBilling = () => {
                         <div className="flex items-center gap-1.5 justify-end">
                           {suggestedPackedUnits[line.bull_catalog_id || line.bull_name] != null && (
                             <span className="text-xs text-teal-400 whitespace-nowrap">
-                              {suggestedPackedUnits[line.bull_catalog_id || line.bull_name]} packed
+                              {suggestedPackedUnits[line.bull_catalog_id || line.bull_name]}
                             </span>
                           )}
                           <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
