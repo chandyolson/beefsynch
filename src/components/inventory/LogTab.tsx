@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { Search, ClipboardList, BarChart3, PackageCheck, Plus, ArrowDownToLine, ArrowUpFromLine, Settings2 } from "lucide-react";
+import { Search, ClipboardList, BarChart3, PackageCheck } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
