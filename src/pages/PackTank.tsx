@@ -150,6 +150,27 @@ const PackTank = () => {
 
   const fieldTankOptions = packType === "shipment" ? shipperTanks : allActiveTanks;
 
+  // Fetch customers for pickup
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers_for_pickup", orgId],
+    enabled: !!orgId && packType === "pickup",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const filteredPickupCustomers = useMemo(() => {
+    if (!pickupCustomerSearch) return customers;
+    const q = pickupCustomerSearch.toLowerCase();
+    return customers.filter((c: any) => c.name.toLowerCase().includes(q));
+  }, [customers, pickupCustomerSearch]);
+
   // Fetch orders for "order" pack type
   const { data: availableOrders = [] } = useQuery({
     queryKey: ["orders-for-pack", orgId],
