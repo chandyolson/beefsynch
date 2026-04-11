@@ -1159,7 +1159,7 @@ const PackTank = () => {
                                 onCheckedChange={() => toggleOrder(o.id)}
                               />
                               <span className="flex-1">
-                                {o.customer_name || "No customer"}
+                                {(o as any).customers?.name || "No customer"}
                                 <span className="text-muted-foreground ml-1 text-xs">
                                   {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
                                 </span>
