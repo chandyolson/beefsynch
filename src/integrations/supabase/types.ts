@@ -1581,6 +1581,7 @@ export type Database = {
           closed_at: string | null
           closed_by: string | null
           created_at: string
+          customer_id: string | null
           destination_address: string | null
           destination_name: string | null
           field_tank_id: string
@@ -1602,6 +1603,7 @@ export type Database = {
           closed_at?: string | null
           closed_by?: string | null
           created_at?: string
+          customer_id?: string | null
           destination_address?: string | null
           destination_name?: string | null
           field_tank_id: string
@@ -1623,6 +1625,7 @@ export type Database = {
           closed_at?: string | null
           closed_by?: string | null
           created_at?: string
+          customer_id?: string | null
           destination_address?: string | null
           destination_name?: string | null
           field_tank_id?: string
@@ -1641,6 +1644,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tank_packs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tank_packs_field_tank_id_fkey"
             columns: ["field_tank_id"]
