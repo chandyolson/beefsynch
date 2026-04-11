@@ -446,7 +446,7 @@ const ProjectBilling = () => {
     await computeSuggestions(project, evts, bulls);
 
     // Rebuild zeroed product lines
-    const _ = project.head_count || 0; // unused but kept for reference
+    
     const getDefaultProduct = (cat: string) => products.find(p => p.product_category === cat && p.is_default);
     const getProduct = (cat: string) => products.find(p => p.product_category === cat);
     const skipEvents = ["Return Heat", "Estimated Calving", "MGA Start", "MGA End", "Bulls In"];
