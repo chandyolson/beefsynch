@@ -16,8 +16,19 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 1000;
 
-const formatType = (t: string) =>
-  t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const TYPE_META: Record<string, { label: string; badgeClass: string }> = {
+  received:       { label: "Received",        badgeClass: "bg-green-500/20 text-green-300 border-green-500/30" },
+  pack_out:       { label: "Packed Out",       badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+  unpack_return:  { label: "Unpack Return",    badgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/30" },
+  used_in_field:  { label: "Used in Field",    badgeClass: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
+  manual_add:     { label: "Manually Added",   badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+  transfer_in:    { label: "Transfer In",      badgeClass: "bg-green-500/20 text-green-300 border-green-500/30" },
+  transfer_out:   { label: "Transfer Out",     badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+  adjustment:     { label: "Adjustment",       badgeClass: "bg-gray-500/20 text-gray-300 border-gray-500/30" },
+};
+
+const getTypeLabel = (t: string) => TYPE_META[t]?.label ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const getTypeBadgeClass = (t: string) => TYPE_META[t]?.badgeClass ?? "";
 
 interface TxnRow {
   id: string;
@@ -133,7 +144,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {typesInData.map((t) => (
-              <SelectItem key={t} value={t}>{formatType(t)}</SelectItem>
+              <SelectItem key={t} value={t}>{getTypeLabel(t)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -171,8 +182,8 @@ const LogTab = ({ orgId }: { orgId: string }) => {
                     {format(new Date(r.created_at), "MMM d, yyyy h:mm a")}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs font-normal whitespace-nowrap">
-                      {formatType(r.transaction_type)}
+                    <Badge variant="outline" className={cn("text-xs font-normal whitespace-nowrap border", getTypeBadgeClass(r.transaction_type))}>
+                      {getTypeLabel(r.transaction_type)}
                     </Badge>
                   </TableCell>
                   <TableCell className="truncate">{getBullDisplay(r)}</TableCell>
