@@ -527,9 +527,9 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
             {filtered.length > 0 && (
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-right font-semibold">Total</TableCell>
+                  <TableCell colSpan={7} className="text-right font-semibold">Total</TableCell>
                   <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
-                  <TableCell colSpan={3} />
+                  <TableCell colSpan={4} />
                 </TableRow>
               </TableFooter>
             )}
