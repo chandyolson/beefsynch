@@ -159,6 +159,8 @@ const PackDetail = () => {
   const packTypeValue = pack?.pack_type || "project";
   const isShipment = packTypeValue === "shipment";
   const isOrder = packTypeValue === "order";
+  const isPickup = packTypeValue === "pickup";
+  const pickupCustomerName = (pack?.customers as any)?.name;
 
   const handleSaveTracking = async () => {
     setSavingTracking(true);
