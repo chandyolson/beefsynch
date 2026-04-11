@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { format, parseISO, differenceInDays } from "date-fns";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { Beef, Calendar, Plus } from "lucide-react";
 
@@ -27,7 +27,6 @@ interface DbProject {
 }
 
 const ProjectsTab = ({ orgId }: { orgId: string }) => {
-  const navigate = useNavigate();
   const { userId, role: myRole } = useOrgRole();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);

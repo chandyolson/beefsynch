@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Package, Users, Truck, PackagePlus, Droplets, ShoppingCart, Plus,
+  Package, Users, Truck, PackagePlus, ShoppingCart, Plus,
   Layers, ScrollText, List,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -83,7 +83,7 @@ const OperationsDashboard = () => {
     enabled: !!orgId,
   });
 
-  const currentTab = useMemo(() => TABS.find(t => t.key === activeTab) || TABS[0], [activeTab]);
+  
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
@@ -165,7 +165,7 @@ const OperationsDashboard = () => {
                 </Button>
               </div>
               <OrdersTab orgId={orgId} />
-              <NewOrderDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} orgId={orgId} />
+              <NewOrderDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} />
             </div>
           )}
           {activeTab === "receiving" && orgId && (
