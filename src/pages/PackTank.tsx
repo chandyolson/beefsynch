@@ -178,7 +178,7 @@ const PackTank = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, customer_name, order_date, fulfillment_status")
+        .select("id, order_date, fulfillment_status, customer_id, customers(name)")
         .eq("organization_id", orgId)
         .not("fulfillment_status", "in", "(delivered,cancelled)")
         .order("order_date", { ascending: false })
@@ -191,7 +191,7 @@ const PackTank = () => {
   const filteredOrders = useMemo(() => {
     if (!orderSearch) return availableOrders;
     const q = orderSearch.toLowerCase();
-    return availableOrders.filter((o: any) => (o.customer_name || "").toLowerCase().includes(q));
+    return availableOrders.filter((o: any) => ((o as any).customers?.name || "").toLowerCase().includes(q));
   }, [availableOrders, orderSearch]);
 
   // Fetch all tanks with inventory for source tank dropdown
@@ -1074,7 +1074,7 @@ const PackTank = () => {
                           const order = availableOrders.find((o: any) => o.id === oid);
                           return (
                             <Badge key={oid} variant="secondary" className="gap-1">
-                              {order?.customer_name || "Order"}
+                              {(order as any)?.customers?.name || "Order"}
                               <X className="h-3 w-3 cursor-pointer" onClick={() => toggleOrder(oid)} />
                             </Badge>
                           );

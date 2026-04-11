@@ -130,7 +130,7 @@ const ReceiveShipmentPreview = () => {
       if (!shipment?.semen_order_id) return null;
       const { data } = await supabase
         .from("semen_orders")
-        .select("fulfillment_status, customer_name")
+        .select("fulfillment_status, customer_id, customers(name)")
         .eq("id", shipment.semen_order_id)
         .single();
       return data;
@@ -139,7 +139,7 @@ const ReceiveShipmentPreview = () => {
   });
 
   const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
-  const showDuplicateWarning = isDraft && linkedOrder && alreadyReceivedStatuses.includes(linkedOrder.fulfillment_status);
+  const showDuplicateWarning = isDraft && linkedOrder && alreadyReceivedStatuses.includes((linkedOrder as any).fulfillment_status);
 
   // Build reconciliation
   const { reconciliation, totals } = useMemo(() => {
@@ -308,7 +308,7 @@ const ReceiveShipmentPreview = () => {
           shipment_id: id,
           order_id: shipment.semen_order_id || null,
           performed_by: userId,
-          notes: `Received from ${shipment.received_from || "unknown"}`,
+          notes: `Received via shipment`,
         });
         if (txErr) { toast({ title: "Error recording transaction", description: txErr.message, variant: "destructive" }); setConfirming(false); return; }
       }
@@ -393,9 +393,9 @@ const ReceiveShipmentPreview = () => {
     if (!shipment) return;
     generateReceivingReportPdf(
       {
-        received_from: shipment.received_from,
+        received_from: (shipment as any).semen_companies?.name || "—",
         received_date: shipment.received_date,
-        received_by: shipment.received_by,
+        received_by: shipment.received_by || null,
         notes: shipment.notes,
         confirmed_at: snapshot?.confirmed_at || shipment.confirmed_at,
       },
@@ -474,8 +474,8 @@ const ReceiveShipmentPreview = () => {
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Received From</span>
-                <p className="font-medium">{shipment.received_from || "—"}</p>
+                <span className="text-muted-foreground">Company</span>
+                <p className="font-medium">{(shipment as any).semen_companies?.name || "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Received Date</span>
@@ -522,7 +522,7 @@ const ReceiveShipmentPreview = () => {
             <div>
               <p className="font-medium">This order has already been received</p>
               <p className="text-amber-300/80 mt-0.5">
-                Status: <strong>{linkedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Confirming this draft will create a second shipment and add to inventory again.
+                Status: <strong>{(linkedOrder as any)?.fulfillment_status?.replace(/_/g, " ")}</strong>. Confirming this draft will create a second shipment and add to inventory again.
               </p>
             </div>
           </div>
