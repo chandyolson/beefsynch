@@ -242,14 +242,14 @@ const CustomerDetail = () => {
 
   // Fetch customer orders
   const { data: customerOrders = [] } = useQuery({
-    queryKey: ["customer_orders", customer?.name, orgId],
-    enabled: !!customer?.name && !!orgId,
+    queryKey: ["customer_orders", customer?.id, orgId],
+    enabled: !!customer?.id && !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name)")
+        .select("*, semen_companies(name), customers(id, name)")
         .eq("organization_id", orgId!)
-        .ilike("customer_name", customer!.name)
+        .eq("customer_id", customer!.id)
         .order("order_date", { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -888,7 +888,7 @@ const CustomerDetail = () => {
                     {customerShipments.map((ship: any) => (
                       <TableRow key={ship.id}>
                         <TableCell className="text-sm">{format(new Date(ship.received_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="text-sm">{ship.received_from || ship.semen_companies?.name || "—"}</TableCell>
+                        <TableCell className="text-sm">{ship.semen_companies?.name || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{ship.notes || "—"}</TableCell>
                       </TableRow>
                     ))}

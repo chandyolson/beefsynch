@@ -132,7 +132,7 @@ const PackDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_pack_orders")
-        .select("semen_order_id, semen_orders(id, customer_name, order_date, fulfillment_status)")
+        .select("semen_order_id, semen_orders(id, order_date, fulfillment_status, customers(name))")
         .eq("tank_pack_id", id!);
       if (error) throw error;
       return (data ?? []) as any[];

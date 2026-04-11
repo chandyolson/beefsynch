@@ -40,7 +40,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, received_from, received_date, semen_order_id, status, confirmed_at, confirmed_by, reconciliation_snapshot, created_at, semen_orders(customer_name)")
+        .select("id, received_date, semen_order_id, semen_company_id, semen_companies(name), status, confirmed_at, confirmed_by, reconciliation_snapshot, created_at, semen_orders(id, customers(name))")
         .eq("organization_id", orgId)
         .eq("status", "confirmed")
         .order("received_date", { ascending: false })
@@ -58,7 +58,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, received_from, received_date, semen_order_id, status, reconciliation_snapshot, created_at, updated_at, semen_orders(customer_name)")
+        .select("id, received_date, semen_order_id, semen_company_id, semen_companies(name), status, reconciliation_snapshot, created_at, updated_at, semen_orders(id, customers(name))")
         .eq("organization_id", orgId)
         .eq("status", "draft")
         .order("created_at", { ascending: false })
@@ -78,8 +78,8 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter((r: any) =>
-        (r.received_from || "").toLowerCase().includes(q) ||
-        ((r.semen_orders as any)?.customer_name || "").toLowerCase().includes(q)
+        (r.semen_companies?.name || "").toLowerCase().includes(q) ||
+        ((r.semen_orders as any)?.customers?.name || "").toLowerCase().includes(q)
       );
     }
     return rows;
@@ -89,8 +89,8 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     if (!search.trim()) return drafts;
     const q = search.toLowerCase();
     return drafts.filter((r: any) =>
-      (r.received_from || "").toLowerCase().includes(q) ||
-      ((r.semen_orders as any)?.customer_name || "").toLowerCase().includes(q)
+      (r.semen_companies?.name || "").toLowerCase().includes(q) ||
+      ((r.semen_orders as any)?.customers?.name || "").toLowerCase().includes(q)
     );
   }, [drafts, search]);
 
@@ -111,7 +111,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
   const orderFilterName = useMemo(() => {
     if (!orderFilter) return null;
     const match = confirmed.find((r: any) => r.semen_order_id === orderFilter);
-    return (match as any)?.semen_orders?.customer_name || "Unknown";
+    return (match as any)?.semen_orders?.customers?.name || "Unknown";
   }, [orderFilter, confirmed]);
 
   const handleDeleteConfirmed = async (row: any) => {
@@ -128,7 +128,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
         edited_by: userId!,
         field_name: "override_delete",
         old_value: JSON.stringify({
-          received_from: row.received_from,
+          received_from: row.semen_companies?.name || null,
           received_date: row.received_date,
           semen_order_id: row.semen_order_id,
           units_reversed: stats.units,
@@ -238,7 +238,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                     <TableBody>
                       {filteredConfirmed.map((row: any) => {
                         const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const orderName = (row.semen_orders as any)?.customer_name;
+                        const orderName = (row.semen_orders as any)?.customers?.name;
                         return (
                           <TableRow
                             key={row.id}
@@ -246,7 +246,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
                           >
                             <TableCell>{row.received_date ? format(new Date(row.received_date + "T00:00:00"), "MMM d, yyyy") : "—"}</TableCell>
-                            <TableCell>{row.received_from || "—"}</TableCell>
+                            <TableCell>{row.semen_companies?.name || "—"}</TableCell>
                             <TableCell>{orderName || "—"}</TableCell>
                             <TableCell className="text-right">{stats.lines}</TableCell>
                             <TableCell className="text-right">{stats.units}</TableCell>
@@ -334,7 +334,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                     <TableBody>
                       {filteredDrafts.map((row: any) => {
                         const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const orderName = (row.semen_orders as any)?.customer_name;
+                        const orderName = (row.semen_orders as any)?.customers?.name;
                         const lastEdited = row.updated_at || row.created_at;
                         return (
                           <TableRow
@@ -343,7 +343,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
                           >
                             <TableCell>{row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "—"}</TableCell>
-                            <TableCell>{row.received_from || "—"}</TableCell>
+                            <TableCell>{row.semen_companies?.name || "—"}</TableCell>
                             <TableCell>{orderName || "—"}</TableCell>
                             <TableCell className="text-right">{stats.lines}</TableCell>
                             <TableCell>{lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}</TableCell>

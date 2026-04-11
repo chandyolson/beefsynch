@@ -277,7 +277,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_transactions")
-        .select("*, bulls_catalog(bull_name), customers(name), projects(name)")
+        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(id, customers(name))")
         .eq("tank_id", id!)
         .order("created_at", { ascending: false })
         .limit(10000);
@@ -816,7 +816,7 @@ const TankDetail = () => {
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions recorded</TableCell></TableRow>
                 ) : transactions.map((t: any) => {
                   const bullName = t.bulls_catalog?.bull_name || t.custom_bull_name || "—";
-                  const projOrder = t.projects?.name || t.semen_orders?.customer_name || "—";
+                  const projOrder = t.projects?.name || t.semen_orders?.customers?.name || "—";
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap">{format(parseISO(t.created_at), "MMM d, yyyy")}</TableCell>

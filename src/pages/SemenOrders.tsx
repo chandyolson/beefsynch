@@ -69,7 +69,7 @@ const SemenOrders = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name, naab_code))")
+        .select("*, customers(id, name), semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name, naab_code))")
         .eq("organization_id", orgId!)
         .order("order_date", { ascending: false });
       if (error) throw error;
@@ -95,7 +95,7 @@ const SemenOrders = () => {
   // Filtered orders
   const filtered = useMemo(() => {
     return orders.filter((o: any) => {
-      if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !(o.customers?.name || "").toLowerCase().includes(search.toLowerCase())) return false;
       if (fulfillmentFilter !== "all" && o.fulfillment_status !== fulfillmentFilter) return false;
       if (billingFilter !== "all" && o.billing_status !== billingFilter) return false;
       if (orderTypeFilter !== "all" && o.order_type !== orderTypeFilter) return false;
@@ -266,7 +266,7 @@ const SemenOrders = () => {
                         {order.order_type === "inventory" && (
                           <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs shrink-0">INV</Badge>
                         )}
-                        {order.customer_name || "—"}
+                        {order.customers?.name || "—"}
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
@@ -299,7 +299,7 @@ const SemenOrders = () => {
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => {
-                              if (confirm(`Delete order for ${order.customer_name || "this customer"}? This cannot be undone.`)) {
+                              if (confirm(`Delete order for ${order.customers?.name || "this customer"}? This cannot be undone.`)) {
                                 deleteMutation.mutate(order.id);
                               }
                             }}

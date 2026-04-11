@@ -64,7 +64,7 @@ const Packs = () => {
           tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number),
           tank_pack_lines(id, units),
           tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)),
-          tank_pack_orders(semen_order_id, semen_orders(customer_name))
+          tank_pack_orders(semen_order_id, semen_orders(id, customers(name)))
         `)
         .eq("organization_id", orgId)
         .order("packed_at", { ascending: false })
@@ -93,7 +93,7 @@ const Packs = () => {
       const projects = (row.tank_pack_projects as any[]) || [];
       const projNames = projects.map((p: any) => (p.projects?.name || "").toLowerCase()).join(" ");
       const orders = (row.tank_pack_orders as any[]) || [];
-      const orderNames = orders.map((o: any) => (o.semen_orders?.customer_name || "").toLowerCase()).join(" ");
+      const orderNames = orders.map((o: any) => (o.semen_orders?.customers?.name || "").toLowerCase()).join(" ");
       return tankLabel.includes(q) || dest.includes(q) || packedBy.includes(q) || projNames.includes(q) || orderNames.includes(q);
     });
   }, [packs, search]);
@@ -108,7 +108,7 @@ const Packs = () => {
     if (row.pack_type === "order") {
       const orders = (row.tank_pack_orders as any[]) || [];
       if (orders.length === 0) return "—";
-      const first = orders[0]?.semen_orders?.customer_name || "—";
+      const first = orders[0]?.semen_orders?.customers?.name || "—";
       return orders.length > 1 ? `${first} (+${orders.length - 1} more)` : first;
     }
     // project

@@ -393,7 +393,7 @@ const ReceiveShipmentPreview = () => {
     if (!shipment) return;
     generateReceivingReportPdf(
       {
-        received_from: (shipment as any).semen_companies?.name || "—",
+        received_from_name: (shipment as any).semen_companies?.name || "—",
         received_date: shipment.received_date,
         received_by: shipment.received_by || null,
         notes: shipment.notes,
