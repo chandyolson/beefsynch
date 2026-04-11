@@ -48,7 +48,7 @@ const SemenOrders = () => {
   const navigate = useNavigate();
   const { orgId, role } = useOrgRole();
   const queryClient = useQueryClient();
-  const canDelete = role === "owner" || role === "admin";
+  
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
