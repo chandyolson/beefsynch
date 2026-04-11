@@ -788,6 +788,18 @@ const ProjectBilling = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => {
+                if (confirm("Reset this billing sheet? All entered values will be cleared. This cannot be undone.")) {
+                  handleResetSheet();
+                }
+              }}
+            >
+              Reset Sheet
+            </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
