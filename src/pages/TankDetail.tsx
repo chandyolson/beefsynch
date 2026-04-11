@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -132,7 +132,6 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                 <TableHead>Projects</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Units</TableHead>
-                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,7 +140,7 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                 const totalUnitsForPack = (p.tank_pack_lines || []).reduce((s: number, l: any) => s + (l.units || 0), 0);
                 const isShipment = p.pack_type === "shipment";
                 return (
-                  <TableRow key={p.id} className="hover:bg-muted/20">
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-muted/20" onClick={() => navigate(`/pack/${p.id}`)}>
                     <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1">
@@ -157,11 +156,6 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                       }>{p.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{totalUnitsForPack}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${p.id}`)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -345,7 +339,7 @@ const TankDetail = () => {
       const { error } = await supabase.from("tanks").delete().eq("id", tank.id);
       if (error) throw error;
       toast({ title: "Tank deleted" });
-      navigate("/tanks");
+      navigate("/tanks-dashboard?tab=tanks");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -514,7 +508,7 @@ const TankDetail = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={openEdit}>Edit</DropdownMenuItem>
-                <DropdownMenuItem>Report</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}>Report</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
