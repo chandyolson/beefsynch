@@ -792,7 +792,7 @@ const PackTank = () => {
           <CardContent className="space-y-4">
             {/* Field Tank */}
             <div className="flex items-start gap-4">
-              <Label className="w-28 shrink-0 text-right pt-2">{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
+              <Label className="w-28 shrink-0 text-right pt-2">{packType === "shipment" ? "Shipper Tank *" : packType === "pickup" ? "Customer Tank *" : "Field Tank *"}</Label>
               <div className="flex items-center gap-2 flex-1">
                 <div className="flex-1">
                   <Popover open={fieldTankOpen} onOpenChange={setFieldTankOpen}>
