@@ -352,7 +352,6 @@ const BullList = () => {
 
   // ===== Row renderers =====
   const renderMobileCard = (bull: CatalogBull) => {
-    const ssUrl = selectSiresUrl(bull);
     return (
       <div
         key={bull.id}
@@ -407,7 +406,6 @@ const BullList = () => {
   };
 
   const renderDesktopRow = (bull: CatalogBull, showCheckbox: boolean) => {
-    const ssUrl = selectSiresUrl(bull);
     return (
       <TableRow
         key={bull.id}
