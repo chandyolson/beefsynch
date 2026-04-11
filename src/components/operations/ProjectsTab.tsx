@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Beef, Calendar, Star } from "lucide-react";
+import { Beef, Calendar, Plus } from "lucide-react";
 
-import Navbar from "@/components/Navbar";
-import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
 import BulkActionToolbar from "@/components/BulkActionToolbar";
@@ -12,9 +9,8 @@ import NewProjectDialog from "@/components/NewProjectDialog";
 import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/data/mockData";
-import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 interface DbProject {
   id: string;
@@ -29,56 +25,23 @@ interface DbProject {
   last_contacted_date: string | null;
 }
 
-const Index = () => {
-  const navigate = useNavigate();
-  const { userId, orgId, role: myRole } = useOrgRole();
+const ProjectsTab = ({ orgId }: { orgId: string }) => {
+  const { userId, role: myRole } = useOrgRole();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bullsDialogOpen, setBullsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isAnonymous, setIsAnonymous] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setIsAnonymous(!user || !!user.is_anonymous);
-    });
-  }, []);
-
-  const { favoritedIds } = useBullFavorites();
-
-  // Fetch catalog bulls for favorite chips
-  const { data: catalogBulls = [] } = useQuery({
-    queryKey: ["bulls_catalog_all"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("bulls_catalog")
-        .select("id, bull_name, company")
-        .eq("active", true);
-      return data ?? [];
-    },
-  });
-
-  const favoriteBulls = useMemo(() => {
-    return catalogBulls.filter((b) => favoritedIds.has(b.id));
-  }, [catalogBulls, favoritedIds]);
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
   const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
 
   const fetchProjects = useCallback(async () => {
-    let query = supabase
+    const { data } = await supabase
       .from("projects")
       .select("*")
+      .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
-
-    if (orgId) {
-      query = query.eq("organization_id", orgId);
-    } else if (userId) {
-      query = query.eq("user_id", userId);
-    }
-
-    const { data } = await query;
 
     if (data) {
       setDbProjects(data as DbProject[]);
@@ -97,7 +60,6 @@ const Index = () => {
       }));
       setProjects(mapped);
 
-      // Fetch earliest protocol event date per project
       const projectIds = data.map((p) => p.id);
       let earliestDateMap: Record<string, string> = {};
       if (projectIds.length > 0) {
@@ -116,13 +78,13 @@ const Index = () => {
         }
       }
 
-      // Update startDate with earliest protocol event date
       setProjects((prev) =>
         prev.map((p) => ({
           ...p,
           startDate: earliestDateMap[p.id] || p.startDate,
         }))
       );
+
       if (projectIds.length > 0) {
         const { data: bullsData } = await supabase
           .from("project_bulls")
@@ -142,7 +104,6 @@ const Index = () => {
           setBullsByProject(map);
         }
 
-        // Fetch which projects have been synced to Google Calendar
         const { data: syncData } = await supabase
           .from("google_calendar_events")
           .select("project_id")
@@ -176,10 +137,8 @@ const Index = () => {
   const heiferHead = heiferProjects.reduce((s, p) => s + p.headCount, 0);
   const cowHead = cowProjects.reduce((s, p) => s + p.headCount, 0);
 
-  // Bulls stats
   const bullStats = useMemo(() => {
     const names = new Set<string>();
-    const catalogIds = new Set<string>();
     let totalUnits = 0;
     for (const bulls of Object.values(bullsByProject)) {
       for (const b of bulls) {
@@ -187,11 +146,9 @@ const Index = () => {
         totalUnits += b.units;
       }
     }
-    // We don't have catalog vs custom separation here, so catalogIds stays 0
     return { distinct: names.size, catalogCount: names.size, totalUnits };
   }, [bullsByProject]);
 
-  // Breeding season
   const breedingSeason = useMemo(() => {
     const dates = dbProjects
       .map((p) => p.breeding_date)
@@ -206,81 +163,86 @@ const Index = () => {
   }, [dbProjects]);
 
   return (
-    <div className="min-h-screen">
-      <Navbar onNewProject={() => setDialogOpen(true)} />
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Projects"
-            value={totalProjects}
-            delay={0}
-            index={0}
-            breakdown={<>
-              <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferProjects.length} projects</span></p>
-              <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowProjects.length} projects</span></p>
-            </>}
-          />
-          <StatCard
-            title="Total Head"
-            value={totalHead}
-            delay={100}
-            index={1}
-            breakdown={<>
-              <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferHead} head</span></p>
-              <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowHead} head</span></p>
-            </>}
-          />
-          <StatCard
-            title="Bulls in Use"
-            value={bullStats.distinct}
-            delay={200}
-            index={2}
-            icon={Beef}
-            onClick={() => setBullsDialogOpen(true)}
-            breakdown={<>
-              <p className="flex justify-between">Catalog Bulls <span style={{ color: "#5de8d0" }}>{bullStats.catalogCount}</span></p>
-              <p className="flex justify-between">Total Units <span style={{ color: "#5de8d0" }}>{bullStats.totalUnits}</span></p>
-            </>}
-          />
-          <StatCard
-            title="Breeding Season"
-            value={breedingSeason ? `${breedingSeason.span} day${breedingSeason.span !== 1 ? "s" : ""}` : "—"}
-            delay={300}
-            index={3}
-            icon={Calendar}
-            breakdown={breedingSeason ? (
-              breedingSeason.same ? (
-                <p className="flex justify-between">Date <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
-              ) : (<>
-                <p className="flex justify-between">First <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
-                <p className="flex justify-between">Last <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.last), "MMM d, yyyy")}</span></p>
-              </>)
-            ) : undefined}
-          />
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold font-display">Projects</h2>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> New Project
+        </Button>
+      </div>
 
-
-        {selectedProjects.length > 0 && (
-          <BulkActionToolbar
-            selectedProjects={selectedProjects}
-            onClear={() => setSelectedIds(new Set())}
-            onComplete={() => {
-              setSelectedIds(new Set());
-              fetchProjects();
-            }}
-            canDelete={true}
-          />
-        )}
-        <ProjectsTable
-          projects={projects}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          bullsByProject={bullsByProject}
-          syncedProjectIds={syncedProjectIds}
-          canEditAll={myRole === "owner" || myRole === "admin"}
-          currentUserId={userId}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Projects"
+          value={totalProjects}
+          delay={0}
+          index={0}
+          breakdown={<>
+            <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferProjects.length} projects</span></p>
+            <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowProjects.length} projects</span></p>
+          </>}
         />
-      </main>
+        <StatCard
+          title="Total Head"
+          value={totalHead}
+          delay={100}
+          index={1}
+          breakdown={<>
+            <p className="flex justify-between">Heifers <span style={{ color: "#5de8d0" }}>{heiferHead} head</span></p>
+            <p className="flex justify-between">Cows <span style={{ color: "#5de8d0" }}>{cowHead} head</span></p>
+          </>}
+        />
+        <StatCard
+          title="Bulls in Use"
+          value={bullStats.distinct}
+          delay={200}
+          index={2}
+          icon={Beef}
+          onClick={() => setBullsDialogOpen(true)}
+          breakdown={<>
+            <p className="flex justify-between">Catalog Bulls <span style={{ color: "#5de8d0" }}>{bullStats.catalogCount}</span></p>
+            <p className="flex justify-between">Total Units <span style={{ color: "#5de8d0" }}>{bullStats.totalUnits}</span></p>
+          </>}
+        />
+        <StatCard
+          title="Breeding Season"
+          value={breedingSeason ? `${breedingSeason.span} day${breedingSeason.span !== 1 ? "s" : ""}` : "—"}
+          delay={300}
+          index={3}
+          icon={Calendar}
+          breakdown={breedingSeason ? (
+            breedingSeason.same ? (
+              <p className="flex justify-between">Date <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
+            ) : (<>
+              <p className="flex justify-between">First <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.first), "MMM d, yyyy")}</span></p>
+              <p className="flex justify-between">Last <span style={{ color: "#5de8d0" }}>{format(parseISO(breedingSeason.last), "MMM d, yyyy")}</span></p>
+            </>)
+          ) : undefined}
+        />
+      </div>
+
+      {selectedProjects.length > 0 && (
+        <BulkActionToolbar
+          selectedProjects={selectedProjects}
+          onClear={() => setSelectedIds(new Set())}
+          onComplete={() => {
+            setSelectedIds(new Set());
+            fetchProjects();
+          }}
+          canDelete={true}
+        />
+      )}
+
+      <ProjectsTable
+        projects={projects}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        bullsByProject={bullsByProject}
+        syncedProjectIds={syncedProjectIds}
+        canEditAll={myRole === "owner" || myRole === "admin"}
+        currentUserId={userId}
+      />
+
       <NewProjectDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -292,9 +254,8 @@ const Index = () => {
         bullsByProject={bullsByProject}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
-      <AppFooter />
     </div>
   );
 };
 
-export default Index;
+export default ProjectsTab;

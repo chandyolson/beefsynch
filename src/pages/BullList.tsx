@@ -470,7 +470,7 @@ const BullList = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/operations")}
             className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
             <ArrowLeft className="h-3 w-3" />

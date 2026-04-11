@@ -741,7 +741,7 @@ const ProjectBilling = () => {
         <Navbar />
         <div className="max-w-4xl mx-auto px-4 py-12 text-center">
           <p className="text-muted-foreground">Project not found.</p>
-          <Button className="mt-4" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <Button className="mt-4" onClick={() => navigate("/operations")}>Back to Dashboard</Button>
         </div>
       </div>
     );

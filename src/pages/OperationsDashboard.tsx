@@ -1,12 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Package, Users, Truck, PackagePlus, Droplets, ShoppingCart, Plus,
-  Layers, ScrollText
+  Package, Users, Truck, PackagePlus, ShoppingCart, Plus,
+  Layers, ScrollText, List,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import NewOrderDialog from "@/components/NewOrderDialog";
+import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
 import PackingTab from "@/components/inventory/PackingTab";
@@ -16,6 +18,7 @@ import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 1000;
 
@@ -34,30 +37,24 @@ async function fetchAllUnits(baseQuery: any): Promise<number> {
 }
 
 const TABS = [
-  { key: "inventory", label: "Inventory", icon: Layers, desc: "This tab will show your semen inventory with filters and exports." },
-  { key: "orders", label: "Orders", icon: ShoppingCart, desc: "This tab will show semen orders with fulfillment and billing status." },
-  { key: "receiving", label: "Receiving", icon: Truck, desc: "This tab will show received shipments with packing slip attachments." },
-  { key: "packing", label: "Packing", icon: PackagePlus, desc: "This tab will show pack and unpack history." },
-  { key: "tanks", label: "Tanks", icon: Package, desc: "This tab will show all tanks with fill status and locations." },
-  { key: "log", label: "Log", icon: ScrollText, desc: "This tab will show the full inventory transaction ledger." },
+  { key: "projects", label: "Projects", icon: List },
+  { key: "inventory", label: "Inventory", icon: Layers },
+  { key: "orders", label: "Orders", icon: ShoppingCart },
+  { key: "receiving", label: "Receiving", icon: Truck },
+  { key: "packing", label: "Packing", icon: PackagePlus },
+  { key: "tanks", label: "Tanks", icon: Package },
+  { key: "log", label: "Log", icon: ScrollText },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];
 
-const QUICK_ACTIONS = [
-  { label: "Receive Shipment", icon: Truck, path: "/receive-shipment" },
-  { label: "Pack Tank", icon: PackagePlus, path: "/pack-tank" },
-  { label: "Fill Tank", icon: Droplets, path: "/tanks-dashboard" },
-  { label: "New Order", icon: ShoppingCart, path: "/semen-orders" },
-  { label: "New Project", icon: Plus, path: "/dashboard" },
-];
-
-const InventoryHub = () => {
+const OperationsDashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const activeTab = (searchParams.get("tab") as TabKey) || "inventory";
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const activeTab = (searchParams.get("tab") as TabKey) || "projects";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "all";
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
@@ -86,7 +83,7 @@ const InventoryHub = () => {
     enabled: !!orgId,
   });
 
-  const currentTab = useMemo(() => TABS.find(t => t.key === activeTab) || TABS[0], [activeTab]);
+  
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
@@ -95,11 +92,10 @@ const InventoryHub = () => {
 
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
         {/* Page title */}
-        <h1 className="text-2xl font-bold font-display text-foreground">Inventory Hub</h1>
+        <h1 className="text-2xl font-bold font-display text-foreground">Operations Dashboard</h1>
 
         {/* Header cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Company inventory card */}
           <button
             onClick={() => setTab("inventory", { owner: "company" })}
             className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
@@ -117,7 +113,6 @@ const InventoryHub = () => {
             </p>
           </button>
 
-          {/* Customer inventory card */}
           <button
             onClick={() => setTab("inventory", { owner: "customer" })}
             className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
@@ -134,20 +129,6 @@ const InventoryHub = () => {
               {customerUnits.toLocaleString()} <span className="text-base font-normal text-white/70">units</span>
             </p>
           </button>
-        </div>
-
-        {/* Quick actions */}
-        <div className="flex flex-wrap gap-2">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.label}
-              onClick={() => navigate(action.path)}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            >
-              <action.icon className="h-4 w-4" />
-              {action.label}
-            </button>
-          ))}
         </div>
 
         {/* Tabs */}
@@ -170,13 +151,46 @@ const InventoryHub = () => {
 
         {/* Tab content */}
         <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+          {activeTab === "projects" && orgId && (
+            <ProjectsTab orgId={orgId} />
+          )}
           {activeTab === "inventory" && orgId && (
             <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
           )}
-          {activeTab === "orders" && orgId && <OrdersTab orgId={orgId} />}
-          {activeTab === "receiving" && orgId && <ReceivingTab orgId={orgId} />}
-          {activeTab === "packing" && orgId && <PackingTab orgId={orgId} />}
-          {activeTab === "tanks" && orgId && <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />}
+          {activeTab === "orders" && orgId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-end">
+                <Button onClick={() => setOrderDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> New Order
+                </Button>
+              </div>
+              <OrdersTab orgId={orgId} />
+              <NewOrderDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} />
+            </div>
+          )}
+          {activeTab === "receiving" && orgId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-end">
+                <Button onClick={() => navigate("/receive-shipment")}>
+                  <Plus className="h-4 w-4 mr-2" /> Receive Shipment
+                </Button>
+              </div>
+              <ReceivingTab orgId={orgId} />
+            </div>
+          )}
+          {activeTab === "packing" && orgId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-end gap-2">
+                <Button onClick={() => navigate("/pack-tank")}>
+                  <Plus className="h-4 w-4 mr-2" /> Pack Tank
+                </Button>
+              </div>
+              <PackingTab orgId={orgId} />
+            </div>
+          )}
+          {activeTab === "tanks" && orgId && (
+            <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
+          )}
           {activeTab === "log" && orgId && <LogTab orgId={orgId} />}
         </div>
       </main>
@@ -186,4 +200,4 @@ const InventoryHub = () => {
   );
 };
 
-export default InventoryHub;
+export default OperationsDashboard;
