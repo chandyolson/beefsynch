@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Plus, Search, Package, Droplets, Sun, Truck } from "lucide-react";
+import { Plus, Search, Package, Droplets, Sun, Truck } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -250,13 +250,6 @@ const Tanks = () => {
     return "";
   };
 
-  const handleEyeClick = (tank: any) => {
-    if (tank.customer_id) {
-      navigate(`/customers/${tank.customer_id}`);
-    } else {
-      navigate(`/tanks/${tank.id}`);
-    }
-  };
 
   return (
     <div className="min-h-screen">
@@ -320,17 +313,17 @@ const Tanks = () => {
                 <TableHead className="whitespace-nowrap">Model</TableHead>
                 <TableHead className="whitespace-nowrap">Last Fill</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     {tanks.length === 0 ? "No tanks yet." : "No tanks match your filters."}
                   </TableCell>
                 </TableRow>
@@ -357,11 +350,6 @@ const Tanks = () => {
                       {tank.lastFill ? format(parseISO(tank.lastFill), "MMM d, yyyy") : "—"}
                     </TableCell>
                     <TableCell className="text-right">{tank.totalUnits}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEyeClick(tank)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                   );
                 })
