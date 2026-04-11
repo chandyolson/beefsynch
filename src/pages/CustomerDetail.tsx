@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -61,6 +61,7 @@ const CustomerDetail = () => {
 
   // Edit customer dialog
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -552,9 +553,27 @@ const CustomerDetail = () => {
                 <Mail className="h-4 w-4" /> Email
               </Button>
             )}
-            <Button variant="outline" onClick={openEdit} className="gap-2">
-              <Edit className="h-4 w-4" /> Edit
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEdit}>Edit</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    if (confirm("Delete this customer? This cannot be undone.")) {
+                      handleDeleteCustomer();
+                    }
+                  }}
+                >
+                  {deletingCustomer ? "Deleting…" : "Delete"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
