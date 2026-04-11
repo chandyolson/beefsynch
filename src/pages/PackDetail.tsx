@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck,
+  ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck, Package,
   Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon,
 } from "lucide-react";
 
