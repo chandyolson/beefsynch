@@ -220,6 +220,67 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
 
   const handleExportPdf = () => generateSemenInventoryPdf(filtered, { storageFilter, ownerFilter, search });
 
+  const openEdit = (row: any) => {
+    setEditRow(row);
+    setEditForm({
+      custom_bull_name: row.bullName || "",
+      bull_code: row.bullCode || "",
+      tank_id: row.tankId || "",
+      customer_id: row.customerId || "",
+      canister: row.canister || "",
+      sub_canister: row.subCanister === "—" ? "" : row.subCanister || "",
+      units: row.units ?? 0,
+      storage_type: row.storageType || "inventory",
+      owner: row.owner || "",
+      notes: row.notes || "",
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRow) return;
+    setSavingEdit(true);
+    try {
+      const updates: any = {
+        custom_bull_name: editForm.custom_bull_name?.trim() || null,
+        bull_code: editForm.bull_code?.trim() || null,
+        tank_id: editForm.tank_id || editRow.tankId,
+        customer_id: editForm.customer_id || null,
+        canister: editForm.canister?.trim() || "1",
+        sub_canister: editForm.sub_canister?.trim() || null,
+        units: Number(editForm.units) || 0,
+        storage_type: editForm.storage_type || null,
+        owner: editForm.owner?.trim() || null,
+        notes: editForm.notes?.trim() || null,
+      };
+      const { error } = await supabase
+        .from("tank_inventory")
+        .update(updates)
+        .eq("id", editRow.id);
+      if (error) throw error;
+      toast.success("Inventory row updated");
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      setEditRow(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteRow = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const { error } = await supabase.from("tank_inventory").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Inventory row deleted");
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleExportCsv = () => {
     if (viewMode === "grouped" && groupedByBull.length > 0) {
       const headers = ["Bull Name", "Bull Code", "Customer", "Tanks", "Units"];
