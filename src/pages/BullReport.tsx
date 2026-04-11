@@ -112,7 +112,7 @@ interface OrderItemJoin {
   semen_order_id: string;
   semen_orders: {
     id: string;
-    customer_name: string;
+    customers: { name: string } | null;
     order_date: string;
   } | null;
 }
@@ -203,7 +203,7 @@ const BullReport = () => {
           bull_catalog_id,
           semen_order_id,
           bulls_catalog (bull_name, company, registration_number, breed),
-          semen_orders!inner (id, customer_name, order_date, order_type)
+          semen_orders!inner (id, order_date, order_type, customers(name))
         `)
         .eq("semen_orders.order_type", "customer");
 
@@ -300,7 +300,7 @@ const BullReport = () => {
         if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
         if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
         const q = appliedSearch.toLowerCase();
-        if (q && !bullName.toLowerCase().includes(q) && !ord.customer_name.toLowerCase().includes(q)) continue;
+        if (q && !bullName.toLowerCase().includes(q) && !(ord.customers?.name || "").toLowerCase().includes(q)) continue;
 
         const entry = initEntry(key, bullName, co, regNum, br);
         entry.totalUnits += row.units;
@@ -308,7 +308,7 @@ const BullReport = () => {
 
         if (!entry.orderIds.has(ord.id)) {
           entry.orderIds.add(ord.id);
-          entry.namesList.push(`Order: ${ord.customer_name}`);
+          entry.namesList.push(`Order: ${ord.customers?.name || "Unknown"}`);
           entry.datesList.push(format(new Date(ord.order_date + "T00:00:00"), "M/d/yyyy"));
         }
       }
@@ -393,7 +393,7 @@ const BullReport = () => {
         const q = appliedSearch.toLowerCase();
         if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
         if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
-        if (q && !bullName.toLowerCase().includes(q) && !row.semen_orders.customer_name.toLowerCase().includes(q)) continue;
+        if (q && !bullName.toLowerCase().includes(q) && !(row.semen_orders.customers?.name || "").toLowerCase().includes(q)) continue;
         projectIds.add(`order_${row.semen_orders.id}`);
       }
     }

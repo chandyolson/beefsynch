@@ -20,7 +20,7 @@ interface Totals {
 }
 
 interface ShipmentMeta {
-  received_from: string | null;
+  received_from_name: string | null;
   received_date: string;
   received_by: string | null;
   notes: string | null;
@@ -55,7 +55,7 @@ export const generateReceivingReportPdf = (
     y += 6;
   };
 
-  addMeta("Received From", meta.received_from || "—");
+  addMeta("Received From", meta.received_from_name || "—");
   addMeta("Received Date", meta.received_date ? format(new Date(meta.received_date + "T00:00:00"), "MMM d, yyyy") : "—");
   addMeta("Received By", meta.received_by || "—");
   if (isConfirmed && meta.confirmed_at) {
@@ -122,6 +122,6 @@ export const generateReceivingReportPdf = (
   doc.text("Packing slip photo on file — view in BeefSynch", 14, ty);
 
   const dateStr = meta.received_date ? format(new Date(meta.received_date + "T00:00:00"), "yyyy-MM-dd") : "unknown";
-  const filename = `Receiving Report — ${meta.received_from || "Unknown"} — ${dateStr}.pdf`;
+  const filename = `Receiving Report — ${meta.received_from_name || "Unknown"} — ${dateStr}.pdf`;
   doc.save(filename);
 };
