@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  PackagePlus, Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  Truck, ChevronDown, ChevronUp, MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -334,9 +334,6 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
               Active Packs
               <Badge variant="secondary" className="text-xs">{activePacks.length}</Badge>
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate("/pack-tank")} className="gap-1.5">
-              <PackagePlus className="h-4 w-4" /> Pack Tank
-            </Button>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="rounded-lg border border-border/50 overflow-x-auto">

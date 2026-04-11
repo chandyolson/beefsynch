@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
-  Package, Users, Truck, PackagePlus, ShoppingCart, Plus,
+  Package, Users, Truck, PackagePlus, ShoppingCart,
   Layers, ScrollText, List,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
-import NewOrderDialog from "@/components/NewOrderDialog";
+
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
@@ -18,7 +18,7 @@ import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+
 
 const PAGE_SIZE = 1000;
 
@@ -49,11 +49,9 @@ const TABS = [
 type TabKey = typeof TABS[number]["key"];
 
 const OperationsDashboard = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "projects";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "all";
 
@@ -158,35 +156,13 @@ const OperationsDashboard = () => {
             <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
           )}
           {activeTab === "orders" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end">
-                <Button onClick={() => setOrderDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" /> New Order
-                </Button>
-              </div>
-              <OrdersTab orgId={orgId} />
-              <NewOrderDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} />
-            </div>
+            <OrdersTab orgId={orgId} />
           )}
           {activeTab === "receiving" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end">
-                <Button onClick={() => navigate("/receive-shipment")}>
-                  <Plus className="h-4 w-4 mr-2" /> Receive Shipment
-                </Button>
-              </div>
-              <ReceivingTab orgId={orgId} />
-            </div>
+            <ReceivingTab orgId={orgId} />
           )}
           {activeTab === "packing" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end gap-2">
-                <Button onClick={() => navigate("/pack-tank")}>
-                  <Plus className="h-4 w-4 mr-2" /> Pack Tank
-                </Button>
-              </div>
-              <PackingTab orgId={orgId} />
-            </div>
+            <PackingTab orgId={orgId} />
           )}
           {activeTab === "tanks" && orgId && (
             <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
