@@ -338,6 +338,21 @@ const TankDetail = () => {
     setEditOpen(true);
   };
 
+  const handleDeleteTank = async () => {
+    if (!tank?.id || !orgId) return;
+    setDeletingTank(true);
+    try {
+      const { error } = await supabase.from("tanks").delete().eq("id", tank.id);
+      if (error) throw error;
+      toast({ title: "Tank deleted" });
+      navigate("/tanks");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingTank(false);
+    }
+  };
+
   const handleEditSave = async () => {
     if (!eTankNumber.trim() || !id) return;
     setESaving(true);
