@@ -564,6 +564,27 @@ const TankDetail = () => {
           </div>
         </div>
 
+        {/* ───── Out With Banner ───── */}
+        {activePack && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-amber-400 shrink-0" />
+              <div>
+                <p className="font-semibold text-amber-300">
+                  {activePack.pack_type === "shipment"
+                    ? `Out with ${activePack.destination_name || "shipment"}`
+                    : `Out for ${(activePack.tank_pack_projects?.[0] as any)?.projects?.name || "project"}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Packed on {format(new Date(activePack.packed_at), "MMM d, yyyy")}
+                  {activePack.tracking_number && ` · Tracking: ${activePack.tracking_number}`}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/pack/${activePack.id}`)}>View Pack</Button>
+          </div>
+        )}
+
         {/* ───── Inventory ───── */}
         <div>
           <h2 className="text-lg font-semibold mb-3">Inventory ({totalUnits} units)</h2>
@@ -599,41 +620,78 @@ const TankDetail = () => {
               </div>
             ))
           ) : (
-            <div className="rounded-lg border border-border/50 overflow-hidden">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/10">
-                  <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {inventory.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No inventory</TableCell></TableRow>
-                  ) : (
-                    <>
-                      {inventory.map((inv: any) => (
-                        <TableRow key={inv.id}>
-                          <TableCell>{inv.canister}</TableCell>
-                          <TableCell>{inv.sub_canister || "—"}</TableCell>
-                          <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
-                            {inv.item_type === "embryo" && (
-                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{inv.bull_code || "—"}</TableCell>
-                          <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
-                          <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
-                          <TableCell className="text-right">{inv.units}</TableCell>
+            <>
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <Table>
+                  <TableHeader><TableRow className="bg-muted/10">
+                    <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {activeRows.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No active inventory</TableCell></TableRow>
+                    ) : (
+                      <>
+                        {activeRows.map((inv: any) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>{inv.canister}</TableCell>
+                            <TableCell>{inv.sub_canister || "—"}</TableCell>
+                            <TableCell>
+                              {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                              {inv.item_type === "embryo" && (
+                                <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{inv.bull_code || "—"}</TableCell>
+                            <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                            <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                            <TableCell className="text-right">{inv.units}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/20 font-semibold">
+                          <TableCell colSpan={6}>Total</TableCell>
+                          <TableCell className="text-right">{totalUnits}</TableCell>
                         </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/20 font-semibold">
-                        <TableCell colSpan={6}>Total</TableCell>
-                        <TableCell className="text-right">{totalUnits}</TableCell>
-                      </TableRow>
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {emptyRows.length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-2">
+                    Empty / Previously Held ({emptyRows.length})
+                  </summary>
+                  <div className="mt-2 opacity-60">
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader><TableRow className="bg-muted/10">
+                          <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {emptyRows.map((inv: any) => (
+                            <TableRow key={inv.id}>
+                              <TableCell>{inv.canister}</TableCell>
+                              <TableCell>{inv.sub_canister || "—"}</TableCell>
+                              <TableCell>
+                                {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                                {inv.item_type === "embryo" && (
+                                  <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{inv.bull_code || "—"}</TableCell>
+                              <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                              <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                              <TableCell className="text-right">{inv.units}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </details>
+              )}
+            </>
           )}
         </div>
 
