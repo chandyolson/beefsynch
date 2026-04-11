@@ -158,35 +158,13 @@ const OperationsDashboard = () => {
             <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
           )}
           {activeTab === "orders" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end">
-                <Button onClick={() => setOrderDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" /> New Order
-                </Button>
-              </div>
-              <OrdersTab orgId={orgId} />
-              <NewOrderDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} />
-            </div>
+            <OrdersTab orgId={orgId} />
           )}
           {activeTab === "receiving" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end">
-                <Button onClick={() => navigate("/receive-shipment")}>
-                  <Plus className="h-4 w-4 mr-2" /> Receive Shipment
-                </Button>
-              </div>
-              <ReceivingTab orgId={orgId} />
-            </div>
+            <ReceivingTab orgId={orgId} />
           )}
           {activeTab === "packing" && orgId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-end gap-2">
-                <Button onClick={() => navigate("/pack-tank")}>
-                  <Plus className="h-4 w-4 mr-2" /> Pack Tank
-                </Button>
-              </div>
-              <PackingTab orgId={orgId} />
-            </div>
+            <PackingTab orgId={orgId} />
           )}
           {activeTab === "tanks" && orgId && (
             <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
