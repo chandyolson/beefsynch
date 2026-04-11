@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -297,6 +297,28 @@ const TankDetail = () => {
     },
   });
 
+  // Active pack query
+  const { data: activePack } = useQuery({
+    queryKey: ["tank_active_pack", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select(`
+          id, pack_type, status, packed_at, tracking_number, destination_name,
+          tank_pack_projects(projects!tank_pack_projects_project_id_fkey(name))
+        `)
+        .eq("field_tank_id", id!)
+        .in("status", ["packed", "in_field"])
+        .maybeSingle();
+      if (error) {
+        toast({ title: "Failed to load pack status", description: error.message, variant: "destructive" });
+        return null;
+      }
+      return data as any;
+    },
+  });
+
   // Grouped inventory by customer for communal tanks
   const isCommunal = tank?.tank_type === "communal_tank";
   const inventoryByCustomer = useMemo(() => {
@@ -313,7 +335,9 @@ const TankDetail = () => {
     return Array.from(map.values());
   }, [inventory, isCommunal]);
 
-  const totalUnits = inventory.reduce((s: number, i: any) => s + (i.units || 0), 0);
+  const activeRows = inventory.filter((r: any) => (r.units ?? 0) > 0);
+  const emptyRows = inventory.filter((r: any) => (r.units ?? 0) === 0);
+  const totalUnits = activeRows.reduce((s: number, i: any) => s + (i.units || 0), 0);
 
   const lastFill = fills.length > 0 ? fills[0] : null;
   const fillWarning = lastFill ? differenceInDays(new Date(), parseISO(lastFill.fill_date)) > 90 : false;
@@ -540,6 +564,27 @@ const TankDetail = () => {
           </div>
         </div>
 
+        {/* ───── Out With Banner ───── */}
+        {activePack && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-amber-400 shrink-0" />
+              <div>
+                <p className="font-semibold text-amber-300">
+                  {activePack.pack_type === "shipment"
+                    ? `Out with ${activePack.destination_name || "shipment"}`
+                    : `Out for ${(activePack.tank_pack_projects?.[0] as any)?.projects?.name || "project"}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Packed on {format(new Date(activePack.packed_at), "MMM d, yyyy")}
+                  {activePack.tracking_number && ` · Tracking: ${activePack.tracking_number}`}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/pack/${activePack.id}`)}>View Pack</Button>
+          </div>
+        )}
+
         {/* ───── Inventory ───── */}
         <div>
           <h2 className="text-lg font-semibold mb-3">Inventory ({totalUnits} units)</h2>
@@ -575,41 +620,78 @@ const TankDetail = () => {
               </div>
             ))
           ) : (
-            <div className="rounded-lg border border-border/50 overflow-hidden">
-              <Table>
-                <TableHeader><TableRow className="bg-muted/10">
-                  <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {inventory.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No inventory</TableCell></TableRow>
-                  ) : (
-                    <>
-                      {inventory.map((inv: any) => (
-                        <TableRow key={inv.id}>
-                          <TableCell>{inv.canister}</TableCell>
-                          <TableCell>{inv.sub_canister || "—"}</TableCell>
-                          <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
-                            {inv.item_type === "embryo" && (
-                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{inv.bull_code || "—"}</TableCell>
-                          <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
-                          <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
-                          <TableCell className="text-right">{inv.units}</TableCell>
+            <>
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <Table>
+                  <TableHeader><TableRow className="bg-muted/10">
+                    <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {activeRows.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No active inventory</TableCell></TableRow>
+                    ) : (
+                      <>
+                        {activeRows.map((inv: any) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>{inv.canister}</TableCell>
+                            <TableCell>{inv.sub_canister || "—"}</TableCell>
+                            <TableCell>
+                              {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                              {inv.item_type === "embryo" && (
+                                <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{inv.bull_code || "—"}</TableCell>
+                            <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                            <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                            <TableCell className="text-right">{inv.units}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/20 font-semibold">
+                          <TableCell colSpan={6}>Total</TableCell>
+                          <TableCell className="text-right">{totalUnits}</TableCell>
                         </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/20 font-semibold">
-                        <TableCell colSpan={6}>Total</TableCell>
-                        <TableCell className="text-right">{totalUnits}</TableCell>
-                      </TableRow>
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {emptyRows.length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-2">
+                    Empty / Previously Held ({emptyRows.length})
+                  </summary>
+                  <div className="mt-2 opacity-60">
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader><TableRow className="bg-muted/10">
+                          <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {emptyRows.map((inv: any) => (
+                            <TableRow key={inv.id}>
+                              <TableCell>{inv.canister}</TableCell>
+                              <TableCell>{inv.sub_canister || "—"}</TableCell>
+                              <TableCell>
+                                {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                                {inv.item_type === "embryo" && (
+                                  <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{inv.bull_code || "—"}</TableCell>
+                              <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                              <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                              <TableCell className="text-right">{inv.units}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </details>
+              )}
+            </>
           )}
         </div>
 
