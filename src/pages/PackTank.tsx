@@ -764,9 +764,25 @@ const PackTank = () => {
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "shipment" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); }}
+            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); setPickupCustomerId(""); }}
           >
             <Truck className="h-4 w-4" /> Shipment
+          </button>
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "pickup" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => {
+              setPackType("pickup");
+              setSelectedTankId("");
+              setSelectedOrders([]);
+              setSelectedProjects([]);
+              setInventorySummary({});
+              setProjectBullUnits([]);
+              setPickupCustomerId("");
+            }}
+          >
+            <Package className="h-4 w-4" /> Pickup
           </button>
         </div>
 
