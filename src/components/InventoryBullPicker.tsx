@@ -69,13 +69,15 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
     if (!query || query.length < 1) {
       const timeout = setTimeout(async () => {
         setLoading(true);
-        const { data } = await supabase
+        let q = supabase
           .from("tank_inventory")
           .select("id, custom_bull_name, bull_catalog_id, bull_code, canister, units, bulls_catalog(bull_name)")
           .eq("tank_id", sourceTankId)
           .eq("organization_id", organizationId)
           .eq("item_type", "semen")
-          .gt("units", 0)
+          .gt("units", 0);
+        if (customerId) q = q.eq("customer_id", customerId);
+        const { data } = await q
           .order("custom_bull_name", { ascending: true })
           .limit(50);
         setResults(formatRows(data));
@@ -85,13 +87,15 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
     }
     const timeout = setTimeout(async () => {
       setLoading(true);
-      const { data } = await supabase
+      let q = supabase
         .from("tank_inventory")
         .select("id, custom_bull_name, bull_catalog_id, bull_code, canister, units, bulls_catalog(bull_name)")
         .eq("tank_id", sourceTankId)
         .eq("organization_id", organizationId)
         .eq("item_type", "semen")
-        .gt("units", 0)
+        .gt("units", 0);
+      if (customerId) q = q.eq("customer_id", customerId);
+      const { data } = await q
         .or(`custom_bull_name.ilike.%${query}%,bull_code.ilike.%${query}%`)
         .order("custom_bull_name", { ascending: true })
         .limit(30);
@@ -99,7 +103,7 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
       setLoading(false);
     }, 200);
     return () => clearTimeout(timeout);
-  }, [query, sourceTankId, organizationId]);
+  }, [query, sourceTankId, organizationId, customerId]);
 
   const displayName = (row: InventoryRow): string => {
     return row.catalog_bull_name || row.custom_bull_name || "Unknown";
