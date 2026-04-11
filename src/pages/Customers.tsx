@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, Plus, Search, Users, Package, Archive } from "lucide-react";
+import { Plus, Search, Users, Package, Archive } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -28,6 +28,7 @@ const Customers = () => {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "has_tanks" | "has_units">("has_tanks");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Form state
@@ -113,10 +114,21 @@ const Customers = () => {
 
   // Filtered
   const filtered = useMemo(() => {
-    if (!search) return customerData;
-    const q = search.toLowerCase();
-    return customerData.filter((c: any) => c.name.toLowerCase().includes(q));
-  }, [customerData, search]);
+    let result = customerData;
+
+    if (filterMode === "has_tanks") {
+      result = result.filter((c: any) => c.tankCount > 0);
+    } else if (filterMode === "has_units") {
+      result = result.filter((c: any) => c.totalUnits > 0);
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((c: any) => c.name.toLowerCase().includes(q));
+    }
+
+    return result;
+  }, [customerData, search, filterMode]);
 
   // Stats
   const totalCustomers = customers.length;
@@ -199,8 +211,8 @@ const Customers = () => {
         </div>
 
         {/* Search */}
-        <div className="flex-1 min-w-[200px] max-w-xs">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] max-w-xs flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search customer..."
@@ -208,6 +220,32 @@ const Customers = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
+          </div>
+          <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("all")}
+            >
+              All
+            </button>
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "has_tanks" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("has_tanks")}
+            >
+              Has Tanks
+            </button>
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "has_units" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("has_units")}
+            >
+              Has Units
+            </button>
           </div>
         </div>
 
@@ -222,17 +260,16 @@ const Customers = () => {
                 <TableHead className="whitespace-nowrap text-right">Tanks</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                 <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     {customers.length === 0 ? "No customers yet." : "No customers match your search."}
                   </TableCell>
                 </TableRow>
@@ -248,11 +285,6 @@ const Customers = () => {
                       {cust.lastInventoried
                         ? format(parseISO(cust.lastInventoried), "MMM d, yyyy")
                         : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/customers/${cust.id}`)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
