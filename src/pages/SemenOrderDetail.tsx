@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil } from "lucide-react";
+import { ArrowLeft, FileDown, MoreHorizontal } from "lucide-react";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
@@ -76,6 +79,7 @@ const SemenOrderDetail = () => {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -119,6 +123,21 @@ const SemenOrderDetail = () => {
   const openEdit = () => {
     if (!order) return;
     setEditOpen(true);
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!id || !orgId) return;
+    setDeletingOrder(true);
+    try {
+      const { error } = await supabase.from("semen_orders").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Order deleted" });
+      navigate("/inventory-dashboard?tab=orders");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingOrder(false);
+    }
   };
 
   const getEditData = (): EditOrderData | null => {
@@ -185,9 +204,27 @@ const SemenOrderDetail = () => {
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> Export PDF
             </Button>
-            <Button size="sm" onClick={openEdit}>
-              <Pencil className="h-4 w-4 mr-1" /> Edit
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEdit}>Edit</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    if (confirm("Delete this order? This cannot be undone.")) {
+                      handleDeleteOrder();
+                    }
+                  }}
+                >
+                  {deletingOrder ? "Deleting…" : "Delete"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
