@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -21,7 +22,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -202,6 +203,15 @@ const TankDetail = () => {
   const [moveNotes, setMoveNotes] = useState("");
   const [moveSaving, setMoveSaving] = useState(false);
 
+  // Manual add dialog
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualBullName, setManualBullName] = useState("");
+  const [manualBullCode, setManualBullCode] = useState("");
+  const [manualUnits, setManualUnits] = useState<number>(0);
+  const [manualCanister, setManualCanister] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+
   // Fetch tank
   const { data: tank, isLoading } = useQuery({
     queryKey: ["tank_detail", id],
@@ -267,7 +277,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_transactions")
-        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(customer_name)")
+        .select("*, bulls_catalog(bull_name), customers(name), projects(name)")
         .eq("tank_id", id!)
         .order("created_at", { ascending: false })
         .limit(10000);
@@ -475,6 +485,50 @@ const TankDetail = () => {
     setMoveProjectId("none");
   };
 
+  // Manual add handler
+  const handleManualAdd = async () => {
+    if (!tank?.customer_id || !manualBullName.trim() || manualUnits <= 0 || !orgId) return;
+    setManualSubmitting(true);
+    try {
+      const { data: invRow, error: invErr } = await supabase
+        .from("tank_inventory")
+        .insert({
+          tank_id: tank.id,
+          customer_id: tank.customer_id,
+          custom_bull_name: manualBullName.trim(),
+          bull_code: manualBullCode.trim() || null,
+          units: manualUnits,
+          canister: manualCanister.trim() || "1",
+          organization_id: orgId,
+        })
+        .select()
+        .single();
+      if (invErr) throw invErr;
+
+      const { error: txErr } = await supabase.from("inventory_transactions").insert({
+        tank_id: tank.id,
+        inventory_item_id: invRow.id,
+        customer_id: tank.customer_id,
+        transaction_type: "manual_add",
+        units_change: manualUnits,
+        notes: manualNotes.trim() || null,
+        organization_id: orgId,
+        performed_by: userId,
+      });
+      if (txErr) throw txErr;
+
+      toast({ title: "Bull added to inventory" });
+      setShowManualAdd(false);
+      setManualBullName(""); setManualBullCode(""); setManualUnits(0); setManualCanister(""); setManualNotes("");
+      queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
+    } catch (err: any) {
+      toast({ title: "Failed to add bull", description: err.message, variant: "destructive" });
+    } finally {
+      setManualSubmitting(false);
+    }
+  };
+
   const tankLabel = tank?.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank?.tank_number || "Tank";
 
   if (isLoading) {
@@ -561,6 +615,9 @@ const TankDetail = () => {
               </>
             )}
             <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
+            {tank.customer_id && (
+              <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
+            )}
           </div>
         </div>
 
@@ -910,6 +967,44 @@ const TankDetail = () => {
               <Button onClick={handleMoveSave} disabled={moveSaving}>{moveSaving ? "Saving…" : "Save"}</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Add Dialog */}
+      <Dialog open={showManualAdd} onOpenChange={setShowManualAdd}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Bull to {tankLabel}</DialogTitle>
+            <DialogDescription>Manually add semen that's already in this tank but not in the system.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Bull Name *</Label>
+              <Input value={manualBullName} onChange={(e) => setManualBullName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Bull Code</Label>
+              <Input value={manualBullCode} onChange={(e) => setManualBullCode(e.target.value)} placeholder="optional" />
+            </div>
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Units *</Label>
+              <Input type="number" min={1} value={manualUnits || ""} onChange={(e) => setManualUnits(parseInt(e.target.value) || 0)} />
+            </div>
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Canister</Label>
+              <Input value={manualCanister} onChange={(e) => setManualCanister(e.target.value)} placeholder="optional (defaults to 1)" />
+            </div>
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Notes</Label>
+              <Textarea value={manualNotes} onChange={(e) => setManualNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowManualAdd(false)}>Cancel</Button>
+            <Button onClick={handleManualAdd} disabled={manualSubmitting || !manualBullName.trim() || manualUnits <= 0}>
+              {manualSubmitting ? "Adding..." : "Add to Inventory"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
