@@ -8,6 +8,9 @@ import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import BullCombobox from "@/components/BullCombobox";
+import CustomerPicker from "@/components/CustomerPicker";
+import SemenCompanyPicker from "@/components/SemenCompanyPicker";
+import ReceivedByPicker from "@/components/ReceivedByPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,8 +73,9 @@ const ReceiveShipment = () => {
   const isMobile = useIsMobile();
 
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
-  const [receivedFrom, setReceivedFrom] = useState("");
-  const [receivedBy, setReceivedBy] = useState("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [semenCompanyId, setSemenCompanyId] = useState<string | null>(null);
+  const [receivedById, setReceivedById] = useState<string | null>(null);
   const [receivedDate, setReceivedDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
@@ -278,7 +282,9 @@ const ReceiveShipment = () => {
         return;
       }
       // Populate form from draft
-      setReceivedBy(shipment.received_by || "");
+      setCustomerId(shipment.customer_id ?? null);
+      setSemenCompanyId(shipment.semen_company_id ?? null);
+      setReceivedById(shipment.received_by ?? null);
       setReceivedDate(new Date(shipment.received_date + "T00:00:00"));
       setNotes(shipment.notes || "");
       setSelectedOrderId(shipment.semen_order_id || "");
@@ -316,10 +322,6 @@ const ReceiveShipment = () => {
       setOrderedQtyMap(new Map());
       return;
     }
-    const order = orders.find((o: any) => o.id === selectedOrderId);
-    if (order && !editId) {
-      setReceivedFrom((order as any).customers?.name || "");
-    }
     (async () => {
       const { data } = await supabase
         .from("semen_order_items")
@@ -355,7 +357,6 @@ const ReceiveShipment = () => {
   const handleOrderChange = (val: string) => {
     if (val === "__none") {
       setSelectedOrderId("");
-      setReceivedFrom("");
       setLines([emptyLine()]);
       setOrderedQtyMap(new Map());
     } else {
@@ -451,8 +452,9 @@ const ReceiveShipment = () => {
   // Validation
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!receivedFrom.trim()) errs.receivedFrom = "Required";
-    if (!receivedBy.trim()) errs.receivedBy = "Required";
+    if (!customerId) errs.customerId = "Required";
+    if (!semenCompanyId) errs.semenCompanyId = "Required";
+    if (!receivedById) errs.receivedById = "Required";
     if (lines.length === 0) errs.lines = "At least one line item required";
     lines.forEach((l, i) => {
       if (!l.bullName) errs[`line_${i}_bull`] = "Required";
@@ -503,10 +505,12 @@ const ReceiveShipment = () => {
       const shipmentData: any = {
         organization_id: orgId,
         semen_order_id: selectedOrderId || null,
+        customer_id: customerId,
+        semen_company_id: semenCompanyId,
         received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
         notes: notes.trim() || null,
-        received_by: receivedBy.trim() || null,
+        received_by: receivedById,
         created_by: userId,
         status: "draft" as const,
         reconciliation_snapshot: snapshot as any,
@@ -782,10 +786,9 @@ const ReceiveShipment = () => {
             <CardTitle className="text-lg">Shipment Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Link to Order */}
-              <div className="space-y-1.5">
-                <Label>Link to Order (optional)</Label>
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Link to Order</Label>
+              <div>
                 <Select value={selectedOrderId || "__none"} onValueChange={handleOrderChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="No order — manual entry" />
@@ -807,34 +810,50 @@ const ReceiveShipment = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              {/* Received From */}
-              <div className="space-y-1.5">
-                <Label>Received From *</Label>
-                <Input
-                  value={receivedFrom}
-                  onChange={(e) => setReceivedFrom(e.target.value)}
-                  placeholder="e.g. Select Sires, ABS Global"
-                  className={cn(errors.receivedFrom && "border-destructive")}
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Customer</Label>
+              <div>
+                <CustomerPicker
+                  value={customerId}
+                  onChange={setCustomerId}
+                  orgId={orgId!}
+                  className={cn(errors.customerId && "border-destructive")}
                 />
-                {errors.receivedFrom && <p className="text-xs text-destructive">{errors.receivedFrom}</p>}
+                {errors.customerId && <p className="mt-1 text-xs text-destructive">{errors.customerId}</p>}
               </div>
+            </div>
 
-              {/* Received By */}
-              <div className="space-y-1.5">
-                <Label>Received By *</Label>
-                <Input
-                  value={receivedBy}
-                  onChange={(e) => setReceivedBy(e.target.value)}
-                  placeholder="Who received this shipment?"
-                  className={cn(errors.receivedBy && "border-destructive")}
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Semen Company</Label>
+              <div>
+                <SemenCompanyPicker
+                  value={semenCompanyId}
+                  onChange={setSemenCompanyId}
+                  orgId={orgId!}
+                  className={cn(errors.semenCompanyId && "border-destructive")}
                 />
-                {errors.receivedBy && <p className="text-xs text-destructive">{errors.receivedBy}</p>}
+                {errors.semenCompanyId && <p className="mt-1 text-xs text-destructive">{errors.semenCompanyId}</p>}
               </div>
+            </div>
 
-              {/* Semen Owner */}
-              <div className="space-y-1.5">
-                <Label>Semen Owner</Label>
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Received By</Label>
+              <div>
+                <ReceivedByPicker
+                  value={receivedById}
+                  onChange={setReceivedById}
+                  orgId={orgId!}
+                  className={cn(errors.receivedById && "border-destructive")}
+                />
+                {errors.receivedById && <p className="mt-1 text-xs text-destructive">{errors.receivedById}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Semen Owner</Label>
+              <div>
                 <Select value={semenOwnerId || "__none"} onValueChange={(v) => setSemenOwnerId(v === "__none" ? null : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="No owner (company inventory)" />
@@ -847,10 +866,11 @@ const ReceiveShipment = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              {/* Received Date */}
-              <div className="space-y-1.5">
-                <Label>Received Date</Label>
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+              <Label className="text-right">Received Date</Label>
+              <div>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
@@ -868,10 +888,11 @@ const ReceiveShipment = () => {
                   </PopoverContent>
                 </Popover>
               </div>
+            </div>
 
-              {/* File Upload */}
-              <div className="space-y-1.5">
-                <Label>Packing Slip Photo</Label>
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-start">
+              <Label className="pt-2 text-right">Packing Slip Photo</Label>
+              <div>
                 {file ? (
                   <div className="flex items-center gap-2 p-2 border border-border rounded-md bg-secondary/50">
                     {filePreview ? (
@@ -908,9 +929,8 @@ const ReceiveShipment = () => {
               </div>
             </div>
 
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
+            <div className="grid grid-cols-[140px_1fr] gap-3 items-start">
+              <Label className="pt-2 text-right">Notes</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
