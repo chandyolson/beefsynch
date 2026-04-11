@@ -103,6 +103,12 @@ const PackTank = () => {
   const [pickupCustomerOpen, setPickupCustomerOpen] = useState(false);
   const [tankReturnExpectedPickup, setTankReturnExpectedPickup] = useState(true);
 
+  // Pickup source toggle
+  const [pickupSource, setPickupSource] = useState<"inventory" | "order" | "mixed">("inventory");
+  const [pickupSelectedOrders, setPickupSelectedOrders] = useState<string[]>([]);
+  const [pickupOrderPopoverOpen, setPickupOrderPopoverOpen] = useState(false);
+  const [pickupOrderSearch, setPickupOrderSearch] = useState("");
+
   // Add Tank dialog state
   const [addTankOpen, setAddTankOpen] = useState(false);
   const [newTankNumber, setNewTankNumber] = useState("");
@@ -170,6 +176,39 @@ const PackTank = () => {
     const q = pickupCustomerSearch.toLowerCase();
     return customers.filter((c: any) => c.name.toLowerCase().includes(q));
   }, [customers, pickupCustomerSearch]);
+
+  // Fetch customer's open orders for pickup
+  const { data: pickupAvailableOrders = [] } = useQuery({
+    queryKey: ["pickup-customer-orders", orgId, pickupCustomerId],
+    queryFn: async () => {
+      if (!orgId || !pickupCustomerId) return [];
+      const { data } = await supabase
+        .from("semen_orders")
+        .select("id, order_date, fulfillment_status, customer_id, customers(name), semen_order_items(id, units)")
+        .eq("organization_id", orgId)
+        .eq("customer_id", pickupCustomerId)
+        .not("fulfillment_status", "in", "(delivered,cancelled)")
+        .order("order_date", { ascending: false })
+        .limit(100);
+      return data ?? [];
+    },
+    enabled: !!orgId && !!pickupCustomerId && (pickupSource === "order" || pickupSource === "mixed"),
+  });
+
+  const filteredPickupOrders = useMemo(() => {
+    if (!pickupOrderSearch) return pickupAvailableOrders;
+    const q = pickupOrderSearch.toLowerCase();
+    return pickupAvailableOrders.filter((o: any) => {
+      const dateStr = o.order_date ? format(new Date(o.order_date + "T00:00"), "MMM d, yyyy") : "";
+      return dateStr.toLowerCase().includes(q) || ((o as any).customers?.name || "").toLowerCase().includes(q);
+    });
+  }, [pickupAvailableOrders, pickupOrderSearch]);
+
+  const togglePickupOrder = (orderId: string) => {
+    setPickupSelectedOrders(prev =>
+      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+    );
+  };
 
   // Fetch orders for "order" pack type
   const { data: availableOrders = [] } = useQuery({
@@ -436,6 +475,57 @@ const PackTank = () => {
     })();
   }, [packType, selectedOrders.join(",")]);
 
+  // Pre-fill pack lines from selected pickup orders
+  useEffect(() => {
+    if (packType !== "pickup" || pickupSelectedOrders.length === 0) return;
+    if (pickupSource !== "order" && pickupSource !== "mixed") return;
+
+    (async () => {
+      const { data: items } = await supabase
+        .from("semen_order_items")
+        .select("semen_order_id, bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
+        .in("semen_order_id", pickupSelectedOrders);
+
+      if (!items || items.length === 0) return;
+
+      const bullMap = new Map<string, { bullName: string; bullCatalogId: string | null; bullCode: string | null; totalUnits: number }>();
+      for (const item of items as any[]) {
+        const key = item.bull_catalog_id ?? `custom:${item.custom_bull_name}`;
+        const existing = bullMap.get(key);
+        if (existing) {
+          existing.totalUnits += item.units || 0;
+        } else {
+          bullMap.set(key, {
+            bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "Unknown",
+            bullCatalogId: item.bull_catalog_id,
+            bullCode: item.bulls_catalog?.naab_code ?? null,
+            totalUnits: item.units || 0,
+          });
+        }
+      }
+
+      const newLines: PackLine[] = Array.from(bullMap.values()).map((b) => ({
+        key: crypto.randomUUID(),
+        sourceTankId: "",
+        bullName: b.bullName,
+        bullCatalogId: b.bullCatalogId,
+        bullCode: b.bullCode,
+        sourceCanister: "",
+        fieldCanister: "",
+        units: 0,
+        availableUnits: null,
+      }));
+
+      setLines(prev => {
+        if (pickupSource === "mixed") {
+          const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+          return hasContent ? [...prev, ...newLines] : newLines;
+        }
+        return newLines.length > 0 ? newLines : [emptyLine()];
+      });
+    })();
+  }, [packType, pickupSelectedOrders.join(","), pickupSource]);
+
   const toggleProject = (projId: string) => {
     setSelectedProjects(prev => {
       const next = prev.includes(projId) ? prev.filter(id => id !== projId) : [...prev, projId];
@@ -556,7 +646,7 @@ const PackTank = () => {
           organization_id: orgId,
           field_tank_id: selectedTankId,
           pack_type: packType,
-          status: "packed",
+          status: packType === "pickup" && !tankReturnExpectedPickup ? "returned" : "packed",
           packed_at: packedDate.toISOString(),
           packed_by: packedBy.trim() || null,
           notes: notes.trim() || null,
@@ -566,6 +656,7 @@ const PackTank = () => {
           tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
           tank_return_expected: packType === "shipment" ? tankReturnExpected : packType === "pickup" ? tankReturnExpectedPickup : true,
           customer_id: packType === "pickup" ? pickupCustomerId : null,
+          closed_at: packType === "pickup" && !tankReturnExpectedPickup ? new Date().toISOString() : null,
         })
         .select()
         .single();
@@ -597,6 +688,19 @@ const PackTank = () => {
         const { error: orderLinkErr } = await supabase
           .from("tank_pack_orders")
           .insert(selectedOrders.map(orderId => ({
+            tank_pack_id: pack.id,
+            semen_order_id: orderId,
+          })));
+        if (orderLinkErr) {
+          toast({ title: "Pack created but order links failed", description: orderLinkErr.message, variant: "destructive" });
+        }
+      }
+
+      // Step 2b: Create tank_pack_orders for pickup orders
+      if (packType === "pickup" && pickupSelectedOrders.length > 0) {
+        const { error: orderLinkErr } = await supabase
+          .from("tank_pack_orders")
+          .insert(pickupSelectedOrders.map(orderId => ({
             tank_pack_id: pack.id,
             semen_order_id: orderId,
           })));
@@ -792,6 +896,8 @@ const PackTank = () => {
               setInventorySummary({});
               setProjectBullUnits([]);
               setPickupCustomerId("");
+              setPickupSource("inventory");
+              setPickupSelectedOrders([]);
             }}
           >
             <Package className="h-4 w-4" /> Pickup
@@ -1123,6 +1229,8 @@ const PackTank = () => {
                                   setPickupCustomerOpen(false);
                                   setPickupCustomerSearch("");
                                   setLines([emptyLine()]);
+                      setPickupSelectedOrders([]);
+                      setPickupSource("inventory");
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", pickupCustomerId === c.id ? "opacity-100" : "opacity-0")} />
@@ -1136,6 +1244,103 @@ const PackTank = () => {
                     {errors.pickupCustomer && <p className="text-xs text-destructive mt-1">{errors.pickupCustomer}</p>}
                   </div>
                 </div>
+
+                {/* Source toggle */}
+                {pickupCustomerId && (
+                  <div className="flex items-start gap-4">
+                    <Label className="w-28 shrink-0 text-right pt-2">Source</Label>
+                    <div className="flex-1">
+                      <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+                        <button
+                          className={cn("px-3 py-1.5 text-xs font-medium transition-colors",
+                            pickupSource === "inventory" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                          )}
+                          onClick={() => { setPickupSource("inventory"); setPickupSelectedOrders([]); setLines([emptyLine()]); }}
+                        >
+                          Existing Inventory
+                        </button>
+                        <button
+                          className={cn("px-3 py-1.5 text-xs font-medium transition-colors",
+                            pickupSource === "order" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                          )}
+                          onClick={() => { setPickupSource("order"); setPickupSelectedOrders([]); setLines([emptyLine()]); }}
+                        >
+                          From Order
+                        </button>
+                        <button
+                          className={cn("px-3 py-1.5 text-xs font-medium transition-colors",
+                            pickupSource === "mixed" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                          )}
+                          onClick={() => { setPickupSource("mixed"); setPickupSelectedOrders([]); }}
+                        >
+                          Mixed
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pickup order picker */}
+                {pickupCustomerId && (pickupSource === "order" || pickupSource === "mixed") && (
+                  <div className="flex items-start gap-4">
+                    <Label className="w-28 shrink-0 text-right pt-2">Orders</Label>
+                    <div className="flex-1">
+                      <Popover open={pickupOrderPopoverOpen} onOpenChange={setPickupOrderPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", pickupSelectedOrders.length === 0 && "text-muted-foreground")}>
+                            {pickupSelectedOrders.length === 0
+                              ? "Select orders…"
+                              : `${pickupSelectedOrders.length} order${pickupSelectedOrders.length > 1 ? "s" : ""} selected`}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-2" align="start">
+                          <div className="relative mb-2">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search orders…"
+                              value={pickupOrderSearch}
+                              onChange={e => setPickupOrderSearch(e.target.value)}
+                              className="pl-8 h-8 text-sm"
+                            />
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1">
+                            {filteredPickupOrders.length === 0 ? (
+                              <p className="text-xs text-muted-foreground px-2 py-2">No open orders for this customer.</p>
+                            ) : filteredPickupOrders.map((o: any) => {
+                              const totalUnits = (o.semen_order_items || []).reduce((s: number, item: any) => s + (item.units || 0), 0);
+                              return (
+                                <label key={o.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm">
+                                  <Checkbox
+                                    checked={pickupSelectedOrders.includes(o.id)}
+                                    onCheckedChange={() => togglePickupOrder(o.id)}
+                                  />
+                                  <span className="flex-1">
+                                    {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                    <span className="text-muted-foreground ml-1 text-xs">{totalUnits} units</span>
+                                  </span>
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0">{o.fulfillment_status}</Badge>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      {pickupSelectedOrders.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {pickupSelectedOrders.map(oid => {
+                            const order = pickupAvailableOrders.find((o: any) => o.id === oid);
+                            return (
+                              <Badge key={oid} variant="secondary" className="gap-1">
+                                {order ? format(new Date(order.order_date + "T00:00"), "MMM d") : "Order"}
+                                <X className="h-3 w-3 cursor-pointer" onClick={() => togglePickupOrder(oid)} />
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tank return checkbox */}
                 <div className="flex items-start gap-4">
