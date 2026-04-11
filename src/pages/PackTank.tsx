@@ -97,6 +97,12 @@ const PackTank = () => {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [tankReturnExpected, setTankReturnExpected] = useState(true);
 
+  // Pickup fields
+  const [pickupCustomerId, setPickupCustomerId] = useState("");
+  const [pickupCustomerSearch, setPickupCustomerSearch] = useState("");
+  const [pickupCustomerOpen, setPickupCustomerOpen] = useState(false);
+  const [tankReturnExpectedPickup, setTankReturnExpectedPickup] = useState(true);
+
   // Add Tank dialog state
   const [addTankOpen, setAddTankOpen] = useState(false);
   const [newTankNumber, setNewTankNumber] = useState("");
