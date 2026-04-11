@@ -39,6 +39,7 @@ const TYPE_BADGE: Record<string, string> = {
   project: "Project",
   shipment: "Shipment",
   order: "Order",
+  pickup: "Pickup",
 };
 
 /* ── PacksList ── */
