@@ -1279,6 +1279,7 @@ const PackTank = () => {
                         organizationId={orgId}
                         value={line.bullName}
                         onChange={(updates) => updateLine(i, updates)}
+                        customerId={packType === "pickup" ? pickupCustomerId || undefined : undefined}
                       />
                     </div>
                   </div>
