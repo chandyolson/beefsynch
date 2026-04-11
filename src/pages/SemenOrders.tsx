@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
-import { Eye, Trash2, Plus, CalendarIcon, Search, Package, DollarSign, Clock, ShoppingCart } from "lucide-react";
+import { MoreHorizontal, Plus, CalendarIcon, Search, Package, DollarSign, Clock, ShoppingCart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import Navbar from "@/components/Navbar";
@@ -25,10 +25,8 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const fulfillmentColors: Record<string, string> = {
@@ -246,23 +244,23 @@ const SemenOrders = () => {
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                 <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
                 <TableHead className="whitespace-nowrap">Billing</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                   <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                      {orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}
                    </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((order: any) => (
-                  <TableRow key={order.id} className="hover:bg-muted/20">
+                  <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
                     <TableCell className="font-medium whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         {order.order_type === "inventory" && (
@@ -286,35 +284,30 @@ const SemenOrders = () => {
                         {order.billing_status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/semen-orders/${order.id}`)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {canDelete && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete order?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the order for {order.customer_name || "this customer"}. This cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteMutation.mutate(order.id)} className="bg-destructive hover:bg-destructive/90">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/semen-orders/${order.id}`)}>
+                            View
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Delete order for ${order.customer_name || "this customer"}? This cannot be undone.`)) {
+                                deleteMutation.mutate(order.id);
+                              }
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

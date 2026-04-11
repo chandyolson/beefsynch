@@ -13,15 +13,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Eye, Trash2, Download, CalendarIcon, X } from "lucide-react";
+import { Loader2, Search, MoreHorizontal, Download, CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -239,7 +237,7 @@ const Unpacks = () => {
                       <TableHead className="text-right">Lines</TableHead>
                       <TableHead className="text-right">Units Returned</TableHead>
                       <TableHead>Unpacked By</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -267,45 +265,30 @@ const Unpacks = () => {
                           <TableCell className="text-right">{stats.lineCount}</TableCell>
                           <TableCell className="text-right">{stats.totalReturned}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{row.unpacked_by || "—"}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${row.id}`)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Unpack Record</AlertDialogTitle>
-                                    <AlertDialogDescription className="space-y-2">
-                                      <span>Delete this unpack record? This will:</span>
-                                      <ul className="list-disc ml-4 mt-1 space-y-1">
-                                        <li>Remove the unpack line items</li>
-                                        <li>Reset the parent pack status from 'unpacked' back to 'in_field'</li>
-                                        <li className="font-medium">NOT automatically reverse the inventory transactions that were created when this unpack happened</li>
-                                      </ul>
-                                      <span className="block mt-2">Adjust inventory manually if needed.</span>
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDelete(row.id)}
-                                      disabled={deletingId === row.id}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => navigate(`/pack/${row.id}`)}>
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    if (confirm("Delete this unpack record? This will remove the record but will NOT automatically reverse inventory transactions.")) {
+                                      handleDelete(row.id);
+                                    }
+                                  }}
+                                >
+                                  {deletingId === row.id ? "Deleting…" : "Delete"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
