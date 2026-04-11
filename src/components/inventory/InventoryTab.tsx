@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  PackagePlus, Truck, ChevronDown, ChevronUp,
+  PackagePlus, Truck, ChevronDown, ChevronUp, MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -18,9 +18,14 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { toast } from "sonner";
 
 // ─── Inventory Tab Constants ───
 const STORAGE_BADGES: Record<string, string> = {
@@ -40,6 +45,7 @@ interface InventoryTabProps {
 }
 
 const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: InventoryTabProps) => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
@@ -51,6 +57,10 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
+  const [editRow, setEditRow] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
     queryKey: ["semen-inventory", orgId],
@@ -92,6 +102,32 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   });
 
 
+  const { data: tankOptions = [] } = useQuery({
+    queryKey: ["tanks_for_edit", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number")
+        .eq("organization_id", orgId!)
+        .order("tank_number");
+      return data ?? [];
+    },
+  });
+
+  const { data: customerOptions = [] } = useQuery({
+    queryKey: ["customers_for_edit", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      return data ?? [];
+    },
+  });
+
   const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
   const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -101,6 +137,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
     customerId: item.customer_id,
+    tankId: item.tank_id,
     tankName: item.tanks?.tank_name || "—",
     tankNumber: item.tanks?.tank_number || "—",
     canister: item.canister,
@@ -108,6 +145,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     units: item.units || 0,
     storageType: item.storage_type || "customer",
     owner: item.owner || null,
+    notes: item.notes || null,
     inventoriedAt: item.inventoried_at,
   })), [inventory]);
 
@@ -181,6 +219,67 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   );
 
   const handleExportPdf = () => generateSemenInventoryPdf(filtered, { storageFilter, ownerFilter, search });
+
+  const openEdit = (row: any) => {
+    setEditRow(row);
+    setEditForm({
+      custom_bull_name: row.bullName || "",
+      bull_code: row.bullCode || "",
+      tank_id: row.tankId || "",
+      customer_id: row.customerId || "",
+      canister: row.canister || "",
+      sub_canister: row.subCanister === "—" ? "" : row.subCanister || "",
+      units: row.units ?? 0,
+      storage_type: row.storageType || "inventory",
+      owner: row.owner || "",
+      notes: row.notes || "",
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRow) return;
+    setSavingEdit(true);
+    try {
+      const updates: any = {
+        custom_bull_name: editForm.custom_bull_name?.trim() || null,
+        bull_code: editForm.bull_code?.trim() || null,
+        tank_id: editForm.tank_id || editRow.tankId,
+        customer_id: editForm.customer_id || null,
+        canister: editForm.canister?.trim() || "1",
+        sub_canister: editForm.sub_canister?.trim() || null,
+        units: Number(editForm.units) || 0,
+        storage_type: editForm.storage_type || null,
+        owner: editForm.owner?.trim() || null,
+        notes: editForm.notes?.trim() || null,
+      };
+      const { error } = await supabase
+        .from("tank_inventory")
+        .update(updates)
+        .eq("id", editRow.id);
+      if (error) throw error;
+      toast.success("Inventory row updated");
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      setEditRow(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteRow = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const { error } = await supabase.from("tank_inventory").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Inventory row deleted");
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleExportCsv = () => {
     if (viewMode === "grouped" && groupedByBull.length > 0) {
@@ -372,13 +471,14 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
                 <TableHead className="w-[80px] whitespace-nowrap">Storage</TableHead>
                 <TableHead className="w-[70px]">Owner</TableHead>
                 <TableHead className="w-[100px] whitespace-nowrap">Inventoried</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center py-12 text-muted-foreground">{rows.length === 0 ? "No inventory data." : "No results match your filters."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">{rows.length === 0 ? "No inventory data." : "No results match your filters."}</TableCell></TableRow>
               ) : (
                 filtered.map((row) => (
                   <TableRow key={row.id} className="hover:bg-muted/20">
@@ -397,6 +497,29 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
                       {row.owner ? <span>{row.owner}</span> : "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Delete this inventory row for "${row.bullName}"? This cannot be undone.`)) {
+                                handleDeleteRow(row.id);
+                              }
+                            }}
+                          >
+                            {deletingId === row.id ? "Deleting…" : "Delete"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -406,7 +529,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
                 <TableRow>
                   <TableCell colSpan={7} className="text-right font-semibold">Total</TableCell>
                   <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
-                  <TableCell colSpan={3} />
+                  <TableCell colSpan={4} />
                 </TableRow>
               </TableFooter>
             )}
@@ -458,6 +581,135 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
           </Table>
         )}
       </div>
+
+      {/* Edit Inventory Row Dialog */}
+      <Dialog open={!!editRow} onOpenChange={(open) => { if (!open) setEditRow(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Inventory Row</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Bull Name</Label>
+                <Input
+                  className="mt-1"
+                  value={editForm.custom_bull_name || ""}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, custom_bull_name: e.target.value }))}
+                  placeholder="Bull name"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Bull Code</Label>
+                <Input
+                  className="mt-1"
+                  value={editForm.bull_code || ""}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, bull_code: e.target.value }))}
+                  placeholder="NAAB code"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground">Tank</Label>
+              <Select value={editForm.tank_id || ""} onValueChange={(v) => setEditForm((p: any) => ({ ...p, tank_id: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select tank" /></SelectTrigger>
+                <SelectContent>
+                  {(tankOptions || []).map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground">Customer</Label>
+              <Select value={editForm.customer_id || "none"} onValueChange={(v) => setEditForm((p: any) => ({ ...p, customer_id: v === "none" ? "" : v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Company (no customer)</SelectItem>
+                  {(customerOptions || []).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Canister</Label>
+                <Input
+                  className="mt-1"
+                  value={editForm.canister || ""}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, canister: e.target.value }))}
+                  placeholder="1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Sub-canister</Label>
+                <Input
+                  className="mt-1"
+                  value={editForm.sub_canister || ""}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, sub_canister: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Units</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  value={editForm.units ?? 0}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, units: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Storage Type</Label>
+                <Select value={editForm.storage_type || "inventory"} onValueChange={(v) => setEditForm((p: any) => ({ ...p, storage_type: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inventory">Inventory</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                    <SelectItem value="communal">Communal</SelectItem>
+                    <SelectItem value="rental">Rental</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Owner</Label>
+                <Input
+                  className="mt-1"
+                  value={editForm.owner || ""}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, owner: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground">Notes</Label>
+              <Textarea
+                className="mt-1"
+                value={editForm.notes || ""}
+                onChange={(e) => setEditForm((p: any) => ({ ...p, notes: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRow(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
