@@ -45,6 +45,7 @@ interface InventoryTabProps {
 }
 
 const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: InventoryTabProps) => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
@@ -56,6 +57,10 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
+  const [editRow, setEditRow] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
     queryKey: ["semen-inventory", orgId],
@@ -97,7 +102,32 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
   });
 
 
-  const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
+  const { data: tankOptions = [] } = useQuery({
+    queryKey: ["tanks_for_edit", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number")
+        .eq("organization_id", orgId!)
+        .order("tank_number");
+      return data ?? [];
+    },
+  });
+
+  const { data: customerOptions = [] } = useQuery({
+    queryKey: ["customers_for_edit", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      return data ?? [];
+    },
+  });
+
   const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
 
   const rows = useMemo(() => inventory.map((item: any) => ({
@@ -106,6 +136,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
     customerId: item.customer_id,
+    tankId: item.tank_id,
     tankName: item.tanks?.tank_name || "—",
     tankNumber: item.tanks?.tank_number || "—",
     canister: item.canister,
@@ -113,6 +144,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     units: item.units || 0,
     storageType: item.storage_type || "customer",
     owner: item.owner || null,
+    notes: item.notes || null,
     inventoriedAt: item.inventoried_at,
   })), [inventory]);
 
