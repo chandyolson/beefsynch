@@ -43,7 +43,7 @@ const Onboarding = () => {
               { onConflict: "user_id" }
             );
         }
-        navigate("/dashboard", { replace: true });
+        navigate("/operations?tab=projects", { replace: true });
       }
     };
     checkExistingOrg();
@@ -105,7 +105,7 @@ const Onboarding = () => {
 
     toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
     setLoading(false);
-    navigate("/dashboard");
+    navigate("/operations?tab=projects");
   };
 
   const handleJoin = async () => {
@@ -144,7 +144,7 @@ const Onboarding = () => {
       await refresh();
       toast({ title: "Already a member", description: `You're already part of ${org.name}.` });
       setLoading(false);
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
       return;
     }
 
@@ -213,7 +213,7 @@ const Onboarding = () => {
 
     toast({ title: `Welcome to ${org.name}!`, description: "You now have access to all team projects." });
     setLoading(false);
-    navigate("/dashboard");
+    navigate("/operations?tab=projects");
   };
 
   const cardClass =

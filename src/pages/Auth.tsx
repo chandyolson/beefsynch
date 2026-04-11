@@ -88,7 +88,7 @@ const Auth = () => {
       // If already signed in as a non-anonymous user, redirect away
       // and let ProtectedRoute handle onboarding vs dashboard routing
       if (user && !user.is_anonymous && !isConvert) {
-        navigate("/dashboard", { replace: true });
+        navigate("/operations?tab=projects", { replace: true });
       }
     });
   }, [navigate, isConvert]);
@@ -119,7 +119,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Guest sign in failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
     }
   };
 
@@ -133,7 +133,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
     }
   };
 
@@ -184,7 +184,7 @@ const Auth = () => {
         title: "Account created!",
         description: "All your projects have been saved.",
       });
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
       return;
     }
 

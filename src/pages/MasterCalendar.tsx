@@ -211,7 +211,7 @@ const MasterCalendar = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-6xl space-y-4">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/operations")}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <TooltipProvider>
