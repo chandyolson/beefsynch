@@ -800,7 +800,7 @@ const PackTank = () => {
                       <Button variant="outline" role="combobox" aria-expanded={fieldTankOpen} className={cn("w-full justify-between font-normal", errors.fieldTank && "border-destructive", !selectedTankId && "text-muted-foreground")}>
                         {selectedTankId
                           ? (() => { const t = fieldTankOptions.find((t: any) => t.id === selectedTankId); return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select tank…"; })()
-                          : (packType === "shipment" ? "Select shipper tank…" : "Select tank…")}
+                          : (packType === "shipment" ? "Select shipper tank…" : packType === "pickup" ? "Select customer tank…" : "Select tank…")}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
