@@ -4,8 +4,6 @@ import { format, parseISO } from "date-fns";
 
 interface OrderData {
   customer_name: string;
-  customer_phone: string | null;
-  customer_email: string | null;
   order_date: string;
   fulfillment_status: string;
   billing_status: string;
@@ -58,8 +56,6 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
     ["Billing", order.billing_status.charAt(0).toUpperCase() + order.billing_status.slice(1)],
   ];
 
-  if (order.customer_phone) infoRows.push(["Phone", order.customer_phone]);
-  if (order.customer_email) infoRows.push(["Email", order.customer_email]);
   if (order.project_name) infoRows.push(["Linked Project", order.project_name]);
 
   doc.setFontSize(10);

@@ -252,6 +252,7 @@ export type Database = {
           reason: string | null
           shipment_id: string | null
           tank_id: string
+          tank_pack_id: string | null
           transaction_type: string
           units_change: number
         }
@@ -271,6 +272,7 @@ export type Database = {
           reason?: string | null
           shipment_id?: string | null
           tank_id: string
+          tank_pack_id?: string | null
           transaction_type: string
           units_change: number
         }
@@ -290,6 +292,7 @@ export type Database = {
           reason?: string | null
           shipment_id?: string | null
           tank_id?: string
+          tank_pack_id?: string | null
           transaction_type?: string
           units_change?: number
         }
@@ -348,6 +351,13 @@ export type Database = {
             columns: ["tank_id"]
             isOneToOne: false
             referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
             referencedColumns: ["id"]
           },
         ]
@@ -1060,9 +1070,7 @@ export type Database = {
           billing_status: string
           created_at: string
           created_by: string | null
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
+          customer_id: string | null
           fulfillment_status: string
           id: string
           notes: string | null
@@ -1077,9 +1085,7 @@ export type Database = {
           billing_status?: string
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
+          customer_id?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
@@ -1094,9 +1100,7 @@ export type Database = {
           billing_status?: string
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
+          customer_id?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
@@ -1108,6 +1112,13 @@ export type Database = {
           semen_company_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "semen_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "semen_orders_organization_id_fkey"
             columns: ["organization_id"]
@@ -1144,7 +1155,6 @@ export type Database = {
           organization_id: string
           received_by: string | null
           received_date: string
-          received_from: string | null
           reconciliation_snapshot: Json | null
           semen_company_id: string | null
           semen_order_id: string | null
@@ -1163,7 +1173,6 @@ export type Database = {
           organization_id: string
           received_by?: string | null
           received_date?: string
-          received_from?: string | null
           reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
@@ -1182,7 +1191,6 @@ export type Database = {
           organization_id?: string
           received_by?: string | null
           received_date?: string
-          received_from?: string | null
           reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
@@ -1202,6 +1210,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
             referencedColumns: ["id"]
           },
           {

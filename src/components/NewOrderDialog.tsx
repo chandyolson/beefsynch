@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQueryClient } from "@tanstack/react-query";
 import BullCombobox from "@/components/BullCombobox";
+import CustomerPicker from "@/components/CustomerPicker";
 
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -32,9 +33,7 @@ interface BullRow {
 
 export interface EditOrderData {
   id: string;
-  customer_name: string;
-  customer_phone: string | null;
-  customer_email: string | null;
+  customer_id: string | null;
   order_date: string;
   fulfillment_status: string;
   billing_status: string;
@@ -59,9 +58,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [saving, setSaving] = useState(false);
 
   // Form state
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [orderDate, setOrderDate] = useState<Date>(new Date());
   const [fulfillmentStatus, setFulfillmentStatus] = useState("pending");
   const [billingStatus, setBillingStatus] = useState("unbilled");
@@ -101,9 +98,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   useEffect(() => {
     if (!open) return;
     if (editData) {
-      setCustomerName(editData.customer_name);
-      setCustomerPhone(editData.customer_phone ?? "");
-      setCustomerEmail(editData.customer_email ?? "");
+      setCustomerId(editData.customer_id ?? null);
       setOrderDate(new Date(editData.order_date + "T12:00:00"));
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
@@ -114,9 +109,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
     } else {
-      setCustomerName("");
-      setCustomerPhone("");
-      setCustomerEmail("");
+      setCustomerId(null);
       setOrderDate(new Date());
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
@@ -146,11 +139,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
 
     setSaving(true);
     try {
-      const orderPayload = {
+      const orderPayload: any = {
         organization_id: orgId,
-        customer_name: customerName.trim() || "",
-        customer_phone: customerPhone.trim() || null,
-        customer_email: customerEmail.trim() || null,
+        customer_id: customerId || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
@@ -171,7 +162,6 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         if (error) throw error;
         orderId = editData.id;
 
-        // Delete existing items, re-insert
         const { error: delErr } = await supabase
           .from("semen_order_items")
           .delete()
@@ -187,7 +177,6 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         orderId = data.id;
       }
 
-      // Insert bull items
       const validBulls = bulls.filter((b) => b.name.trim());
       if (validBulls.length > 0) {
         const rows = validBulls.map((b) => ({
@@ -221,9 +210,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
 
         <div className="space-y-5">
           {/* Order Type Toggle */}
-          <div>
-            <Label>Order Type</Label>
-            <div className="flex mt-1.5 rounded-md overflow-hidden border border-border">
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Order Type</Label>
+            <div className="flex rounded-md overflow-hidden border border-border">
               <button
                 type="button"
                 className={cn(
@@ -251,88 +240,80 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             </div>
           </div>
 
-          {/* Semen Company */}
-          <div>
-            <Label>Semen Company</Label>
-            <Select
-              value={semenCompanyId}
-              onValueChange={(val) => {
-                if (val === "add_new") {
-                  setAddingCompany(true);
-                  setNewCompanyName("");
-                } else {
-                  setSemenCompanyId(val);
-                  setAddingCompany(false);
-                }
-              }}
-            >
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-                <SelectItem value="add_new">+ Add New Company...</SelectItem>
-              </SelectContent>
-            </Select>
-            {addingCompany && (
-              <div className="flex items-center gap-2 mt-2">
-                <Input
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.target.value)}
-                  placeholder="Company name"
-                  className="flex-1"
-                />
-                <Button
-                  size="sm"
-                  disabled={!newCompanyName.trim() || !orgId}
-                  onClick={async () => {
-                    if (!orgId) return;
-                    const { data, error } = await supabase
-                      .from("semen_companies")
-                      .insert({ name: newCompanyName.trim(), organization_id: orgId })
-                      .select("id, name")
-                      .single();
-                    if (error) {
-                      toast({ title: "Error", description: error.message, variant: "destructive" });
-                      return;
-                    }
-                    setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-                    setSemenCompanyId(data.id);
-                    setAddingCompany(false);
-                    setNewCompanyName("");
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Customer Name / Description */}
-          <div>
-            <Label>{orderType === "inventory" ? "Notes / Description" : "Customer Name"}</Label>
-            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={orderType === "inventory" ? "e.g. Spring 2026 restock" : "e.g. Smith Ranch"} className="mt-1.5" />
-          </div>
-
-          {/* Phone & Email */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Customer Phone</Label>
-              <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Optional" className="mt-1.5" />
+          {/* Customer Picker */}
+          {orderType === "customer" && orgId && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Customer</Label>
+              <CustomerPicker value={customerId} onChange={setCustomerId} orgId={orgId} />
             </div>
+          )}
+
+          {/* Semen Company */}
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Company</Label>
             <div>
-              <Label>Customer Email</Label>
-              <Input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Optional" className="mt-1.5" />
+              <Select
+                value={semenCompanyId}
+                onValueChange={(val) => {
+                  if (val === "add_new") {
+                    setAddingCompany(true);
+                    setNewCompanyName("");
+                  } else {
+                    setSemenCompanyId(val);
+                    setAddingCompany(false);
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                  <SelectItem value="add_new">+ Add New Company...</SelectItem>
+                </SelectContent>
+              </Select>
+              {addingCompany && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="Company name"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!newCompanyName.trim() || !orgId}
+                    onClick={async () => {
+                      if (!orgId) return;
+                      const { data, error } = await supabase
+                        .from("semen_companies")
+                        .insert({ name: newCompanyName.trim(), organization_id: orgId })
+                        .select("id, name")
+                        .single();
+                      if (error) {
+                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+                      setSemenCompanyId(data.id);
+                      setAddingCompany(false);
+                      setNewCompanyName("");
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Order Date */}
-          <div>
-            <Label>Order Date</Label>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Order Date</Label>
             <Popover open={dateOpen} onOpenChange={setDateOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full mt-1.5 justify-start text-left font-normal")}>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
                   {format(orderDate, "PPP")}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                 </Button>
@@ -349,45 +330,43 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
           </div>
 
           {/* Placed By */}
-          <div>
-            <Label>Placed By</Label>
-            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" className="mt-1.5" />
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Placed By</Label>
+            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" />
           </div>
 
           {/* Status dropdowns */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Fulfillment Status</Label>
-              <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="backordered">Backordered</SelectItem>
-                  <SelectItem value="partially filled">Partially Filled</SelectItem>
-                  <SelectItem value="ordered">Ordered</SelectItem>
-                  <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Billing Status</Label>
-              <Select value={billingStatus} onValueChange={setBillingStatus}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unbilled">Unbilled</SelectItem>
-                  <SelectItem value="invoiced">Invoiced</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Fulfillment</Label>
+            <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="backordered">Backordered</SelectItem>
+                <SelectItem value="partially filled">Partially Filled</SelectItem>
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Billing</Label>
+            <Select value={billingStatus} onValueChange={setBillingStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unbilled">Unbilled</SelectItem>
+                <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Link to Project */}
-          <div>
-            <Label>Link to Project</Label>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Project</Label>
             <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {projects.map((p) => (
@@ -428,9 +407,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
           </div>
 
           {/* Notes */}
-          <div>
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." rows={3} className="mt-1.5" />
+          <div className="grid grid-cols-[100px_1fr] items-start gap-x-4">
+            <Label className="text-right text-sm pt-2">Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." rows={3} />
           </div>
 
           {/* Actions */}

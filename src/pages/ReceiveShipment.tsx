@@ -108,7 +108,7 @@ const ReceiveShipment = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, customer_name, order_date, fulfillment_status")
+        .select("id, order_date, fulfillment_status, customer_id, customers(name)")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
@@ -278,7 +278,6 @@ const ReceiveShipment = () => {
         return;
       }
       // Populate form from draft
-      setReceivedFrom(shipment.received_from || "");
       setReceivedBy(shipment.received_by || "");
       setReceivedDate(new Date(shipment.received_date + "T00:00:00"));
       setNotes(shipment.notes || "");
@@ -317,9 +316,9 @@ const ReceiveShipment = () => {
       setOrderedQtyMap(new Map());
       return;
     }
-    const order = orders.find((o) => o.id === selectedOrderId);
+    const order = orders.find((o: any) => o.id === selectedOrderId);
     if (order && !editId) {
-      setReceivedFrom(order.customer_name);
+      setReceivedFrom((order as any).customers?.name || "");
     }
     (async () => {
       const { data } = await supabase
@@ -501,10 +500,9 @@ const ReceiveShipment = () => {
         semen_owner_id: semenOwnerId,
       };
 
-      const shipmentData = {
+      const shipmentData: any = {
         organization_id: orgId,
         semen_order_id: selectedOrderId || null,
-        received_from: receivedFrom.trim(),
         received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
         notes: notes.trim() || null,
@@ -794,10 +792,10 @@ const ReceiveShipment = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">No order — manual entry</SelectItem>
-                    {orders.map((o) => (
+                    {orders.map((o: any) => (
                       <SelectItem key={o.id} value={o.id}>
                         <span className="flex items-center gap-2">
-                          {o.customer_name} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
+                          {o.customers?.name || "—"} — {format(new Date(o.order_date + "T00:00:00"), "MMM d, yyyy")}
                           {alreadyReceivedStatuses.includes(o.fulfillment_status) && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
                               ✓ {o.fulfillment_status.replace(/_/g, " ")}
@@ -930,7 +928,7 @@ const ReceiveShipment = () => {
             <div>
               <p className="font-medium">This order has already been received</p>
               <p className="text-amber-300/80 mt-0.5">
-                Status: <strong>{selectedOrder?.fulfillment_status.replace(/_/g, " ")}</strong>. Receiving against it again will create a second shipment record and add to inventory a second time. Proceed only if you're sure (backorder, replacement).
+                Status: <strong>{(selectedOrder as any)?.fulfillment_status?.replace(/_/g, " ")}</strong>. Receiving against it again will create a second shipment record and add to inventory a second time. Proceed only if you're sure (backorder, replacement).
               </p>
               {existingShipmentsForOrder.length === 1 && (
                 <Link to={`/receive-shipment/preview/${existingShipmentsForOrder[0].id}`} className="text-primary hover:underline text-xs mt-1 inline-block">
