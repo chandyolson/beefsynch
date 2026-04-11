@@ -474,6 +474,7 @@ export type Database = {
           select_sires_invoice_number: string | null
           status: string
           updated_at: string | null
+          zoho_project_id: string | null
         }
         Insert: {
           catl_invoice_number?: string | null
@@ -489,6 +490,7 @@ export type Database = {
           select_sires_invoice_number?: string | null
           status?: string
           updated_at?: string | null
+          zoho_project_id?: string | null
         }
         Update: {
           catl_invoice_number?: string | null
@@ -504,6 +506,7 @@ export type Database = {
           select_sires_invoice_number?: string | null
           status?: string
           updated_at?: string | null
+          zoho_project_id?: string | null
         }
         Relationships: [
           {

@@ -807,7 +807,7 @@ const ProjectBilling = () => {
         </div>
 
         {/* ── Invoice Numbers ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="text-xs font-medium text-muted-foreground">CATL Resources Invoice #</label>
             <Input
@@ -822,6 +822,15 @@ const ProjectBilling = () => {
               className="mt-1"
               defaultValue={billingRecord?.select_sires_invoice_number || ""}
               onBlur={(e) => saveBillingField("select_sires_invoice_number", e.target.value || null)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Project ID</label>
+            <Input
+              className="mt-1"
+              defaultValue={billingRecord?.zoho_project_id || ""}
+              placeholder="Zoho project ID"
+              onBlur={(e) => saveBillingField("zoho_project_id", e.target.value || null)}
             />
           </div>
         </div>
