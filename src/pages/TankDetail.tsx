@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -297,6 +297,28 @@ const TankDetail = () => {
     },
   });
 
+  // Active pack query
+  const { data: activePack } = useQuery({
+    queryKey: ["tank_active_pack", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select(`
+          id, pack_type, status, packed_at, tracking_number, destination_name,
+          tank_pack_projects(projects!tank_pack_projects_project_id_fkey(name))
+        `)
+        .eq("field_tank_id", id!)
+        .in("status", ["packed", "in_field"])
+        .maybeSingle();
+      if (error) {
+        toast({ title: "Failed to load pack status", description: error.message, variant: "destructive" });
+        return null;
+      }
+      return data as any;
+    },
+  });
+
   // Grouped inventory by customer for communal tanks
   const isCommunal = tank?.tank_type === "communal_tank";
   const inventoryByCustomer = useMemo(() => {
@@ -313,7 +335,9 @@ const TankDetail = () => {
     return Array.from(map.values());
   }, [inventory, isCommunal]);
 
-  const totalUnits = inventory.reduce((s: number, i: any) => s + (i.units || 0), 0);
+  const activeRows = inventory.filter((r: any) => (r.units ?? 0) > 0);
+  const emptyRows = inventory.filter((r: any) => (r.units ?? 0) === 0);
+  const totalUnits = activeRows.reduce((s: number, i: any) => s + (i.units || 0), 0);
 
   const lastFill = fills.length > 0 ? fills[0] : null;
   const fillWarning = lastFill ? differenceInDays(new Date(), parseISO(lastFill.fill_date)) > 90 : false;
