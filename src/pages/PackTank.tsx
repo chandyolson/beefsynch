@@ -564,7 +564,7 @@ const PackTank = () => {
           destination_address: packType === "shipment" ? destinationAddress.trim() || null : null,
           shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
           tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
-          tank_return_expected: packType === "shipment" ? tankReturnExpected : true,
+          tank_return_expected: packType === "shipment" ? tankReturnExpected : packType === "pickup" ? tankReturnExpectedPickup : true,
         })
         .select()
         .single();
