@@ -515,14 +515,45 @@ const PackDetail = () => {
                       className="cursor-pointer hover:bg-secondary/80"
                       onClick={() => navigate(`/semen-orders/${link.semen_order_id}`)}
                     >
-                      {link.semen_orders?.customer_name || "Order"}{" "}
+                      {(link.semen_orders as any)?.customers?.name || "Order"}{" "}
                       <ExternalLink className="h-3 w-3 ml-1 inline" />
                     </Badge>
                   ))}
                 </div>
               </div>
             ) : isPickup ? (
-              <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Customer:</span><span>{pickupCustomerName || "—"}</span></div>
+              <>
+                <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Picked up by:</span><span>{pickupCustomerName || "—"}</span></div>
+                <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Pickup Date:</span><span>{format(new Date(pack.packed_at), "MMMM d, yyyy")}</span></div>
+                {pack.tank_return_expected ? (
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold w-28 shrink-0">Tank Return:</span>
+                    <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">Expected</Badge>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold w-28 shrink-0">Tank Return:</span>
+                    <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Not returning</Badge>
+                  </div>
+                )}
+                {packOrders.length > 0 && (
+                  <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Orders:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {packOrders.map((link: any) => (
+                        <Badge
+                          key={link.semen_order_id}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-secondary/80"
+                          onClick={() => navigate(`/semen-orders/${link.semen_order_id}`)}
+                        >
+                          {link.semen_orders?.order_date ? format(new Date(link.semen_orders.order_date + "T00:00"), "MMM d, yyyy") : "Order"}{" "}
+                          <ExternalLink className="h-3 w-3 ml-1 inline" />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex gap-2 items-start"><span className="font-semibold w-28 shrink-0">Projects:</span>
                 <div className="flex flex-wrap gap-1">
