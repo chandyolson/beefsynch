@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  Eye, PackagePlus, Truck, ChevronDown, ChevronUp,
+  PackagePlus, Truck, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -82,7 +82,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, status, packed_by, pack_type, destination_name, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_lines(bull_name, units, field_canister)")
+        .select("id, packed_at, status, packed_by, pack_type, destination_name, customer_id, customers(name), tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_orders(semen_order_id, semen_orders(customer_name)), tank_pack_lines(bull_name, units, field_canister)")
         .eq("organization_id", orgId)
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
@@ -245,32 +245,43 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead>Field Tank</TableHead>
-                    <TableHead>Projects</TableHead>
+                    <TableHead>For</TableHead>
                     <TableHead>Bulls</TableHead>
                     <TableHead>Date Packed</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activePacks.map((p: any) => {
                     const tankName = p.tanks?.tank_name || p.tanks?.tank_number || "—";
                     const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
-                    const isShipment = p.pack_type === "shipment";
                     return (
-                      <TableRow key={p.id} className="hover:bg-muted/20">
+                      <TableRow key={p.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/pack/${p.id}`)}>
                         <TableCell className="font-medium">{tankName}</TableCell>
                         <TableCell>
-                          {isShipment ? (
-                            <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-muted-foreground" /> Ship to: {p.destination_name || "—"}</span>
-                          ) : (projNames || "—")}
+                          {p.pack_type === "shipment" ? (
+                            <span className="flex items-center gap-1">
+                              <Truck className="h-3 w-3 text-muted-foreground" />
+                              Ship to: {p.destination_name || "—"}
+                            </span>
+                          ) : p.pack_type === "pickup" ? (
+                            <span className="text-sm">
+                              Customer: {(p as any).customers?.name || "—"}
+                            </span>
+                          ) : p.pack_type === "order" ? (
+                            <span className="text-sm">
+                              {(p.tank_pack_orders?.[0] as any)?.semen_orders?.customer_name || "Order"}
+                            </span>
+                          ) : (
+                            projNames || "—"
+                          )}
                         </TableCell>
                         <TableCell>
                           {(p.tank_pack_lines || []).length > 0 ? (
                             <div>
                               <button
                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                onClick={() => togglePackExpand(p.id)}
+                                onClick={(e) => { e.stopPropagation(); togglePackExpand(p.id); }}
                               >
                                 {expandedPacks[p.id]
                                   ? <ChevronUp className="h-3 w-3" />
@@ -292,11 +303,6 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
                         <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">{p.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${p.id}`)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
                         </TableCell>
                       </TableRow>
                     );
