@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { format, parseISO, differenceInDays } from "date-fns";
 import { Beef, Calendar, Plus } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
