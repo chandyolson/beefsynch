@@ -126,7 +126,7 @@ const SemenOrderDetail = () => {
   };
 
   const handleDeleteOrder = async () => {
-    if (!id || !orgId) return;
+    if (!id) return;
     setDeletingOrder(true);
     try {
       const { error } = await supabase.from("semen_orders").delete().eq("id", id);
