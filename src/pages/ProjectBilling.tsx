@@ -199,9 +199,9 @@ const ProjectBilling = () => {
       setBillingId(existingBilling.id);
       setBillingRecord(existingBilling);
       await loadBillingChildren(existingBilling.id);
+      await computeSuggestions(projRes.data, eventsRes.data ?? [], bullsRes.data ?? []);
     } else {
-      // Create new billing record and auto-fill
-      await createAndAutoFill(
+      await createBlankWithSuggestions(
         projRes.data,
         eventsRes.data ?? [],
         bullsRes.data ?? [],
