@@ -23,6 +23,7 @@ interface InventoryBullPickerProps {
     sourceCanister: string;
     availableUnits: number | null;
   }) => void;
+  customerId?: string;
 }
 
 const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange }: InventoryBullPickerProps) => {
