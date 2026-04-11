@@ -69,7 +69,7 @@ const PackTank = () => {
   const preselectedTankId = searchParams.get("tankId") || "";
   const preselectedProjectId = searchParams.get("projectId") || "";
 
-  const [packType, setPackType] = useState<"project" | "shipment" | "order">("project");
+  const [packType, setPackType] = useState<"project" | "shipment" | "order" | "pickup">("project");
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [packedBy, setPackedBy] = useState("");
@@ -96,6 +96,12 @@ const PackTank = () => {
   const [shippingCarrier, setShippingCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [tankReturnExpected, setTankReturnExpected] = useState(true);
+
+  // Pickup fields
+  const [pickupCustomerId, setPickupCustomerId] = useState("");
+  const [pickupCustomerSearch, setPickupCustomerSearch] = useState("");
+  const [pickupCustomerOpen, setPickupCustomerOpen] = useState(false);
+  const [tankReturnExpectedPickup, setTankReturnExpectedPickup] = useState(true);
 
   // Add Tank dialog state
   const [addTankOpen, setAddTankOpen] = useState(false);
@@ -143,6 +149,27 @@ const PackTank = () => {
   });
 
   const fieldTankOptions = packType === "shipment" ? shipperTanks : allActiveTanks;
+
+  // Fetch customers for pickup
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers_for_pickup", orgId],
+    enabled: !!orgId && packType === "pickup",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const filteredPickupCustomers = useMemo(() => {
+    if (!pickupCustomerSearch) return customers;
+    const q = pickupCustomerSearch.toLowerCase();
+    return customers.filter((c: any) => c.name.toLowerCase().includes(q));
+  }, [customers, pickupCustomerSearch]);
 
   // Fetch orders for "order" pack type
   const { data: availableOrders = [] } = useQuery({
@@ -468,6 +495,8 @@ const PackTank = () => {
       if (!destinationName.trim()) errs.destinationName = "Destination name is required";
     } else if (packType === "order") {
       if (selectedOrders.length === 0) errs.orders = "Select at least one order";
+    } else if (packType === "pickup") {
+      if (!pickupCustomerId) errs.pickupCustomer = "Select a customer";
     }
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
@@ -535,7 +564,7 @@ const PackTank = () => {
           destination_address: packType === "shipment" ? destinationAddress.trim() || null : null,
           shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
           tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
-          tank_return_expected: packType === "shipment" ? tankReturnExpected : true,
+          tank_return_expected: packType === "shipment" ? tankReturnExpected : packType === "pickup" ? tankReturnExpectedPickup : true,
         })
         .select()
         .single();
@@ -673,6 +702,8 @@ const PackTank = () => {
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
             : packType === "order"
             ? `Packed to ${fieldTankName} for order(s)`
+            : packType === "pickup"
+            ? `Customer pickup — ${customers.find((c: any) => c.id === pickupCustomerId)?.name ?? "Unknown customer"}`
             : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
         });
         if (deductTxnErr) throw new Error(`Failed to write deduction transaction: ${deductTxnErr.message}`);
@@ -717,7 +748,7 @@ const PackTank = () => {
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "project" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); }}
+            onClick={() => { setPackType("project"); setSelectedTankId(""); setSelectedOrders([]); setPickupCustomerId(""); }}
           >
             <ClipboardList className="h-4 w-4" /> Project
           </button>
@@ -725,7 +756,7 @@ const PackTank = () => {
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "order" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("order"); setSelectedTankId(""); setSelectedProjects([]); setInventorySummary({}); setProjectBullUnits([]); }}
+            onClick={() => { setPackType("order"); setSelectedTankId(""); setSelectedProjects([]); setInventorySummary({}); setProjectBullUnits([]); setPickupCustomerId(""); }}
           >
             <ClipboardList className="h-4 w-4" /> Order
           </button>
@@ -733,9 +764,25 @@ const PackTank = () => {
             className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
               packType === "shipment" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
             )}
-            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); }}
+            onClick={() => { setPackType("shipment"); setSelectedTankId(""); setSelectedOrders([]); setSelectedProjects([]); setPickupCustomerId(""); }}
           >
             <Truck className="h-4 w-4" /> Shipment
+          </button>
+          <button
+            className={cn("flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors",
+              packType === "pickup" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+            onClick={() => {
+              setPackType("pickup");
+              setSelectedTankId("");
+              setSelectedOrders([]);
+              setSelectedProjects([]);
+              setInventorySummary({});
+              setProjectBullUnits([]);
+              setPickupCustomerId("");
+            }}
+          >
+            <Package className="h-4 w-4" /> Pickup
           </button>
         </div>
 
@@ -745,7 +792,7 @@ const PackTank = () => {
           <CardContent className="space-y-4">
             {/* Field Tank */}
             <div className="flex items-start gap-4">
-              <Label className="w-28 shrink-0 text-right pt-2">{packType === "shipment" ? "Shipper Tank *" : "Field Tank *"}</Label>
+              <Label className="w-28 shrink-0 text-right pt-2">{packType === "shipment" ? "Shipper Tank *" : packType === "pickup" ? "Customer Tank *" : "Field Tank *"}</Label>
               <div className="flex items-center gap-2 flex-1">
                 <div className="flex-1">
                   <Popover open={fieldTankOpen} onOpenChange={setFieldTankOpen}>
@@ -753,7 +800,7 @@ const PackTank = () => {
                       <Button variant="outline" role="combobox" aria-expanded={fieldTankOpen} className={cn("w-full justify-between font-normal", errors.fieldTank && "border-destructive", !selectedTankId && "text-muted-foreground")}>
                         {selectedTankId
                           ? (() => { const t = fieldTankOptions.find((t: any) => t.id === selectedTankId); return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select tank…"; })()
-                          : (packType === "shipment" ? "Select shipper tank…" : "Select tank…")}
+                          : (packType === "shipment" ? "Select shipper tank…" : packType === "pickup" ? "Select customer tank…" : "Select tank…")}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -1027,6 +1074,73 @@ const PackTank = () => {
               </div>
             )}
 
+            {/* Pickup fields */}
+            {packType === "pickup" && (
+              <div className="space-y-4">
+                {/* Customer selector */}
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Customer *</Label>
+                  <div className="flex-1">
+                    <Popover open={pickupCustomerOpen} onOpenChange={setPickupCustomerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn("w-full justify-between font-normal", errors.pickupCustomer && "border-destructive", !pickupCustomerId && "text-muted-foreground")}
+                        >
+                          {pickupCustomerId
+                            ? customers.find((c: any) => c.id === pickupCustomerId)?.name ?? "Select customer…"
+                            : "Select customer…"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search customers…"
+                            value={pickupCustomerSearch}
+                            onValueChange={setPickupCustomerSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No customers found.</CommandEmpty>
+                            {filteredPickupCustomers.map((c: any) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  setPickupCustomerId(c.id);
+                                  setPickupCustomerOpen(false);
+                                  setPickupCustomerSearch("");
+                                  setLines([emptyLine()]);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", pickupCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {errors.pickupCustomer && <p className="text-xs text-destructive mt-1">{errors.pickupCustomer}</p>}
+                  </div>
+                </div>
+
+                {/* Tank return checkbox */}
+                <div className="flex items-start gap-4">
+                  <Label className="w-28 shrink-0 text-right pt-2">Tank Return</Label>
+                  <div className="flex-1 flex items-center gap-2 pt-2">
+                    <Checkbox
+                      checked={tankReturnExpectedPickup}
+                      onCheckedChange={(checked) => setTankReturnExpectedPickup(!!checked)}
+                    />
+                    <Label className="cursor-pointer" onClick={() => setTankReturnExpectedPickup(!tankReturnExpectedPickup)}>
+                      Tank will be returned to us
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Packed By */}
             <div className="flex items-center gap-4">
               <Label className="w-28 shrink-0 text-right">Packed By</Label>
@@ -1165,6 +1279,7 @@ const PackTank = () => {
                         organizationId={orgId}
                         value={line.bullName}
                         onChange={(updates) => updateLine(i, updates)}
+                        customerId={packType === "pickup" ? pickupCustomerId || undefined : undefined}
                       />
                     </div>
                   </div>
