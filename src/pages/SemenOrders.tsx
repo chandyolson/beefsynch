@@ -46,7 +46,7 @@ const billingColors: Record<string, string> = {
 
 const SemenOrders = () => {
   const navigate = useNavigate();
-  const { orgId, role } = useOrgRole();
+  const { orgId } = useOrgRole();
   const queryClient = useQueryClient();
   
 
