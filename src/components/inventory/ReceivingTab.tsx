@@ -106,57 +106,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     return (match as any)?.semen_orders?.customers?.name || "Unknown";
   }, [orderFilter, confirmed]);
 
-  const handleDeleteConfirmed = async (row: any) => {
-    setDeletingId(row.id);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id ?? null;
-      const stats = getSnapshotStats(row.reconciliation_snapshot);
 
-      // Write audit log first
-      await supabase.from("receiving_report_audit_log").insert({
-        shipment_id: row.id,
-        organization_id: orgId!,
-        edited_by: userId!,
-        field_name: "override_delete",
-        old_value: JSON.stringify({
-          received_from: row.semen_companies?.name || null,
-          received_date: row.received_date,
-          semen_order_id: row.semen_order_id,
-          units_reversed: stats.units,
-        }),
-        new_value: null,
-        reason: null,
-      }).then(({ error }) => { if (error) console.error("Audit log error:", error); });
-
-      const { error } = await supabase.from("shipments").delete().eq("id", row.id);
-      if (error) throw error;
-
-      toast({
-        title: "Shipment deleted",
-        description: "Note: inventory adjustments from this shipment were NOT reversed. Adjust manually if needed.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["shipments"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleDeleteDraft = async (row: any) => {
-    setDeletingId(row.id);
-    try {
-      const { error } = await supabase.from("shipments").delete().eq("id", row.id);
-      if (error) throw error;
-      toast({ title: "Draft deleted" });
-      queryClient.invalidateQueries({ queryKey: ["shipments"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
