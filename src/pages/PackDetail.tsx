@@ -80,6 +80,8 @@ const PackDetail = () => {
   const [closeOutDate, setCloseOutDate] = useState<Date>(new Date());
   const [closeOutBy, setCloseOutBy] = useState("");
   const [closeOutNotes, setCloseOutNotes] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
