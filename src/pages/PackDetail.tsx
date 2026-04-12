@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck, Package,
-  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon,
+  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon, Trash2,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
