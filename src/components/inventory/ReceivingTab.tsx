@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Loader2, Search, Eye, Trash2, X, FileText, RotateCw } from "lucide-react";
+import { Plus, Loader2, Search, X, FileText, RotateCw } from "lucide-react";
 import { format } from "date-fns";
 
 const ReceivingTab = ({ orgId }: { orgId: string }) => {
@@ -304,39 +304,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell>{orderName || "—"}</TableCell>
                             <TableCell className="text-right">{stats.lines}</TableCell>
                             <TableCell>{lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}</TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}>
-                                  <RotateCw className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-400">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Draft</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Delete this draft? This cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteDraft(row)}
-                                        disabled={deletingId === row.id}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
                           </TableRow>
                         );
                       })}
