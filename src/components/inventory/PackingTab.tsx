@@ -22,7 +22,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Eye, Trash2, Download, CalendarIcon, X, Plus } from "lucide-react";
+import { Loader2, Search, Download, CalendarIcon, X, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -268,7 +268,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                     <TableHead className="text-right">Units</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Packed By</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -289,33 +288,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                           <Badge variant="outline" className={cn("text-xs", statusStyle.className)}>{statusStyle.label}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${row.id}`)}><Eye className="h-4 w-4" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Pack</AlertDialogTitle>
-                                  <AlertDialogDescription className="space-y-2">
-                                    <span>Delete this pack? This will remove the pack record but will NOT automatically reverse inventory transactions. Adjust manually if needed.</span>
-                                    {row.status === "in_field" && (
-                                      <span className="block mt-2 font-semibold text-amber-400">⚠ WARNING: This pack is currently in the field. Deleting it will leave field tank inventory in an inconsistent state.</span>
-                                    )}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(row.id)} disabled={deletingId === row.id} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -511,7 +483,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
                     <TableHead className="text-right">Lines</TableHead>
                     <TableHead className="text-right">Units Returned</TableHead>
                     <TableHead>Unpacked By</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -530,36 +502,6 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
                         <TableCell className="text-right">{stats.lineCount}</TableCell>
                         <TableCell className="text-right">{stats.totalReturned}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.unpacked_by || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${row.id}`)}><Eye className="h-4 w-4" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Unpack Record</AlertDialogTitle>
-                                  <AlertDialogDescription className="space-y-2">
-                                    <span>Delete this unpack record? This will:</span>
-                                    <ul className="list-disc ml-4 mt-1 space-y-1">
-                                      <li>Remove the unpack line items</li>
-                                      <li>Reset the parent pack status from 'unpacked' back to 'in_field'</li>
-                                      <li className="font-medium">NOT automatically reverse the inventory transactions that were created when this unpack happened</li>
-                                    </ul>
-                                    <span className="block mt-2">Adjust inventory manually if needed.</span>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(row.id)} disabled={deletingId === row.id} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     );
                   })}

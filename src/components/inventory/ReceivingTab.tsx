@@ -232,7 +232,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead className="text-right">Lines</TableHead>
                         <TableHead className="text-right">Units</TableHead>
                         <TableHead>Confirmed</TableHead>
-                        <TableHead className="w-24" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -252,48 +251,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell className="text-right">{stats.units}</TableCell>
                             <TableCell className="text-sm">
                               {row.confirmed_at ? format(new Date(row.confirmed_at), "MMM d, yyyy h:mm a") : "—"}
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-400">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        {canOverride ? "Delete Confirmed Shipment" : "Permission Required"}
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        {canOverride
-                                          ? "Deleting a confirmed receiving report will remove the record. Inventory adjustments it created will NOT be automatically reversed. This action is logged. Continue?"
-                                          : "You don't have permission to delete confirmed shipments. Owners and admins only."
-                                        }
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        {canOverride ? "Cancel" : "OK"}
-                                      </AlertDialogCancel>
-                                      {canOverride && (
-                                        <AlertDialogAction
-                                          onClick={() => handleDeleteConfirmed(row)}
-                                          disabled={deletingId === row.id}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                          Delete
-                                        </AlertDialogAction>
-                                      )}
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -328,7 +285,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead>Order</TableHead>
                         <TableHead className="text-right">Lines</TableHead>
                         <TableHead>Last Edited</TableHead>
-                        <TableHead className="w-24" />
+                        
                       </TableRow>
                     </TableHeader>
                     <TableBody>
