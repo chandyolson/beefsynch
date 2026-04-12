@@ -366,6 +366,21 @@ const PackDetail = () => {
 
   const trackingUrl = getTrackingUrl(pack.shipping_carrier, pack.tracking_number || "");
 
+  const handleDeletePack = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("tank_packs").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Pack deleted", description: "Pack and all related records have been removed." });
+      navigate("/operations?tab=packing");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -385,6 +400,32 @@ const PackDetail = () => {
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
               {pack.status}
             </Badge>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-1.5">
+                  <Trash2 className="h-4 w-4" /> Delete Pack
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Pack</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete this pack, including all pack lines, linked projects, linked orders, and associated inventory transactions. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeletePack}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
