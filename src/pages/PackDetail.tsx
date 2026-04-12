@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -80,7 +80,7 @@ const PackDetail = () => {
   const [closeOutDate, setCloseOutDate] = useState<Date>(new Date());
   const [closeOutBy, setCloseOutBy] = useState("");
   const [closeOutNotes, setCloseOutNotes] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  
   const [deleting, setDeleting] = useState(false);
 
   // Fetch pack with field tank
