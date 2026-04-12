@@ -14,15 +14,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Eye, Trash2, Download, CalendarIcon, X, Plus } from "lucide-react";
+import { Loader2, Search, Download, CalendarIcon, X, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +47,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: packs = [], isLoading } = useQuery({
     queryKey: ["packs", "all", orgId, statusFilter, typeFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -131,19 +125,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     };
   };
 
-  const handleDelete = async (packId: string) => {
-    setDeletingId(packId);
-    try {
-      const { error } = await supabase.from("tank_packs").delete().eq("id", packId);
-      if (error) throw error;
-      toast({ title: "Pack deleted", description: "Pack and related records have been removed." });
-      queryClient.invalidateQueries({ queryKey: ["packs"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   const handleExportCsv = () => {
     const headers = ["Packed Date", "Field Tank", "Type", "Destination", "Lines", "Units", "Status", "Packed By", "Notes"];
@@ -268,7 +249,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                     <TableHead className="text-right">Units</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Packed By</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -289,33 +269,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                           <Badge variant="outline" className={cn("text-xs", statusStyle.className)}>{statusStyle.label}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${row.id}`)}><Eye className="h-4 w-4" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Pack</AlertDialogTitle>
-                                  <AlertDialogDescription className="space-y-2">
-                                    <span>Delete this pack? This will remove the pack record but will NOT automatically reverse inventory transactions. Adjust manually if needed.</span>
-                                    {row.status === "in_field" && (
-                                      <span className="block mt-2 font-semibold text-amber-400">⚠ WARNING: This pack is currently in the field. Deleting it will leave field tank inventory in an inconsistent state.</span>
-                                    )}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(row.id)} disabled={deletingId === row.id} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -337,7 +290,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
 
   const { data: unpacks = [], isLoading } = useQuery({
     queryKey: ["unpacks", orgId, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -401,21 +354,6 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
     return t?.tank_name || t?.tank_number || "—";
   };
 
-  const handleDelete = async (packId: string) => {
-    setDeletingId(packId);
-    try {
-      const { error: lineErr } = await supabase.from("tank_unpack_lines").delete().eq("tank_pack_id", packId);
-      if (lineErr) throw lineErr;
-      const { error: packErr } = await supabase.from("tank_packs").update({ status: "in_field", unpacked_at: null, unpacked_by: null }).eq("id", packId);
-      if (packErr) throw packErr;
-      toast({ title: "Unpack reversed", description: "Parent pack returned to 'in field' status." });
-      queryClient.invalidateQueries({ queryKey: ["unpacks"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   const handleExportCsv = () => {
     const headers = ["Unpacked Date", "Field Tank", "Pack ID", "Returned To", "Lines", "Units Returned", "Unpacked By"];
@@ -511,7 +449,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
                     <TableHead className="text-right">Lines</TableHead>
                     <TableHead className="text-right">Units Returned</TableHead>
                     <TableHead>Unpacked By</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -530,36 +468,6 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
                         <TableCell className="text-right">{stats.lineCount}</TableCell>
                         <TableCell className="text-right">{stats.totalReturned}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.unpacked_by || "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${row.id}`)}><Eye className="h-4 w-4" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-rose-400"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Unpack Record</AlertDialogTitle>
-                                  <AlertDialogDescription className="space-y-2">
-                                    <span>Delete this unpack record? This will:</span>
-                                    <ul className="list-disc ml-4 mt-1 space-y-1">
-                                      <li>Remove the unpack line items</li>
-                                      <li>Reset the parent pack status from 'unpacked' back to 'in_field'</li>
-                                      <li className="font-medium">NOT automatically reverse the inventory transactions that were created when this unpack happened</li>
-                                    </ul>
-                                    <span className="block mt-2">Adjust inventory manually if needed.</span>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(row.id)} disabled={deletingId === row.id} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     );
                   })}

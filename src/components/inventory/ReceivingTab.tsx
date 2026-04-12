@@ -12,12 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Plus, Loader2, Search, Eye, Trash2, X, FileText, RotateCw } from "lucide-react";
+import { Plus, Loader2, Search, X, FileText } from "lucide-react";
 import { format } from "date-fns";
 
 const ReceivingTab = ({ orgId }: { orgId: string }) => {
@@ -29,9 +24,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
   const orderFilter = searchParams.get("order");
   const [activeTab, setActiveTab] = useState<string>(orderFilter ? "confirmed" : "confirmed");
   const [search, setSearch] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const canOverride = role === "owner" || role === "admin";
 
   // Fetch confirmed shipments
   const { data: confirmed = [], isLoading: loadingConfirmed } = useQuery({
@@ -114,57 +106,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     return (match as any)?.semen_orders?.customers?.name || "Unknown";
   }, [orderFilter, confirmed]);
 
-  const handleDeleteConfirmed = async (row: any) => {
-    setDeletingId(row.id);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id ?? null;
-      const stats = getSnapshotStats(row.reconciliation_snapshot);
 
-      // Write audit log first
-      await supabase.from("receiving_report_audit_log").insert({
-        shipment_id: row.id,
-        organization_id: orgId!,
-        edited_by: userId!,
-        field_name: "override_delete",
-        old_value: JSON.stringify({
-          received_from: row.semen_companies?.name || null,
-          received_date: row.received_date,
-          semen_order_id: row.semen_order_id,
-          units_reversed: stats.units,
-        }),
-        new_value: null,
-        reason: null,
-      }).then(({ error }) => { if (error) console.error("Audit log error:", error); });
-
-      const { error } = await supabase.from("shipments").delete().eq("id", row.id);
-      if (error) throw error;
-
-      toast({
-        title: "Shipment deleted",
-        description: "Note: inventory adjustments from this shipment were NOT reversed. Adjust manually if needed.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["shipments"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleDeleteDraft = async (row: any) => {
-    setDeletingId(row.id);
-    try {
-      const { error } = await supabase.from("shipments").delete().eq("id", row.id);
-      if (error) throw error;
-      toast({ title: "Draft deleted" });
-      queryClient.invalidateQueries({ queryKey: ["shipments"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -232,7 +174,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead className="text-right">Lines</TableHead>
                         <TableHead className="text-right">Units</TableHead>
                         <TableHead>Confirmed</TableHead>
-                        <TableHead className="w-24" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -252,48 +193,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell className="text-right">{stats.units}</TableCell>
                             <TableCell className="text-sm">
                               {row.confirmed_at ? format(new Date(row.confirmed_at), "MMM d, yyyy h:mm a") : "—"}
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-400">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        {canOverride ? "Delete Confirmed Shipment" : "Permission Required"}
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        {canOverride
-                                          ? "Deleting a confirmed receiving report will remove the record. Inventory adjustments it created will NOT be automatically reversed. This action is logged. Continue?"
-                                          : "You don't have permission to delete confirmed shipments. Owners and admins only."
-                                        }
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        {canOverride ? "Cancel" : "OK"}
-                                      </AlertDialogCancel>
-                                      {canOverride && (
-                                        <AlertDialogAction
-                                          onClick={() => handleDeleteConfirmed(row)}
-                                          disabled={deletingId === row.id}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                          Delete
-                                        </AlertDialogAction>
-                                      )}
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -328,7 +227,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead>Order</TableHead>
                         <TableHead className="text-right">Lines</TableHead>
                         <TableHead>Last Edited</TableHead>
-                        <TableHead className="w-24" />
+                        
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -347,39 +246,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell>{orderName || "—"}</TableCell>
                             <TableCell className="text-right">{stats.lines}</TableCell>
                             <TableCell>{lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}</TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}>
-                                  <RotateCw className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-rose-400">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Draft</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Delete this draft? This cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeleteDraft(row)}
-                                        disabled={deletingId === row.id}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        {deletingId === row.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
                           </TableRow>
                         );
                       })}

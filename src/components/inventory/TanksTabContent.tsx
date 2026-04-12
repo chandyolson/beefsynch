@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Eye, Plus, Search, Users, Package, Archive, Droplets, Sun, Truck,
+  Plus, Search, Users, Package, Archive, Droplets, Sun, Truck,
   AlertTriangle, AlertCircle, Upload, Check, X, FileSpreadsheet,
   Clock, RotateCcw, ChevronsUpDown,
 } from "lucide-react";
@@ -229,7 +229,6 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
               <TableHead className="whitespace-nowrap text-right">Tanks</TableHead>
               <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
               <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -246,9 +245,6 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
                 <TableCell className="text-right">{cust.totalUnits}</TableCell>
                 <TableCell className={cn("whitespace-nowrap", getInventoryColor(cust.lastInventoried))}>
                   {cust.lastInventoried ? format(parseISO(cust.lastInventoried), "MMM d, yyyy") : "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); navigate(`/customers/${cust.id}`); }}><Eye className="h-4 w-4" /></Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -429,7 +425,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
               <TableHead className="whitespace-nowrap">Model</TableHead>
               <TableHead className="whitespace-nowrap">Last Fill</TableHead>
               <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+              
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -447,9 +443,6 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
                 <TableCell className="whitespace-nowrap">{tank.model || "—"}</TableCell>
                 <TableCell className={cn("whitespace-nowrap", getFillColor(tank.lastFill))}>{tank.lastFill ? format(parseISO(tank.lastFill), "MMM d, yyyy") : "—"}</TableCell>
                 <TableCell className="text-right">{tank.totalUnits}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleRowClick(tank); }}><Eye className="h-4 w-4" /></Button>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
