@@ -47,7 +47,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: packs = [], isLoading } = useQuery({
     queryKey: ["packs", "all", orgId, statusFilter, typeFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -126,19 +125,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     };
   };
 
-  const handleDelete = async (packId: string) => {
-    setDeletingId(packId);
-    try {
-      const { error } = await supabase.from("tank_packs").delete().eq("id", packId);
-      if (error) throw error;
-      toast({ title: "Pack deleted", description: "Pack and related records have been removed." });
-      queryClient.invalidateQueries({ queryKey: ["packs"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   const handleExportCsv = () => {
     const headers = ["Packed Date", "Field Tank", "Type", "Destination", "Lines", "Units", "Status", "Packed By", "Notes"];
@@ -304,7 +290,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
 
   const { data: unpacks = [], isLoading } = useQuery({
     queryKey: ["unpacks", orgId, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -368,21 +354,6 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
     return t?.tank_name || t?.tank_number || "—";
   };
 
-  const handleDelete = async (packId: string) => {
-    setDeletingId(packId);
-    try {
-      const { error: lineErr } = await supabase.from("tank_unpack_lines").delete().eq("tank_pack_id", packId);
-      if (lineErr) throw lineErr;
-      const { error: packErr } = await supabase.from("tank_packs").update({ status: "in_field", unpacked_at: null, unpacked_by: null }).eq("id", packId);
-      if (packErr) throw packErr;
-      toast({ title: "Unpack reversed", description: "Parent pack returned to 'in field' status." });
-      queryClient.invalidateQueries({ queryKey: ["unpacks"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
   const handleExportCsv = () => {
     const headers = ["Unpacked Date", "Field Tank", "Pack ID", "Returned To", "Lines", "Units Returned", "Unpacked By"];

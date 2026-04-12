@@ -12,12 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Plus, Loader2, Search, X, FileText, RotateCw } from "lucide-react";
+import { Plus, Loader2, Search, X, FileText } from "lucide-react";
 import { format } from "date-fns";
 
 const ReceivingTab = ({ orgId }: { orgId: string }) => {
@@ -29,9 +24,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
   const orderFilter = searchParams.get("order");
   const [activeTab, setActiveTab] = useState<string>(orderFilter ? "confirmed" : "confirmed");
   const [search, setSearch] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const canOverride = role === "owner" || role === "admin";
 
   // Fetch confirmed shipments
   const { data: confirmed = [], isLoading: loadingConfirmed } = useQuery({
