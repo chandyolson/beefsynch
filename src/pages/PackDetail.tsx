@@ -624,6 +624,25 @@ const PackDetail = () => {
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
               {STATUS_LABEL[pack.status] || pack.status}
             </Badge>
+            {/* Lifecycle advance buttons */}
+            {pack.pack_type === "shipment" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("shipped")}>Mark Shipped</Button>
+            )}
+            {pack.pack_type === "shipment" && pack.status === "shipped" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("delivered")}>Mark Delivered</Button>
+            )}
+            {pack.pack_type === "shipment" && pack.status === "delivered" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
+            )}
+            {pack.pack_type === "pickup" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("picked_up")}>Mark Picked Up</Button>
+            )}
+            {pack.pack_type === "pickup" && pack.status === "picked_up" && (
+              <Button size="sm" variant="outline" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
+            )}
+            {pack.pack_type === "project" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="gap-1.5">
@@ -1011,6 +1030,57 @@ const PackDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Advance lifecycle dialog */}
+        <Dialog open={advanceDialogOpen} onOpenChange={setAdvanceDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mark pack as {STATUS_LABEL[advanceTarget] || advanceTarget}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-sm font-medium">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(advanceDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={advanceDate} onSelect={(d) => d && setAdvanceDate(d)} initialFocus className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {advanceTarget === "shipped" && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium">Carrier (optional)</Label>
+                    <Input value={advanceCarrier} onChange={(e) => setAdvanceCarrier(e.target.value)} placeholder="UPS, FedEx, etc." className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Tracking number (optional)</Label>
+                    <Input value={advanceTracking} onChange={(e) => setAdvanceTracking(e.target.value)} placeholder="1Z..." className="mt-1" />
+                  </div>
+                </>
+              )}
+
+              {advanceTarget === "picked_up" && (
+                <div>
+                  <Label className="text-sm font-medium">Picked up by (optional)</Label>
+                  <Input value={advancePickupBy} onChange={(e) => setAdvancePickupBy(e.target.value)} placeholder="Customer name" className="mt-1" />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAdvanceDialogOpen(false)} disabled={advancing}>Cancel</Button>
+              <Button onClick={handleAdvance} disabled={advancing}>
+                {advancing ? "Saving..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
       <AppFooter />
     </div>
