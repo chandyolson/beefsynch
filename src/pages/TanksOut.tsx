@@ -64,7 +64,7 @@ const TanksOut = () => {
         .from("tanks")
         .select("*, customers(name)")
         .eq("organization_id", orgId!)
-        .eq("status", "out")
+        .eq("location_status", "out")
         .order("tank_number");
       if (error) throw error;
       return (data ?? []) as any[];

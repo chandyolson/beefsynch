@@ -204,9 +204,9 @@ const Tanks = () => {
 
   // Stats
   const totalTanks = tanks.length;
-  const wetCount = tanks.filter((t: any) => t.status === "wet").length;
-  const dryCount = tanks.filter((t: any) => t.status === "dry").length;
-  const outCount = tanks.filter((t: any) => t.status === "out").length;
+  const wetCount = tanks.filter((t: any) => t.nitrogen_status === "wet" && t.location_status === "here").length;
+  const dryCount = tanks.filter((t: any) => t.nitrogen_status === "dry" && t.location_status === "here").length;
+  const outCount = tanks.filter((t: any) => t.location_status === "out").length;
 
   // Save tank
   const handleSave = async () => {
@@ -341,9 +341,21 @@ const Tanks = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>
-                        {tank.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={
+                          tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                          tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                          "bg-muted text-muted-foreground border-border"
+                        }>
+                          {tank.nitrogen_status || "unknown"}
+                        </Badge>
+                        <Badge variant="outline" className={
+                          tank.location_status === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                          "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                        }>
+                          {tank.location_status === "here" ? "in shop" : "out with customer"}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{tank.model || "—"}</TableCell>
                     <TableCell className={cn("whitespace-nowrap", getFillColor(tank.lastFill))}>
