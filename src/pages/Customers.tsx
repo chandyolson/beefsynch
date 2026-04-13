@@ -150,9 +150,14 @@ const Customers = () => {
         .insert({
           organization_id: orgId!,
           name: formName.trim(),
+          company_name: formCompanyName.trim() || null,
           phone: formPhone.trim() || null,
           email: formEmail.trim() || null,
-          address: formAddress.trim() || null,
+          address_line1: formAddressLine1.trim() || null,
+          address_line2: formAddressLine2.trim() || null,
+          city: formCity.trim() || null,
+          state: formState.trim() || null,
+          zip: formZip.trim() || null,
           notes: formNotes.trim() || null,
         } as any);
       if (error) throw error;
@@ -170,9 +175,14 @@ const Customers = () => {
 
   const resetForm = () => {
     setFormName("");
+    setFormCompanyName("");
     setFormPhone("");
     setFormEmail("");
-    setFormAddress("");
+    setFormAddressLine1("");
+    setFormAddressLine2("");
+    setFormCity("");
+    setFormState("");
+    setFormZip("");
     setFormNotes("");
   };
 
