@@ -669,13 +669,13 @@ const CustomerDetail = () => {
             return (
               <div key={tank.id} className="rounded-lg border border-border/50 overflow-hidden">
                 {/* Tank header */}
-                <div className={cn("flex items-center justify-between px-4 py-3", tank.status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
+                <div className={cn("flex items-center justify-between px-4 py-3", tank.nitrogen_status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
                         {tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number}
                       </span>
-                      {statusBadge(tank.status)}
+                      {statusBadge(tank.nitrogen_status || "unknown")}
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                       {tank.model && <span>Model: {tank.model}</span>}
@@ -684,13 +684,13 @@ const CustomerDetail = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {tank.status === "dry" ? (
-                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                    {tank.nitrogen_status === "dry" ? (
+                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.nitrogen_status)} className="gap-1">
                         <Droplets className="h-4 w-4" /> Mark Wet
                       </Button>
                     ) : (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.nitrogen_status)} className="gap-1">
                           <Sun className="h-4 w-4" /> Dry Off
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">

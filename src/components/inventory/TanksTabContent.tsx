@@ -353,9 +353,9 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   }, [enriched, typeFilter, statusFilter, search]);
 
   const totalTanks = tanks.length;
-  const wetCount = tanks.filter((t: any) => t.status === "wet").length;
-  const dryCount = tanks.filter((t: any) => t.status === "dry").length;
-  const outCount = tanks.filter((t: any) => t.status === "out").length;
+  const wetCount = tanks.filter((t: any) => t.nitrogen_status === "wet" && t.location_status === "here").length;
+  const dryCount = tanks.filter((t: any) => t.nitrogen_status === "dry" && t.location_status === "here").length;
+  const outCount = tanks.filter((t: any) => t.location_status === "out").length;
 
   const handleSave = async () => {
     if (!tankNumber.trim() || !orgId) return;
@@ -439,7 +439,23 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
                 <TableCell className="whitespace-nowrap text-primary hover:underline">{tank.tank_name || "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">{tank.customerName || orgName || "Company Owned"}</TableCell>
                 <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
-                <TableCell><Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>{tank.status}</Badge></TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={
+                      tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                      tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                      "bg-muted text-muted-foreground border-border"
+                    }>
+                      {tank.nitrogen_status || "unknown"}
+                    </Badge>
+                    <Badge variant="outline" className={
+                      tank.location_status === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                      "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                    }>
+                      {tank.location_status === "here" ? "in shop" : "out with customer"}
+                    </Badge>
+                  </div>
+                </TableCell>
                 <TableCell className="whitespace-nowrap">{tank.model || "—"}</TableCell>
                 <TableCell className={cn("whitespace-nowrap", getFillColor(tank.lastFill))}>{tank.lastFill ? format(parseISO(tank.lastFill), "MMM d, yyyy") : "—"}</TableCell>
                 <TableCell className="text-right">{tank.totalUnits}</TableCell>
@@ -756,7 +772,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryKey: ["tanks_out", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks").select("*, customers(name)").eq("organization_id", orgId).eq("status", "out").order("tank_number");
+      const { data, error } = await (supabase as any).from("tanks").select("*, customers(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
       if (error) throw error;
       return (data ?? []) as any[];
     },
