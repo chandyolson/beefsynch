@@ -574,7 +574,7 @@ const ReceiveShipment = () => {
   const getLineIndex = (key: string) => lines.findIndex((l) => l.key === key);
 
   const renderAllocationBadge = (group: BullGroup) => {
-    const totalAllocated = group.items.reduce((s, l) => s + l.units, 0);
+    const totalAllocated = group.items.reduce((s, l) => s + (typeof l.units === "number" ? l.units : parseInt(String(l.units)) || 0), 0);
     const orderedKey = group.bullCatalogId || group.bullName;
     const orderedQty = orderedQtyMap.get(orderedKey);
 
