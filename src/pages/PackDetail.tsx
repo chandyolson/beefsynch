@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,6 +26,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,11 +41,25 @@ import { generateSessionSheetPdf } from "@/lib/generateSessionSheetPdf";
 import { generateReturnSlipPdf } from "@/lib/generateReturnSlipPdf";
 
 const STATUS_BADGE: Record<string, string> = {
-  packed: "bg-green-600/20 text-green-400 border-green-600/30",
-  in_field: "bg-green-600/20 text-green-400 border-green-600/30",
-  unpacked: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  returned: "bg-purple-600/20 text-purple-400 border-purple-600/30",
-  cancelled: "bg-muted text-muted-foreground border-border",
+  packed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  in_field: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  unpacked: "bg-green-500/20 text-green-400 border-green-500/30",
+  shipped: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  delivered: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  tank_returned: "bg-green-500/20 text-green-400 border-green-500/30",
+  picked_up: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  packed: "Packed",
+  in_field: "In Field",
+  unpacked: "Unpacked",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  tank_returned: "Tank Returned",
+  picked_up: "Picked Up",
+  cancelled: "Cancelled",
 };
 
 function getTrackingUrl(carrier: string | null, trackingNumber: string): string | null {
