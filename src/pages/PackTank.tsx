@@ -811,6 +811,7 @@ const PackTank = () => {
         // d. Deduction transaction
         const { error: deductTxnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
+          tank_pack_id: pack.id,
           tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,
@@ -830,6 +831,7 @@ const PackTank = () => {
         // e. Addition transaction
         const { error: addTxnErr } = await supabase.from("inventory_transactions").insert({
           organization_id: orgId,
+          tank_pack_id: pack.id,
           tank_id: selectedTankId,
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,

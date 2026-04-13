@@ -209,6 +209,7 @@ const UnpackTank = () => {
           // d. Transaction: field tank deduction
           await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
+            tank_pack_id: packId,
             tank_id: fieldTankId,
             bull_catalog_id: line.bullCatalogId,
             bull_code: line.bullCode,
@@ -222,6 +223,7 @@ const UnpackTank = () => {
           // e. Transaction: destination tank addition
           await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
+            tank_pack_id: packId,
             tank_id: line.destinationTankId,
             bull_catalog_id: line.bullCatalogId,
             bull_code: line.bullCode,
@@ -264,6 +266,7 @@ const UnpackTank = () => {
           // c. Transaction: used in field
           await supabase.from("inventory_transactions").insert({
             organization_id: orgId!,
+            tank_pack_id: packId,
             tank_id: fieldTankId,
             bull_catalog_id: line.bullCatalogId,
             bull_code: line.bullCode,
