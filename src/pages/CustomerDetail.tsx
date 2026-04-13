@@ -561,9 +561,21 @@ const CustomerDetail = () => {
                 {customer.phone && <a href={`tel:${customer.phone}`} className="hover:underline">{customer.phone}</a>}
                 {customer.email && <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>}
               </div>
-              {customer.address && (
-                <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
-              )}
+              {(() => {
+                const hasStructuredAddress = !!(customer.company_name || customer.address_line1 || customer.city || customer.state || customer.zip);
+                if (hasStructuredAddress) {
+                  const cityStateZip = [customer.city, customer.state].filter(Boolean).join(", ") + (customer.zip ? ` ${customer.zip}` : "");
+                  return (
+                    <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                      {customer.company_name && <p className="font-medium">{customer.company_name}</p>}
+                      {customer.address_line1 && <p>{customer.address_line1}</p>}
+                      {customer.address_line2 && <p>{customer.address_line2}</p>}
+                      {cityStateZip.trim() && <p>{cityStateZip.trim()}</p>}
+                    </div>
+                  );
+                }
+                return customer.address ? <p className="text-sm text-muted-foreground mt-1">{customer.address}</p> : null;
+              })()}
               {customer.notes && (
                 <p className="text-sm text-muted-foreground italic mt-1">{customer.notes}</p>
               )}
