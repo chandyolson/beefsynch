@@ -128,9 +128,10 @@ const PackTank = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("id, tank_name, tank_number, tank_type")
+        .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
         .eq("organization_id", orgId!)
-        .eq("status", "wet")
+        .eq("location_status", "here")
+        .eq("nitrogen_status", "wet")
         .order("tank_number");
       if (error) throw error;
       return data ?? [];
@@ -144,10 +145,11 @@ const PackTank = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("id, tank_name, tank_number, tank_type")
+        .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
         .eq("organization_id", orgId!)
         .eq("tank_type", "shipper")
-        .eq("status", "wet")
+        .eq("location_status", "here")
+        .eq("nitrogen_status", "wet")
         .order("tank_number");
       if (error) throw error;
       return data ?? [];
@@ -612,7 +614,7 @@ const PackTank = () => {
           tank_number: newTankNumber.trim(),
           tank_name: newTankName.trim() || null,
           tank_type: newTankType,
-          status: "wet",
+          nitrogen_status: "wet",
         })
         .select()
         .single();
@@ -666,14 +668,14 @@ const PackTank = () => {
 
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
-      // Set field tank status to "out"
-      const { error: tankStatusErr } = await supabase
+      // Mark field tank as out (the physical nitrogen state is unaffected)
+      const { error: tankLocationErr } = await supabase
         .from("tanks")
-        .update({ status: "out" })
+        .update({ location_status: "out" })
         .eq("id", selectedTankId);
 
-      if (tankStatusErr) {
-        toast({ title: "Warning", description: "Pack created but tank status could not be updated.", variant: "destructive" });
+      if (tankLocationErr) {
+        toast({ title: "Warning", description: "Pack created but tank location could not be updated.", variant: "destructive" });
       }
 
       // Step 2: Create tank_pack_projects or tank_pack_orders
