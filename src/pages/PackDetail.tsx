@@ -482,6 +482,19 @@ const PackDetail = () => {
         }
       }
 
+      // 3c. Reset field tank location_status back to 'here'
+      // The pack flow set it to 'out' when packing — undo that now.
+      // Do NOT touch nitrogen_status; the physical state of the tank is unrelated to whether it's loaned out.
+      if (fieldTankId) {
+        const { error: tankResetErr } = await supabase
+          .from("tanks")
+          .update({ location_status: "here" } as any)
+          .eq("id", fieldTankId);
+        if (tankResetErr) {
+          throw new Error(`Failed to reset field tank location: ${tankResetErr.message}`);
+        }
+      }
+
       // 4. Delete all inventory_transactions tied to this pack
       const { error: txnDelErr } = await supabase
         .from("inventory_transactions")
@@ -538,8 +551,8 @@ const PackDetail = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete Pack</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete the pack and restore the packed semen back to the source tank.
-                    The destination tank's units will be removed. This action cannot be undone.
+                    This will permanently delete the pack, restore the packed semen back to the source tank,
+                    mark the field tank as available again, and remove the pack's inventory ledger entries. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
