@@ -101,6 +101,14 @@ const PackDetail = () => {
   
   const [deleting, setDeleting] = useState(false);
 
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [advanceTarget, setAdvanceTarget] = useState("");
+  const [advanceDate, setAdvanceDate] = useState<Date>(new Date());
+  const [advanceCarrier, setAdvanceCarrier] = useState("");
+  const [advanceTracking, setAdvanceTracking] = useState("");
+  const [advancePickupBy, setAdvancePickupBy] = useState("");
+  const [advancing, setAdvancing] = useState(false);
+
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
     queryKey: ["pack_detail", id],
@@ -557,7 +565,7 @@ const PackDetail = () => {
               {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : isPickup ? <><Package className="h-3 w-3 mr-1" /> Pickup</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
             </Badge>
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
-              {pack.status}
+              {STATUS_LABEL[pack.status] || pack.status}
             </Badge>
             <AlertDialog>
               <AlertDialogTrigger asChild>
