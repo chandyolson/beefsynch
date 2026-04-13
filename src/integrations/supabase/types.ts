@@ -152,6 +152,10 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          company_name: string | null
           created_at: string
           email: string | null
           id: string
@@ -159,9 +163,17 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          qbo_customer_id: string | null
+          qbo_synced_at: string | null
+          state: string | null
+          zip: string | null
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -169,9 +181,17 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          qbo_customer_id?: string | null
+          qbo_synced_at?: string | null
+          state?: string | null
+          zip?: string | null
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -179,6 +199,10 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          qbo_customer_id?: string | null
+          qbo_synced_at?: string | null
+          state?: string | null
+          zip?: string | null
         }
         Relationships: [
           {
