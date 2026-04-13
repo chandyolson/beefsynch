@@ -406,7 +406,7 @@ const PackTank = () => {
     }
 
     setLines(prev => {
-      const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+      const hasContent = prev.some(l => l.bullName || l.sourceTankId || getUnits(l.units) > 0);
       return hasContent ? [...prev, ...newLines] : newLines;
     });
 
@@ -518,7 +518,7 @@ const PackTank = () => {
 
       setLines(prev => {
         if (pickupSource === "mixed") {
-          const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+          const hasContent = prev.some(l => l.bullName || l.sourceTankId || getUnits(l.units) > 0);
           return hasContent ? [...prev, ...newLines] : newLines;
         }
         return newLines.length > 0 ? newLines : [emptyLine()];
@@ -726,7 +726,7 @@ const PackTank = () => {
           bull_code: line.bullCode,
           source_canister: line.sourceCanister || null,
           field_canister: line.fieldCanister || null,
-          units: line.units,
+          units: getUnits(line.units),
         });
         if (tankPackLinesErr) throw new Error(`Failed to write tank_pack_lines: ${tankPackLinesErr.message}`);
 
@@ -754,11 +754,11 @@ const PackTank = () => {
         }
 
         if (invRow) {
-          if ((invRow.units as number) - line.units <= 0) {
+          if ((invRow.units as number) - getUnits(line.units) <= 0) {
             const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
             if (delErr) throw new Error(`Failed to deduct inventory: ${delErr.message}`);
           } else {
-            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - line.units }).eq("id", invRow.id);
+            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - getUnits(line.units) }).eq("id", invRow.id);
             if (updErr) throw new Error(`Failed to deduct inventory: ${updErr.message}`);
           }
         } else {
@@ -790,7 +790,7 @@ const PackTank = () => {
 
         if (fieldInvRow) {
           const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({
-            units: (fieldInvRow.units as number) + line.units,
+            units: (fieldInvRow.units as number) + getUnits(line.units),
           }).eq("id", fieldInvRow.id);
           if (fieldUpdErr) throw new Error(`Failed to update field tank inventory: ${fieldUpdErr.message}`);
         } else {
@@ -798,7 +798,7 @@ const PackTank = () => {
             tank_id: selectedTankId,
             organization_id: orgId,
             canister: line.fieldCanister || "1",
-            units: line.units,
+            units: getUnits(line.units),
             item_type: "semen",
             bull_catalog_id: line.bullCatalogId,
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
@@ -815,7 +815,7 @@ const PackTank = () => {
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,
           custom_bull_name: line.bullName,
-          units_change: -line.units,
+          units_change: -getUnits(line.units),
           transaction_type: "pack_out",
           notes: packType === "project"
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
@@ -834,7 +834,7 @@ const PackTank = () => {
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,
           custom_bull_name: line.bullName,
-          units_change: line.units,
+          units_change: getUnits(line.units),
           transaction_type: "pack_in",
           notes: `Packed from ${sourceTankName}`,
         });
@@ -1520,7 +1520,7 @@ const PackTank = () => {
                     <Label className="text-xs">
                       Units
                       {line.availableUnits !== null && (
-                        <span className={cn("ml-1 font-normal", line.units > 0 && line.units > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
+                        <span className={cn("ml-1 font-normal", getUnits(line.units) > 0 && getUnits(line.units) > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
                           ({computeAvailable(line, i)} avail.)
                         </span>
                       )}
