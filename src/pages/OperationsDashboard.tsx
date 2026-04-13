@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Package, Users, Truck, PackagePlus, ShoppingCart,
+  Truck, PackagePlus, ShoppingCart,
   Layers, ScrollText, List,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -15,26 +15,11 @@ import PackingTab from "@/components/inventory/PackingTab";
 import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 import ReceivingTab from "@/components/inventory/ReceivingTab";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { useQuery } from "@tanstack/react-query";
 
 
-const PAGE_SIZE = 1000;
 
-async function fetchAllUnits(baseQuery: any): Promise<number> {
-  let total = 0;
-  let from = 0;
-  while (true) {
-    const { data, error } = await baseQuery.range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    for (const row of data) total += (row.units ?? 0);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return total;
-}
 
 const TABS = [
   { key: "projects", label: "Projects", icon: List },
@@ -59,29 +44,6 @@ const OperationsDashboard = () => {
     setSearchParams({ tab, ...extra }, { replace: true });
   };
 
-  const { data: companyUnits = 0 } = useQuery({
-    queryKey: ["inv-hub-company", orgId],
-    queryFn: async () => {
-      if (!orgId) return 0;
-      return fetchAllUnits(
-        supabase.from("tank_inventory").select("units").eq("organization_id", orgId).is("customer_id", null)
-      );
-    },
-    enabled: !!orgId,
-  });
-
-  const { data: customerUnits = 0 } = useQuery({
-    queryKey: ["inv-hub-customer", orgId],
-    queryFn: async () => {
-      if (!orgId) return 0;
-      return fetchAllUnits(
-        supabase.from("tank_inventory").select("units").eq("organization_id", orgId).not("customer_id", "is", null)
-      );
-    },
-    enabled: !!orgId,
-  });
-
-  
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
