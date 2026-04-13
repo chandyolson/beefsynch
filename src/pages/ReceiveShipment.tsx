@@ -41,7 +41,7 @@ interface LineItem {
   groupId: string;
   bullName: string;
   bullCatalogId: string | null;
-  units: number;
+  units: number | "";
   tankId: string;
   canister: string;
   itemType: "semen" | "embryo";
@@ -59,7 +59,7 @@ const emptyLine = (): LineItem => ({
   groupId: crypto.randomUUID(),
   bullName: "",
   bullCatalogId: null,
-  units: 0,
+  units: "",
   tankId: "",
   canister: "",
   itemType: "semen",
@@ -419,7 +419,7 @@ const ReceiveShipment = () => {
       groupId: group.groupKey,
       bullName: group.bullName,
       bullCatalogId: group.bullCatalogId,
-      units: 0,
+      units: "",
       tankId: "",
       canister: "",
       itemType: group.items[0]?.itemType || "semen",
@@ -458,7 +458,7 @@ const ReceiveShipment = () => {
     if (lines.length === 0) errs.lines = "At least one line item required";
     lines.forEach((l, i) => {
       if (!l.bullName) errs[`line_${i}_bull`] = "Required";
-      if (!l.units || l.units < 1) errs[`line_${i}_units`] = "Min 1";
+      if (!l.units || (typeof l.units === "number" ? l.units : parseInt(String(l.units)) || 0) < 1) errs[`line_${i}_units`] = "Min 1";
       if (!l.tankId) errs[`line_${i}_tank`] = "Required";
       if (!l.canister.trim()) errs[`line_${i}_canister`] = "Required";
     });
@@ -492,7 +492,7 @@ const ReceiveShipment = () => {
         bullName: l.bullName,
         tankId: l.tankId,
         canister: l.canister.trim(),
-        units: l.units,
+        units: typeof l.units === "number" ? l.units : parseInt(String(l.units)) || 0,
         itemType: l.itemType,
       }));
 
@@ -709,7 +709,7 @@ const ReceiveShipment = () => {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Units *</Label>
-                    <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
+                    <Input type="number" min={1} value={line.units} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
                     {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
                   </div>
                 </div>
@@ -734,7 +734,7 @@ const ReceiveShipment = () => {
                   {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_canister`]}</p>}
                 </div>
                 <div className="w-20">
-                  <Input type="number" min={1} value={line.units || ""} onChange={(e) => updateLine(line.key, { units: parseInt(e.target.value) || 0 })} />
+                  <Input type="number" min={1} value={line.units} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
                   {errors[`line_${idx}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_units`]}</p>}
                 </div>
                 <div className="w-28">
