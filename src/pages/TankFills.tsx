@@ -37,7 +37,7 @@ const TYPE_BADGE: Record<string, string> = {
   communal_tank: "bg-orange-600/20 text-orange-400 border-orange-600/30",
   freeze_branding: "bg-muted text-muted-foreground border-border",
 };
-const STATUS_BADGE: Record<string, string> = {
+const _STATUS_BADGE: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
   dry: "bg-yellow-600/20 text-yellow-400 border-yellow-600/30",
   out: "bg-blue-600/20 text-blue-400 border-blue-600/30",
@@ -59,7 +59,7 @@ const TANK_TYPES = [
   { value: "communal_tank", label: "Communal Tank" },
   { value: "freeze_branding", label: "Freeze Branding" },
 ];
-const STATUSES = [
+const _STATUSES = [
   { value: "all", label: "All Statuses" },
   { value: "wet", label: "Wet" },
   { value: "dry", label: "Dry" },
