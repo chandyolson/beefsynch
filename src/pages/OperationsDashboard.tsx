@@ -15,11 +15,7 @@ import PackingTab from "@/components/inventory/PackingTab";
 import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 import ReceivingTab from "@/components/inventory/ReceivingTab";
-
 import { useOrgRole } from "@/hooks/useOrgRole";
-
-
-
 
 const TABS = [
   { key: "projects", label: "Projects", icon: List },
@@ -44,52 +40,13 @@ const OperationsDashboard = () => {
     setSearchParams({ tab, ...extra }, { replace: true });
   };
 
-
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
       <Navbar onNewProject={() => setDialogOpen(true)} />
       <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onProjectCreated={() => {}} />
 
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
-        {/* Page title */}
         <h1 className="text-2xl font-bold font-display text-foreground">Operations Dashboard</h1>
-
-        {/* Header cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => setTab("inventory", { owner: "company" })}
-            className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
-            style={{
-              background: "linear-gradient(135deg, #0d8a8a 0%, #1a5a8a 100%)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-            }}
-          >
-            <Package className="absolute top-4 right-4 h-10 w-10 text-white/15" />
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
-              Select Sires Inventory
-            </p>
-            <p className="text-3xl font-bold font-display text-white mt-1">
-              {companyUnits.toLocaleString()} <span className="text-base font-normal text-white/70">units</span>
-            </p>
-          </button>
-
-          <button
-            onClick={() => setTab("inventory", { owner: "customer" })}
-            className="relative overflow-hidden rounded-xl p-5 text-left cursor-pointer hover:brightness-110 transition-all"
-            style={{
-              background: "linear-gradient(135deg, #b45309 0%, #d97706 100%)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-            }}
-          >
-            <Users className="absolute top-4 right-4 h-10 w-10 text-white/15" />
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
-              Customer Inventory
-            </p>
-            <p className="text-3xl font-bold font-display text-white mt-1">
-              {customerUnits.toLocaleString()} <span className="text-base font-normal text-white/70">units</span>
-            </p>
-          </button>
-        </div>
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
