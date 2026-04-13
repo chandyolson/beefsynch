@@ -288,15 +288,13 @@ const UnpackTank = () => {
 
       // Field tank is back in the shop — reset its location_status
       if (pack?.field_tank_id) {
-        const { error: tankReturnErr } = await supabase
+        const { error: tankReturnErr } = await (supabase as any)
           .from("tanks")
           .update({ location_status: "here" })
           .eq("id", pack.field_tank_id);
         if (tankReturnErr) {
-          toast({
-            title: "Warning",
+          toast.error("Warning", {
             description: "Unpack completed but field tank location could not be updated.",
-            variant: "destructive",
           });
         }
       }

@@ -126,7 +126,7 @@ const PackTank = () => {
     queryKey: ["all_active_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("tanks")
         .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
         .eq("organization_id", orgId!)
@@ -143,7 +143,7 @@ const PackTank = () => {
     queryKey: ["shipper_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("tanks")
         .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
         .eq("organization_id", orgId!)
@@ -614,7 +614,7 @@ const PackTank = () => {
           tank_number: newTankNumber.trim(),
           tank_name: newTankName.trim() || null,
           tank_type: newTankType,
-          nitrogen_status: "wet",
+          nitrogen_status: "wet" as any,
         })
         .select()
         .single();
@@ -669,7 +669,7 @@ const PackTank = () => {
       if (packErr || !pack) throw packErr || new Error("Failed to create pack");
 
       // Mark field tank as out (the physical nitrogen state is unaffected)
-      const { error: tankLocationErr } = await supabase
+      const { error: tankLocationErr } = await (supabase as any)
         .from("tanks")
         .update({ location_status: "out" })
         .eq("id", selectedTankId);
