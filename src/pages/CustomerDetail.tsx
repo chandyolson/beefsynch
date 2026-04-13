@@ -675,7 +675,7 @@ const CustomerDetail = () => {
                       <span className="font-semibold">
                         {tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number}
                       </span>
-                      {statusBadge(tank.status)}
+                      {statusBadge(tank.nitrogen_status || "unknown")}
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                       {tank.model && <span>Model: {tank.model}</span>}

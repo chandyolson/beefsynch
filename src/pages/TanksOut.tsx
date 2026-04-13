@@ -60,7 +60,7 @@ const TanksOut = () => {
     queryKey: ["tanks_out", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("tanks")
         .select("*, customers(name)")
         .eq("organization_id", orgId!)
