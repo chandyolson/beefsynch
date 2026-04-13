@@ -28,7 +28,7 @@ interface BullRow {
   name: string;
   catalogId: string | null;
   naabCode: string | null;
-  units: number;
+  units: number | "";
 }
 
 export interface EditOrderData {
@@ -66,7 +66,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
   const [orderType, setOrderType] = useState<"customer" | "inventory">("customer");
-  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
 
   // Semen company state
@@ -107,7 +107,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setNotes(editData.notes ?? "");
       setPlacedBy(editData.placed_by ?? "");
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
-      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
     } else {
       setCustomerId(null);
       setOrderDate(new Date());
@@ -118,18 +118,18 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setNotes("");
       setPlacedBy("");
       setOrderType("customer");
-      setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+      setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
   }, [open, editData]);
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "" }]);
   const removeBullRow = (i: number) => setBulls((prev) => prev.filter((_, idx) => idx !== i));
   const updateBull = (i: number, name: string, catalogId: string | null, naabCode?: string | null) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId, naabCode: naabCode ?? null } : b)));
-  const updateUnits = (i: number, units: number) =>
-    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
+  const updateUnits = (i: number, val: string) =>
+    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units: val === "" ? "" : parseInt(val) || 0 } : b)));
 
   const handleSave = async () => {
     if (!orgId) {
@@ -183,7 +183,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
           semen_order_id: orderId,
           bull_catalog_id: b.catalogId,
           custom_bull_name: b.catalogId ? null : b.name.trim(),
-          units: b.units,
+          units: typeof b.units === "number" ? b.units : parseInt(String(b.units)) || 0,
         }));
         const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
@@ -395,7 +395,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
                   type="number"
                   min={0}
                   value={bull.units}
-                  onChange={(e) => updateUnits(i, parseInt(e.target.value) || 0)}
+                  onChange={(e) => updateUnits(i, e.target.value)}
                   className="w-20"
                   placeholder="Units"
                 />

@@ -43,7 +43,7 @@ interface PackLine {
   bullCode: string | null;
   sourceCanister: string;
   fieldCanister: string;
-  units: number;
+  units: number | "";
   availableUnits: number | null;
 }
 
@@ -55,7 +55,7 @@ const emptyLine = (): PackLine => ({
   bullCode: null,
   sourceCanister: "",
   fieldCanister: "",
-  units: 0,
+  units: "",
   availableUnits: null,
 });
 
@@ -400,13 +400,13 @@ const PackTank = () => {
         bullCode,
         sourceCanister: bestSource?.canister || "",
         fieldCanister: "",
-        units: 0,
+        units: "",
         availableUnits: bestSource?.units ?? null,
       });
     }
 
     setLines(prev => {
-      const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+      const hasContent = prev.some(l => l.bullName || l.sourceTankId || getUnits(l.units) > 0);
       return hasContent ? [...prev, ...newLines] : newLines;
     });
 
@@ -467,7 +467,7 @@ const PackTank = () => {
         bullCode: b.bullCode,
         sourceCanister: "",
         fieldCanister: "",
-        units: 0,
+        units: "",
         availableUnits: null,
       }));
 
@@ -512,13 +512,13 @@ const PackTank = () => {
         bullCode: b.bullCode,
         sourceCanister: "",
         fieldCanister: "",
-        units: 0,
+        units: "",
         availableUnits: null,
       }));
 
       setLines(prev => {
         if (pickupSource === "mixed") {
-          const hasContent = prev.some(l => l.bullName || l.sourceTankId || l.units > 0);
+          const hasContent = prev.some(l => l.bullName || l.sourceTankId || getUnits(l.units) > 0);
           return hasContent ? [...prev, ...newLines] : newLines;
         }
         return newLines.length > 0 ? newLines : [emptyLine()];
@@ -560,6 +560,8 @@ const PackTank = () => {
 
   // Compute remaining available units for a line, subtracting what other lines
   // have already committed from the same source tank + bull combination
+  const getUnits = (u: number | ""): number => typeof u === "number" ? u : parseInt(String(u)) || 0;
+
   const computeAvailable = (line: PackLine, lineIndex: number): number => {
     if (line.availableUnits === null) return 0;
     const committed = lines.reduce((sum, l, i) => {
@@ -571,7 +573,7 @@ const PackTank = () => {
       const sameCanister = line.sourceCanister
         ? l.sourceCanister === line.sourceCanister
         : true;
-      return sameTank && sameBull && sameCanister ? sum + (l.units || 0) : sum;
+      return sameTank && sameBull && sameCanister ? sum + getUnits(l.units) : sum;
     }, 0);
     return Math.max(0, line.availableUnits - committed);
   };
@@ -591,8 +593,9 @@ const PackTank = () => {
     lines.forEach((line, i) => {
       if (!line.sourceTankId) errs[`line_${i}_source`] = "Required";
       if (!line.bullName.trim()) errs[`line_${i}_bull`] = "Required";
-      if (line.units <= 0) errs[`line_${i}_units`] = "Must be > 0";
-      if (line.availableUnits !== null && line.units > computeAvailable(line, i)) errs[`line_${i}_units`] = `Max ${computeAvailable(line, i)} units available`;
+      const u = getUnits(line.units);
+      if (u <= 0) errs[`line_${i}_units`] = "Must be > 0";
+      if (line.availableUnits !== null && u > computeAvailable(line, i)) errs[`line_${i}_units`] = `Max ${computeAvailable(line, i)} units available`;
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -723,7 +726,7 @@ const PackTank = () => {
           bull_code: line.bullCode,
           source_canister: line.sourceCanister || null,
           field_canister: line.fieldCanister || null,
-          units: line.units,
+          units: getUnits(line.units),
         });
         if (tankPackLinesErr) throw new Error(`Failed to write tank_pack_lines: ${tankPackLinesErr.message}`);
 
@@ -751,11 +754,11 @@ const PackTank = () => {
         }
 
         if (invRow) {
-          if ((invRow.units as number) - line.units <= 0) {
+          if ((invRow.units as number) - getUnits(line.units) <= 0) {
             const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
             if (delErr) throw new Error(`Failed to deduct inventory: ${delErr.message}`);
           } else {
-            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - line.units }).eq("id", invRow.id);
+            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - getUnits(line.units) }).eq("id", invRow.id);
             if (updErr) throw new Error(`Failed to deduct inventory: ${updErr.message}`);
           }
         } else {
@@ -787,7 +790,7 @@ const PackTank = () => {
 
         if (fieldInvRow) {
           const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({
-            units: (fieldInvRow.units as number) + line.units,
+            units: (fieldInvRow.units as number) + getUnits(line.units),
           }).eq("id", fieldInvRow.id);
           if (fieldUpdErr) throw new Error(`Failed to update field tank inventory: ${fieldUpdErr.message}`);
         } else {
@@ -795,7 +798,7 @@ const PackTank = () => {
             tank_id: selectedTankId,
             organization_id: orgId,
             canister: line.fieldCanister || "1",
-            units: line.units,
+            units: getUnits(line.units),
             item_type: "semen",
             bull_catalog_id: line.bullCatalogId,
             custom_bull_name: line.bullCatalogId ? null : line.bullName,
@@ -812,7 +815,7 @@ const PackTank = () => {
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,
           custom_bull_name: line.bullName,
-          units_change: -line.units,
+          units_change: -getUnits(line.units),
           transaction_type: "pack_out",
           notes: packType === "project"
             ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
@@ -831,7 +834,7 @@ const PackTank = () => {
           bull_catalog_id: line.bullCatalogId,
           bull_code: line.bullCode,
           custom_bull_name: line.bullName,
-          units_change: line.units,
+          units_change: getUnits(line.units),
           transaction_type: "pack_in",
           notes: `Packed from ${sourceTankName}`,
         });
@@ -1517,7 +1520,7 @@ const PackTank = () => {
                     <Label className="text-xs">
                       Units
                       {line.availableUnits !== null && (
-                        <span className={cn("ml-1 font-normal", line.units > 0 && line.units > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
+                        <span className={cn("ml-1 font-normal", getUnits(line.units) > 0 && getUnits(line.units) > line.availableUnits ? "text-destructive" : "text-muted-foreground")}>
                           ({computeAvailable(line, i)} avail.)
                         </span>
                       )}
@@ -1525,8 +1528,8 @@ const PackTank = () => {
                     <Input
                       type="number"
                       min={1}
-                      value={line.units || ""}
-                      onChange={e => updateLine(i, { units: parseInt(e.target.value) || 0 })}
+                      value={line.units}
+                      onChange={e => updateLine(i, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })}
                       className={cn("text-sm h-9", errors[`line_${i}_units`] && "border-destructive")}
                     />
                   </div>
@@ -1537,8 +1540,8 @@ const PackTank = () => {
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9"
-                      disabled={!line.bullName || !line.units}
-                      onClick={() => generateTankLabelPdf(line.bullName, line.units)}
+                      disabled={!line.bullName || !getUnits(line.units)}
+                      onClick={() => generateTankLabelPdf(line.bullName, getUnits(line.units))}
                     >
                       <Printer className="h-4 w-4" />
                     </Button>

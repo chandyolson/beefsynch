@@ -67,9 +67,14 @@ const CustomerDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formName, setFormName] = useState("");
+  const [formCompanyName, setFormCompanyName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formAddress, setFormAddress] = useState("");
+  const [formAddressLine1, setFormAddressLine1] = useState("");
+  const [formAddressLine2, setFormAddressLine2] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formState, setFormState] = useState("");
+  const [formZip, setFormZip] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -348,9 +353,14 @@ const CustomerDetail = () => {
   const openEdit = () => {
     if (!customer) return;
     setFormName(customer.name || "");
+    setFormCompanyName(customer.company_name || "");
     setFormPhone(customer.phone || "");
     setFormEmail(customer.email || "");
-    setFormAddress(customer.address || "");
+    setFormAddressLine1(customer.address_line1 || "");
+    setFormAddressLine2(customer.address_line2 || "");
+    setFormCity(customer.city || "");
+    setFormState(customer.state || "");
+    setFormZip(customer.zip || "");
     setFormNotes(customer.notes || "");
     setEditOpen(true);
   };
@@ -362,9 +372,14 @@ const CustomerDetail = () => {
       .from("customers")
       .update({
         name: formName.trim(),
+        company_name: formCompanyName.trim() || null,
         phone: formPhone.trim() || null,
         email: formEmail.trim() || null,
-        address: formAddress.trim() || null,
+        address_line1: formAddressLine1.trim() || null,
+        address_line2: formAddressLine2.trim() || null,
+        city: formCity.trim() || null,
+        state: formState.trim() || null,
+        zip: formZip.trim() || null,
         notes: formNotes.trim() || null,
       } as any)
       .eq("id", id);
@@ -546,9 +561,21 @@ const CustomerDetail = () => {
                 {customer.phone && <a href={`tel:${customer.phone}`} className="hover:underline">{customer.phone}</a>}
                 {customer.email && <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>}
               </div>
-              {customer.address && (
-                <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
-              )}
+              {(() => {
+                const hasStructuredAddress = !!(customer.company_name || customer.address_line1 || customer.city || customer.state || customer.zip);
+                if (hasStructuredAddress) {
+                  const cityStateZip = [customer.city, customer.state].filter(Boolean).join(", ") + (customer.zip ? ` ${customer.zip}` : "");
+                  return (
+                    <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                      {customer.company_name && <p className="font-medium">{customer.company_name}</p>}
+                      {customer.address_line1 && <p>{customer.address_line1}</p>}
+                      {customer.address_line2 && <p>{customer.address_line2}</p>}
+                      {cityStateZip.trim() && <p>{cityStateZip.trim()}</p>}
+                    </div>
+                  );
+                }
+                return customer.address ? <p className="text-sm text-muted-foreground mt-1">{customer.address}</p> : null;
+              })()}
               {customer.notes && (
                 <p className="text-sm text-muted-foreground italic mt-1">{customer.notes}</p>
               )}
@@ -914,33 +941,33 @@ const CustomerDetail = () => {
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
+          <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
+            <Label className="text-right text-sm">Display Name *</Label>
+            <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Label className="text-right text-sm">Company Name</Label>
+            <Input value={formCompanyName} onChange={(e) => setFormCompanyName(e.target.value)} />
+            <Label className="text-right text-sm">Email</Label>
+            <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+            <Label className="text-right text-sm">Phone</Label>
+            <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 1</Label>
+            <Input value={formAddressLine1} onChange={(e) => setFormAddressLine1(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 2</Label>
+            <Input value={formAddressLine2} onChange={(e) => setFormAddressLine2(e.target.value)} />
+            <Label className="text-right text-sm">City / State / Zip</Label>
+            <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+              <Input value={formCity} onChange={(e) => setFormCity(e.target.value)} placeholder="City" />
+              <Input value={formState} onChange={(e) => setFormState(e.target.value)} placeholder="ST" maxLength={2} />
+              <Input value={formZip} onChange={(e) => setFormZip(e.target.value)} placeholder="Zip" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button onClick={handleEditSave} disabled={saving || !formName.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
+            <Label className="text-right text-sm">Notes</Label>
+            <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={saving || !formName.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
