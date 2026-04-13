@@ -33,9 +33,14 @@ const Customers = () => {
 
   // Form state
   const [formName, setFormName] = useState("");
+  const [formCompanyName, setFormCompanyName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formAddress, setFormAddress] = useState("");
+  const [formAddressLine1, setFormAddressLine1] = useState("");
+  const [formAddressLine2, setFormAddressLine2] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formState, setFormState] = useState("");
+  const [formZip, setFormZip] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
