@@ -160,7 +160,7 @@ const TanksOut = () => {
       toast({ title: "Error", description: "Could not record return.", variant: "destructive" });
       return;
     }
-    await supabase.from("tanks").update({ status: returnStatus } as any).eq("id", returnTankId);
+    await (supabase as any).from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tanks_out"] });
     queryClient.invalidateQueries({ queryKey: ["returns_this_month"] });

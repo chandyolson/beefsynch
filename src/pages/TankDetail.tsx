@@ -88,13 +88,14 @@ const TANK_TYPES = [
   { value: "freeze_branding", label: "Freeze Branding" },
 ];
 
-const ALL_STATUSES = [
+const NITROGEN_STATUSES = [
   { value: "wet", label: "Wet" },
   { value: "dry", label: "Dry" },
-  { value: "out", label: "Out" },
   { value: "unknown", label: "Unknown" },
-  { value: "inactive", label: "Inactive" },
-  { value: "bad_tank", label: "Bad Tank" },
+];
+const LOCATION_STATUSES = [
+  { value: "here", label: "In shop" },
+  { value: "out", label: "Out with customer" },
 ];
 
 // ───── Pack History Section (for shipper tanks) ─────
@@ -182,7 +183,8 @@ const TankDetail = () => {
   const [eTankName, setETankName] = useState("");
   const [eTankEid, setETankEid] = useState("");
   const [eTankType, setETankType] = useState("inventory_tank");
-  const [eTankStatus, setETankStatus] = useState("wet");
+  const [eNitrogenStatus, setENitrogenStatus] = useState("wet");
+  const [eLocationStatus, setELocationStatus] = useState("here");
   const [eTankModel, setETankModel] = useState("");
   const [eTankSerial, setETankSerial] = useState("");
   const [eTankDesc, setETankDesc] = useState("");
@@ -360,7 +362,8 @@ const TankDetail = () => {
     setETankName(tank.tank_name || "");
     setETankEid(tank.eid || "");
     setETankType(tank.tank_type || "inventory_tank");
-    setETankStatus(tank.status || "wet");
+    setENitrogenStatus(tank.nitrogen_status || "wet");
+    setELocationStatus(tank.location_status || "here");
     setETankModel(tank.model || "");
     setETankSerial(tank.serial_number || "");
     setETankDesc(tank.description || "");
@@ -390,7 +393,8 @@ const TankDetail = () => {
       tank_name: eTankName.trim() || null,
       eid: eTankEid.trim() || null,
       tank_type: eTankType,
-      status: eTankStatus,
+      nitrogen_status: eNitrogenStatus,
+      location_status: eLocationStatus,
       model: eTankModel.trim() || null,
       serial_number: eTankSerial.trim() || null,
       description: eTankDesc.trim() || null,
@@ -408,23 +412,23 @@ const TankDetail = () => {
 
   const handleDryToggle = async () => {
     if (!id || !tank) return;
-    const newStatus = tank.status === "dry" ? "wet" : "dry";
+    const newNitrogen = tank.nitrogen_status === "dry" ? "wet" : "dry";
     const { error } = await supabase
       .from("tanks")
-      .update({ status: newStatus })
+      .update({ nitrogen_status: newNitrogen } as any)
       .eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    toast({ title: newNitrogen === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
   };
 
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
-    if (tank?.status === "dry") {
+    if (tank?.nitrogen_status === "dry") {
       toast({ title: "Cannot fill a dry tank", variant: "destructive" });
       return;
     }
@@ -471,7 +475,7 @@ const TankDetail = () => {
       return;
     }
     // Update tank status
-    await supabase.from("tanks").update({ status: moveStatusAfter } as any).eq("id", id);
+    await supabase.from("tanks").update({ nitrogen_status: moveStatusAfter } as any).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });
@@ -562,8 +566,18 @@ const TankDetail = () => {
                 <Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>
                   {TYPE_LABELS[tank.tank_type] || tank.tank_type}
                 </Badge>
-                <Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>
-                  {tank.status}
+                <Badge variant="outline" className={
+                  tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                  tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                  "bg-muted text-muted-foreground border-border"
+                }>
+                  {tank.nitrogen_status || "unknown"}
+                </Badge>
+                <Badge variant="outline" className={
+                  tank.location_status === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                  "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                }>
+                  {tank.location_status === "here" ? "in shop" : "out with customer"}
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
@@ -571,7 +585,7 @@ const TankDetail = () => {
                 {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                 {tank.eid && <span>EID: {tank.eid}</span>}
               </div>
-              {tank.status === "dry" && (
+              {tank.nitrogen_status === "dry" && (
                 <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
                   This tank is currently dry — fill and inventory actions are disabled
                 </div>
@@ -610,7 +624,7 @@ const TankDetail = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            {tank.status === "dry" ? (
+            {tank.nitrogen_status === "dry" ? (
               <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
             ) : (
               <>
@@ -853,21 +867,30 @@ const TankDetail = () => {
             <div className="space-y-1.5"><Label>Tank Number *</Label><Input value={eTankNumber} onChange={(e) => setETankNumber(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Tank Name</Label><Input value={eTankName} onChange={(e) => setETankName(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>EID</Label><Input value={eTankEid} onChange={(e) => setETankEid(e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Tank Type</Label>
-                <Select value={eTankType} onValueChange={setETankType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TANK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={eTankStatus} onValueChange={setETankStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{ALL_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Tank Type</Label>
+              <Select value={eTankType} onValueChange={setETankType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{TANK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-sm">Nitrogen</Label>
+              <Select value={eNitrogenStatus} onValueChange={setENitrogenStatus}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NITROGEN_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-sm">Location</Label>
+              <Select value={eLocationStatus} onValueChange={setELocationStatus}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOCATION_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5"><Label>Model</Label><Input value={eTankModel} onChange={(e) => setETankModel(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Serial Number</Label><Input value={eTankSerial} onChange={(e) => setETankSerial(e.target.value)} /></div>
@@ -943,7 +966,7 @@ const TankDetail = () => {
               <Label>Status After</Label>
               <Select value={moveStatusAfter} onValueChange={setMoveStatusAfter}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{ALL_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{NITROGEN_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
