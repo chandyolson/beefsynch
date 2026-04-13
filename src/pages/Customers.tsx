@@ -315,33 +315,33 @@ const Customers = () => {
           <DialogHeader>
             <DialogTitle>Add Customer</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Customer name" />
+          <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
+            <Label className="text-right text-sm">Display Name *</Label>
+            <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Customer name" />
+            <Label className="text-right text-sm">Company Name</Label>
+            <Input value={formCompanyName} onChange={(e) => setFormCompanyName(e.target.value)} />
+            <Label className="text-right text-sm">Email</Label>
+            <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Email address" />
+            <Label className="text-right text-sm">Phone</Label>
+            <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Phone number" />
+            <Label className="text-right text-sm">Address Line 1</Label>
+            <Input value={formAddressLine1} onChange={(e) => setFormAddressLine1(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 2</Label>
+            <Input value={formAddressLine2} onChange={(e) => setFormAddressLine2(e.target.value)} />
+            <Label className="text-right text-sm">City / State / Zip</Label>
+            <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+              <Input value={formCity} onChange={(e) => setFormCity(e.target.value)} placeholder="City" />
+              <Input value={formState} onChange={(e) => setFormState(e.target.value)} placeholder="ST" maxLength={2} />
+              <Input value={formZip} onChange={(e) => setFormZip(e.target.value)} placeholder="Zip" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Phone number" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Email address" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="Address" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Notes" rows={3} />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !formName.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
+            <Label className="text-right text-sm">Notes</Label>
+            <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Notes" rows={3} />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !formName.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
