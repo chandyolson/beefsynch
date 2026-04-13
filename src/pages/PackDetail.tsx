@@ -383,7 +383,63 @@ const PackDetail = () => {
     }
   };
 
-  if (isLoading) {
+  const handleAdvance = async () => {
+    if (!id || !pack || !advanceTarget) return;
+    setAdvancing(true);
+    try {
+      const updates: any = { status: advanceTarget };
+      const isoDate = format(advanceDate, "yyyy-MM-dd");
+
+      if (advanceTarget === "shipped") {
+        updates.shipped_at = isoDate;
+        if (advanceCarrier) updates.shipping_carrier = advanceCarrier;
+        if (advanceTracking) updates.tracking_number = advanceTracking;
+      } else if (advanceTarget === "delivered") {
+        updates.delivered_at = isoDate;
+      } else if (advanceTarget === "picked_up") {
+        updates.picked_up_at = isoDate;
+        if (advancePickupBy) updates.pickup_by = advancePickupBy;
+      } else if (advanceTarget === "tank_returned") {
+        updates.tank_returned_at = isoDate;
+      }
+
+      const { error: updErr } = await supabase
+        .from("tank_packs")
+        .update(updates)
+        .eq("id", id);
+      if (updErr) throw updErr;
+
+      if (advanceTarget === "tank_returned" && pack.field_tank_id) {
+        const { error: tankErr } = await supabase
+          .from("tanks")
+          .update({ location_status: "here" } as any)
+          .eq("id", pack.field_tank_id);
+        if (tankErr) throw new Error(`Pack updated but field tank location not reset: ${tankErr.message}`);
+      }
+
+      toast({ title: `Pack marked ${STATUS_LABEL[advanceTarget] || advanceTarget}` });
+      setAdvanceDialogOpen(false);
+      setAdvanceTarget("");
+      setAdvanceCarrier("");
+      setAdvanceTracking("");
+      setAdvancePickupBy("");
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Failed to advance pack", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  const openAdvanceDialog = (target: string) => {
+    setAdvanceTarget(target);
+    setAdvanceDate(new Date());
+    setAdvanceCarrier("");
+    setAdvanceTracking("");
+    setAdvancePickupBy("");
+    setAdvanceDialogOpen(true);
+  };
+
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
   }
   if (!pack) {
