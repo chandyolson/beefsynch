@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,6 +26,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,11 +41,25 @@ import { generateSessionSheetPdf } from "@/lib/generateSessionSheetPdf";
 import { generateReturnSlipPdf } from "@/lib/generateReturnSlipPdf";
 
 const STATUS_BADGE: Record<string, string> = {
-  packed: "bg-green-600/20 text-green-400 border-green-600/30",
-  in_field: "bg-green-600/20 text-green-400 border-green-600/30",
-  unpacked: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  returned: "bg-purple-600/20 text-purple-400 border-purple-600/30",
-  cancelled: "bg-muted text-muted-foreground border-border",
+  packed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  in_field: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  unpacked: "bg-green-500/20 text-green-400 border-green-500/30",
+  shipped: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  delivered: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  tank_returned: "bg-green-500/20 text-green-400 border-green-500/30",
+  picked_up: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  packed: "Packed",
+  in_field: "In Field",
+  unpacked: "Unpacked",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  tank_returned: "Tank Returned",
+  picked_up: "Picked Up",
+  cancelled: "Cancelled",
 };
 
 function getTrackingUrl(carrier: string | null, trackingNumber: string): string | null {
@@ -82,6 +100,14 @@ const PackDetail = () => {
   const [closeOutNotes, setCloseOutNotes] = useState("");
   
   const [deleting, setDeleting] = useState(false);
+
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [advanceTarget, setAdvanceTarget] = useState("");
+  const [advanceDate, setAdvanceDate] = useState<Date>(new Date());
+  const [advanceCarrier, setAdvanceCarrier] = useState("");
+  const [advanceTracking, setAdvanceTracking] = useState("");
+  const [advancePickupBy, setAdvancePickupBy] = useState("");
+  const [advancing, setAdvancing] = useState(false);
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
@@ -357,6 +383,63 @@ const PackDetail = () => {
     }
   };
 
+  const handleAdvance = async () => {
+    if (!id || !pack || !advanceTarget) return;
+    setAdvancing(true);
+    try {
+      const updates: any = { status: advanceTarget };
+      const isoDate = format(advanceDate, "yyyy-MM-dd");
+
+      if (advanceTarget === "shipped") {
+        updates.shipped_at = isoDate;
+        if (advanceCarrier) updates.shipping_carrier = advanceCarrier;
+        if (advanceTracking) updates.tracking_number = advanceTracking;
+      } else if (advanceTarget === "delivered") {
+        updates.delivered_at = isoDate;
+      } else if (advanceTarget === "picked_up") {
+        updates.picked_up_at = isoDate;
+        if (advancePickupBy) updates.pickup_by = advancePickupBy;
+      } else if (advanceTarget === "tank_returned") {
+        updates.tank_returned_at = isoDate;
+      }
+
+      const { error: updErr } = await supabase
+        .from("tank_packs")
+        .update(updates)
+        .eq("id", id);
+      if (updErr) throw updErr;
+
+      if (advanceTarget === "tank_returned" && pack.field_tank_id) {
+        const { error: tankErr } = await supabase
+          .from("tanks")
+          .update({ location_status: "here" } as any)
+          .eq("id", pack.field_tank_id);
+        if (tankErr) throw new Error(`Pack updated but field tank location not reset: ${tankErr.message}`);
+      }
+
+      toast({ title: `Pack marked ${STATUS_LABEL[advanceTarget] || advanceTarget}` });
+      setAdvanceDialogOpen(false);
+      setAdvanceTarget("");
+      setAdvanceCarrier("");
+      setAdvanceTracking("");
+      setAdvancePickupBy("");
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Failed to advance pack", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  const openAdvanceDialog = (target: string) => {
+    setAdvanceTarget(target);
+    setAdvanceDate(new Date());
+    setAdvanceCarrier("");
+    setAdvanceTracking("");
+    setAdvancePickupBy("");
+    setAdvanceDialogOpen(true);
+  };
+
   if (isLoading) {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
   }
@@ -539,8 +622,27 @@ const PackDetail = () => {
               {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : isPickup ? <><Package className="h-3 w-3 mr-1" /> Pickup</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
             </Badge>
             <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
-              {pack.status}
+              {STATUS_LABEL[pack.status] || pack.status}
             </Badge>
+            {/* Lifecycle advance buttons */}
+            {pack.pack_type === "shipment" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("shipped")}>Mark Shipped</Button>
+            )}
+            {pack.pack_type === "shipment" && pack.status === "shipped" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("delivered")}>Mark Delivered</Button>
+            )}
+            {pack.pack_type === "shipment" && pack.status === "delivered" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
+            )}
+            {pack.pack_type === "pickup" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("picked_up")}>Mark Picked Up</Button>
+            )}
+            {pack.pack_type === "pickup" && pack.status === "picked_up" && (
+              <Button size="sm" variant="outline" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
+            )}
+            {pack.pack_type === "project" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="gap-1.5">
@@ -928,6 +1030,57 @@ const PackDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Advance lifecycle dialog */}
+        <Dialog open={advanceDialogOpen} onOpenChange={setAdvanceDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mark pack as {STATUS_LABEL[advanceTarget] || advanceTarget}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-sm font-medium">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(advanceDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={advanceDate} onSelect={(d) => d && setAdvanceDate(d)} initialFocus className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {advanceTarget === "shipped" && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium">Carrier (optional)</Label>
+                    <Input value={advanceCarrier} onChange={(e) => setAdvanceCarrier(e.target.value)} placeholder="UPS, FedEx, etc." className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Tracking number (optional)</Label>
+                    <Input value={advanceTracking} onChange={(e) => setAdvanceTracking(e.target.value)} placeholder="1Z..." className="mt-1" />
+                  </div>
+                </>
+              )}
+
+              {advanceTarget === "picked_up" && (
+                <div>
+                  <Label className="text-sm font-medium">Picked up by (optional)</Label>
+                  <Input value={advancePickupBy} onChange={(e) => setAdvancePickupBy(e.target.value)} placeholder="Customer name" className="mt-1" />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAdvanceDialogOpen(false)} disabled={advancing}>Cancel</Button>
+              <Button onClick={handleAdvance} disabled={advancing}>
+                {advancing ? "Saving..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
       <AppFooter />
     </div>
