@@ -109,7 +109,7 @@ const TankFills = () => {
 
   // Filters
   const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("wet");
+  const [nitrogenFilter, setNitrogenFilter] = useState<string>("wet");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -166,7 +166,7 @@ const TankFills = () => {
   const filtered = useMemo(() => {
     let list = enriched;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
-    if (statusFilter !== "all") list = list.filter((t: any) => t.status === statusFilter);
+    if (nitrogenFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === nitrogenFilter);
     if (overdueOnly) list = list.filter((t: any) => t.daysSince === null || t.daysSince > 90);
     if (search) {
       const q = search.toLowerCase();
@@ -182,7 +182,7 @@ const TankFills = () => {
       return bd - ad;
     });
     return list;
-  }, [enriched, typeFilter, statusFilter, overdueOnly, search]);
+  }, [enriched, typeFilter, nitrogenFilter, overdueOnly, search]);
 
   // Record single fill
   const handleRecordFill = async () => {
@@ -432,10 +432,13 @@ const TankFills = () => {
                 {TANK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={nitrogenFilter} onValueChange={setNitrogenFilter}>
               <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                <SelectItem value="all">All Nitrogen</SelectItem>
+                <SelectItem value="wet">Wet</SelectItem>
+                <SelectItem value="dry">Dry</SelectItem>
+                <SelectItem value="unknown">Unknown</SelectItem>
               </SelectContent>
             </Select>
             <div className="relative min-w-[200px] max-w-xs flex-1">
@@ -477,9 +480,18 @@ const TankFills = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>
-                        {tank.status}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={
+                          tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                          tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                          "bg-muted text-muted-foreground border-border"
+                        }>
+                          {tank.nitrogen_status || "unknown"}
+                        </Badge>
+                        {tank.location_status === "out" && (
+                          <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-600/30">out</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {tank.lastFill ? format(parseISO(tank.lastFill), "MMM d, yyyy") : "—"}

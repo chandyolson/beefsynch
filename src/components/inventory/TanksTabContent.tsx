@@ -347,7 +347,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   const filtered = useMemo(() => {
     let list = enriched;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
-    if (statusFilter !== "all") list = list.filter((t: any) => t.status === statusFilter);
+    if (statusFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === statusFilter || (statusFilter === "out" && t.location_status === "out"));
     if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => (t.tank_number || "").toLowerCase().includes(q) || (t.tank_name || "").toLowerCase().includes(q) || (t.customerName || "").toLowerCase().includes(q)); }
     return list;
   }, [enriched, typeFilter, statusFilter, search]);
@@ -558,7 +558,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
   const filtered = useMemo(() => {
     let list = enriched;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
-    if (statusFilter !== "all") list = list.filter((t: any) => t.status === statusFilter);
+    if (statusFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === statusFilter || (statusFilter === "out" && t.location_status === "out"));
     if (overdueOnly) list = list.filter((t: any) => t.daysSince === null || t.daysSince > 90);
     if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => (t.tank_number || "").toLowerCase().includes(q) || (t.tank_name || "").toLowerCase().includes(q) || (t.customerName || "").toLowerCase().includes(q)); }
     list.sort((a: any, b: any) => { const ad = a.daysSince ?? 99999; const bd = b.daysSince ?? 99999; return bd - ad; });
@@ -740,7 +740,20 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
                   <TableCell className="whitespace-nowrap">{tank.tank_name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{tank.customerName || "Company"}</TableCell>
                   <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
-                  <TableCell><Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>{tank.status}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className={
+                        tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                        tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                        "bg-muted text-muted-foreground border-border"
+                      }>
+                        {tank.nitrogen_status || "unknown"}
+                      </Badge>
+                      {tank.location_status === "out" && (
+                        <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-600/30">out</Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">{tank.lastFill ? format(parseISO(tank.lastFill), "MMM d, yyyy") : "—"}</TableCell>
                   <TableCell className={cn("text-right font-medium", tank.daysSince !== null && tank.daysSince > 120 && "text-destructive", tank.daysSince !== null && tank.daysSince > 90 && tank.daysSince <= 120 && "text-orange-400")}>{tank.daysSince !== null ? tank.daysSince : "—"}</TableCell>
                   <TableCell className="text-center">
@@ -824,7 +837,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     setReturnSaving(true);
     const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), tank_status_after: returnStatus, performed_by: userId, notes: returnNotes.trim() || null } as any);
     if (moveErr) { setReturnSaving(false); toast({ title: "Error", description: "Could not record return.", variant: "destructive" }); return; }
-    await supabase.from("tanks").update({ status: returnStatus } as any).eq("id", returnTankId);
+    await (supabase as any).from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tanks_out"] });
     queryClient.invalidateQueries({ queryKey: ["returns_this_month"] });
