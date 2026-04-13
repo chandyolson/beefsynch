@@ -286,6 +286,19 @@ const UnpackTank = () => {
         unpacked_by: unpackedBy.trim() || null,
       }).eq("id", packId);
 
+      // Field tank is back in the shop — reset its location_status
+      if (pack?.field_tank_id) {
+        const { error: tankReturnErr } = await (supabase as any)
+          .from("tanks")
+          .update({ location_status: "here" })
+          .eq("id", pack.field_tank_id);
+        if (tankReturnErr) {
+          toast.error("Warning", {
+            description: "Unpack completed but field tank location could not be updated.",
+          });
+        }
+      }
+
       toast.success("Tank unpacked", { description: "Return slip ready to print." });
       navigate(`/pack/${packId}`);
     } catch (err: any) {
