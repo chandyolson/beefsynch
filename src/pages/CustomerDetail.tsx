@@ -67,9 +67,14 @@ const CustomerDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formName, setFormName] = useState("");
+  const [formCompanyName, setFormCompanyName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formAddress, setFormAddress] = useState("");
+  const [formAddressLine1, setFormAddressLine1] = useState("");
+  const [formAddressLine2, setFormAddressLine2] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formState, setFormState] = useState("");
+  const [formZip, setFormZip] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -348,9 +353,14 @@ const CustomerDetail = () => {
   const openEdit = () => {
     if (!customer) return;
     setFormName(customer.name || "");
+    setFormCompanyName(customer.company_name || "");
     setFormPhone(customer.phone || "");
     setFormEmail(customer.email || "");
-    setFormAddress(customer.address || "");
+    setFormAddressLine1(customer.address_line1 || "");
+    setFormAddressLine2(customer.address_line2 || "");
+    setFormCity(customer.city || "");
+    setFormState(customer.state || "");
+    setFormZip(customer.zip || "");
     setFormNotes(customer.notes || "");
     setEditOpen(true);
   };
@@ -362,9 +372,14 @@ const CustomerDetail = () => {
       .from("customers")
       .update({
         name: formName.trim(),
+        company_name: formCompanyName.trim() || null,
         phone: formPhone.trim() || null,
         email: formEmail.trim() || null,
-        address: formAddress.trim() || null,
+        address_line1: formAddressLine1.trim() || null,
+        address_line2: formAddressLine2.trim() || null,
+        city: formCity.trim() || null,
+        state: formState.trim() || null,
+        zip: formZip.trim() || null,
         notes: formNotes.trim() || null,
       } as any)
       .eq("id", id);
