@@ -35,6 +35,7 @@ import PackDetail from "./pages/PackDetail";
 import UnpackTank from "./pages/UnpackTank";
 import ProjectBilling from "./pages/ProjectBilling";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ImportBulls from "./pages/admin/ImportBulls";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/pack-tank" element={<ProtectedRoute><PackTank /></ProtectedRoute>} />
             <Route path="/pack/:id" element={<ProtectedRoute><PackDetail /></ProtectedRoute>} />
             <Route path="/unpack/:packId" element={<ProtectedRoute><UnpackTank /></ProtectedRoute>} />
+            <Route path="/admin/import-bulls" element={<ProtectedRoute><ImportBulls /></ProtectedRoute>} />
 
             {/* Redirects */}
             <Route path="/dashboard" element={<Navigate to="/operations?tab=projects" replace />} />
