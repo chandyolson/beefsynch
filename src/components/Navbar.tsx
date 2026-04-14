@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers, Database } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -158,6 +158,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                   <Users className="h-4 w-4" /> Manage Team
                 </DropdownMenuItem>
               )}
+              {canManageTeam && (
+                <DropdownMenuItem onClick={() => go("/admin/import-bulls")} className="cursor-pointer gap-2">
+                  <Database className="h-4 w-4" /> Import Bull Catalog
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4" /> Sign Out
               </DropdownMenuItem>
@@ -224,6 +229,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             {canManageTeam && (
               <button onClick={() => go("/team")} className={navBtnClass}>
                 <Users className="h-4 w-4" /> Manage Team
+              </button>
+            )}
+            {canManageTeam && (
+              <button onClick={() => go("/admin/import-bulls")} className={navBtnClass}>
+                <Database className="h-4 w-4" /> Import Bull Catalog
               </button>
             )}
             <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-secondary transition-colors w-full">
