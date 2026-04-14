@@ -43,14 +43,6 @@ interface MatchResult {
   parse_failures?: number;
 }
 
-const HEADER_MAP: Record<string, string> = {
-  code: "naab_code", naab: "naab_code", "naab code": "naab_code", naab_code: "naab_code",
-  name: "name", "bull name": "name", bull_name: "name",
-  registration: "registration_number", "registration #": "registration_number",
-  reg: "registration_number", "reg #": "registration_number", registration_number: "registration_number",
-  breed: "breed",
-  "date of birth": "dob", dob: "dob", "birth date": "dob",
-};
 
 const ImportBulls = () => {
   const navigate = useNavigate();
