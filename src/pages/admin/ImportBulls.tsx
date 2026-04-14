@@ -43,14 +43,6 @@ interface MatchResult {
   parse_failures?: number;
 }
 
-const HEADER_MAP: Record<string, string> = {
-  code: "naab_code", naab: "naab_code", "naab code": "naab_code", naab_code: "naab_code",
-  name: "name", "bull name": "name", bull_name: "name",
-  registration: "registration_number", "registration #": "registration_number",
-  reg: "registration_number", "reg #": "registration_number", registration_number: "registration_number",
-  breed: "breed",
-  "date of birth": "dob", dob: "dob", "birth date": "dob",
-};
 
 const ImportBulls = () => {
   const navigate = useNavigate();
@@ -103,44 +95,73 @@ const ImportBulls = () => {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawRows: Record<string, any>[] = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
 
-      if (rawRows.length === 0) {
+      const rawGrid: any[][] = XLSX.utils.sheet_to_json(firstSheet, {
+        header: 1,
+        defval: "",
+        blankrows: false,
+      });
+
+      if (rawGrid.length === 0) {
         toast({ title: "No rows found in file", variant: "destructive" });
         setParsing(false);
         return;
       }
 
-      // Build column mapping from first row's keys
-      const sampleKeys = Object.keys(rawRows[0]);
-      const colMap: Record<string, string> = {};
-      for (const key of sampleKeys) {
-        const normalized = key.trim().toLowerCase();
-        if (HEADER_MAP[normalized]) {
-          colMap[key] = HEADER_MAP[normalized];
+      const RECOGNIZED_HEADERS = ["code", "naab", "naab code", "name", "bull name", "registration", "registration #", "reg", "reg #", "breed", "dob", "date of birth", "birth date"];
+      let headerRowIndex = -1;
+      for (let i = 0; i < Math.min(5, rawGrid.length); i++) {
+        const row = rawGrid[i];
+        if (row.some((cell: any) => typeof cell === "string" && RECOGNIZED_HEADERS.includes(cell.trim().toLowerCase()))) {
+          headerRowIndex = i;
+          break;
         }
       }
+
+      if (headerRowIndex === -1) {
+        toast({
+          title: "Could not find header row",
+          description: "The first 5 rows did not contain recognizable column headers (CODE, NAME, REGISTRATION, etc.)",
+          variant: "destructive",
+        });
+        setParsing(false);
+        return;
+      }
+
+      const headers: string[] = rawGrid[headerRowIndex].map((h: any) => String(h || "").trim());
+      const dataRows = rawGrid.slice(headerRowIndex + 1);
+
+      const findCol = (aliases: string[]): number => {
+        for (let i = 0; i < headers.length; i++) {
+          const h = headers[i].toLowerCase();
+          if (aliases.some((a) => h === a.toLowerCase())) return i;
+        }
+        return -1;
+      };
+
+      const codeCol = findCol(["code", "naab", "naab code", "naab_code"]);
+      const nameCol = findCol(["name", "bull name", "bull_name"]);
+      const regCol = findCol(["registration", "registration #", "reg", "reg #", "registration_number"]);
+      const breedCol = findCol(["breed"]);
+      const dobCol = findCol(["date of birth", "dob", "birth date"]);
 
       const problems: string[] = [];
       const bulls: ParsedBull[] = [];
 
-      for (let i = 0; i < rawRows.length; i++) {
-        const row = rawRows[i];
-        const mapped: any = {};
-        for (const [origKey, targetKey] of Object.entries(colMap)) {
-          mapped[targetKey] = String(row[origKey] ?? "").trim();
-        }
+      const filteredRows = dataRows.filter((row: any[]) => row.some((cell: any) => cell !== "" && cell != null));
 
+      for (let i = 0; i < filteredRows.length; i++) {
+        const row = filteredRows[i];
         const bull: ParsedBull = {
-          naab_code: mapped.naab_code || "",
-          name: mapped.name || "",
-          registration_number: mapped.registration_number || "",
-          breed: mapped.breed || defaultBreed || "",
-          dob: mapped.dob || "",
+          naab_code: codeCol >= 0 ? String(row[codeCol] ?? "").trim() : "",
+          name: nameCol >= 0 ? String(row[nameCol] ?? "").trim() : "",
+          registration_number: regCol >= 0 ? String(row[regCol] ?? "").trim() : "",
+          breed: (breedCol >= 0 ? String(row[breedCol] ?? "").trim() : "") || defaultBreed || "",
+          dob: dobCol >= 0 ? String(row[dobCol] ?? "").trim() : "",
         };
 
         if (!bull.naab_code && !bull.name) {
-          problems.push(`Row ${i + 2}: missing both NAAB code and name — skipped`);
+          problems.push(`Row ${headerRowIndex + 2 + i}: missing both NAAB code and name — skipped`);
           continue;
         }
 
