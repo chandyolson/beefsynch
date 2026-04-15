@@ -109,6 +109,18 @@ const PackDetail = () => {
   const [advancePickupBy, setAdvancePickupBy] = useState("");
   const [advancing, setAdvancing] = useState(false);
 
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editFieldTankId, setEditFieldTankId] = useState<string>("");
+  const [editFieldTankOpen, setEditFieldTankOpen] = useState(false);
+  const [editFieldTankSearch, setEditFieldTankSearch] = useState("");
+  const [editCustomerId, setEditCustomerId] = useState<string>("");
+  const [editDestinationName, setEditDestinationName] = useState("");
+  const [editPackedBy, setEditPackedBy] = useState("");
+  const [editPackedAt, setEditPackedAt] = useState<Date | undefined>(undefined);
+  const [editNotes, setEditNotes] = useState("");
+  const [editPackedAtOpen, setEditPackedAtOpen] = useState(false);
+
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
     queryKey: ["pack_detail", id],
@@ -179,6 +191,38 @@ const PackDetail = () => {
       if (error) throw error;
       return (data ?? []) as any[];
     },
+  });
+
+  const { data: availableTanks = [] } = useQuery({
+    queryKey: ["available_field_tanks", pack?.organization_id],
+    queryFn: async () => {
+      if (!pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number, location_status, nitrogen_status")
+        .eq("organization_id", pack.organization_id)
+        .eq("location_status", "here")
+        .eq("nitrogen_status", "wet")
+        .order("tank_number", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: editDialogOpen && !!pack?.organization_id,
+  });
+
+  const { data: availableCustomers = [] } = useQuery({
+    queryKey: ["available_customers", pack?.organization_id],
+    queryFn: async () => {
+      if (!pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", pack.organization_id)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: editDialogOpen && !!pack?.organization_id,
   });
 
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
@@ -397,6 +441,59 @@ const PackDetail = () => {
     setAdvanceDialogOpen(true);
   };
 
+  const openEditDialog = () => {
+    if (!pack) return;
+    setEditFieldTankId(pack.field_tank_id || "");
+    setEditCustomerId(pack.customer_id || "");
+    setEditDestinationName(pack.destination_name || "");
+    setEditPackedBy(pack.packed_by || "");
+    setEditPackedAt(pack.packed_at ? new Date(pack.packed_at) : undefined);
+    setEditNotes(pack.notes || "");
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!pack) return;
+    setEditSubmitting(true);
+    try {
+      const payload: Record<string, any> = {
+        pack_id: pack.id,
+        customer_id: editCustomerId || null,
+        destination_name: editDestinationName.trim() || null,
+        packed_by: editPackedBy.trim() || null,
+        packed_at: editPackedAt ? editPackedAt.toISOString() : pack.packed_at,
+        notes: editNotes.trim() || null,
+      };
+      if (pack.status === "packed" && editFieldTankId && editFieldTankId !== pack.field_tank_id) {
+        payload.field_tank_id = editFieldTankId;
+      }
+
+      const { data, error } = await (supabase.rpc as any)("edit_tank_pack", { _input: payload });
+      if (error) throw error;
+
+      const result = data as { ok?: boolean; field_tank_changed?: boolean } | null;
+      if (!result?.ok) throw new Error("Edit failed: invalid response from server");
+
+      toast({
+        title: "Pack updated",
+        description: result.field_tank_changed
+          ? "Field tank changed and inventory moved."
+          : "Pack details saved.",
+      });
+      setEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+    } catch (err: any) {
+      toast({
+        title: "Failed to update pack",
+        description: err?.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
   }
@@ -471,6 +568,10 @@ const PackDetail = () => {
             {pack.pack_type === "project" && pack.status === "packed" && (
               <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
             )}
+            <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" />
+              Edit Pack
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="gap-1.5">
@@ -905,6 +1006,170 @@ const PackDetail = () => {
               <Button variant="outline" onClick={() => setAdvanceDialogOpen(false)} disabled={advancing}>Cancel</Button>
               <Button onClick={handleAdvance} disabled={advancing}>
                 {advancing ? "Saving..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Pack Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Pack</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Field tank — only editable while pack is in 'packed' status */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-field-tank">Field tank</Label>
+                {pack && pack.status === "packed" ? (
+                  <Popover open={editFieldTankOpen} onOpenChange={setEditFieldTankOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="edit-field-tank"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={editFieldTankOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {(() => {
+                          const t = availableTanks.find((x: any) => x.id === editFieldTankId);
+                          if (t) return t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number;
+                          if (editFieldTankId === pack.field_tank_id) {
+                            return `${fieldTankName} (current)`;
+                          }
+                          return "Select tank…";
+                        })()}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                      <div className="p-2 border-b">
+                        <Input
+                          placeholder="Search tanks…"
+                          value={editFieldTankSearch}
+                          onChange={(e) => setEditFieldTankSearch(e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {availableTanks
+                          .filter((t: any) => {
+                            const q = editFieldTankSearch.toLowerCase();
+                            if (!q) return true;
+                            return (t.tank_name || "").toLowerCase().includes(q) ||
+                                   (t.tank_number || "").toLowerCase().includes(q);
+                          })
+                          .map((t: any) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className={cn(
+                                "w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2",
+                                editFieldTankId === t.id && "bg-accent"
+                              )}
+                              onClick={() => {
+                                setEditFieldTankId(t.id);
+                                setEditFieldTankOpen(false);
+                                setEditFieldTankSearch("");
+                              }}
+                            >
+                              {editFieldTankId === t.id && <Check className="h-4 w-4" />}
+                              <span>{t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number}</span>
+                            </button>
+                          ))}
+                        {availableTanks.length === 0 && (
+                          <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                            No available tanks (location: here, nitrogen: wet)
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="text-sm text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+                    Field tank can only be changed while pack status is "packed". Current status: <span className="font-medium">{pack?.status}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Customer */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-customer">Customer (optional)</Label>
+                <Select value={editCustomerId || "_none_"} onValueChange={(v) => setEditCustomerId(v === "_none_" ? "" : v)}>
+                  <SelectTrigger id="edit-customer"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none_">— None (company) —</SelectItem>
+                    {availableCustomers.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Destination name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-destination">Destination name</Label>
+                <Input
+                  id="edit-destination"
+                  value={editDestinationName}
+                  onChange={(e) => setEditDestinationName(e.target.value)}
+                  placeholder="e.g. ranch name, customer name, project name"
+                />
+              </div>
+
+              {/* Packed by */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-packed-by">Packed by</Label>
+                <Input
+                  id="edit-packed-by"
+                  value={editPackedBy}
+                  onChange={(e) => setEditPackedBy(e.target.value)}
+                  placeholder="Name of person who packed"
+                />
+              </div>
+
+              {/* Packed at date */}
+              <div className="space-y-1.5">
+                <Label>Packed on</Label>
+                <Popover open={editPackedAtOpen} onOpenChange={setEditPackedAtOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editPackedAt ? format(editPackedAt, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editPackedAt}
+                      onSelect={(d) => { setEditPackedAt(d); setEditPackedAtOpen(false); }}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Internal notes about this pack"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={editSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditSubmit} disabled={editSubmitting}>
+                {editSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save changes
               </Button>
             </DialogFooter>
           </DialogContent>
