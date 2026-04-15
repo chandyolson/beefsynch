@@ -26,6 +26,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ExportConfig } from "@/lib/exports";
 
 const TANK_TYPES = [
   { value: "all", label: "All Types" },
@@ -212,6 +214,36 @@ const Tanks = () => {
     [tanks, lastFillMap, unitSumMap]
   );
 
+  // Export config
+  const exportConfig: ExportConfig<any> = useMemo(() => {
+    const filterParts: string[] = [];
+    if (typeFilter !== "all") filterParts.push(`Type: ${TYPE_LABELS[typeFilter] || typeFilter}`);
+    if (nitrogenFilter !== "all") filterParts.push(`Nitrogen: ${nitrogenFilter}`);
+    if (locationFilter !== "all") filterParts.push(`Location: ${locationFilter}`);
+    if (search.trim()) filterParts.push(`Search: "${search.trim()}"`);
+    const subtitle = filterParts.length ? filterParts.join(" • ") : "All tanks";
+    return {
+      title: "Tank List",
+      filenameBase: "tanks",
+      subtitle,
+      orientation: "landscape" as const,
+      columns: [
+        { label: "Tank #", value: (t: any) => t.tank_number, pdfWidth: 50 },
+        { label: "Name", value: (t: any) => t.tank_name },
+        { label: "EID", value: (t: any) => t.eid },
+        { label: "Serial #", value: (t: any) => t.serial_number },
+        { label: "Model", value: (t: any) => t.model },
+        { label: "Type", value: (t: any) => TYPE_LABELS[t.tank_type] || t.tank_type },
+        { label: "Customer", value: (t: any) => t.customerName || (t.tank_type === "inventory_tank" ? "Company" : "—") },
+        { label: "Location", value: (t: any) => t.location_status },
+        { label: "Nitrogen", value: (t: any) => t.nitrogen_status },
+        { label: "Total Units", value: (t: any) => t.totalUnits },
+        { label: "Last Fill", value: (t: any) => t.lastFill ? format(parseISO(t.lastFill), "yyyy-MM-dd") : "" },
+        { label: "Description", value: (t: any) => t.description },
+      ],
+    };
+  }, [typeFilter, nitrogenFilter, locationFilter, search]);
+
   // Filtered + sorted
   const filtered = useMemo(() => {
     let list = enriched;
@@ -305,9 +337,12 @@ const Tanks = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Tanks</h2>
-          <Button className="gap-2" onClick={() => { resetForm(); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Add Tank
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu config={exportConfig} rows={filtered} />
+            <Button className="gap-2" onClick={() => { resetForm(); setDialogOpen(true); }}>
+              <Plus className="h-4 w-4" /> Add Tank
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
