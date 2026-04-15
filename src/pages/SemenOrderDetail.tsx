@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
+import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmentReconciliation";
 
 interface OrderRow {
   id: string;
@@ -384,6 +385,8 @@ const SemenOrderDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {id && <OrderShipmentReconciliation orderId={id} />}
       </div>
 
       <NewOrderDialog
