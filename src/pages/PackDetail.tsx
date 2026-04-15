@@ -570,6 +570,95 @@ const PackDetail = () => {
     }
   };
 
+  const openAddLineDialog = () => {
+    setLineDialogMode("add");
+    setEditingLineId(null);
+    setLineSourceTankId("");
+    setLineBullCatalogId("");
+    setLineBullName("");
+    setLineBullCode("");
+    setLineUnits("");
+    setLineSourceCanister("");
+    setLineFieldCanister("");
+    setLineDialogOpen(true);
+  };
+
+  const openEditLineDialog = (line: any) => {
+    setLineDialogMode("edit");
+    setEditingLineId(line.id);
+    setLineSourceTankId(line.source_tank_id || "");
+    setLineBullCatalogId(line.bull_catalog_id || "");
+    setLineBullName(line.bull_name || "");
+    setLineBullCode(line.bull_code || "");
+    setLineUnits(String(line.units || ""));
+    setLineSourceCanister(line.source_canister || "");
+    setLineFieldCanister(line.field_canister || "");
+    setLineDialogOpen(true);
+  };
+
+  const handleLineSubmit = async () => {
+    if (!pack) return;
+    if (!lineSourceTankId) { toast({ title: "Pick a source tank", variant: "destructive" }); return; }
+    if (!lineBullName.trim()) { toast({ title: "Pick a bull", variant: "destructive" }); return; }
+    const unitsNum = parseInt(lineUnits, 10);
+    if (isNaN(unitsNum) || unitsNum <= 0) { toast({ title: "Units must be a positive number", variant: "destructive" }); return; }
+
+    setLineSubmitting(true);
+    try {
+      const payload: Record<string, any> = {
+        source_tank_id: lineSourceTankId,
+        bull_catalog_id: lineBullCatalogId || null,
+        bull_name: lineBullName.trim(),
+        bull_code: lineBullCode.trim() || null,
+        units: unitsNum,
+        source_canister: lineSourceCanister.trim() || null,
+        field_canister: lineFieldCanister.trim() || null,
+      };
+
+      if (lineDialogMode === "add") {
+        payload.pack_id = pack.id;
+        const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: payload });
+        if (error) throw error;
+        if (!data?.ok) throw new Error("Add failed");
+        toast({ title: "Line added" });
+      } else {
+        payload.line_id = editingLineId;
+        const { data, error } = await (supabase.rpc as any)("update_pack_line", { _input: payload });
+        if (error) throw error;
+        if (!data?.ok) throw new Error("Update failed");
+        toast({ title: "Line updated" });
+      }
+
+      setLineDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setLineSubmitting(false);
+    }
+  };
+
+  const handleLineDelete = async () => {
+    if (!lineDeleteId || !pack) return;
+    setLineDeleting(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("delete_pack_line", { _input: { line_id: lineDeleteId } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error("Delete failed");
+      toast({ title: "Line removed", description: "Inventory restored to source tank." });
+      setLineDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setLineDeleting(false);
+    }
+  };
+
+  const isPackEditable = pack?.status === "packed";
+
   if (isLoading) {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
   }
