@@ -40,6 +40,19 @@ import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
 import { generateSessionSheetPdf } from "@/lib/generateSessionSheetPdf";
 import { generateReturnSlipPdf } from "@/lib/generateReturnSlipPdf";
 
+const SavedBadge = ({ visible }: { visible: boolean }) => (
+  <span
+    className={cn(
+      "ml-2 inline-flex items-center gap-1 text-xs font-medium text-green-500 transition-opacity duration-300",
+      visible ? "opacity-100" : "opacity-0 pointer-events-none"
+    )}
+    aria-live="polite"
+  >
+    <Check className="h-3.5 w-3.5" />
+    Saved
+  </span>
+);
+
 const STATUS_BADGE: Record<string, string> = {
   packed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   in_field: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -120,6 +133,8 @@ const PackDetail = () => {
   const [editPackedAt, setEditPackedAt] = useState<Date | undefined>(undefined);
   const [editNotes, setEditNotes] = useState("");
   const [editPackedAtOpen, setEditPackedAtOpen] = useState(false);
+
+  const [recentlySaved, setRecentlySaved] = useState<string | null>(null);
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
@@ -244,6 +259,7 @@ const PackDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       setEditingTracking(false);
       toast({ title: "Tracking updated" });
+      flashSaved("tracking");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
     } finally {
@@ -261,6 +277,7 @@ const PackDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       setEditingReturnTracking(false);
       toast({ title: "Return tracking updated" });
+      flashSaved("return_tracking");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
     } finally {
@@ -441,6 +458,13 @@ const PackDetail = () => {
     setAdvanceDialogOpen(true);
   };
 
+  const flashSaved = (fieldId: string) => {
+    setRecentlySaved(fieldId);
+    setTimeout(() => {
+      setRecentlySaved((current) => (current === fieldId ? null : current));
+    }, 2000);
+  };
+
   const openEditDialog = () => {
     if (!pack) return;
     setEditFieldTankId(pack.field_tank_id || "");
@@ -481,6 +505,7 @@ const PackDetail = () => {
           : "Pack details saved.",
       });
       setEditDialogOpen(false);
+      flashSaved("edit_pack");
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
     } catch (err: any) {
@@ -568,10 +593,13 @@ const PackDetail = () => {
             {pack.pack_type === "project" && pack.status === "packed" && (
               <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
             )}
-            <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-1.5">
-              <Pencil className="h-3.5 w-3.5" />
-              Edit Pack
-            </Button>
+            <div className="flex items-center">
+              <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-1.5">
+                <Pencil className="h-3.5 w-3.5" />
+                Edit Pack
+              </Button>
+              <SavedBadge visible={recentlySaved === "edit_pack"} />
+            </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="gap-1.5">
@@ -618,7 +646,7 @@ const PackDetail = () => {
                 )}
                 <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Carrier:</span><span>{pack.shipping_carrier || "—"}</span></div>
                 <div className="flex gap-2 items-start">
-                  <span className="font-semibold w-28 shrink-0">Tracking:</span>
+                  <span className="font-semibold w-28 shrink-0">Tracking<SavedBadge visible={recentlySaved === "tracking"} /></span>
                   {editingTracking ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Select value={editCarrier} onValueChange={setEditCarrier}>
@@ -672,7 +700,7 @@ const PackDetail = () => {
                   )}
                 </div>
                 <div className="flex gap-2 items-start">
-                  <span className="font-semibold w-28 shrink-0">Return Track:</span>
+                  <span className="font-semibold w-28 shrink-0">Return Track<SavedBadge visible={recentlySaved === "return_tracking"} /></span>
                   {editingReturnTracking ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Select value={editReturnCarrier} onValueChange={setEditReturnCarrier}>
