@@ -495,7 +495,7 @@ const TankDetail = () => {
     if (!tank?.customer_id || !manualBullName.trim() || manualUnits <= 0 || !orgId) return;
     setManualSubmitting(true);
     try {
-      const { data: invRow, error: invErr } = await supabase
+      const { error: invErr } = await supabase
         .from("tank_inventory")
         .insert({
           tank_id: tank.id,
@@ -510,17 +510,6 @@ const TankDetail = () => {
         .single();
       if (invErr) throw invErr;
 
-      const { error: txErr } = await supabase.from("inventory_transactions").insert({
-        tank_id: tank.id,
-        inventory_item_id: invRow.id,
-        customer_id: tank.customer_id,
-        transaction_type: "manual_add",
-        units_change: manualUnits,
-        notes: manualNotes.trim() || null,
-        organization_id: orgId,
-        performed_by: userId,
-      });
-      if (txErr) throw txErr;
 
       toast({ title: "Bull added to inventory" });
       setShowManualAdd(false);
