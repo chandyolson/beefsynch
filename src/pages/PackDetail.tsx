@@ -259,6 +259,38 @@ const PackDetail = () => {
     enabled: editDialogOpen && !!pack?.organization_id,
   });
 
+  const { data: allSourceTanks = [] } = useQuery({
+    queryKey: ["all_source_tanks", pack?.organization_id],
+    queryFn: async () => {
+      if (!pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number")
+        .eq("organization_id", pack.organization_id)
+        .order("tank_number", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: lineDialogOpen && !!pack?.organization_id,
+  });
+
+  const { data: sourceTankInventory = [] } = useQuery({
+    queryKey: ["source_tank_inventory", lineSourceTankId, pack?.organization_id],
+    queryFn: async () => {
+      if (!lineSourceTankId || !pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("tank_inventory")
+        .select("id, units, canister, bull_catalog_id, bull_code, custom_bull_name, bulls_catalog(bull_name, registration_number)")
+        .eq("tank_id", lineSourceTankId)
+        .eq("organization_id", pack.organization_id)
+        .gt("units", 0)
+        .order("units", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: lineDialogOpen && !!lineSourceTankId && !!pack?.organization_id,
+  });
+
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
   const projectNames = packProjects.map((pp: any) => pp.projects?.name).filter(Boolean);
   const totalPackedUnits = packLines.reduce((s: number, l: any) => s + (l.units || 0), 0);
