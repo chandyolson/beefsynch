@@ -193,13 +193,13 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   };
 
   const loadAvailableTanks = async () => {
-    const { data } = await (supabase
+    const res: any = await supabase
       .from("tanks")
       .select("id, tank_number, tank_name")
       .eq("location_status" as any, "here")
       .eq("nitrogen_status" as any, "wet")
-      .order("tank_number") as any);
-    setAvailableTanks((data || []) as TankOption[]);
+      .order("tank_number");
+    setAvailableTanks((res.data || []) as TankOption[]);
   };
 
   const toggleRow = (key: string) => {
