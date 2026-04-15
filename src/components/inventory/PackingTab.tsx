@@ -25,8 +25,11 @@ import { cn } from "@/lib/utils";
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   packed: { label: "Packed", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   in_field: { label: "In Field", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  shipped: { label: "Shipped", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  delivered: { label: "Delivered", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  picked_up: { label: "Picked Up", className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
   unpacked: { label: "Unpacked", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  returned: { label: "Returned", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
+  tank_returned: { label: "Tank Returned", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -181,8 +184,11 @@ const PacksList = ({ orgId }: { orgId: string }) => {
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="packed">Packed</SelectItem>
             <SelectItem value="in_field">In Field</SelectItem>
+            <SelectItem value="shipped">Shipped</SelectItem>
+            <SelectItem value="delivered">Delivered</SelectItem>
+            <SelectItem value="picked_up">Picked Up</SelectItem>
             <SelectItem value="unpacked">Unpacked</SelectItem>
-            <SelectItem value="returned">Returned</SelectItem>
+            <SelectItem value="tank_returned">Tank Returned</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
