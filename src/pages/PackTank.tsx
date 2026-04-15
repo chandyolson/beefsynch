@@ -9,6 +9,7 @@ import {
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
+import BackButton from "@/components/BackButton";
 import InventoryBullPicker from "@/components/InventoryBullPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -696,6 +697,7 @@ const PackTank = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        <BackButton />
         <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
 
         {/* Pack Type Toggle */}

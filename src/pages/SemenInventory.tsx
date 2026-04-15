@@ -6,6 +6,7 @@ import { format } from "date-fns";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
+import BackButton from "@/components/BackButton";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -278,6 +279,7 @@ const SemenInventory = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <BackButton />
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Inventory</h2>

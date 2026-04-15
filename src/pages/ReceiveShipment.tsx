@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
+import BackButton from "@/components/BackButton";
 import BullCombobox from "@/components/BullCombobox";
 import CustomerPicker from "@/components/CustomerPicker";
 import SemenCompanyPicker from "@/components/SemenCompanyPicker";
@@ -770,6 +771,7 @@ const ReceiveShipment = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+        <BackButton />
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">
