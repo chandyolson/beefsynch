@@ -157,10 +157,10 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
 
   const fetchData = async () => {
     const [itemsRes, txnRes] = await Promise.all([
-      supabase
+      (supabase
         .from("semen_order_items")
         .select("id, units, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name, naab_code, company)")
-        .eq("semen_order_id", orderId),
+        .eq("semen_order_id", orderId) as any),
       (supabase
         .from("inventory_transactions")
         .select(`
