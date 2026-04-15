@@ -219,23 +219,6 @@ const ReInventory = () => {
           .update({ units: row.actual, inventoried_at: now, inventoried_by: userId } as any)
           .eq("id", row.id);
 
-        // Log transaction
-        await supabase
-          .from("inventory_transactions")
-          .insert({
-            organization_id: orgId,
-            tank_id: tankId,
-            inventory_item_id: row.id,
-            customer_id: row.customer_id,
-            bull_catalog_id: row.bull_catalog_id,
-            custom_bull_name: row.custom_bull_name,
-            bull_code: row.bull_code,
-            units_change: diff,
-            transaction_type: "reinventory_adjustment",
-            reason: diff < 0 ? "Missing/used" : "Found/added",
-            notes: notes.trim() || null,
-            performed_by: userId,
-          } as any);
       }
 
       // Insert new rows
@@ -266,24 +249,6 @@ const ReInventory = () => {
           .select("id")
           .single();
 
-        if (inserted && units > 0) {
-          await supabase
-            .from("inventory_transactions")
-            .insert({
-              organization_id: orgId,
-              tank_id: tankId,
-              inventory_item_id: (inserted as any).id,
-              customer_id: customerId || null,
-              bull_catalog_id: nr.bull_catalog_id || null,
-              custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
-              bull_code: nr.bull_code.trim() || null,
-              units_change: units,
-              transaction_type: "reinventory_found",
-              reason: "Found during re-inventory",
-              notes: notes.trim() || null,
-              performed_by: userId,
-            } as any);
-        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["tank_inventory"] });
