@@ -66,7 +66,7 @@ const ReceiveShipmentPreview = () => {
       if (!id) return null;
       const { data, error } = await supabase
         .from("shipments")
-        .select("*")
+        .select("*, semen_companies(name), customers(name)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -395,7 +395,7 @@ const ReceiveShipmentPreview = () => {
       {
         received_from_name: (shipment as any).semen_companies?.name || "—",
         received_date: shipment.received_date,
-        received_by: shipment.received_by || null,
+        received_by: receivedByLabel === "—" ? null : receivedByLabel,
         notes: shipment.notes,
         confirmed_at: snapshot?.confirmed_at || shipment.confirmed_at,
       },
@@ -485,7 +485,7 @@ const ReceiveShipmentPreview = () => {
               </div>
               <div>
                 <span className="text-muted-foreground">Received By</span>
-                <p className="font-medium">{shipment.received_by || "—"}</p>
+                <p className="font-medium">{receivedByLabel}</p>
               </div>
               {shipment.semen_order_id && (
                 <div>
