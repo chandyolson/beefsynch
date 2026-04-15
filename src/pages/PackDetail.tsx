@@ -134,6 +134,25 @@ const PackDetail = () => {
   const [editNotes, setEditNotes] = useState("");
   const [editPackedAtOpen, setEditPackedAtOpen] = useState(false);
 
+  const [lineDialogOpen, setLineDialogOpen] = useState(false);
+  const [lineDialogMode, setLineDialogMode] = useState<"add" | "edit">("add");
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [lineSubmitting, setLineSubmitting] = useState(false);
+  const [lineDeleteId, setLineDeleteId] = useState<string | null>(null);
+  const [lineDeleting, setLineDeleting] = useState(false);
+
+  const [lineSourceTankId, setLineSourceTankId] = useState<string>("");
+  const [lineSourceTankOpen, setLineSourceTankOpen] = useState(false);
+  const [lineSourceTankSearch, setLineSourceTankSearch] = useState("");
+  const [lineBullCatalogId, setLineBullCatalogId] = useState<string>("");
+  const [lineBullName, setLineBullName] = useState<string>("");
+  const [lineBullCode, setLineBullCode] = useState<string>("");
+  const [lineUnits, setLineUnits] = useState<string>("");
+  const [lineSourceCanister, setLineSourceCanister] = useState<string>("");
+  const [lineFieldCanister, setLineFieldCanister] = useState<string>("");
+  const [lineBullOpen, setLineBullOpen] = useState(false);
+  const [lineBullSearch, setLineBullSearch] = useState("");
+
   const [recentlySaved, setRecentlySaved] = useState<string | null>(null);
 
   // Fetch pack with field tank
@@ -238,6 +257,38 @@ const PackDetail = () => {
       return data || [];
     },
     enabled: editDialogOpen && !!pack?.organization_id,
+  });
+
+  const { data: allSourceTanks = [] } = useQuery({
+    queryKey: ["all_source_tanks", pack?.organization_id],
+    queryFn: async () => {
+      if (!pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("tanks")
+        .select("id, tank_name, tank_number")
+        .eq("organization_id", pack.organization_id)
+        .order("tank_number", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: lineDialogOpen && !!pack?.organization_id,
+  });
+
+  const { data: sourceTankInventory = [] } = useQuery({
+    queryKey: ["source_tank_inventory", lineSourceTankId, pack?.organization_id],
+    queryFn: async () => {
+      if (!lineSourceTankId || !pack?.organization_id) return [];
+      const { data, error } = await supabase
+        .from("tank_inventory")
+        .select("id, units, canister, bull_catalog_id, bull_code, custom_bull_name, bulls_catalog(bull_name, registration_number)")
+        .eq("tank_id", lineSourceTankId)
+        .eq("organization_id", pack.organization_id)
+        .gt("units", 0)
+        .order("units", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: lineDialogOpen && !!lineSourceTankId && !!pack?.organization_id,
   });
 
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
@@ -518,6 +569,95 @@ const PackDetail = () => {
       setEditSubmitting(false);
     }
   };
+
+  const openAddLineDialog = () => {
+    setLineDialogMode("add");
+    setEditingLineId(null);
+    setLineSourceTankId("");
+    setLineBullCatalogId("");
+    setLineBullName("");
+    setLineBullCode("");
+    setLineUnits("");
+    setLineSourceCanister("");
+    setLineFieldCanister("");
+    setLineDialogOpen(true);
+  };
+
+  const openEditLineDialog = (line: any) => {
+    setLineDialogMode("edit");
+    setEditingLineId(line.id);
+    setLineSourceTankId(line.source_tank_id || "");
+    setLineBullCatalogId(line.bull_catalog_id || "");
+    setLineBullName(line.bull_name || "");
+    setLineBullCode(line.bull_code || "");
+    setLineUnits(String(line.units || ""));
+    setLineSourceCanister(line.source_canister || "");
+    setLineFieldCanister(line.field_canister || "");
+    setLineDialogOpen(true);
+  };
+
+  const handleLineSubmit = async () => {
+    if (!pack) return;
+    if (!lineSourceTankId) { toast({ title: "Pick a source tank", variant: "destructive" }); return; }
+    if (!lineBullName.trim()) { toast({ title: "Pick a bull", variant: "destructive" }); return; }
+    const unitsNum = parseInt(lineUnits, 10);
+    if (isNaN(unitsNum) || unitsNum <= 0) { toast({ title: "Units must be a positive number", variant: "destructive" }); return; }
+
+    setLineSubmitting(true);
+    try {
+      const payload: Record<string, any> = {
+        source_tank_id: lineSourceTankId,
+        bull_catalog_id: lineBullCatalogId || null,
+        bull_name: lineBullName.trim(),
+        bull_code: lineBullCode.trim() || null,
+        units: unitsNum,
+        source_canister: lineSourceCanister.trim() || null,
+        field_canister: lineFieldCanister.trim() || null,
+      };
+
+      if (lineDialogMode === "add") {
+        payload.pack_id = pack.id;
+        const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: payload });
+        if (error) throw error;
+        if (!data?.ok) throw new Error("Add failed");
+        toast({ title: "Line added" });
+      } else {
+        payload.line_id = editingLineId;
+        const { data, error } = await (supabase.rpc as any)("update_pack_line", { _input: payload });
+        if (error) throw error;
+        if (!data?.ok) throw new Error("Update failed");
+        toast({ title: "Line updated" });
+      }
+
+      setLineDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setLineSubmitting(false);
+    }
+  };
+
+  const handleLineDelete = async () => {
+    if (!lineDeleteId || !pack) return;
+    setLineDeleting(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("delete_pack_line", { _input: { line_id: lineDeleteId } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error("Delete failed");
+      toast({ title: "Line removed", description: "Inventory restored to source tank." });
+      setLineDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setLineDeleting(false);
+    }
+  };
+
+  const isPackEditable = pack?.status === "packed";
 
   if (isLoading) {
     return <div className="min-h-screen"><Navbar /><main className="container mx-auto px-4 py-8"><p className="text-muted-foreground">Loading…</p></main></div>;
@@ -824,6 +964,7 @@ const PackDetail = () => {
                 <TableHead>Src Can.</TableHead>
                 <TableHead>Field Can.</TableHead>
                 <TableHead className="text-right">Units</TableHead>
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -835,17 +976,43 @@ const PackDetail = () => {
                   <TableCell>{l.source_canister || "—"}</TableCell>
                   <TableCell>{l.field_canister || "—"}</TableCell>
                   <TableCell className="text-right">{l.units}</TableCell>
+                  <TableCell className="text-right">
+                    {isPackEditable && (
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditLineDialog(l)} title="Edit line">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setLineDeleteId(l.id)} title="Delete line">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={5} className="text-right font-semibold">Total</TableCell>
+                <TableCell colSpan={6} className="text-right font-semibold">Total</TableCell>
                 <TableCell className="text-right font-bold">{totalPackedUnits}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
         </div>
+
+        {isPackEditable && (
+          <div className="flex justify-start">
+            <Button variant="outline" size="sm" onClick={openAddLineDialog} className="gap-1.5">
+              <Package className="h-3.5 w-3.5" />
+              Add Line
+            </Button>
+          </div>
+        )}
+        {!isPackEditable && pack && (
+          <p className="text-xs text-muted-foreground">
+            Pack lines can only be edited while pack status is "packed". Current status: <span className="font-medium">{pack.status}</span>
+          </p>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
@@ -1039,6 +1206,181 @@ const PackDetail = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Line Add/Edit Dialog */}
+        <Dialog open={lineDialogOpen} onOpenChange={setLineDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{lineDialogMode === "add" ? "Add Pack Line" : "Edit Pack Line"}</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Source tank picker */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-source-tank">Source tank</Label>
+                <Popover open={lineSourceTankOpen} onOpenChange={setLineSourceTankOpen}>
+                  <PopoverTrigger asChild>
+                    <Button id="line-source-tank" variant="outline" role="combobox" className="w-full justify-between font-normal">
+                      {(() => {
+                        const t = allSourceTanks.find((x: any) => x.id === lineSourceTankId);
+                        return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select tank…";
+                      })()}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                    <div className="p-2 border-b">
+                      <Input placeholder="Search tanks…" value={lineSourceTankSearch} onChange={(e) => setLineSourceTankSearch(e.target.value)} className="h-8" />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {allSourceTanks
+                        .filter((t: any) => {
+                          const q = lineSourceTankSearch.toLowerCase();
+                          if (!q) return true;
+                          return (t.tank_name || "").toLowerCase().includes(q) || (t.tank_number || "").toLowerCase().includes(q);
+                        })
+                        .map((t: any) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={cn("w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2", lineSourceTankId === t.id && "bg-accent")}
+                            onClick={() => {
+                              setLineSourceTankId(t.id);
+                              setLineSourceTankOpen(false);
+                              setLineSourceTankSearch("");
+                              if (lineDialogMode === "add") {
+                                setLineBullCatalogId("");
+                                setLineBullName("");
+                                setLineBullCode("");
+                                setLineSourceCanister("");
+                              }
+                            }}
+                          >
+                            {lineSourceTankId === t.id && <Check className="h-4 w-4" />}
+                            <span>{t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Bull picker */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-bull">Bull</Label>
+                <Popover open={lineBullOpen} onOpenChange={setLineBullOpen}>
+                  <PopoverTrigger asChild>
+                    <Button id="line-bull" variant="outline" role="combobox" className="w-full justify-between font-normal" disabled={!lineSourceTankId}>
+                      {lineBullName || (lineSourceTankId ? "Select bull from this tank's inventory…" : "Pick a source tank first")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                    <div className="p-2 border-b">
+                      <Input placeholder="Search bulls in this tank…" value={lineBullSearch} onChange={(e) => setLineBullSearch(e.target.value)} className="h-8" />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {sourceTankInventory.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                          {lineSourceTankId ? "No inventory in this tank" : "Pick a source tank first"}
+                        </div>
+                      ) : (
+                        sourceTankInventory
+                          .filter((inv: any) => {
+                            const q = lineBullSearch.toLowerCase();
+                            if (!q) return true;
+                            const name = (inv.bulls_catalog?.bull_name || inv.custom_bull_name || "").toLowerCase();
+                            const code = (inv.bull_code || "").toLowerCase();
+                            return name.includes(q) || code.includes(q);
+                          })
+                          .map((inv: any) => {
+                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            return (
+                              <button
+                                key={inv.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
+                                onClick={() => {
+                                  setLineBullCatalogId(inv.bull_catalog_id || "");
+                                  setLineBullName(displayName);
+                                  setLineBullCode(inv.bull_code || "");
+                                  setLineSourceCanister(inv.canister || "");
+                                  setLineBullOpen(false);
+                                  setLineBullSearch("");
+                                }}
+                              >
+                                <span className="flex flex-col">
+                                  <span className="font-medium">{displayName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {inv.bull_code && `${inv.bull_code} · `}Canister {inv.canister || "—"}
+                                  </span>
+                                </span>
+                                <Badge variant="outline" className="text-xs whitespace-nowrap">{inv.units} units</Badge>
+                              </button>
+                            );
+                          })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Units */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-units">Units</Label>
+                <Input id="line-units" type="number" min="1" value={lineUnits} onChange={(e) => setLineUnits(e.target.value)} placeholder="e.g. 5" />
+                {lineSourceTankId && lineBullName && (() => {
+                  const matched = sourceTankInventory.find((inv: any) => {
+                    const n = inv.bulls_catalog?.bull_name || inv.custom_bull_name;
+                    return n === lineBullName;
+                  });
+                  return matched ? <p className="text-xs text-muted-foreground">Available in source: {matched.units} units</p> : null;
+                })()}
+              </div>
+
+              {/* Source canister */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-src-can">Source canister (optional)</Label>
+                <Input id="line-src-can" value={lineSourceCanister} onChange={(e) => setLineSourceCanister(e.target.value)} placeholder="e.g. 1" />
+              </div>
+
+              {/* Field canister */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-fld-can">Field canister (optional)</Label>
+                <Input id="line-fld-can" value={lineFieldCanister} onChange={(e) => setLineFieldCanister(e.target.value)} placeholder="e.g. 1" />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLineDialogOpen(false)} disabled={lineSubmitting}>Cancel</Button>
+              <Button onClick={handleLineSubmit} disabled={lineSubmitting}>
+                {lineSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {lineDialogMode === "add" ? "Add line" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Line delete confirmation */}
+        <AlertDialog open={!!lineDeleteId} onOpenChange={(open) => !open && setLineDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this line?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the line from the pack and restore the units back to the source tank. The change will be logged in the inventory transaction log.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={lineDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); handleLineDelete(); }}
+                disabled={lineDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {lineDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete line
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Edit Pack Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
