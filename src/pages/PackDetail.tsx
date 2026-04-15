@@ -1207,6 +1207,181 @@ const PackDetail = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Line Add/Edit Dialog */}
+        <Dialog open={lineDialogOpen} onOpenChange={setLineDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{lineDialogMode === "add" ? "Add Pack Line" : "Edit Pack Line"}</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Source tank picker */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-source-tank">Source tank</Label>
+                <Popover open={lineSourceTankOpen} onOpenChange={setLineSourceTankOpen}>
+                  <PopoverTrigger asChild>
+                    <Button id="line-source-tank" variant="outline" role="combobox" className="w-full justify-between font-normal">
+                      {(() => {
+                        const t = allSourceTanks.find((x: any) => x.id === lineSourceTankId);
+                        return t ? (t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number) : "Select tank…";
+                      })()}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                    <div className="p-2 border-b">
+                      <Input placeholder="Search tanks…" value={lineSourceTankSearch} onChange={(e) => setLineSourceTankSearch(e.target.value)} className="h-8" />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {allSourceTanks
+                        .filter((t: any) => {
+                          const q = lineSourceTankSearch.toLowerCase();
+                          if (!q) return true;
+                          return (t.tank_name || "").toLowerCase().includes(q) || (t.tank_number || "").toLowerCase().includes(q);
+                        })
+                        .map((t: any) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={cn("w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2", lineSourceTankId === t.id && "bg-accent")}
+                            onClick={() => {
+                              setLineSourceTankId(t.id);
+                              setLineSourceTankOpen(false);
+                              setLineSourceTankSearch("");
+                              if (lineDialogMode === "add") {
+                                setLineBullCatalogId("");
+                                setLineBullName("");
+                                setLineBullCode("");
+                                setLineSourceCanister("");
+                              }
+                            }}
+                          >
+                            {lineSourceTankId === t.id && <Check className="h-4 w-4" />}
+                            <span>{t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Bull picker */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-bull">Bull</Label>
+                <Popover open={lineBullOpen} onOpenChange={setLineBullOpen}>
+                  <PopoverTrigger asChild>
+                    <Button id="line-bull" variant="outline" role="combobox" className="w-full justify-between font-normal" disabled={!lineSourceTankId}>
+                      {lineBullName || (lineSourceTankId ? "Select bull from this tank's inventory…" : "Pick a source tank first")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                    <div className="p-2 border-b">
+                      <Input placeholder="Search bulls in this tank…" value={lineBullSearch} onChange={(e) => setLineBullSearch(e.target.value)} className="h-8" />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {sourceTankInventory.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                          {lineSourceTankId ? "No inventory in this tank" : "Pick a source tank first"}
+                        </div>
+                      ) : (
+                        sourceTankInventory
+                          .filter((inv: any) => {
+                            const q = lineBullSearch.toLowerCase();
+                            if (!q) return true;
+                            const name = (inv.bulls_catalog?.bull_name || inv.custom_bull_name || "").toLowerCase();
+                            const code = (inv.bull_code || "").toLowerCase();
+                            return name.includes(q) || code.includes(q);
+                          })
+                          .map((inv: any) => {
+                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            return (
+                              <button
+                                key={inv.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
+                                onClick={() => {
+                                  setLineBullCatalogId(inv.bull_catalog_id || "");
+                                  setLineBullName(displayName);
+                                  setLineBullCode(inv.bull_code || "");
+                                  setLineSourceCanister(inv.canister || "");
+                                  setLineBullOpen(false);
+                                  setLineBullSearch("");
+                                }}
+                              >
+                                <span className="flex flex-col">
+                                  <span className="font-medium">{displayName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {inv.bull_code && `${inv.bull_code} · `}Canister {inv.canister || "—"}
+                                  </span>
+                                </span>
+                                <Badge variant="outline" className="text-xs whitespace-nowrap">{inv.units} units</Badge>
+                              </button>
+                            );
+                          })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Units */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-units">Units</Label>
+                <Input id="line-units" type="number" min="1" value={lineUnits} onChange={(e) => setLineUnits(e.target.value)} placeholder="e.g. 5" />
+                {lineSourceTankId && lineBullName && (() => {
+                  const matched = sourceTankInventory.find((inv: any) => {
+                    const n = inv.bulls_catalog?.bull_name || inv.custom_bull_name;
+                    return n === lineBullName;
+                  });
+                  return matched ? <p className="text-xs text-muted-foreground">Available in source: {matched.units} units</p> : null;
+                })()}
+              </div>
+
+              {/* Source canister */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-src-can">Source canister (optional)</Label>
+                <Input id="line-src-can" value={lineSourceCanister} onChange={(e) => setLineSourceCanister(e.target.value)} placeholder="e.g. 1" />
+              </div>
+
+              {/* Field canister */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line-fld-can">Field canister (optional)</Label>
+                <Input id="line-fld-can" value={lineFieldCanister} onChange={(e) => setLineFieldCanister(e.target.value)} placeholder="e.g. 1" />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLineDialogOpen(false)} disabled={lineSubmitting}>Cancel</Button>
+              <Button onClick={handleLineSubmit} disabled={lineSubmitting}>
+                {lineSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {lineDialogMode === "add" ? "Add line" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Line delete confirmation */}
+        <AlertDialog open={!!lineDeleteId} onOpenChange={(open) => !open && setLineDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this line?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the line from the pack and restore the units back to the source tank. The change will be logged in the inventory transaction log.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={lineDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); handleLineDelete(); }}
+                disabled={lineDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {lineDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete line
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Edit Pack Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent className="max-w-lg">
