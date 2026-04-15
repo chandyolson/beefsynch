@@ -495,7 +495,7 @@ const TankDetail = () => {
     if (!tank?.customer_id || !manualBullName.trim() || manualUnits <= 0 || !orgId) return;
     setManualSubmitting(true);
     try {
-      const { data: invRow, error: invErr } = await supabase
+      const { error: invErr } = await supabase
         .from("tank_inventory")
         .insert({
           tank_id: tank.id,
