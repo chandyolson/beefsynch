@@ -193,12 +193,12 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   };
 
   const loadAvailableTanks = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase
       .from("tanks")
       .select("id, tank_number, tank_name")
-      .eq("location_status", "here")
-      .eq("nitrogen_status", "wet")
-      .order("tank_number");
+      .eq("location_status" as any, "here")
+      .eq("nitrogen_status" as any, "wet")
+      .order("tank_number") as any);
     setAvailableTanks((data || []) as TankOption[]);
   };
 
