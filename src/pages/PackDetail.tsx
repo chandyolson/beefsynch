@@ -197,12 +197,12 @@ const PackDetail = () => {
     queryKey: ["available_field_tanks", pack?.organization_id],
     queryFn: async () => {
       if (!pack?.organization_id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("tanks")
-        .select("id, tank_name, tank_number")
+        .select("id, tank_name, tank_number") as any)
         .eq("organization_id", pack.organization_id)
-        .eq("location_status" as any, "here")
-        .eq("nitrogen_status" as any, "wet")
+        .eq("location_status", "here")
+        .eq("nitrogen_status", "wet")
         .order("tank_number", { ascending: true });
       if (error) throw error;
       return (data || []) as any[];
