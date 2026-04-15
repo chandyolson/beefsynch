@@ -28,6 +28,8 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ExportConfig } from "@/lib/exports";
 import { CalendarIcon } from "lucide-react";
 
 const TYPE_BADGE: Record<string, string> = {
@@ -127,6 +129,22 @@ const TanksOut = () => {
     }).sort((a: any, b: any) => (b.daysOut ?? 99999) - (a.daysOut ?? 99999));
   }, [outTanks, lastOutMap]);
 
+  // Export config
+  const exportConfig: ExportConfig<any> = useMemo(() => ({
+    title: "Tanks Currently Out",
+    filenameBase: "tanks_out",
+    subtitle: `${enriched.length} tank${enriched.length === 1 ? "" : "s"} currently out`,
+    columns: [
+      { label: "Tank #", value: (t: any) => t.tank_number },
+      { label: "Name", value: (t: any) => t.tank_name },
+      { label: "Customer", value: (t: any) => t.customerName },
+      { label: "Type", value: (t: any) => t.tank_type },
+      { label: "Date Out", value: (t: any) => t.dateOut ? format(parseISO(t.dateOut), "yyyy-MM-dd") : "" },
+      { label: "Days Out", value: (t: any) => t.daysOut ?? "" },
+      { label: "Notes", value: (t: any) => t.moveNotes },
+    ],
+  }), [enriched]);
+
   // Stats
   const currentlyOut = outTanks.length;
   const avgDaysOut = useMemo(() => {
@@ -175,7 +193,10 @@ const TanksOut = () => {
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
         <BackButton />
-        <h2 className="text-2xl font-bold font-display tracking-tight">Tanks Out</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold font-display tracking-tight">Tanks Out</h2>
+          <ExportMenu config={exportConfig} rows={enriched} />
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

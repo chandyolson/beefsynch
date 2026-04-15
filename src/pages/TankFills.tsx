@@ -26,6 +26,8 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ExportConfig } from "@/lib/exports";
 import { CalendarIcon } from "lucide-react";
 
 /* ── constants ──────────────────────────────────────── */
@@ -185,6 +187,31 @@ const TankFills = () => {
     return list;
   }, [enriched, typeFilter, nitrogenFilter, overdueOnly, search]);
 
+  // Export config
+  const exportConfig: ExportConfig<any> = useMemo(() => {
+    const filterParts: string[] = [];
+    if (typeFilter !== "all") filterParts.push(`Type: ${TYPE_LABELS[typeFilter] || typeFilter}`);
+    if (nitrogenFilter !== "all") filterParts.push(`Nitrogen: ${nitrogenFilter}`);
+    if (overdueOnly) filterParts.push("Overdue only");
+    if (search.trim()) filterParts.push(`Search: "${search.trim()}"`);
+    const subtitle = filterParts.length ? filterParts.join(" • ") : "All tanks";
+    return {
+      title: "Tank Fill Status",
+      filenameBase: "tank_fills",
+      subtitle,
+      columns: [
+        { label: "Tank #", value: (t: any) => t.tank_number },
+        { label: "Name", value: (t: any) => t.tank_name },
+        { label: "Customer", value: (t: any) => t.customerName || "Company" },
+        { label: "Type", value: (t: any) => TYPE_LABELS[t.tank_type] || t.tank_type },
+        { label: "Nitrogen", value: (t: any) => t.nitrogen_status },
+        { label: "Last Fill", value: (t: any) => t.lastFill ? format(parseISO(t.lastFill), "yyyy-MM-dd") : "" },
+        { label: "Days Since", value: (t: any) => t.daysSince ?? "" },
+        { label: "Overdue", value: (t: any) => (t.daysSince !== null && t.daysSince > 90) ? "Yes" : "No" },
+      ],
+    };
+  }, [typeFilter, nitrogenFilter, overdueOnly, search]);
+
   // Record single fill
   const handleRecordFill = async () => {
     if (!selectedTankId || !orgId) return;
@@ -282,7 +309,10 @@ const TankFills = () => {
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
         <BackButton />
-        <h2 className="text-2xl font-bold font-display tracking-tight">Tank Fills</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold font-display tracking-tight">Tank Fills</h2>
+          <ExportMenu config={exportConfig} rows={filtered} />
+        </div>
 
         {/* Section 1 — Quick Fill Entry */}
         <div className="rounded-lg border border-border/50 p-4 bg-muted/10 space-y-4">
