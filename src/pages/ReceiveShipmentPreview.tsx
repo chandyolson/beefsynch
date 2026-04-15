@@ -66,7 +66,7 @@ const ReceiveShipmentPreview = () => {
       if (!id) return null;
       const { data, error } = await supabase
         .from("shipments")
-        .select("*")
+        .select("*, semen_companies(name), customers(name)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -100,6 +100,31 @@ const ReceiveShipmentPreview = () => {
     },
     enabled: !!orgId,
   });
+
+  // Fetch org members so we can resolve received_by UUID to a label
+  const { data: orgMembers = [] } = useQuery({
+    queryKey: ["org-members-for-receiving", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase.rpc("get_org_members", { _organization_id: orgId });
+      if (error) throw error;
+      return (data ?? []).map((m: any) => ({
+        id: m.id,
+        label: m.email || m.invited_email || "Unknown member",
+      }));
+    },
+    enabled: !!orgId,
+  });
+
+  const memberLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of orgMembers) map.set(m.id, m.label);
+    return map;
+  }, [orgMembers]);
+
+  const receivedByLabel = shipment?.received_by
+    ? memberLabelById.get(shipment.received_by) || "—"
+    : "—";
 
   // Fetch customers for owner lookup
   const { data: customers = [] } = useQuery({
@@ -395,7 +420,7 @@ const ReceiveShipmentPreview = () => {
       {
         received_from_name: (shipment as any).semen_companies?.name || "—",
         received_date: shipment.received_date,
-        received_by: shipment.received_by || null,
+        received_by: receivedByLabel === "—" ? null : receivedByLabel,
         notes: shipment.notes,
         confirmed_at: snapshot?.confirmed_at || shipment.confirmed_at,
       },
@@ -485,7 +510,7 @@ const ReceiveShipmentPreview = () => {
               </div>
               <div>
                 <span className="text-muted-foreground">Received By</span>
-                <p className="font-medium">{shipment.received_by || "—"}</p>
+                <p className="font-medium">{receivedByLabel}</p>
               </div>
               {shipment.semen_order_id && (
                 <div>
