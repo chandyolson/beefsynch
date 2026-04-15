@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Package, ClipboardList } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+import BackButton from "@/components/BackButton";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -56,6 +57,7 @@ const InventoryDashboard = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <BackButton />
         {/* Header */}
         <div>
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Inventory Management</h2>

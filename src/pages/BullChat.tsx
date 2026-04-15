@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -170,7 +171,8 @@ const BullChat = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-4">
+       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-4">
+         <BackButton />
         {/* Header */}
         <div className="mb-4">
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">

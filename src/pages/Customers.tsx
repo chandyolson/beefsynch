@@ -5,6 +5,7 @@ import { Plus, Search, Users, Package, Archive } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
+import BackButton from "@/components/BackButton";
 import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,6 +211,7 @@ const Customers = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <BackButton />
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Customers</h2>
