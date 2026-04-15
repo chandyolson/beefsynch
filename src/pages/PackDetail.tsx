@@ -964,6 +964,7 @@ const PackDetail = () => {
                 <TableHead>Src Can.</TableHead>
                 <TableHead>Field Can.</TableHead>
                 <TableHead className="text-right">Units</TableHead>
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -975,17 +976,43 @@ const PackDetail = () => {
                   <TableCell>{l.source_canister || "—"}</TableCell>
                   <TableCell>{l.field_canister || "—"}</TableCell>
                   <TableCell className="text-right">{l.units}</TableCell>
+                  <TableCell className="text-right">
+                    {isPackEditable && (
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditLineDialog(l)} title="Edit line">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setLineDeleteId(l.id)} title="Delete line">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={5} className="text-right font-semibold">Total</TableCell>
+                <TableCell colSpan={6} className="text-right font-semibold">Total</TableCell>
                 <TableCell className="text-right font-bold">{totalPackedUnits}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
         </div>
+
+        {isPackEditable && (
+          <div className="flex justify-start">
+            <Button variant="outline" size="sm" onClick={openAddLineDialog} className="gap-1.5">
+              <Package className="h-3.5 w-3.5" />
+              Add Line
+            </Button>
+          </div>
+        )}
+        {!isPackEditable && pack && (
+          <p className="text-xs text-muted-foreground">
+            Pack lines can only be edited while pack status is "packed". Current status: <span className="font-medium">{pack.status}</span>
+          </p>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
