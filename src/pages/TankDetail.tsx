@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Plus, Loader2 } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -214,6 +214,7 @@ const TankDetail = () => {
   const [manualCanister, setManualCanister] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
 
   // Fetch tank
   const { data: tank, isLoading } = useQuery({
@@ -763,29 +764,39 @@ const TankDetail = () => {
           )}
         </div>
 
-        {/* ───── Fill History ───── */}
+        {/* ───── Fill History (collapsible) ───── */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Fill History</h2>
-          <div className="rounded-lg border border-border/50 overflow-hidden">
-            <Table>
-              <TableHeader><TableRow className="bg-muted/10">
-                <TableHead>Fill Date</TableHead><TableHead>Filled By</TableHead><TableHead>Notes</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {fills.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No fills recorded</TableCell></TableRow>
-                ) : fills.map((f: any, i: number) => (
-                  <TableRow key={f.id} className={i === 0 && fillWarning ? "bg-amber-500/10" : ""}>
-                    <TableCell className={cn("whitespace-nowrap", i === 0 && fillWarning && "text-orange-400")}>
-                      {format(parseISO(f.fill_date), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{f.filled_by ? f.filled_by.substring(0, 8) + "…" : "—"}</TableCell>
-                    <TableCell>{f.notes || "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <button
+            type="button"
+            onClick={() => setFillHistoryOpen((o) => !o)}
+            className="flex items-center gap-2 text-lg font-semibold mb-3 hover:text-primary transition-colors"
+          >
+            {fillHistoryOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            Fill History
+            <span className="text-sm text-muted-foreground font-normal">({fills.length})</span>
+          </button>
+          {fillHistoryOpen && (
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <Table>
+                <TableHeader><TableRow className="bg-muted/10">
+                  <TableHead>Fill Date</TableHead><TableHead>Filled By</TableHead><TableHead>Notes</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {fills.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No fills recorded</TableCell></TableRow>
+                  ) : fills.map((f: any, i: number) => (
+                    <TableRow key={f.id} className={i === 0 && fillWarning ? "bg-amber-500/10" : ""}>
+                      <TableCell className={cn("whitespace-nowrap", i === 0 && fillWarning && "text-orange-400")}>
+                        {format(parseISO(f.fill_date), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{f.filled_by ? f.filled_by.substring(0, 8) + "…" : "—"}</TableCell>
+                      <TableCell>{f.notes || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
 
         {/* ───── Movement History ───── */}
