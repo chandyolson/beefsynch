@@ -40,6 +40,19 @@ import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
 import { generateSessionSheetPdf } from "@/lib/generateSessionSheetPdf";
 import { generateReturnSlipPdf } from "@/lib/generateReturnSlipPdf";
 
+const SavedBadge = ({ visible }: { visible: boolean }) => (
+  <span
+    className={cn(
+      "ml-2 inline-flex items-center gap-1 text-xs font-medium text-green-500 transition-opacity duration-300",
+      visible ? "opacity-100" : "opacity-0 pointer-events-none"
+    )}
+    aria-live="polite"
+  >
+    <Check className="h-3.5 w-3.5" />
+    Saved
+  </span>
+);
+
 const STATUS_BADGE: Record<string, string> = {
   packed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   in_field: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -120,6 +133,8 @@ const PackDetail = () => {
   const [editPackedAt, setEditPackedAt] = useState<Date | undefined>(undefined);
   const [editNotes, setEditNotes] = useState("");
   const [editPackedAtOpen, setEditPackedAtOpen] = useState(false);
+
+  const [recentlySaved, setRecentlySaved] = useState<string | null>(null);
 
   // Fetch pack with field tank
   const { data: pack, isLoading } = useQuery({
@@ -244,6 +259,7 @@ const PackDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       setEditingTracking(false);
       toast({ title: "Tracking updated" });
+      flashSaved("tracking");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
     } finally {
@@ -261,6 +277,7 @@ const PackDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       setEditingReturnTracking(false);
       toast({ title: "Return tracking updated" });
+      flashSaved("return_tracking");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
     } finally {
