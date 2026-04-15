@@ -199,13 +199,13 @@ const PackDetail = () => {
       if (!pack?.organization_id) return [];
       const { data, error } = await supabase
         .from("tanks")
-        .select("id, tank_name, tank_number, location_status, nitrogen_status")
+        .select("id, tank_name, tank_number")
         .eq("organization_id", pack.organization_id)
-        .eq("location_status", "here")
-        .eq("nitrogen_status", "wet")
+        .eq("location_status" as any, "here")
+        .eq("nitrogen_status" as any, "wet")
         .order("tank_number", { ascending: true });
       if (error) throw error;
-      return data || [];
+      return (data || []) as any[];
     },
     enabled: editDialogOpen && !!pack?.organization_id,
   });
