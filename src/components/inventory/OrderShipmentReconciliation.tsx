@@ -161,7 +161,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
         .from("semen_order_items")
         .select("id, units, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name, naab_code, company)")
         .eq("semen_order_id", orderId),
-      supabase
+      (supabase
         .from("inventory_transactions")
         .select(`
           id, units_change, created_at, shipment_id, tank_id,
@@ -173,7 +173,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
         `)
         .eq("order_id", orderId)
         .eq("transaction_type", "received")
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: true }) as any),
     ]);
     setOrderItems((itemsRes.data || []) as any);
     setReceiveLines((txnRes.data || []) as any);
