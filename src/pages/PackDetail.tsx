@@ -458,6 +458,13 @@ const PackDetail = () => {
     setAdvanceDialogOpen(true);
   };
 
+  const flashSaved = (fieldId: string) => {
+    setRecentlySaved(fieldId);
+    setTimeout(() => {
+      setRecentlySaved((current) => (current === fieldId ? null : current));
+    }, 2000);
+  };
+
   const openEditDialog = () => {
     if (!pack) return;
     setEditFieldTankId(pack.field_tank_id || "");
@@ -498,6 +505,7 @@ const PackDetail = () => {
           : "Pack details saved.",
       });
       setEditDialogOpen(false);
+      flashSaved("edit_pack");
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
     } catch (err: any) {
