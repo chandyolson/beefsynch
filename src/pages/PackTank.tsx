@@ -640,88 +640,26 @@ const PackTank = () => {
     setSubmitting(true);
 
     try {
-      const fieldTank = fieldTankOptions.find((t: any) => t.id === selectedTankId);
-      const fieldTankName = fieldTank?.tank_name || fieldTank?.tank_number || "Unknown";
-      const projectNames = selectedProjects.map(pid => projects.find((p: any) => p.id === pid)?.name || "").filter(Boolean);
-
-      // Step 1: Create tank_pack
-      const { data: pack, error: packErr } = await supabase
-        .from("tank_packs")
-        .insert({
-          organization_id: orgId,
-          field_tank_id: selectedTankId,
-          pack_type: packType,
-          status: packType === "pickup" && !tankReturnExpectedPickup ? "returned" : "packed",
-          packed_at: packedDate.toISOString(),
-          packed_by: packedBy.trim() || null,
-          notes: notes.trim() || null,
-          destination_name: packType === "shipment" ? destinationName.trim() : null,
-          destination_address: packType === "shipment" ? destinationAddress.trim() || null : null,
-          shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
-          tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
-          tank_return_expected: packType === "shipment" ? tankReturnExpected : packType === "pickup" ? tankReturnExpectedPickup : true,
-          customer_id: packType === "pickup" ? pickupCustomerId : null,
-          closed_at: packType === "pickup" && !tankReturnExpectedPickup ? new Date().toISOString() : null,
-        })
-        .select()
-        .single();
-
-      if (packErr || !pack) throw packErr || new Error("Failed to create pack");
-
-      // Mark field tank as out (the physical nitrogen state is unaffected)
-      const { error: tankLocationErr } = await (supabase as any)
-        .from("tanks")
-        .update({ location_status: "out" })
-        .eq("id", selectedTankId);
-
-      if (tankLocationErr) {
-        toast({ title: "Warning", description: "Pack created but tank location could not be updated.", variant: "destructive" });
-      }
-
-      // Step 2: Create tank_pack_projects or tank_pack_orders
-      if (packType === "project" && selectedProjects.length > 0) {
-        const { error: tankPackProjectsErr } = await supabase.from("tank_pack_projects").insert(
-          selectedProjects.map(projId => ({
-            tank_pack_id: pack.id,
-            project_id: projId,
-          }))
-        );
-        if (tankPackProjectsErr) throw new Error(`Failed to write tank_pack_projects: ${tankPackProjectsErr.message}`);
-      }
-
-      if (packType === "order" && selectedOrders.length > 0) {
-        const { error: orderLinkErr } = await supabase
-          .from("tank_pack_orders")
-          .insert(selectedOrders.map(orderId => ({
-            tank_pack_id: pack.id,
-            semen_order_id: orderId,
-          })));
-        if (orderLinkErr) {
-          toast({ title: "Pack created but order links failed", description: orderLinkErr.message, variant: "destructive" });
-        }
-      }
-
-      // Step 2b: Create tank_pack_orders for pickup orders
-      if (packType === "pickup" && pickupSelectedOrders.length > 0) {
-        const { error: orderLinkErr } = await supabase
-          .from("tank_pack_orders")
-          .insert(pickupSelectedOrders.map(orderId => ({
-            tank_pack_id: pack.id,
-            semen_order_id: orderId,
-          })));
-        if (orderLinkErr) {
-          toast({ title: "Pack created but order links failed", description: orderLinkErr.message, variant: "destructive" });
-        }
-      }
-
-      // Step 3: Process each line
-      for (const line of lines) {
-        const sourceTank = sourceTanks.find((t: any) => t.id === line.sourceTankId);
-        const sourceTankName = sourceTank?.tank_name || sourceTank?.tank_number || "Unknown";
-
-        // a. Insert pack line
-        const { error: tankPackLinesErr } = await supabase.from("tank_pack_lines").insert({
-          tank_pack_id: pack.id,
+      const payload = {
+        organization_id: orgId,
+        pack_type: packType,
+        field_tank_id: selectedTankId,
+        packed_at: packedDate.toISOString(),
+        packed_by: packedBy.trim() || null,
+        notes: notes.trim() || null,
+        destination_name: packType === "shipment" ? destinationName.trim() : null,
+        destination_address: packType === "shipment" ? destinationAddress.trim() || null : null,
+        shipping_carrier: packType === "shipment" ? shippingCarrier || null : null,
+        tracking_number: packType === "shipment" ? trackingNumber.trim() || null : null,
+        tank_return_expected:
+          packType === "shipment" ? tankReturnExpected
+          : packType === "pickup" ? tankReturnExpectedPickup
+          : true,
+        pickup_customer_id: packType === "pickup" ? pickupCustomerId : null,
+        project_ids: packType === "project" ? selectedProjects : [],
+        order_ids: packType === "order" ? selectedOrders : [],
+        pickup_order_ids: packType === "pickup" ? pickupSelectedOrders : [],
+        lines: lines.map(line => ({
           source_tank_id: line.sourceTankId,
           bull_catalog_id: line.bullCatalogId,
           bull_name: line.bullName,
@@ -729,124 +667,19 @@ const PackTank = () => {
           source_canister: line.sourceCanister || null,
           field_canister: line.fieldCanister || null,
           units: getUnits(line.units),
-        });
-        if (tankPackLinesErr) throw new Error(`Failed to write tank_pack_lines: ${tankPackLinesErr.message}`);
+        })),
+      };
 
-        // b. Deduct from source tank inventory
-        // Try three strategies in order: bull_catalog_id → bull_code → custom_bull_name
-        let invRow: { id: string; units: number } | null = null;
+      const { data, error } = await (supabase.rpc as any)("pack_tank", { _input: payload });
+      if (error) throw error;
 
-        const baseInvQuery = () => supabase.from("tank_inventory").select("id, units")
-          .eq("tank_id", line.sourceTankId)
-          .eq("organization_id", orgId);
-
-        const withCanister = (q: any) => line.sourceCanister ? q.eq("canister", line.sourceCanister) : q;
-
-        if (line.bullCatalogId) {
-          const { data } = await withCanister(baseInvQuery().eq("bull_catalog_id", line.bullCatalogId)).limit(1);
-          if (data && data.length > 0) invRow = data[0];
-        }
-        if (!invRow && line.bullCode) {
-          const { data } = await withCanister(baseInvQuery().eq("bull_code", line.bullCode)).limit(1);
-          if (data && data.length > 0) invRow = data[0];
-        }
-        if (!invRow) {
-          const { data } = await withCanister(baseInvQuery().eq("custom_bull_name", line.bullName)).limit(1);
-          if (data && data.length > 0) invRow = data[0];
-        }
-
-        if (invRow) {
-          if ((invRow.units as number) - getUnits(line.units) <= 0) {
-            const { error: delErr } = await supabase.from("tank_inventory").delete().eq("id", invRow.id);
-            if (delErr) throw new Error(`Failed to deduct inventory: ${delErr.message}`);
-          } else {
-            const { error: updErr } = await supabase.from("tank_inventory").update({ units: (invRow.units as number) - getUnits(line.units) }).eq("id", invRow.id);
-            if (updErr) throw new Error(`Failed to deduct inventory: ${updErr.message}`);
-          }
-        } else {
-          throw new Error(`Could not find inventory row to deduct from for "${line.bullName}" in source tank. Check that the bull name in the pack line exactly matches the inventory row.`);
-        }
-
-        // c. Add to field tank inventory (upsert)
-        // Same three-strategy lookup as deduction
-        let fieldInvRow: { id: string; units: number } | null = null;
-
-        const baseFieldQuery = () => supabase.from("tank_inventory").select("id, units")
-          .eq("tank_id", selectedTankId)
-          .eq("organization_id", orgId);
-
-        const withFieldCanister = (q: any) => line.fieldCanister ? q.eq("canister", line.fieldCanister) : q;
-
-        if (line.bullCatalogId) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_catalog_id", line.bullCatalogId)).limit(1);
-          if (data && data.length > 0) fieldInvRow = data[0];
-        }
-        if (!fieldInvRow && line.bullCode) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_code", line.bullCode)).limit(1);
-          if (data && data.length > 0) fieldInvRow = data[0];
-        }
-        if (!fieldInvRow) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("custom_bull_name", line.bullName)).limit(1);
-          if (data && data.length > 0) fieldInvRow = data[0];
-        }
-
-        if (fieldInvRow) {
-          const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({
-            units: (fieldInvRow.units as number) + getUnits(line.units),
-          }).eq("id", fieldInvRow.id);
-          if (fieldUpdErr) throw new Error(`Failed to update field tank inventory: ${fieldUpdErr.message}`);
-        } else {
-          const { error: fieldInsErr } = await supabase.from("tank_inventory").insert({
-            tank_id: selectedTankId,
-            organization_id: orgId,
-            canister: line.fieldCanister || "1",
-            units: getUnits(line.units),
-            item_type: "semen",
-            bull_catalog_id: line.bullCatalogId,
-            custom_bull_name: line.bullCatalogId ? null : line.bullName,
-            bull_code: line.bullCode,
-            customer_id: packType === "pickup" ? pickupCustomerId : null,
-          });
-          if (fieldInsErr) throw new Error(`Failed to insert field tank inventory: ${fieldInsErr.message}`);
-        }
-
-        // d. Deduction transaction
-        const { error: deductTxnErr } = await supabase.from("inventory_transactions").insert({
-          organization_id: orgId,
-          tank_pack_id: pack.id,
-          tank_id: line.sourceTankId,
-          bull_catalog_id: line.bullCatalogId,
-          bull_code: line.bullCode,
-          custom_bull_name: line.bullName,
-          units_change: -getUnits(line.units),
-          transaction_type: "pack_out",
-          notes: packType === "project"
-            ? `Packed to ${fieldTankName} for ${projectNames.join(", ")}`
-            : packType === "order"
-            ? `Packed to ${fieldTankName} for order(s)`
-            : packType === "pickup"
-            ? `Customer pickup — ${customers.find((c: any) => c.id === pickupCustomerId)?.name ?? "Unknown customer"}`
-            : `Packed to ${fieldTankName} — shipment to ${destinationName.trim()}`,
-        });
-        if (deductTxnErr) throw new Error(`Failed to write deduction transaction: ${deductTxnErr.message}`);
-
-        // e. Addition transaction
-        const { error: addTxnErr } = await supabase.from("inventory_transactions").insert({
-          organization_id: orgId,
-          tank_pack_id: pack.id,
-          tank_id: selectedTankId,
-          bull_catalog_id: line.bullCatalogId,
-          bull_code: line.bullCode,
-          custom_bull_name: line.bullName,
-          units_change: getUnits(line.units),
-          transaction_type: "pack_in",
-          notes: `Packed from ${sourceTankName}`,
-        });
-        if (addTxnErr) throw new Error(`Failed to write addition transaction: ${addTxnErr.message}`);
+      const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;
+      if (!result?.ok || !result?.pack_id) {
+        throw new Error("Pack failed: invalid response from server");
       }
 
       toast({ title: "Tank packed", description: "Packing slip ready to print." });
-      navigate(`/pack/${pack.id}`);
+      navigate(`/pack/${result.pack_id}`);
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed to pack tank.", variant: "destructive" });
     } finally {
