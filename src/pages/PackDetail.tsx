@@ -593,10 +593,13 @@ const PackDetail = () => {
             {pack.pack_type === "project" && pack.status === "packed" && (
               <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
             )}
-            <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-1.5">
-              <Pencil className="h-3.5 w-3.5" />
-              Edit Pack
-            </Button>
+            <div className="flex items-center">
+              <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-1.5">
+                <Pencil className="h-3.5 w-3.5" />
+                Edit Pack
+              </Button>
+              <SavedBadge visible={recentlySaved === "edit_pack"} />
+            </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" className="gap-1.5">
@@ -643,7 +646,7 @@ const PackDetail = () => {
                 )}
                 <div className="flex gap-2"><span className="font-semibold w-28 shrink-0">Carrier:</span><span>{pack.shipping_carrier || "—"}</span></div>
                 <div className="flex gap-2 items-start">
-                  <span className="font-semibold w-28 shrink-0">Tracking:</span>
+                  <span className="font-semibold w-28 shrink-0">Tracking<SavedBadge visible={recentlySaved === "tracking"} /></span>
                   {editingTracking ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Select value={editCarrier} onValueChange={setEditCarrier}>
@@ -697,7 +700,7 @@ const PackDetail = () => {
                   )}
                 </div>
                 <div className="flex gap-2 items-start">
-                  <span className="font-semibold w-28 shrink-0">Return Track:</span>
+                  <span className="font-semibold w-28 shrink-0">Return Track<SavedBadge visible={recentlySaved === "return_tracking"} /></span>
                   {editingReturnTracking ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Select value={editReturnCarrier} onValueChange={setEditReturnCarrier}>
