@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
+import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,6 +159,7 @@ const Unpacks = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-6xl">
+        <BackButton />
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

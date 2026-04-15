@@ -5,6 +5,7 @@ import { format, parseISO, differenceInDays, startOfMonth } from "date-fns";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
+import BackButton from "@/components/BackButton";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -173,6 +174,7 @@ const TanksOut = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <BackButton />
         <h2 className="text-2xl font-bold font-display tracking-tight">Tanks Out</h2>
 
         {/* Stats */}
