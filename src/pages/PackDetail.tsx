@@ -562,8 +562,9 @@ const PackDetail = () => {
         {/* Back + Header */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/inventory-dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
             <h2 className="text-2xl font-bold font-display tracking-tight">Pack — {fieldTankName}</h2>
           </div>
