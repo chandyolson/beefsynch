@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { Search, ClipboardList, BarChart3, PackageCheck } from "lucide-react";
+import { Search, ClipboardList, BarChart3, PackageCheck, ChevronRight, ChevronDown } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -43,11 +44,35 @@ interface TxnRow {
   tanks: { tank_name: string | null; tank_number: string } | null;
 }
 
+type TankGroup = {
+  tankKey: string;
+  tankName: string;
+  tankNumber: string;
+  rows: TxnRow[];
+  netUnits: number;
+};
+type DateGroup = {
+  date: string;
+  displayDate: string;
+  tankGroups: TankGroup[];
+  untankedRows: TxnRow[];
+  totalRows: number;
+};
+
 const LogTab = ({ orgId }: { orgId: string }) => {
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const fetchAll = useCallback(async () => {
     if (!orgId) return;
@@ -106,13 +131,52 @@ const LogTab = ({ orgId }: { orgId: string }) => {
     return list;
   }, [rows, typeFilter, search]);
 
-  const getBullDisplay = (r: TxnRow) => r.bulls_catalog?.bull_name || r.custom_bull_name || "—";
-  const getTankDisplay = (r: TxnRow) => {
-    if (!r.tanks) return "—";
-    const name = r.tanks.tank_name || "";
-    const num = r.tanks.tank_number || "";
-    return name ? `${name} (#${num})` : `#${num}`;
+  const grouped = useMemo((): DateGroup[] => {
+    const byDate = new Map<string, { tanks: Map<string, TxnRow[]>; untanked: TxnRow[] }>();
+    for (const r of filtered) {
+      const dateKey = r.created_at.slice(0, 10);
+      if (!byDate.has(dateKey)) byDate.set(dateKey, { tanks: new Map(), untanked: [] });
+      const bucket = byDate.get(dateKey)!;
+      if (r.tanks) {
+        const tankKey = `${r.tanks.tank_name || ""}|${r.tanks.tank_number || ""}`;
+        if (!bucket.tanks.has(tankKey)) bucket.tanks.set(tankKey, []);
+        bucket.tanks.get(tankKey)!.push(r);
+      } else {
+        bucket.untanked.push(r);
+      }
+    }
+
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([dateKey, bucket]) => {
+        const tankGroups: TankGroup[] = Array.from(bucket.tanks.entries())
+          .map(([tankKey, rs]) => {
+            const first = rs[0];
+            return {
+              tankKey,
+              tankName: first.tanks?.tank_name || "—",
+              tankNumber: first.tanks?.tank_number || "",
+              rows: rs.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+              netUnits: rs.reduce((s, r) => s + r.units_change, 0),
+            };
+          })
+          .sort((a, b) => a.tankName.localeCompare(b.tankName));
+
+        const totalRows = tankGroups.reduce((s, g) => s + g.rows.length, 0) + bucket.untanked.length;
+        const displayDate = format(new Date(dateKey + "T12:00:00"), "EEEE, MMM d, yyyy");
+        return { date: dateKey, displayDate, tankGroups, untankedRows: bucket.untanked, totalRows };
+      });
+  }, [filtered]);
+
+  const expandAll = () => {
+    const allKeys = new Set<string>();
+    for (const dg of grouped) {
+      for (const tg of dg.tankGroups) allKeys.add(`${dg.date}::${tg.tankKey}`);
+    }
+    setExpandedGroups(allKeys);
   };
+
+  const collapseAll = () => setExpandedGroups(new Set());
 
   return (
     <div className="space-y-8">
@@ -153,51 +217,121 @@ const LogTab = ({ orgId }: { orgId: string }) => {
         </Badge>
       </div>
 
-      <div className="rounded-lg border border-border/50 overflow-x-auto">
-        <Table className="table-fixed">
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[170px]">Date</TableHead>
-              <TableHead className="w-[110px]">Type</TableHead>
-              <TableHead className="w-[180px]">Bull</TableHead>
-              <TableHead className="w-[100px]">Bull Code</TableHead>
-              <TableHead className="w-[160px]">Tank</TableHead>
-              <TableHead className="w-[70px] text-right">Units</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading transactions…</TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">No transactions found</TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-xs whitespace-nowrap">
-                    {format(new Date(r.created_at), "MMM d, yyyy h:mm a")}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn("text-xs font-normal whitespace-nowrap border", getTypeBadgeClass(r.transaction_type))}>
-                      {getTypeLabel(r.transaction_type)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="truncate">{getBullDisplay(r)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{r.bull_code || "—"}</TableCell>
-                  <TableCell className="truncate text-sm">{getTankDisplay(r)}</TableCell>
-                  <TableCell className={cn("text-right font-medium tabular-nums", r.units_change > 0 ? "text-green-400" : r.units_change < 0 ? "text-red-400" : "")}>
-                    {r.units_change > 0 ? `+${r.units_change}` : r.units_change}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground truncate">{r.notes || "—"}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      {/* Expand / Collapse controls */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={expandAll} className="text-xs">Expand all</Button>
+        <Button variant="ghost" size="sm" onClick={collapseAll} className="text-xs">Collapse all</Button>
+      </div>
+
+      {/* Grouped layout */}
+      <div className="rounded-lg border border-border/50 overflow-hidden">
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading transactions…</div>
+        ) : grouped.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">No transactions found</div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {grouped.map((dg) => (
+              <div key={dg.date}>
+                {/* Date header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
+                  <h3 className="text-sm font-semibold">{dg.displayDate}</h3>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {dg.totalRows} {dg.totalRows === 1 ? "transaction" : "transactions"}
+                  </Badge>
+                </div>
+
+                {/* Tank groups within this date */}
+                {dg.tankGroups.map((tg) => {
+                  const groupKey = `${dg.date}::${tg.tankKey}`;
+                  const isExpanded = expandedGroups.has(groupKey);
+                  return (
+                    <div key={tg.tankKey} className="border-t border-border/30">
+                      {/* Tank group header (clickable) */}
+                      <button
+                        onClick={() => toggleGroup(groupKey)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 text-left transition-colors"
+                      >
+                        {isExpanded
+                          ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                          : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <span className="font-medium text-sm">
+                          {tg.tankName}{tg.tankNumber ? ` (#${tg.tankNumber})` : ""}
+                        </span>
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {tg.rows.length} {tg.rows.length === 1 ? "row" : "rows"}
+                        </Badge>
+                        <span className={cn(
+                          "ml-auto text-sm font-medium tabular-nums",
+                          tg.netUnits > 0 ? "text-green-400" : tg.netUnits < 0 ? "text-red-400" : "text-muted-foreground"
+                        )}>
+                          {tg.netUnits > 0 ? `+${tg.netUnits}` : tg.netUnits} units net
+                        </span>
+                      </button>
+
+                      {/* Expanded transaction rows */}
+                      {isExpanded && (
+                        <div className="bg-background/50 px-4 pb-3">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/20">
+                                <TableHead className="w-[100px]">Time</TableHead>
+                                <TableHead className="w-[120px]">Type</TableHead>
+                                <TableHead>Bull</TableHead>
+                                <TableHead className="w-[100px]">Code</TableHead>
+                                <TableHead className="w-[80px] text-right">Units</TableHead>
+                                <TableHead>Notes</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {tg.rows.map((r) => (
+                                <TableRow key={r.id}>
+                                  <TableCell className="text-xs whitespace-nowrap">
+                                    {format(new Date(r.created_at), "h:mm a")}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className={cn("text-xs font-normal whitespace-nowrap border", getTypeBadgeClass(r.transaction_type))}>
+                                      {getTypeLabel(r.transaction_type)}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="truncate">{r.bulls_catalog?.bull_name || r.custom_bull_name || "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{r.bull_code || "—"}</TableCell>
+                                  <TableCell className={cn("text-right font-medium tabular-nums", r.units_change > 0 ? "text-green-400" : r.units_change < 0 ? "text-red-400" : "")}>
+                                    {r.units_change > 0 ? `+${r.units_change}` : r.units_change}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground truncate">{r.notes || "—"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Untanked rows for this date */}
+                {dg.untankedRows.length > 0 && (
+                  <div className="border-t border-border/30 px-4 py-3 space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium">No specific tank</p>
+                    {dg.untankedRows.map((r) => (
+                      <div key={r.id} className="flex items-center gap-4 text-sm">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(r.created_at), "h:mm a")}</span>
+                        <Badge variant="outline" className={cn("text-xs font-normal whitespace-nowrap border", getTypeBadgeClass(r.transaction_type))}>
+                          {getTypeLabel(r.transaction_type)}
+                        </Badge>
+                        <span className={cn("tabular-nums font-medium", r.units_change > 0 ? "text-green-400" : r.units_change < 0 ? "text-red-400" : "")}>
+                          {r.units_change > 0 ? `+${r.units_change}` : r.units_change}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">{r.notes || "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
