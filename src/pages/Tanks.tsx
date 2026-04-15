@@ -47,6 +47,19 @@ const STATUSES = [
   { value: "bad_tank", label: "Bad Tank" },
 ];
 
+const NITROGEN_OPTIONS = [
+  { value: "all", label: "All Nitrogen" },
+  { value: "wet", label: "Wet" },
+  { value: "dry", label: "Dry" },
+  { value: "unknown", label: "Unknown" },
+];
+
+const LOCATION_OPTIONS = [
+  { value: "all", label: "All Locations" },
+  { value: "here", label: "In Shop" },
+  { value: "out", label: "Out" },
+];
+
 const TYPE_BADGE: Record<string, string> = {
   customer_tank: "bg-teal-600/20 text-teal-400 border-teal-600/30",
   inventory_tank: "bg-purple-600/20 text-purple-400 border-purple-600/30",
@@ -83,7 +96,8 @@ const Tanks = () => {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [nitrogenFilter, setNitrogenFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [sortKey, setSortKey] = useState<string>("tank_number");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -197,11 +211,12 @@ const Tanks = () => {
     [tanks, lastFillMap, unitSumMap]
   );
 
-  // Filtered
+  // Filtered + sorted
   const filtered = useMemo(() => {
     let list = enriched;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
-    if (statusFilter !== "all") list = list.filter((t: any) => t.status === statusFilter);
+    if (nitrogenFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === nitrogenFilter);
+    if (locationFilter !== "all") list = list.filter((t: any) => t.location_status === locationFilter);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((t: any) =>
@@ -230,7 +245,7 @@ const Tanks = () => {
     });
 
     return sorted;
-  }, [enriched, typeFilter, statusFilter, search, sortKey, sortDir]);
+  }, [enriched, typeFilter, nitrogenFilter, locationFilter, search, sortKey, sortDir]);
 
   // Stats
   const totalTanks = tanks.length;
@@ -311,10 +326,18 @@ const Tanks = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={nitrogenFilter} onValueChange={setNitrogenFilter}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {STATUSES.map((s) => (
+              {NITROGEN_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LOCATION_OPTIONS.map((s) => (
                 <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
               ))}
             </SelectContent>
