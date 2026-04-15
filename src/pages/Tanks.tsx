@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Package, Droplets, Sun, Truck } from "lucide-react";
+import { Plus, Search, Package, Droplets, Sun, Truck, ArrowUpDown } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -84,6 +84,17 @@ const Tanks = () => {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<string>("tank_number");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
 
   // Add tank dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -199,8 +210,27 @@ const Tanks = () => {
         (t.customerName || "").toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [enriched, typeFilter, statusFilter, search]);
+
+    const sorted = [...list].sort((a: any, b: any) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      const aEmpty = aVal === null || aVal === undefined || aVal === "";
+      const bEmpty = bVal === null || bVal === undefined || bVal === "";
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      return sortDir === "asc"
+        ? aStr.localeCompare(bStr, undefined, { numeric: true })
+        : bStr.localeCompare(aStr, undefined, { numeric: true });
+    });
+
+    return sorted;
+  }, [enriched, typeFilter, statusFilter, search, sortKey, sortDir]);
 
   // Stats
   const totalTanks = tanks.length;
@@ -305,15 +335,27 @@ const Tanks = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="whitespace-nowrap">Tank Number</TableHead>
-                <TableHead className="whitespace-nowrap">Tank Name</TableHead>
-                <TableHead className="whitespace-nowrap">Customer</TableHead>
-                <TableHead className="whitespace-nowrap">Type</TableHead>
-                <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="whitespace-nowrap">Model</TableHead>
-                <TableHead className="whitespace-nowrap">Last Fill</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-                
+                {[
+                  { key: "tank_number", label: "Tank Number", align: "left" as const },
+                  { key: "tank_name", label: "Tank Name", align: "left" as const },
+                  { key: "customerName", label: "Customer", align: "left" as const },
+                  { key: "tank_type", label: "Type", align: "left" as const },
+                  { key: "nitrogen_status", label: "Status", align: "left" as const },
+                  { key: "model", label: "Model", align: "left" as const },
+                  { key: "lastFill", label: "Last Fill", align: "left" as const },
+                  { key: "totalUnits", label: "Total Units", align: "right" as const },
+                ].map((col) => (
+                  <TableHead
+                    key={col.key}
+                    onClick={() => toggleSort(col.key)}
+                    className={`whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none ${col.align === "right" ? "text-right" : ""}`}
+                  >
+                    <span className={`inline-flex items-center gap-1 ${col.align === "right" ? "justify-end w-full" : ""}`}>
+                      {col.label}
+                      <ArrowUpDown className={`h-3 w-3 ${sortKey === col.key ? "text-foreground" : "text-muted-foreground/50"}`} />
+                    </span>
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
