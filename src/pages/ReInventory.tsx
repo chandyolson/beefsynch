@@ -228,7 +228,7 @@ const ReInventory = () => {
 
         const nrCustomerId = nr.customer_id || customerId || null;
         const nrOwnerName = nrCustomerId ? orgCustomers.find(c => c.id === nrCustomerId)?.name || null : null;
-        const { data: inserted } = await supabase
+        await supabase
           .from("tank_inventory")
           .insert({
             organization_id: orgId,
