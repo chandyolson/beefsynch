@@ -453,7 +453,7 @@ const PackDetail = () => {
     if (!id || !pack) return;
     setDeleting(true);
     try {
-      const { data, error } = await supabase.rpc("delete_tank_pack", {
+      const { data, error } = await (supabase.rpc as any)("delete_tank_pack", {
         _pack_id: id,
       });
       if (error) throw error;
