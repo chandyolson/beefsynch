@@ -323,19 +323,7 @@ const ReceiveShipmentPreview = () => {
           if (error) { toast({ title: "Error inserting inventory", description: error.message, variant: "destructive" }); setConfirming(false); return; }
         }
 
-        const { error: txErr } = await supabase.from("inventory_transactions").insert({
-          organization_id: orgId,
-          tank_id: line.tankId,
-          bull_catalog_id: line.bullCatalogId,
-          custom_bull_name: line.bullName,
-          units_change: line.units,
-          transaction_type: "received",
-          shipment_id: id,
-          order_id: shipment.semen_order_id || null,
-          performed_by: userId,
-          notes: `Received via shipment`,
-        });
-        if (txErr) { toast({ title: "Error recording transaction", description: txErr.message, variant: "destructive" }); setConfirming(false); return; }
+
       }
 
       // Update order fulfillment status
