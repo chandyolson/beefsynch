@@ -453,152 +453,23 @@ const PackDetail = () => {
     if (!id || !pack) return;
     setDeleting(true);
     try {
-      // 1. Block delete if pack is already unpacked
-      if (pack.status === "unpacked") {
-        toast({
-          title: "Cannot delete unpacked pack",
-          description: "This pack has already been unpacked. Inventory has been moved through other workflows.",
-          variant: "destructive"
-        });
-        setDeleting(false);
-        return;
-      }
-
-      // 2. Fetch all pack lines
-      const { data: lines, error: linesErr } = await supabase
-        .from("tank_pack_lines")
-        .select("source_tank_id, bull_catalog_id, bull_code, bull_name, source_canister, field_canister, units")
-        .eq("tank_pack_id", id);
-      if (linesErr) throw linesErr;
-
-      if (!lines || lines.length === 0) {
-        const { error: emptyDelErr } = await supabase.from("tank_packs").delete().eq("id", id);
-        if (emptyDelErr) throw emptyDelErr;
-        toast({ title: "Pack deleted" });
-        navigate("/operations?tab=packing");
-        return;
-      }
-
-      const fieldTankId = pack.field_tank_id;
-
-      // 3. For each line, reverse the inventory move
-      for (const line of lines) {
-        // 3a. RESTORE units to source tank
-        let sourceRow: { id: string; units: number } | null = null;
-        const baseSourceQuery = () => supabase
-          .from("tank_inventory")
-          .select("id, units")
-          .eq("tank_id", line.source_tank_id);
-        const withSourceCanister = (q: any) =>
-          line.source_canister ? q.eq("canister", line.source_canister) : q;
-
-        if (line.bull_catalog_id) {
-          const { data } = await withSourceCanister(baseSourceQuery().eq("bull_catalog_id", line.bull_catalog_id)).limit(1);
-          if (data && data.length > 0) sourceRow = data[0] as any;
-        }
-        if (!sourceRow && line.bull_code) {
-          const { data } = await withSourceCanister(baseSourceQuery().eq("bull_code", line.bull_code)).limit(1);
-          if (data && data.length > 0) sourceRow = data[0] as any;
-        }
-        if (!sourceRow) {
-          const { data } = await withSourceCanister(baseSourceQuery().eq("custom_bull_name", line.bull_name)).limit(1);
-          if (data && data.length > 0) sourceRow = data[0] as any;
-        }
-
-        if (sourceRow) {
-          const { error: srcUpdErr } = await supabase
-            .from("tank_inventory")
-            .update({ units: sourceRow.units + line.units })
-            .eq("id", sourceRow.id);
-          if (srcUpdErr) throw new Error(`Failed to restore source inventory: ${srcUpdErr.message}`);
-        } else {
-          const { error: srcInsErr } = await supabase.from("tank_inventory").insert({
-            tank_id: line.source_tank_id,
-            organization_id: pack.organization_id,
-            canister: line.source_canister || "1",
-            units: line.units,
-            item_type: "semen",
-            bull_catalog_id: line.bull_catalog_id,
-            custom_bull_name: line.bull_catalog_id ? null : line.bull_name,
-            bull_code: line.bull_code,
-          });
-          if (srcInsErr) throw new Error(`Failed to recreate source inventory row: ${srcInsErr.message}`);
-        }
-
-        // 3b. REMOVE units from field tank
-        let fieldRow: { id: string; units: number } | null = null;
-        const baseFieldQuery = () => supabase
-          .from("tank_inventory")
-          .select("id, units")
-          .eq("tank_id", fieldTankId);
-        const withFieldCanister = (q: any) =>
-          line.field_canister ? q.eq("canister", line.field_canister) : q;
-
-        if (line.bull_catalog_id) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_catalog_id", line.bull_catalog_id)).limit(1);
-          if (data && data.length > 0) fieldRow = data[0] as any;
-        }
-        if (!fieldRow && line.bull_code) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("bull_code", line.bull_code)).limit(1);
-          if (data && data.length > 0) fieldRow = data[0] as any;
-        }
-        if (!fieldRow) {
-          const { data } = await withFieldCanister(baseFieldQuery().eq("custom_bull_name", line.bull_name)).limit(1);
-          if (data && data.length > 0) fieldRow = data[0] as any;
-        }
-
-        if (fieldRow) {
-          const newUnits = fieldRow.units - line.units;
-          if (newUnits <= 0) {
-            const { error: fieldDelErr } = await supabase
-              .from("tank_inventory")
-              .delete()
-              .eq("id", fieldRow.id);
-            if (fieldDelErr) throw new Error(`Failed to remove field inventory: ${fieldDelErr.message}`);
-          } else {
-            const { error: fieldUpdErr } = await supabase
-              .from("tank_inventory")
-              .update({ units: newUnits })
-              .eq("id", fieldRow.id);
-            if (fieldUpdErr) throw new Error(`Failed to remove field inventory: ${fieldUpdErr.message}`);
-          }
-        }
-      }
-
-      // 3c. Reset field tank location_status back to 'here'
-      // The pack flow set it to 'out' when packing — undo that now.
-      // Do NOT touch nitrogen_status; the physical state of the tank is unrelated to whether it's loaned out.
-      if (fieldTankId) {
-        const { error: tankResetErr } = await supabase
-          .from("tanks")
-          .update({ location_status: "here" } as any)
-          .eq("id", fieldTankId);
-        if (tankResetErr) {
-          throw new Error(`Failed to reset field tank location: ${tankResetErr.message}`);
-        }
-      }
-
-      // 4. Delete all inventory_transactions tied to this pack
-      const { error: txnDelErr } = await supabase
-        .from("inventory_transactions")
-        .delete()
-        .eq("tank_pack_id", id);
-      if (txnDelErr) throw new Error(`Failed to delete pack ledger entries: ${txnDelErr.message}`);
-
-      // 5. Delete the pack (cascade cleans up lines, projects, orders)
-      const { error: packDelErr } = await supabase.from("tank_packs").delete().eq("id", id);
-      if (packDelErr) throw packDelErr;
-
+      const { data, error } = await supabase.rpc("delete_tank_pack", {
+        _pack_id: id,
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; lines_processed?: number } | null;
       toast({
         title: "Pack deleted",
-        description: "Pack removed and inventory restored to source tank."
+        description: result?.lines_processed
+          ? `Pack removed and ${result.lines_processed} inventory line(s) restored to source tank.`
+          : "Pack removed and inventory restored.",
       });
       navigate("/operations?tab=packing");
     } catch (err: any) {
       toast({
         title: "Failed to delete pack",
-        description: err?.message || "Inventory may be in an inconsistent state. Check the source and field tanks before retrying.",
-        variant: "destructive"
+        description: err?.message || "Unknown error. Please try again or contact support.",
+        variant: "destructive",
       });
     } finally {
       setDeleting(false);
