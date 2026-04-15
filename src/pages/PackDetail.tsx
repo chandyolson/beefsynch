@@ -134,6 +134,25 @@ const PackDetail = () => {
   const [editNotes, setEditNotes] = useState("");
   const [editPackedAtOpen, setEditPackedAtOpen] = useState(false);
 
+  const [lineDialogOpen, setLineDialogOpen] = useState(false);
+  const [lineDialogMode, setLineDialogMode] = useState<"add" | "edit">("add");
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [lineSubmitting, setLineSubmitting] = useState(false);
+  const [lineDeleteId, setLineDeleteId] = useState<string | null>(null);
+  const [lineDeleting, setLineDeleting] = useState(false);
+
+  const [lineSourceTankId, setLineSourceTankId] = useState<string>("");
+  const [lineSourceTankOpen, setLineSourceTankOpen] = useState(false);
+  const [lineSourceTankSearch, setLineSourceTankSearch] = useState("");
+  const [lineBullCatalogId, setLineBullCatalogId] = useState<string>("");
+  const [lineBullName, setLineBullName] = useState<string>("");
+  const [lineBullCode, setLineBullCode] = useState<string>("");
+  const [lineUnits, setLineUnits] = useState<string>("");
+  const [lineSourceCanister, setLineSourceCanister] = useState<string>("");
+  const [lineFieldCanister, setLineFieldCanister] = useState<string>("");
+  const [lineBullOpen, setLineBullOpen] = useState(false);
+  const [lineBullSearch, setLineBullSearch] = useState("");
+
   const [recentlySaved, setRecentlySaved] = useState<string | null>(null);
 
   // Fetch pack with field tank
