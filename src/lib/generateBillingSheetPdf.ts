@@ -17,6 +17,7 @@ interface SessionInventoryCell {
   canister: string;
   start_units: number | null;
   end_units: number | null;
+  returned_units: number | null;
   sort_order?: number | null;
 }
 
