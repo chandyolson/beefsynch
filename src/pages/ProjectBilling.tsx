@@ -18,6 +18,10 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 
 /* ────────────────── types ────────────────── */
