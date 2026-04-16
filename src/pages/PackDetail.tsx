@@ -708,13 +708,22 @@ const PackDetail = () => {
             </Button>
             <h2 className="text-2xl font-bold font-display tracking-tight">Pack — {fieldTankName}</h2>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : isOrder ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : isPickup ? "bg-violet-600/20 text-violet-400 border-violet-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
-              {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : isPickup ? <><Package className="h-3 w-3 mr-1" /> Pickup</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
-            </Badge>
-            <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
-              {STATUS_LABEL[pack.status] || pack.status}
-            </Badge>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Status badges (information) */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={isShipment ? "bg-blue-600/20 text-blue-400 border-blue-600/30" : isOrder ? "bg-amber-600/20 text-amber-400 border-amber-600/30" : isPickup ? "bg-violet-600/20 text-violet-400 border-violet-600/30" : "bg-teal-600/20 text-teal-400 border-teal-600/30"}>
+                {isShipment ? <><Truck className="h-3 w-3 mr-1" /> Shipment</> : isOrder ? <><ClipboardList className="h-3 w-3 mr-1" /> Order</> : isPickup ? <><Package className="h-3 w-3 mr-1" /> Pickup</> : <><ClipboardList className="h-3 w-3 mr-1" /> Project</>}
+              </Badge>
+              <Badge variant="outline" className={STATUS_BADGE[pack.status] || "bg-muted text-muted-foreground border-border"}>
+                {STATUS_LABEL[pack.status] || pack.status}
+              </Badge>
+            </div>
+
+            {/* Visual divider between info badges and action buttons */}
+            <div className="h-6 w-px bg-border/60" aria-hidden="true" />
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
             {/* Lifecycle advance buttons */}
             {pack.pack_type === "shipment" && pack.status === "packed" && (
               <Button size="sm" onClick={() => openAdvanceDialog("shipped")}>Mark Shipped</Button>
@@ -768,6 +777,7 @@ const PackDetail = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            </div>
           </div>
         </div>
 
