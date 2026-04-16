@@ -1421,82 +1421,87 @@ const ProjectBilling = () => {
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Session Inventory Tracking</CardTitle>
-            {sessionInventory.length === 0 && sessions.length > 0 && (
-              <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {generatingWorksheet ? "Generating..." : "Generate Worksheet"}
-              </Button>
-            )}
-            {sessionInventory.length > 0 && (
-              <Button size="sm" variant="outline" onClick={generateWorksheet} disabled={generatingWorksheet}>
-                Regenerate
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {sessionInventory.length === 0 && sessions.length > 0 && (
+                <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  {generatingWorksheet ? "Generating..." : "Generate Worksheet"}
+                </Button>
+              )}
+              {sessionInventory.length > 0 && (
+                <Button size="sm" variant="outline" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                  Regenerate
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {sessions.length === 0 ? (
               <p className="text-sm text-muted-foreground">Add Field Sessions above first.</p>
             ) : sessionInventory.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No worksheet yet. Click "Generate Worksheet" above to create one row per bull/canister combo based on the pack data for this project.
+                Click "Generate Worksheet" to create tracking rows from this project's pack data.
               </p>
-            ) : (
-              <div className="space-y-6">
-                {(() => {
-                  const breedingSessions = sessions.filter(s => {
-                    const label = (s.session_label || "").toLowerCase();
-                    return label.includes("breed") || label.includes("ai ") || label === "ai";
-                  });
-                  const sortedSessions = [...breedingSessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
-                  const worksheetRows = buildWorksheetRows();
-                  const byBull = new Map<string, WorksheetRow[]>();
-                  for (const row of worksheetRows) {
-                    const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
-                    if (!byBull.has(bullKey)) byBull.set(bullKey, []);
-                    byBull.get(bullKey)!.push(row);
-                  }
-                  return Array.from(byBull.entries()).map(([bullKey, rows]) => {
+            ) : (() => {
+              const breedingSessions = sessions.filter(s => {
+                const label = (s.session_label || "").toLowerCase();
+                return label.includes("breed") || label.includes("ai ") || label === "ai";
+              });
+              const sortedSessions = [...breedingSessions].sort((a, b) =>
+                (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date)
+              );
+              const worksheetRows = buildWorksheetRows();
+
+              const byBull = new Map<string, WorksheetRow[]>();
+              for (const row of worksheetRows) {
+                const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
+                if (!byBull.has(bullKey)) byBull.set(bullKey, []);
+                byBull.get(bullKey)!.push(row);
+              }
+
+              return (
+                <div className="space-y-6">
+                  {/* Per-bull tables — vertical layout */}
+                  {Array.from(byBull.entries()).map(([bullKey, rows]) => {
                     const first = rows[0];
+                    const totalPacked = rows.reduce((s, r) => s + r.packed_units, 0);
+
                     return (
                       <div key={bullKey}>
                         <div className="text-sm font-medium mb-1">
                           {first.bull_name}
                           {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">· {totalPacked} packed</span>
                         </div>
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[80px]">Canister</TableHead>
-                                <TableHead className="w-[80px] text-right">Packed</TableHead>
-                                {sortedSessions.map(s => (
-                                  <TableHead key={s.id} colSpan={2} className="text-center border-l">
-                                    <div className="text-xs">{format(parseISO(s.session_date), "MMM d")}</div>
-                                    <div className="text-[10px] font-normal text-muted-foreground">{s.session_label || "Session"}</div>
-                                  </TableHead>
-                                ))}
-                              </TableRow>
-                              <TableRow>
-                                <TableHead></TableHead>
-                                <TableHead></TableHead>
-                                {sortedSessions.map(s => (
-                                  <React.Fragment key={s.id}>
-                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center border-l">Start</TableHead>
-                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center">End</TableHead>
-                                  </React.Fragment>
-                                ))}
+                                <TableHead className="w-[50px] text-center">Can.</TableHead>
+                                <TableHead>Session</TableHead>
+                                <TableHead className="w-[80px] text-center">Start</TableHead>
+                                <TableHead className="w-[80px] text-center">End</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {rows.map((row) => (
-                                <TableRow key={`${row.bull_name}-${row.canister}`}>
-                                  <TableCell className="font-mono text-xs">{row.canister}</TableCell>
-                                  <TableCell className="text-right text-xs text-muted-foreground">{row.packed_units}</TableCell>
-                                  {sortedSessions.map(s => {
+                                <React.Fragment key={`${row.bull_name}-${row.canister}`}>
+                                  {sortedSessions.map((s, sIdx) => {
                                     const cell = row.cellsBySessionId[s.id!];
                                     return (
-                                      <React.Fragment key={s.id}>
-                                        <TableCell className="p-1 border-l">
+                                      <TableRow key={`${row.canister}-${s.id}`}>
+                                        {sIdx === 0 && (
+                                          <TableCell
+                                            className="text-center font-mono text-xs align-top font-medium"
+                                            rowSpan={sortedSessions.length + 1}
+                                          >
+                                            {row.canister}
+                                          </TableCell>
+                                        )}
+                                        <TableCell className="text-xs">
+                                          {s.session_label || "Breed"} · {format(parseISO(s.session_date), "MMM d")}
+                                        </TableCell>
+                                        <TableCell className="p-1">
                                           <Input
                                             type="number"
                                             className="h-8 w-full text-right text-xs"
@@ -1532,23 +1537,115 @@ const ProjectBilling = () => {
                                             }}
                                           />
                                         </TableCell>
-                                      </React.Fragment>
+                                      </TableRow>
                                     );
                                   })}
-                                </TableRow>
+                                  {/* Returned row for this canister */}
+                                  <TableRow key={`${row.canister}-returned`} className="bg-muted/30">
+                                    <TableCell className="text-xs font-medium">Returned</TableCell>
+                                    <TableCell colSpan={2} className="p-1">
+                                      <Input
+                                        type="number"
+                                        className="h-8 w-[80px] text-right text-xs"
+                                        value={row.returned_units ?? ""}
+                                        placeholder="—"
+                                        onBlur={(e) => {
+                                          const v = e.target.value === "" ? null : Number(e.target.value);
+                                          if (v !== row.returned_units) saveReturnedUnits(bullKey, row.canister, v);
+                                        }}
+                                        onChange={(e) => {
+                                          const v = e.target.value === "" ? null : Number(e.target.value);
+                                          const firstRow = sessionInventory.find(r =>
+                                            (r.bull_catalog_id || `name:${r.bull_name}`) === bullKey && r.canister === row.canister
+                                          );
+                                          if (firstRow?.id) {
+                                            setSessionInventory(prev => prev.map(r => r.id === firstRow.id ? { ...r, returned_units: v } : r));
+                                          }
+                                        }}
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                </React.Fragment>
                               ))}
                             </TableBody>
                           </Table>
                         </div>
                       </div>
                     );
-                  });
-                })()}
-                <p className="text-xs text-muted-foreground pt-2 border-t">
-                  Tip: Session 1 Start is pre-filled from the packed amount. Fill in End after each session. Cells save automatically when you click away.
-                </p>
-              </div>
-            )}
+                  })}
+
+                  {/* ── Semen usage summary ── */}
+                  <div className="border-t-2 border-border pt-4">
+                    <h3 className="text-sm font-medium mb-2">Semen usage summary</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Bull</TableHead>
+                          <TableHead className="w-[70px] text-right">Packed</TableHead>
+                          <TableHead className="w-[70px] text-right">Returned</TableHead>
+                          <TableHead className="w-[70px] text-right">Blown</TableHead>
+                          <TableHead className="w-[70px] text-right">Used</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const bullSummary = new Map<string, { name: string; code: string | null; packed: number; returned: number; bull_catalog_id: string | null }>();
+                          for (const row of worksheetRows) {
+                            const bk = row.bull_catalog_id || `name:${row.bull_name}`;
+                            if (!bullSummary.has(bk)) {
+                              bullSummary.set(bk, { name: row.bull_name, code: row.bull_code, packed: 0, returned: 0, bull_catalog_id: row.bull_catalog_id });
+                            }
+                            const bs = bullSummary.get(bk)!;
+                            bs.packed += row.packed_units;
+                            bs.returned += row.returned_units ?? 0;
+                          }
+
+                          const summaryRows = Array.from(bullSummary.entries()).sort((a, b) => a[1].name.localeCompare(b[1].name));
+                          let totalPacked = 0, totalReturned = 0, totalBlown = 0;
+
+                          const rendered = summaryRows.map(([bk, bs]) => {
+                            const semenLine = semenLines.find(sl =>
+                              (sl.bull_catalog_id && bs.bull_catalog_id && sl.bull_catalog_id === bs.bull_catalog_id)
+                              || sl.bull_name === bs.name
+                            );
+                            const blown = semenLine?.units_blown ?? 0;
+                            const used = bs.packed - bs.returned - blown;
+                            totalPacked += bs.packed;
+                            totalReturned += bs.returned;
+                            totalBlown += blown;
+
+                            return (
+                              <TableRow key={bk}>
+                                <TableCell className="text-xs">{bs.name}</TableCell>
+                                <TableCell className="text-xs text-right text-muted-foreground">{bs.packed}</TableCell>
+                                <TableCell className="text-xs text-right">{bs.returned || "—"}</TableCell>
+                                <TableCell className="text-xs text-right">{blown || "—"}</TableCell>
+                                <TableCell className="text-xs text-right font-medium">{bs.returned > 0 || blown > 0 ? used : "—"}</TableCell>
+                              </TableRow>
+                            );
+                          });
+
+                          const totalUsed = totalPacked - totalReturned - totalBlown;
+                          rendered.push(
+                            <TableRow key="total" className="bg-muted/30 font-medium">
+                              <TableCell className="text-xs">Total</TableCell>
+                              <TableCell className="text-xs text-right">{totalPacked}</TableCell>
+                              <TableCell className="text-xs text-right">{totalReturned || "—"}</TableCell>
+                              <TableCell className="text-xs text-right">{totalBlown || "—"}</TableCell>
+                              <TableCell className="text-xs text-right">{totalReturned > 0 || totalBlown > 0 ? totalUsed : "—"}</TableCell>
+                            </TableRow>
+                          );
+                          return rendered;
+                        })()}
+                      </TableBody>
+                    </Table>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Used = Packed − Returned − Blown. Blown is entered on the Semen billing section above. These totals feed directly into billing.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
