@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
