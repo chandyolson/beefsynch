@@ -65,6 +65,28 @@ interface SessionLine {
   sort_order: number | null;
 }
 
+interface SessionInventoryLine {
+  id?: string;
+  billing_id: string;
+  session_id: string;
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  start_units: number | null;
+  end_units: number | null;
+  sort_order: number | null;
+}
+
+interface WorksheetRow {
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  packed_units: number;
+  cellsBySessionId: Record<string, { start_units: number | null; end_units: number | null; id?: string }>;
+}
+
 interface SemenLine {
   id?: string;
   billing_id: string;
@@ -135,6 +157,8 @@ const ProjectBilling = () => {
   const [billingRecord, setBillingRecord] = useState<any>(null);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
+  const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
+  const [generatingWorksheet, setGeneratingWorksheet] = useState(false);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
@@ -213,16 +237,18 @@ const ProjectBilling = () => {
   }, [projectId, orgId]);
 
   async function loadBillingChildren(bId: string) {
-    const [prodRes, sessRes, semRes, labRes] = await Promise.all([
+    const [prodRes, sessRes, semRes, labRes, invRes] = await Promise.all([
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
+      (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
     setSemenLines((semRes.data ?? []) as SemenLine[]);
     setLaborLines((labRes.data ?? []) as LaborLine[]);
+    setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
   }
 
   /* ── compute suggestions from project data (head_count + pack lines) ── */
