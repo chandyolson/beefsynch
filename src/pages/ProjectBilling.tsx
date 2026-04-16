@@ -698,6 +698,7 @@ const ProjectBilling = () => {
             canister: combo.canister,
             start_units: sessIdx === 0 ? combo.packed_units : null,
             end_units: null,
+            returned_units: null,
             sort_order: sortIdx++,
           });
           sessIdx++;
