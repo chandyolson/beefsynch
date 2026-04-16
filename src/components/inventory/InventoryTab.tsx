@@ -44,7 +44,7 @@ interface InventoryTabProps {
   onFilterReset?: () => void;
 }
 
-const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: InventoryTabProps) => {
+const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: InventoryTabProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
