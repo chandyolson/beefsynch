@@ -7,6 +7,19 @@ function fmt$(v: number | null) {
   return `$${v.toFixed(2)}`;
 }
 
+interface SessionInventoryCell {
+  id?: string;
+  billing_id?: string;
+  session_id: string;
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  start_units: number | null;
+  end_units: number | null;
+  sort_order?: number | null;
+}
+
 export function generateBillingSheetPdf(
   project: any,
   billing: any,
@@ -15,7 +28,7 @@ export function generateBillingSheetPdf(
   sessions: any[],
   labor: any[],
   totals: { productsTotal: number; semenTotal: number; laborTotal: number; grandTotal: number },
-  _sessionInventory?: any[],
+  sessionInventory: SessionInventoryCell[] = [],
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pw = doc.internal.pageSize.getWidth();
