@@ -1371,6 +1371,137 @@ const ProjectBilling = () => {
           </CardContent>
         </Card>
 
+        {/* ── Session Inventory Tracking ── */}
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Session Inventory Tracking</CardTitle>
+            {sessionInventory.length === 0 && sessions.length > 0 && (
+              <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {generatingWorksheet ? "Generating..." : "Generate Worksheet"}
+              </Button>
+            )}
+            {sessionInventory.length > 0 && (
+              <Button size="sm" variant="outline" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                Regenerate
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Add Field Sessions above first.</p>
+            ) : sessionInventory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No worksheet yet. Click "Generate Worksheet" above to create one row per bull/canister combo based on the pack data for this project.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {(() => {
+                  const sortedSessions = [...sessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+                  const worksheetRows = buildWorksheetRows();
+                  const byBull = new Map<string, WorksheetRow[]>();
+                  for (const row of worksheetRows) {
+                    const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
+                    if (!byBull.has(bullKey)) byBull.set(bullKey, []);
+                    byBull.get(bullKey)!.push(row);
+                  }
+                  return Array.from(byBull.entries()).map(([bullKey, rows]) => {
+                    const first = rows[0];
+                    return (
+                      <div key={bullKey}>
+                        <div className="text-sm font-medium mb-1">
+                          {first.bull_name}
+                          {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
+                        </div>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[80px]">Canister</TableHead>
+                                <TableHead className="w-[80px] text-right">Packed</TableHead>
+                                {sortedSessions.map(s => (
+                                  <TableHead key={s.id} colSpan={2} className="text-center border-l">
+                                    <div className="text-xs">{format(parseISO(s.session_date), "MMM d")}</div>
+                                    <div className="text-[10px] font-normal text-muted-foreground">{s.session_label || "Session"}</div>
+                                  </TableHead>
+                                ))}
+                              </TableRow>
+                              <TableRow>
+                                <TableHead></TableHead>
+                                <TableHead></TableHead>
+                                {sortedSessions.map(s => (
+                                  <React.Fragment key={s.id}>
+                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center border-l">Start</TableHead>
+                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center">End</TableHead>
+                                  </React.Fragment>
+                                ))}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {rows.map((row) => (
+                                <TableRow key={`${row.bull_name}-${row.canister}`}>
+                                  <TableCell className="font-mono text-xs">{row.canister}</TableCell>
+                                  <TableCell className="text-right text-xs text-muted-foreground">{row.packed_units}</TableCell>
+                                  {sortedSessions.map(s => {
+                                    const cell = row.cellsBySessionId[s.id!];
+                                    return (
+                                      <React.Fragment key={s.id}>
+                                        <TableCell className="p-1 border-l">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={cell?.start_units ?? ""}
+                                            placeholder="—"
+                                            onBlur={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== cell.start_units) saveWorksheetCell(cell.id, "start_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, start_units: v } : r));
+                                            }}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="p-1">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={cell?.end_units ?? ""}
+                                            placeholder="—"
+                                            onBlur={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== cell.end_units) saveWorksheetCell(cell.id, "end_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, end_units: v } : r));
+                                            }}
+                                          />
+                                        </TableCell>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+                <p className="text-xs text-muted-foreground pt-2 border-t">
+                  Tip: Session 1 Start is pre-filled from the packed amount. Fill in End after each session. Cells save automatically when you click away.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* ── Labor Section ── */}
         <Card>
           <CardHeader className="pb-3">
