@@ -4,7 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Plus, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Check, Trash2, Package, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
@@ -161,6 +172,7 @@ const ProjectBilling = () => {
 
   const [billingId, setBillingId] = useState<string | null>(null);
   const [billingRecord, setBillingRecord] = useState<any>(null);
+  const [finalizing, setFinalizing] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
@@ -1090,6 +1102,35 @@ const ProjectBilling = () => {
     });
   }
 
+  /* ── Finalize Inventory ── */
+  async function handleFinalizeInventory() {
+    if (!billingId || !orgId) return;
+    setFinalizing(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("finalize_billing_inventory", {
+        _input: { organization_id: orgId, billing_id: billingId }
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; bulls_processed?: number; units_consumed?: number } | null;
+      if (!result?.ok) throw new Error("Finalize failed");
+      toast({
+        title: "Inventory finalized",
+        description: `${result.units_consumed ?? 0} units consumed across ${result.bulls_processed ?? 0} bull(s).`,
+      });
+      // Re-fetch the billing record to pick up inventory_finalized_at
+      const { data: refreshed } = await supabase
+        .from("project_billing")
+        .select("*")
+        .eq("id", billingId)
+        .maybeSingle();
+      if (refreshed) setBillingRecord(refreshed);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not finalize inventory.", variant: "destructive" });
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   /* ── PDF ── */
   function handlePrint() {
     if (!project || !billingRecord) return;
@@ -1170,6 +1211,44 @@ const ProjectBilling = () => {
             >
               Reset Sheet
             </Button>
+            {billingRecord?.inventory_finalized_at ? (
+              <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
+                <Check className="h-4 w-4" />
+                <span>
+                  Inventory finalized {format(parseISO(billingRecord.inventory_finalized_at), "MMM d, yyyy")}
+                </span>
+              </div>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5"
+                    disabled={finalizing || semenLines.length === 0}
+                  >
+                    {finalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+                    {finalizing ? "Finalizing…" : "Finalize Inventory"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Finalize Inventory?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will subtract all used semen from the field tank inventory.
+                      Used units = Packed − Returned − Blown. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleFinalizeInventory} disabled={finalizing}>
+                      {finalizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Finalize
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
