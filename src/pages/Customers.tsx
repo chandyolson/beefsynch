@@ -29,7 +29,7 @@ const Customers = () => {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState<"all" | "has_tanks" | "has_units">("has_tanks");
+  const [filterMode, setFilterMode] = useState<"all" | "has_tanks" | "has_units">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Form state
