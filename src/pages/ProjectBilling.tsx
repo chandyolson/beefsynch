@@ -729,6 +729,24 @@ const ProjectBilling = () => {
     }
   }
 
+  // Save returned_units for a canister. Stored on the first session row for that (bull, canister) combo.
+  async function saveReturnedUnits(bullKey: string, canister: string, value: number | null) {
+    const row = sessionInventory.find(r => {
+      const rKey = r.bull_catalog_id || `name:${r.bull_name}`;
+      return rKey === bullKey && r.canister === canister;
+    });
+    if (!row?.id) return;
+
+    setSessionInventory(prev => prev.map(r => r.id === row.id ? { ...r, returned_units: value } : r));
+
+    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+      .update({ returned_units: value })
+      .eq("id", row.id);
+    if (error) {
+      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+    }
+  }
+
   function buildWorksheetRows(): WorksheetRow[] {
     const map = new Map<string, WorksheetRow>();
     for (const inv of sessionInventory) {
