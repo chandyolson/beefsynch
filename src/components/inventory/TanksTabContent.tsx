@@ -253,32 +253,56 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div />
-        <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Add Customer</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCustomersCsv}>
+            <FileSpreadsheet className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Add Customer</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard title="Total Customers" value={totalCustomers} delay={0} index={0} icon={Users} />
-        <StatCard title="Total Tanks" value={totalTanks} delay={100} index={1} icon={Package} />
-        <StatCard title="Total Units Stored" value={totalUnitsStored} delay={200} index={2} icon={Archive} />
+        <div className={cn("transition-all rounded-xl", customerFilter === "all" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Total Customers" value={totalCustomers} delay={0} index={0} icon={Users} onClick={() => setCustomerFilter("all")} />
+        </div>
+        <div className={cn("transition-all rounded-xl", customerFilter === "has_tanks" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="With Tanks" value={customerData.filter((c: any) => c.tankCount > 0).length} delay={100} index={1} icon={Package} onClick={() => setCustomerFilter("has_tanks")} />
+        </div>
+        <div className={cn("transition-all rounded-xl", customerFilter === "has_units" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Total Units Stored" value={totalUnitsStored} delay={200} index={2} icon={Archive} onClick={() => setCustomerFilter("has_units")} />
+        </div>
       </div>
 
-      <div className="flex-1 min-w-[200px] max-w-xs">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search customer..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-[200px] max-w-xs">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search customer..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
         </div>
+        {(search || customerFilter !== "all") && (
+          <p className="text-sm text-muted-foreground">{filtered.length} customer{filtered.length !== 1 ? "s" : ""} match</p>
+        )}
       </div>
 
       <div className="rounded-lg border border-border/50 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
-              <TableHead className="whitespace-nowrap">Customer Name</TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("name")}>
+                <span className="inline-flex items-center gap-1">Customer Name <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
               <TableHead className="whitespace-nowrap">Phone</TableHead>
               <TableHead className="whitespace-nowrap">Email</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Tanks</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-              <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
+              <TableHead className="whitespace-nowrap text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort("tankCount")}>
+                <span className="inline-flex items-center gap-1 justify-end">Tanks <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort("totalUnits")}>
+                <span className="inline-flex items-center gap-1 justify-end">Total Units <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("lastInventoried")}>
+                <span className="inline-flex items-center gap-1">Last Inventoried <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
