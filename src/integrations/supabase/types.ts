@@ -755,6 +755,70 @@ export type Database = {
           },
         ]
       }
+      project_billing_session_inventory: {
+        Row: {
+          billing_id: string
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string
+          canister: string
+          created_at: string
+          end_units: number | null
+          id: string
+          session_id: string
+          sort_order: number | null
+          start_units: number | null
+        }
+        Insert: {
+          billing_id: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name: string
+          canister?: string
+          created_at?: string
+          end_units?: number | null
+          id?: string
+          session_id: string
+          sort_order?: number | null
+          start_units?: number | null
+        }
+        Update: {
+          billing_id?: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name?: string
+          canister?: string
+          created_at?: string
+          end_units?: number | null
+          id?: string
+          session_id?: string
+          sort_order?: number | null
+          start_units?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_session_inventory_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_session_inventory_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_session_inventory_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_billing_sessions: {
         Row: {
           billing_id: string
