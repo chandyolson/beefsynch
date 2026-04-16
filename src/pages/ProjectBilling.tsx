@@ -1102,6 +1102,35 @@ const ProjectBilling = () => {
     });
   }
 
+  /* ── Finalize Inventory ── */
+  async function handleFinalizeInventory() {
+    if (!billingId || !orgId) return;
+    setFinalizing(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("finalize_billing_inventory", {
+        _input: { organization_id: orgId, billing_id: billingId }
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; bulls_processed?: number; units_consumed?: number } | null;
+      if (!result?.ok) throw new Error("Finalize failed");
+      toast({
+        title: "Inventory finalized",
+        description: `${result.units_consumed ?? 0} units consumed across ${result.bulls_processed ?? 0} bull(s).`,
+      });
+      // Re-fetch the billing record to pick up inventory_finalized_at
+      const { data: refreshed } = await supabase
+        .from("project_billing")
+        .select("*")
+        .eq("id", billingId)
+        .maybeSingle();
+      if (refreshed) setBillingRecord(refreshed);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not finalize inventory.", variant: "destructive" });
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   /* ── PDF ── */
   function handlePrint() {
     if (!project || !billingRecord) return;
