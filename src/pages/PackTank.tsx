@@ -69,8 +69,12 @@ const PackTank = () => {
 
   const preselectedTankId = searchParams.get("tankId") || "";
   const preselectedProjectId = searchParams.get("projectId") || "";
+  const preselectedPackType = searchParams.get("packType") || "";
+  const preselectedOrderId = searchParams.get("orderId") || "";
 
-  const [packType, setPackType] = useState<"project" | "shipment" | "order" | "pickup">("project");
+  const [packType, setPackType] = useState<"project" | "shipment" | "order" | "pickup">(
+    (["project", "shipment", "order", "pickup"].includes(preselectedPackType) ? preselectedPackType : "project") as "project" | "shipment" | "order" | "pickup"
+  );
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [packedBy, setPackedBy] = useState("");
@@ -433,6 +437,13 @@ const PackTank = () => {
       setPendingAutoFill(preselectedProjectId);
     }
   }, [preselectedProjectId, orgId, didPreselect]);
+
+  // Pre-select order from URL param
+  useEffect(() => {
+    if (preselectedOrderId && orgId && packType === "order" && selectedOrders.length === 0) {
+      setSelectedOrders([preselectedOrderId]);
+    }
+  }, [preselectedOrderId, orgId, packType]);
 
   // Pre-fill pack lines from selected orders
   useEffect(() => {

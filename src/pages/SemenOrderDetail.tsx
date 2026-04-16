@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
@@ -209,6 +209,12 @@ const SemenOrderDetail = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => navigate(`/pack-tank?packType=order&orderId=${id}`)}
+            >
+              <Package className="h-4 w-4 mr-1" /> Fill from Inventory
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> Export PDF
             </Button>
