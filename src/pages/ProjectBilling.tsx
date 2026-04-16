@@ -798,12 +798,7 @@ const ProjectBilling = () => {
       return a.canister.localeCompare(b.canister, undefined, { numeric: true });
     });
   }
-    return Array.from(map.values()).sort((a, b) => {
-      const n = a.bull_name.localeCompare(b.bull_name);
-      if (n !== 0) return n;
-      return a.canister.localeCompare(b.canister, undefined, { numeric: true });
-    });
-  }
+
 
   function saveSessionLine(idx: number, updates: Partial<SessionLine>) {
     const line = { ...sessions[idx], ...updates };
