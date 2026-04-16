@@ -43,6 +43,7 @@ const SemenInventory = () => {
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [ownershipFilter, setOwnershipFilter] = useState<"all" | "company" | "customer">("company");
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped" | "by_tank">("detail");
@@ -105,6 +106,11 @@ const SemenInventory = () => {
     if (typeFilter !== "all") {
       result = result.filter((r) => r.itemType === typeFilter);
     }
+    if (ownershipFilter === "company") {
+      result = result.filter((r) => !r.customerId);
+    } else if (ownershipFilter === "customer") {
+      result = result.filter((r) => r.customerId);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -132,7 +138,7 @@ const SemenInventory = () => {
     });
 
     return result;
-  }, [rows, storageFilter, ownerFilter, typeFilter, search, sortKey, sortDir]);
+  }, [rows, storageFilter, ownerFilter, typeFilter, ownershipFilter, search, sortKey, sortDir]);
 
   // Grouped by bull
   const groupedByBull = useMemo(() => {
@@ -298,9 +304,30 @@ const SemenInventory = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} />
-          <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} />
-          <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} />
+          <div
+            onClick={() => setOwnershipFilter("all")}
+            className={`cursor-pointer transition-all ${ownershipFilter === "all" ? "ring-2 ring-primary rounded-xl" : "hover:opacity-80"}`}
+            role="button"
+            aria-label="Show all units"
+          >
+            <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} />
+          </div>
+          <div
+            onClick={() => setOwnershipFilter("customer")}
+            className={`cursor-pointer transition-all ${ownershipFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "hover:opacity-80"}`}
+            role="button"
+            aria-label="Show customer-owned units only"
+          >
+            <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} />
+          </div>
+          <div
+            onClick={() => setOwnershipFilter("company")}
+            className={`cursor-pointer transition-all ${ownershipFilter === "company" ? "ring-2 ring-primary rounded-xl" : "hover:opacity-80"}`}
+            role="button"
+            aria-label="Show company-owned units only"
+          >
+            <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} />
+          </div>
           <StatCard title="Unique Bulls" value={uniqueBulls} delay={300} index={3} icon={Dna} />
         </div>
 
