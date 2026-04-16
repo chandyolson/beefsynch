@@ -201,7 +201,7 @@ export function generateBillingSheetPdf(
       headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
       columnStyles: { 3: { halign: "right" } },
     });
-    y = (doc as any).lastAutoTable?.finalY + 8 ?? y + 20;
+    y = ((doc as any).lastAutoTable?.finalY ?? y + 12) + 8;
 
     // Inventory Worksheet
     if (sessionInventory.length > 0) {
@@ -307,7 +307,7 @@ export function generateBillingSheetPdf(
           headStyles: { fillColor: [60, 60, 60], textColor: 255, fontSize: 7 },
           alternateRowStyles: { fillColor: [250, 250, 250] },
         });
-        y = (doc as any).lastAutoTable?.finalY + 5 ?? y + 20;
+        y = ((doc as any).lastAutoTable?.finalY ?? y + 12) + 5;
       }
     } else {
       doc.setFontSize(9);
