@@ -108,6 +108,9 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [customerFilter, setCustomerFilter] = useState<"all" | "has_tanks" | "has_units">("has_tanks");
+  const [sortKey, setSortKey] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
@@ -115,6 +118,11 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
   const [formAddress, setFormAddress] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) { setSortDir((d) => (d === "asc" ? "desc" : "asc")); }
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers", orgId],
@@ -169,10 +177,52 @@ const CustomersTab = ({ orgId }: { orgId: string }) => {
   }, [customers, tanks, inventory]);
 
   const filtered = useMemo(() => {
-    if (!search) return customerData;
-    const q = search.toLowerCase();
-    return customerData.filter((c: any) => c.name.toLowerCase().includes(q));
-  }, [customerData, search]);
+    let list = customerData;
+    if (customerFilter === "has_tanks") {
+      list = list.filter((c: any) => c.tankCount > 0);
+    } else if (customerFilter === "has_units") {
+      list = list.filter((c: any) => c.totalUnits > 0);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((c: any) => c.name.toLowerCase().includes(q));
+    }
+    list = [...list].sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      switch (sortKey) {
+        case "name": aVal = a.name || ""; bVal = b.name || ""; break;
+        case "tankCount": aVal = a.tankCount || 0; bVal = b.tankCount || 0; break;
+        case "totalUnits": aVal = a.totalUnits || 0; bVal = b.totalUnits || 0; break;
+        case "lastInventoried": aVal = a.lastInventoried || ""; bVal = b.lastInventoried || ""; break;
+        default: aVal = a.name || ""; bVal = b.name || "";
+      }
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+    return list;
+  }, [customerData, customerFilter, search, sortKey, sortDir]);
+
+  const handleExportCustomersCsv = () => {
+    const headers = ["Customer Name", "Phone", "Email", "Tanks", "Total Units", "Last Inventoried"];
+    const csvRows = [headers.join(",")];
+    for (const c of filtered) {
+      csvRows.push([
+        `"${c.name || ""}"`,
+        `"${c.phone || ""}"`,
+        `"${c.email || ""}"`,
+        c.tankCount || 0,
+        c.totalUnits || 0,
+        `"${c.lastInventoried || ""}"`,
+      ].join(","));
+    }
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `BeefSynch_Customers_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+  };
 
   const totalCustomers = customers.length;
   const totalTanks = tanks.filter((t: any) => t.customer_id).length;
