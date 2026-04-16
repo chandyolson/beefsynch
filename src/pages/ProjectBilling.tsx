@@ -75,6 +75,7 @@ interface SessionInventoryLine {
   canister: string;
   start_units: number | null;
   end_units: number | null;
+  returned_units: number | null;
   sort_order: number | null;
 }
 
@@ -84,6 +85,7 @@ interface WorksheetRow {
   bull_code: string | null;
   canister: string;
   packed_units: number;
+  returned_units: number | null;
   cellsBySessionId: Record<string, { start_units: number | null; end_units: number | null; id?: string }>;
 }
 
