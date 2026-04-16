@@ -7,6 +7,19 @@ function fmt$(v: number | null) {
   return `$${v.toFixed(2)}`;
 }
 
+interface SessionInventoryCell {
+  id?: string;
+  billing_id?: string;
+  session_id: string;
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  start_units: number | null;
+  end_units: number | null;
+  sort_order?: number | null;
+}
+
 export function generateBillingSheetPdf(
   project: any,
   billing: any,
@@ -15,7 +28,7 @@ export function generateBillingSheetPdf(
   sessions: any[],
   labor: any[],
   totals: { productsTotal: number; semenTotal: number; laborTotal: number; grandTotal: number },
-  _sessionInventory?: any[],
+  sessionInventory: SessionInventoryCell[] = [],
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pw = doc.internal.pageSize.getWidth();
@@ -162,7 +175,7 @@ export function generateBillingSheetPdf(
   doc.text(`GRAND TOTAL: ${fmt$(totals.grandTotal)}`, pw - m, y, { align: "right" });
   y += 10;
 
-  // Page 2: Sessions
+  // Page 2: Field Sessions + Inventory Worksheet
   if (sessions.length > 0) {
     doc.addPage();
     y = 16;
@@ -179,16 +192,131 @@ export function generateBillingSheetPdf(
       s.crew || "",
       s.notes || "",
     ]);
-
     autoTable(doc, {
       startY: y,
-      head: [["Date", "Event", "Time", "Head Count", "Crew", "Notes"]],
+      head: [["Date", "Event", "Time", "Head", "Crew", "Notes"]],
       body: sessBody,
       margin: { left: m, right: m },
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
       columnStyles: { 3: { halign: "right" } },
     });
+    y = ((doc as any).lastAutoTable?.finalY ?? y + 12) + 8;
+
+    // Inventory Worksheet
+    if (sessionInventory.length > 0) {
+      const sortedSessions = [...sessions].sort((a: any, b: any) => {
+        const ao = a.sort_order ?? 0;
+        const bo = b.sort_order ?? 0;
+        if (ao !== bo) return ao - bo;
+        return (a.session_date || "").localeCompare(b.session_date || "");
+      });
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Inventory Tracking", m, y);
+      y += 4;
+
+      // Group inventory rows by bull
+      const byBull = new Map<string, { bull_name: string; bull_code: string | null; rows: Map<string, Map<string, SessionInventoryCell>> }>();
+      for (const inv of sessionInventory) {
+        const bullKey = inv.bull_catalog_id || `name:${inv.bull_name}`;
+        if (!byBull.has(bullKey)) {
+          byBull.set(bullKey, { bull_name: inv.bull_name, bull_code: inv.bull_code, rows: new Map() });
+        }
+        const group = byBull.get(bullKey)!;
+        if (!group.rows.has(inv.canister)) {
+          group.rows.set(inv.canister, new Map());
+        }
+        group.rows.get(inv.canister)!.set(inv.session_id, inv);
+      }
+
+      const bulls = Array.from(byBull.entries()).sort((a, b) =>
+        a[1].bull_name.localeCompare(b[1].bull_name)
+      );
+
+      for (const [, group] of bulls) {
+        const rowCount = group.rows.size;
+        const tableHeight = 12 + rowCount * 6 + 8;
+        if (y + tableHeight > doc.internal.pageSize.getHeight() - 20) {
+          doc.addPage();
+          y = 16;
+        }
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        const header = group.bull_code
+          ? `${group.bull_name}  \u00B7  ${group.bull_code}`
+          : group.bull_name;
+        doc.text(header, m, y);
+        y += 2;
+
+        // Two-row header: Row 1 has Can./Packed with rowSpan, session dates with colSpan
+        const headRow1: any[] = [
+          { content: "Can.", rowSpan: 2, styles: { valign: "middle" as const, halign: "center" as const } },
+          { content: "Packed", rowSpan: 2, styles: { valign: "middle" as const, halign: "center" as const } },
+        ];
+        for (const s of sortedSessions) {
+          headRow1.push({
+            content: format(parseISO(s.session_date), "MMM d"),
+            colSpan: 2,
+            styles: { halign: "center" as const },
+          });
+        }
+        const headRow2: any[] = [];
+        for (let i = 0; i < sortedSessions.length; i++) {
+          headRow2.push({ content: "Start", styles: { halign: "center" as const, fontSize: 6 } });
+          headRow2.push({ content: "End", styles: { halign: "center" as const, fontSize: 6 } });
+        }
+
+        const canisters = Array.from(group.rows.keys()).sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true })
+        );
+
+        const body: any[] = [];
+        for (const canister of canisters) {
+          const sessMap = group.rows.get(canister)!;
+          const firstSess = sortedSessions[0];
+          const firstCell = firstSess ? sessMap.get(firstSess.id) : undefined;
+          const packed = firstCell?.start_units ?? "";
+
+          const row: any[] = [
+            { content: canister, styles: { halign: "center" as const } },
+            { content: String(packed), styles: { halign: "right" as const } },
+          ];
+          for (const s of sortedSessions) {
+            const cell = sessMap.get(s.id);
+            row.push({
+              content: cell?.start_units != null ? String(cell.start_units) : "",
+              styles: { halign: "right" as const },
+            });
+            row.push({
+              content: cell?.end_units != null ? String(cell.end_units) : "",
+              styles: { halign: "right" as const },
+            });
+          }
+          body.push(row);
+        }
+
+        autoTable(doc, {
+          startY: y,
+          head: [headRow1, headRow2],
+          body,
+          margin: { left: m, right: m },
+          styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 6 },
+          headStyles: { fillColor: [60, 60, 60], textColor: 255, fontSize: 7 },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+        });
+        y = ((doc as any).lastAutoTable?.finalY ?? y + 12) + 5;
+      }
+    } else {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(140);
+      doc.text("Inventory worksheet not yet generated. Generate one on the Billing page to populate this section.", m, y);
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
+    }
   }
 
   // Notes
