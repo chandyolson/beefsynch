@@ -171,7 +171,7 @@ const ProjectBilling = () => {
   const showSaved = () => {
     setSaved(true);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => setSaved(false), 1500);
+    saveTimerRef.current = setTimeout(() => setSaved(false), 2000);
   };
 
   /* ── debounced save helper ── */
@@ -955,11 +955,6 @@ const ProjectBilling = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {saved && (
-              <span className="text-xs text-emerald-600 flex items-center gap-1 animate-in fade-in">
-                <Check className="h-3 w-3" /> Saved
-              </span>
-            )}
             <Select
               value={billingRecord?.status || "draft"}
               onValueChange={(v) => saveBillingField("status", v)}
@@ -1592,6 +1587,15 @@ const ProjectBilling = () => {
           </CardContent>
         </Card>
       </main>
+      {/* Fixed-position save confirmation — visible from anywhere on the page */}
+      {saved && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
+            <Check className="h-4 w-4" />
+            Saved
+          </div>
+        </div>
+      )}
       <AppFooter />
     </div>
   );
