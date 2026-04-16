@@ -44,7 +44,7 @@ interface InventoryTabProps {
   onFilterReset?: () => void;
 }
 
-const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: InventoryTabProps) => {
+const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: InventoryTabProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -411,9 +411,15 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "all", onFilterReset }: Inve
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} />
-        <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} />
-        <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} />
+        <div className={cn("transition-all", ownerFilter === "all" ? "ring-2 ring-primary rounded-xl" : "")}>
+          <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} onClick={() => { setOwnerFilter("all"); onFilterReset?.(); }} />
+        </div>
+        <div className={cn("transition-all", ownerFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "")}>
+          <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} onClick={() => { setOwnerFilter("customer"); onFilterReset?.(); }} />
+        </div>
+        <div className={cn("transition-all", ownerFilter === "company" ? "ring-2 ring-primary rounded-xl" : "")}>
+          <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} onClick={() => { setOwnerFilter("company"); onFilterReset?.(); }} />
+        </div>
         <StatCard title="Unique Bulls" value={uniqueBulls} delay={300} index={3} icon={Dna} />
       </div>
 
