@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Search, Users, Package, Archive, Droplets, Sun, Truck,
   AlertTriangle, AlertCircle, Upload, Check, X, FileSpreadsheet,
-  Clock, RotateCcw, ChevronsUpDown,
+  Clock, RotateCcw, ChevronsUpDown, ArrowUpDown,
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -281,6 +281,8 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<string>("tank_number");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tankNumber, setTankNumber] = useState("");
   const [tankName, setTankName] = useState("");
@@ -344,13 +346,34 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
 
   const enriched = useMemo(() => tanks.map((t: any) => ({ ...t, customerName: t.customers?.name || null, lastFill: lastFillMap.get(t.id) || null, totalUnits: unitSumMap.get(t.id) || 0 })), [tanks, lastFillMap, unitSumMap]);
 
+  const toggleSort = (key: string) => {
+    if (sortKey === key) { setSortDir((d) => (d === "asc" ? "desc" : "asc")); }
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
   const filtered = useMemo(() => {
     let list = enriched;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
     if (statusFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === statusFilter || (statusFilter === "out" && t.location_status === "out"));
     if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => (t.tank_number || "").toLowerCase().includes(q) || (t.tank_name || "").toLowerCase().includes(q) || (t.customerName || "").toLowerCase().includes(q)); }
+    list = [...list].sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      switch (sortKey) {
+        case "tank_number": aVal = a.tank_number || ""; bVal = b.tank_number || ""; break;
+        case "tank_name": aVal = a.tank_name || ""; bVal = b.tank_name || ""; break;
+        case "customer": aVal = a.customerName || ""; bVal = b.customerName || ""; break;
+        case "tank_type": aVal = a.tank_type || ""; bVal = b.tank_type || ""; break;
+        case "totalUnits": aVal = a.totalUnits || 0; bVal = b.totalUnits || 0; break;
+        case "lastFill": aVal = a.lastFill || ""; bVal = b.lastFill || ""; break;
+        default: aVal = a.tank_number || ""; bVal = b.tank_number || "";
+      }
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
     return list;
-  }, [enriched, typeFilter, statusFilter, search]);
+  }, [enriched, typeFilter, statusFilter, search, sortKey, sortDir]);
 
   const totalTanks = tanks.length;
   const wetCount = tanks.filter((t: any) => t.nitrogen_status === "wet" && t.location_status === "here").length;
@@ -384,18 +407,54 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
     else navigate(`/tanks/${tank.id}`);
   };
 
+  const handleExportTanksCsv = () => {
+    const headers = ["Tank Number", "Tank Name", "Customer", "Type", "Nitrogen Status", "Location Status", "Model", "Last Fill", "Total Units"];
+    const csvRows = [headers.join(",")];
+    for (const t of filtered) {
+      csvRows.push([
+        `"${t.tank_number || ""}"`,
+        `"${t.tank_name || ""}"`,
+        `"${t.customerName || "Company"}"`,
+        `"${TYPE_LABELS[t.tank_type] || t.tank_type}"`,
+        `"${t.nitrogen_status || "unknown"}"`,
+        `"${t.location_status || "here"}"`,
+        `"${t.model || ""}"`,
+        `"${t.lastFill || ""}"`,
+        t.totalUnits || 0,
+      ].join(","));
+    }
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `BeefSynch_Tanks_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div />
-        <Button className="gap-2" onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4" /> Add Tank</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportTanksCsv}>
+            <FileSpreadsheet className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button className="gap-2" onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4" /> Add Tank</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard title="Total Tanks" value={totalTanks} delay={0} index={0} icon={Package} />
-        <StatCard title="Wet" value={wetCount} delay={100} index={1} icon={Droplets} />
-        <StatCard title="Dry" value={dryCount} delay={200} index={2} icon={Sun} />
-        <StatCard title="Out" value={outCount} delay={300} index={3} icon={Truck} />
+        <div className={cn("transition-all rounded-xl", statusFilter === "all" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Total Tanks" value={totalTanks} delay={0} index={0} icon={Package} onClick={() => setStatusFilter("all")} />
+        </div>
+        <div className={cn("transition-all rounded-xl", statusFilter === "wet" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Wet" value={wetCount} delay={100} index={1} icon={Droplets} onClick={() => setStatusFilter("wet")} />
+        </div>
+        <div className={cn("transition-all rounded-xl", statusFilter === "dry" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Dry" value={dryCount} delay={200} index={2} icon={Sun} onClick={() => setStatusFilter("dry")} />
+        </div>
+        <div className={cn("transition-all rounded-xl", statusFilter === "out" ? "ring-2 ring-primary" : "")}>
+          <StatCard title="Out" value={outCount} delay={300} index={3} icon={Truck} onClick={() => setStatusFilter("out")} />
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -417,15 +476,26 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
-              <TableHead className="whitespace-nowrap">Tank Number</TableHead>
-              <TableHead className="whitespace-nowrap">Tank Name</TableHead>
-              <TableHead className="whitespace-nowrap">Customer</TableHead>
-              <TableHead className="whitespace-nowrap">Type</TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("tank_number")}>
+                <span className="inline-flex items-center gap-1">Tank Number <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("tank_name")}>
+                <span className="inline-flex items-center gap-1">Tank Name <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("customer")}>
+                <span className="inline-flex items-center gap-1">Customer <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("tank_type")}>
+                <span className="inline-flex items-center gap-1">Type <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
               <TableHead className="whitespace-nowrap">Status</TableHead>
               <TableHead className="whitespace-nowrap">Model</TableHead>
-              <TableHead className="whitespace-nowrap">Last Fill</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-              
+              <TableHead className="whitespace-nowrap cursor-pointer hover:text-foreground" onClick={() => toggleSort("lastFill")}>
+                <span className="inline-flex items-center gap-1">Last Fill <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
+              <TableHead className="whitespace-nowrap text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort("totalUnits")}>
+                <span className="inline-flex items-center gap-1 justify-end">Total Units <ArrowUpDown className="h-3 w-3" /></span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
