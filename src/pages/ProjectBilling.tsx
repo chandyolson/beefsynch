@@ -1413,7 +1413,11 @@ const ProjectBilling = () => {
             ) : (
               <div className="space-y-6">
                 {(() => {
-                  const sortedSessions = [...sessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+                  const breedingSessions = sessions.filter(s => {
+                    const label = (s.session_label || "").toLowerCase();
+                    return label.includes("breed") || label.includes("ai ") || label === "ai";
+                  });
+                  const sortedSessions = [...breedingSessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
                   const worksheetRows = buildWorksheetRows();
                   const byBull = new Map<string, WorksheetRow[]>();
                   for (const row of worksheetRows) {
