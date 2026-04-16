@@ -69,8 +69,12 @@ const PackTank = () => {
 
   const preselectedTankId = searchParams.get("tankId") || "";
   const preselectedProjectId = searchParams.get("projectId") || "";
+  const preselectedPackType = searchParams.get("packType") || "";
+  const preselectedOrderId = searchParams.get("orderId") || "";
 
-  const [packType, setPackType] = useState<"project" | "shipment" | "order" | "pickup">("project");
+  const [packType, setPackType] = useState<"project" | "shipment" | "order" | "pickup">(
+    (["project", "shipment", "order", "pickup"].includes(preselectedPackType) ? preselectedPackType : "project") as "project" | "shipment" | "order" | "pickup"
+  );
   const [selectedTankId, setSelectedTankId] = useState(preselectedTankId);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [packedBy, setPackedBy] = useState("");
