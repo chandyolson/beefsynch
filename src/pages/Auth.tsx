@@ -458,12 +458,13 @@ const Auth = () => {
         }
       </div>
 
-      <div className="mt-8 flex justify-center gap-1 text-xs text-white/40">
+      <div className="mt-8 flex flex-col items-center gap-1 text-xs text-white/40">
         <span>BeefSynch by Chuteside Resources</span>
-        <span>·</span>
-        <a href="/privacy" className="hover:text-white/60 transition-colors underline">Privacy Policy</a>
-        <span>·</span>
-        <a href="/terms" className="hover:text-white/60 transition-colors underline">Terms of Service</a>
+        <div className="flex gap-1">
+          <a href="/privacy" className="hover:text-white/60 transition-colors underline">Privacy Policy</a>
+          <span>·</span>
+          <a href="/terms" className="hover:text-white/60 transition-colors underline">Terms of Service</a>
+        </div>
       </div>
     </div>);
 
