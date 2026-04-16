@@ -1211,6 +1211,44 @@ const ProjectBilling = () => {
             >
               Reset Sheet
             </Button>
+            {billingRecord?.inventory_finalized_at ? (
+              <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
+                <Check className="h-4 w-4" />
+                <span>
+                  Inventory finalized {format(parseISO(billingRecord.inventory_finalized_at), "MMM d, yyyy")}
+                </span>
+              </div>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5"
+                    disabled={finalizing || semenLines.length === 0}
+                  >
+                    {finalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+                    {finalizing ? "Finalizing…" : "Finalize Inventory"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Finalize Inventory?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will subtract all used semen from the field tank inventory.
+                      Used units = Packed − Returned − Blown. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleFinalizeInventory} disabled={finalizing}>
+                      {finalizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Finalize
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
