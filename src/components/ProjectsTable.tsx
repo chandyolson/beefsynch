@@ -71,9 +71,14 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
       );
     }
     return [...list].sort((a, b) => {
+      // Complete projects always sort to the bottom
+      const aComplete = a.status === "Complete" ? 1 : 0;
+      const bComplete = b.status === "Complete" ? 1 : 0;
+      if (aComplete !== bComplete) return aComplete - bComplete;
+
+      // Within the same group, sort by active column
       const aVal = a[sortKey];
       const bVal = b[sortKey];
-      // Treat null/undefined/empty as "oldest" for lastContactedDate
       if (sortKey === "lastContactedDate") {
         const aStr = (aVal as string) || "";
         const bStr = (bVal as string) || "";
