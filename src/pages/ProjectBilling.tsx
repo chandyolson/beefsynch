@@ -18,6 +18,10 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 
 /* ────────────────── types ────────────────── */
@@ -161,6 +165,11 @@ const ProjectBilling = () => {
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
   const [generatingWorksheet, setGeneratingWorksheet] = useState(false);
+  const [showAddBullToWorksheet, setShowAddBullToWorksheet] = useState(false);
+  const [newBullName, setNewBullName] = useState("");
+  const [newBullCode, setNewBullCode] = useState("");
+  const [newBullCanister, setNewBullCanister] = useState("");
+  const [newBullPacked, setNewBullPacked] = useState<number | "">("");
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
@@ -745,6 +754,152 @@ const ProjectBilling = () => {
     if (error) {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
     }
+  }
+
+  // Add a new breeding session to the worksheet for all existing bull/canister combos
+  async function addWorksheetSession() {
+    if (!billingId) return;
+
+    const breedingSessions = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai";
+    });
+
+    const lastDate = breedingSessions.length > 0
+      ? breedingSessions.sort((a, b) => b.session_date.localeCompare(a.session_date))[0].session_date
+      : format(new Date(), "yyyy-MM-dd");
+
+    const nextDate = new Date(lastDate + "T12:00:00");
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateStr = format(nextDate, "yyyy-MM-dd");
+
+    const { data: newSession, error: sessErr } = await supabase
+      .from("project_billing_sessions")
+      .insert({
+        billing_id: billingId,
+        session_date: nextDateStr,
+        session_label: "Timed Breeding",
+        sort_order: (breedingSessions.length + 1) * 10,
+      })
+      .select()
+      .single();
+
+    if (sessErr || !newSession) {
+      toast({ title: "Failed to add session", description: sessErr?.message, variant: "destructive" });
+      return;
+    }
+
+    setSessions(prev => [...prev, newSession as SessionLine]);
+
+    const existingCombos = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string }>();
+    for (const inv of sessionInventory) {
+      const key = `${inv.bull_catalog_id || inv.bull_name}|${inv.canister}`;
+      if (!existingCombos.has(key)) {
+        existingCombos.set(key, {
+          bull_catalog_id: inv.bull_catalog_id,
+          bull_name: inv.bull_name,
+          bull_code: inv.bull_code,
+          canister: inv.canister,
+        });
+      }
+    }
+
+    const newRows = Array.from(existingCombos.values()).map((combo, idx) => ({
+      billing_id: billingId,
+      session_id: (newSession as any).id,
+      bull_catalog_id: combo.bull_catalog_id,
+      bull_name: combo.bull_name,
+      bull_code: combo.bull_code,
+      canister: combo.canister,
+      start_units: null,
+      end_units: null,
+      sort_order: idx,
+    }));
+
+    if (newRows.length > 0) {
+      const { data: inserted, error: invErr } = await (supabase.from as any)("project_billing_session_inventory")
+        .insert(newRows)
+        .select();
+
+      if (invErr) {
+        toast({ title: "Failed to add session rows", description: invErr.message, variant: "destructive" });
+        return;
+      }
+
+      setSessionInventory(prev => [...prev, ...((inserted ?? []) as SessionInventoryLine[])]);
+    }
+    toast({ title: "Session added" });
+  }
+
+  // Add a new bull/canister to the worksheet for all existing breeding sessions
+  async function addBullToWorksheet() {
+    if (!billingId || !newBullName.trim() || !newBullCanister.trim()) return;
+
+    const breedingSessions = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai";
+    });
+    const sortedSessions = [...breedingSessions].sort((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date)
+    );
+
+    if (sortedSessions.length === 0) {
+      toast({ title: "No breeding sessions", description: "Add a breeding session first.", variant: "destructive" });
+      return;
+    }
+
+    const packed = typeof newBullPacked === "number" ? newBullPacked : 0;
+
+    const newRows = sortedSessions.map((s, idx) => ({
+      billing_id: billingId,
+      session_id: s.id!,
+      bull_catalog_id: null,
+      bull_name: newBullName.trim(),
+      bull_code: newBullCode.trim() || null,
+      canister: newBullCanister.trim(),
+      start_units: idx === 0 ? packed : null,
+      end_units: null,
+      sort_order: (sessionInventory.length + idx),
+    }));
+
+    const { data: inserted, error } = await (supabase.from as any)("project_billing_session_inventory")
+      .insert(newRows)
+      .select();
+
+    if (error) {
+      toast({ title: "Failed to add bull", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setSessionInventory(prev => [...prev, ...((inserted ?? []) as SessionInventoryLine[])]);
+    setShowAddBullToWorksheet(false);
+    setNewBullName("");
+    setNewBullCode("");
+    setNewBullCanister("");
+    setNewBullPacked("");
+    toast({ title: `${newBullName.trim()} added to worksheet` });
+  }
+
+  // Delete all worksheet rows for a specific (bull, canister) combo
+  async function deleteWorksheetCanister(bullKey: string, canister: string) {
+    const rowIds = sessionInventory
+      .filter(r => (r.bull_catalog_id || `name:${r.bull_name}`) === bullKey && r.canister === canister)
+      .map(r => r.id)
+      .filter(Boolean) as string[];
+
+    if (rowIds.length === 0) return;
+
+    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+      .delete()
+      .in("id", rowIds);
+
+    if (error) {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setSessionInventory(prev => prev.filter(r => !rowIds.includes(r.id!)));
+    toast({ title: "Canister removed from worksheet" });
   }
 
   function buildWorksheetRows(): WorksheetRow[] {
@@ -1419,9 +1574,19 @@ const ProjectBilling = () => {
 
         {/* ── Session Inventory Tracking ── */}
         <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">Session Inventory Tracking</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {sessionInventory.length > 0 && (
+                <>
+                  <Button size="sm" variant="outline" onClick={addWorksheetSession}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Session
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowAddBullToWorksheet(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Bull
+                  </Button>
+                </>
+              )}
               {sessionInventory.length === 0 && sessions.length > 0 && (
                 <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
                   <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1468,10 +1633,23 @@ const ProjectBilling = () => {
 
                     return (
                       <div key={bullKey}>
-                        <div className="text-sm font-medium mb-1">
-                          {first.bull_name}
-                          {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
-                          <span className="ml-2 text-xs text-muted-foreground font-normal">· {totalPacked} packed</span>
+                        <div className="text-sm font-medium mb-1 flex items-center justify-between">
+                          <div>
+                            {first.bull_name}
+                            {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
+                            <span className="ml-2 text-xs text-muted-foreground font-normal">· {totalPacked} packed</span>
+                          </div>
+                          {rows.length === 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={() => deleteWorksheetCanister(bullKey, rows[0].canister)}
+                              title="Remove from worksheet"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                         <div className="overflow-x-auto">
                           <Table>
@@ -1495,7 +1673,20 @@ const ProjectBilling = () => {
                                             className="text-center font-mono text-xs align-top font-medium"
                                             rowSpan={sortedSessions.length + 1}
                                           >
-                                            {row.canister}
+                                            <div className="flex flex-col items-center gap-1">
+                                              <span>{row.canister}</span>
+                                              {rows.length > 1 && (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-5 w-5 text-destructive hover:text-destructive"
+                                                  onClick={() => deleteWorksheetCanister(bullKey, row.canister)}
+                                                  title={`Remove canister ${row.canister}`}
+                                                >
+                                                  <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                              )}
+                                            </div>
                                           </TableCell>
                                         )}
                                         <TableCell className="text-xs">
@@ -1619,7 +1810,36 @@ const ProjectBilling = () => {
                                 <TableCell className="text-xs">{bs.name}</TableCell>
                                 <TableCell className="text-xs text-right text-muted-foreground">{bs.packed}</TableCell>
                                 <TableCell className="text-xs text-right">{bs.returned || "—"}</TableCell>
-                                <TableCell className="text-xs text-right">{blown || "—"}</TableCell>
+                                <TableCell className="p-1">
+                                  <Input
+                                    type="number"
+                                    className="h-7 w-[60px] text-right text-xs ml-auto"
+                                    value={blown || ""}
+                                    placeholder="—"
+                                    onBlur={(e) => {
+                                      const v = e.target.value === "" ? 0 : Number(e.target.value);
+                                      const slIdx = semenLines.findIndex(sl =>
+                                        (sl.bull_catalog_id && bs.bull_catalog_id && sl.bull_catalog_id === bs.bull_catalog_id)
+                                        || sl.bull_name === bs.name
+                                      );
+                                      if (slIdx >= 0) {
+                                        saveSemenLine(slIdx, { units_blown: v });
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const v = e.target.value === "" ? 0 : Number(e.target.value);
+                                      const slIdx = semenLines.findIndex(sl =>
+                                        (sl.bull_catalog_id && bs.bull_catalog_id && sl.bull_catalog_id === bs.bull_catalog_id)
+                                        || sl.bull_name === bs.name
+                                      );
+                                      if (slIdx >= 0) {
+                                        const updated = [...semenLines];
+                                        updated[slIdx] = { ...updated[slIdx], units_blown: v };
+                                        setSemenLines(updated);
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
                                 <TableCell className="text-xs text-right font-medium">{bs.returned > 0 || blown > 0 ? used : "—"}</TableCell>
                               </TableRow>
                             );
@@ -1679,6 +1899,39 @@ const ProjectBilling = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Add Bull to Worksheet Dialog */}
+        <Dialog open={showAddBullToWorksheet} onOpenChange={setShowAddBullToWorksheet}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add bull to worksheet</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-[100px_1fr] gap-3 items-center">
+                <Label className="text-right text-sm">Bull Name *</Label>
+                <Input value={newBullName} onChange={(e) => setNewBullName(e.target.value)} placeholder="e.g. Restore" />
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-3 items-center">
+                <Label className="text-right text-sm">Bull Code</Label>
+                <Input value={newBullCode} onChange={(e) => setNewBullCode(e.target.value)} placeholder="e.g. 7AN779 (optional)" />
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-3 items-center">
+                <Label className="text-right text-sm">Canister *</Label>
+                <Input value={newBullCanister} onChange={(e) => setNewBullCanister(e.target.value)} placeholder="e.g. 1" />
+              </div>
+              <div className="grid grid-cols-[100px_1fr] gap-3 items-center">
+                <Label className="text-right text-sm">Packed</Label>
+                <Input type="number" value={newBullPacked} onChange={(e) => setNewBullPacked(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Units packed" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddBullToWorksheet(false)}>Cancel</Button>
+              <Button onClick={addBullToWorksheet} disabled={!newBullName.trim() || !newBullCanister.trim()}>
+                Add to Worksheet
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Grand Total ── */}
         <Card className="border-2 border-primary/30">
