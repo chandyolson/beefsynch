@@ -740,6 +740,12 @@ const PackDetail = () => {
             {pack.pack_type === "pickup" && pack.status === "picked_up" && (
               <Button size="sm" variant="outline" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
             )}
+            {pack.pack_type === "order" && pack.status === "packed" && (
+              <Button size="sm" onClick={() => openAdvanceDialog("picked_up")}>Mark Picked Up</Button>
+            )}
+            {pack.pack_type === "order" && pack.status === "picked_up" && (
+              <Button size="sm" variant="outline" onClick={() => openAdvanceDialog("tank_returned")}>Mark Tank Returned</Button>
+            )}
             {pack.pack_type === "project" && pack.status === "packed" && (
               <Button size="sm" onClick={() => openAdvanceDialog("in_field")}>Mark In Field</Button>
             )}
