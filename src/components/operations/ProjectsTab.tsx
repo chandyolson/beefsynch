@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Beef, Calendar, Plus } from "lucide-react";
+import { Beef, Calendar, Plus, FileSpreadsheet } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
@@ -162,13 +162,41 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
     return { first, last, same, span };
   }, [dbProjects]);
 
+  const handleExportCsv = () => {
+    const headers = ["Project Name", "Type", "Protocol", "Head Count", "Breeding Date", "Status", "Last Contacted", "Bulls"];
+    const csvRows = [headers.join(",")];
+    for (const p of projects) {
+      const bulls = (bullsByProject[p.id] || []).map((b) => `${b.name} (${b.units})`).join("; ");
+      csvRows.push([
+        `"${p.name}"`,
+        `"${p.animalType}"`,
+        `"${p.protocol}"`,
+        p.headCount,
+        `"${p.breedDate || ""}"`,
+        `"${p.status}"`,
+        `"${p.lastContactedDate || ""}"`,
+        `"${bulls}"`,
+      ].join(","));
+    }
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `BeefSynch_Projects_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold font-display">Projects</h2>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCsv}>
+            <FileSpreadsheet className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> New Project
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
