@@ -370,7 +370,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
               <FormField control={form.control} name="head_count" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Head Count</FormLabel>
-                  <FormControl><Input type="number" min={1} placeholder="0" {...field} /></FormControl>
+                  <FormControl><Input type="number" min={1} placeholder="Head count" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
