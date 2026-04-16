@@ -14,6 +14,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CustomerPicker from "@/components/CustomerPicker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -214,6 +215,7 @@ const TankDetail = () => {
   const [manualCanister, setManualCanister] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualCustomerId, setManualCustomerId] = useState<string | null>(null);
   const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
 
   // Fetch tank
