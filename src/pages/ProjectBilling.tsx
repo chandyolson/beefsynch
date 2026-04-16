@@ -606,6 +606,149 @@ const ProjectBilling = () => {
     }
   }
 
+  /* ────────────────── Session Inventory Worksheet ────────────────── */
+
+  async function generateWorksheet() {
+    if (!billingId || !project) return;
+    if (sessions.length === 0) {
+      toast({ title: "No sessions", description: "Add Field Sessions first before generating a worksheet.", variant: "destructive" });
+      return;
+    }
+    setGeneratingWorksheet(true);
+    try {
+      const { data: packProjects } = await supabase
+        .from("tank_pack_projects")
+        .select("tank_pack_id")
+        .eq("project_id", project.id);
+
+      if (!packProjects || packProjects.length === 0) {
+        toast({ title: "No packs", description: "This project has no packs yet. Pack it first, then generate the worksheet.", variant: "destructive" });
+        return;
+      }
+      const packIds = packProjects.map(pp => pp.tank_pack_id);
+
+      const { data: packLines } = await supabase
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, bull_code, field_canister, units")
+        .in("tank_pack_id", packIds);
+
+      if (!packLines || packLines.length === 0) {
+        toast({ title: "No pack lines", description: "Packs exist but have no lines.", variant: "destructive" });
+        return;
+      }
+
+      const comboMap = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string; packed_units: number }>();
+      for (const pl of packLines) {
+        const canister = pl.field_canister || "1";
+        const bullKey = pl.bull_catalog_id || `name:${pl.bull_name}`;
+        const comboKey = `${bullKey}|${canister}`;
+        if (comboMap.has(comboKey)) {
+          comboMap.get(comboKey)!.packed_units += pl.units;
+        } else {
+          comboMap.set(comboKey, {
+            bull_catalog_id: pl.bull_catalog_id,
+            bull_name: pl.bull_name,
+            bull_code: pl.bull_code,
+            canister,
+            packed_units: pl.units,
+          });
+        }
+      }
+      const combos = Array.from(comboMap.values()).sort((a, b) => {
+        const nameCmp = a.bull_name.localeCompare(b.bull_name);
+        if (nameCmp !== 0) return nameCmp;
+        return a.canister.localeCompare(b.canister, undefined, { numeric: true });
+      });
+
+      await (supabase.from as any)("project_billing_session_inventory")
+        .delete()
+        .eq("billing_id", billingId);
+
+      const newRows: Omit<SessionInventoryLine, "id">[] = [];
+      let sortIdx = 0;
+      const sortedSessions = [...sessions].sort((a, b) => {
+        const aOrder = a.sort_order ?? 0;
+        const bOrder = b.sort_order ?? 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.session_date.localeCompare(b.session_date);
+      });
+      for (const combo of combos) {
+        let sessIdx = 0;
+        for (const sess of sortedSessions) {
+          newRows.push({
+            billing_id: billingId,
+            session_id: sess.id!,
+            bull_catalog_id: combo.bull_catalog_id,
+            bull_name: combo.bull_name,
+            bull_code: combo.bull_code,
+            canister: combo.canister,
+            start_units: sessIdx === 0 ? combo.packed_units : null,
+            end_units: null,
+            sort_order: sortIdx++,
+          });
+          sessIdx++;
+        }
+      }
+
+      const { data: inserted, error } = await (supabase.from as any)("project_billing_session_inventory")
+        .insert(newRows)
+        .select();
+      if (error) throw error;
+
+      setSessionInventory((inserted ?? []) as SessionInventoryLine[]);
+      toast({ title: "Worksheet generated", description: `Created ${newRows.length} tracking rows.` });
+    } catch (err: any) {
+      toast({ title: "Failed to generate worksheet", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setGeneratingWorksheet(false);
+    }
+  }
+
+  async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units", value: number | null) {
+    setSessionInventory(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
+    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+      .update({ [field]: value })
+      .eq("id", rowId);
+    if (error) {
+      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+    }
+  }
+
+  function buildWorksheetRows(): WorksheetRow[] {
+    const map = new Map<string, WorksheetRow>();
+    for (const inv of sessionInventory) {
+      const bullKey = inv.bull_catalog_id || `name:${inv.bull_name}`;
+      const key = `${bullKey}|${inv.canister}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          bull_catalog_id: inv.bull_catalog_id,
+          bull_name: inv.bull_name,
+          bull_code: inv.bull_code,
+          canister: inv.canister,
+          packed_units: 0,
+          cellsBySessionId: {},
+        });
+      }
+      map.get(key)!.cellsBySessionId[inv.session_id] = {
+        start_units: inv.start_units,
+        end_units: inv.end_units,
+        id: inv.id,
+      };
+    }
+    const sortedSessions = [...sessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+    const firstSessionId = sortedSessions[0]?.id;
+    for (const row of map.values()) {
+      if (firstSessionId && row.cellsBySessionId[firstSessionId]) {
+        row.packed_units = row.cellsBySessionId[firstSessionId].start_units ?? 0;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const n = a.bull_name.localeCompare(b.bull_name);
+      if (n !== 0) return n;
+      return a.canister.localeCompare(b.canister, undefined, { numeric: true });
+    });
+  }
+
   function saveSessionLine(idx: number, updates: Partial<SessionLine>) {
     const line = { ...sessions[idx], ...updates };
     const newLines = [...sessions];
