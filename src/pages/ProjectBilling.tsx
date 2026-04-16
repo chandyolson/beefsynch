@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -63,6 +63,28 @@ interface SessionLine {
   crew: string | null;
   notes: string | null;
   sort_order: number | null;
+}
+
+interface SessionInventoryLine {
+  id?: string;
+  billing_id: string;
+  session_id: string;
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  start_units: number | null;
+  end_units: number | null;
+  sort_order: number | null;
+}
+
+interface WorksheetRow {
+  bull_catalog_id: string | null;
+  bull_name: string;
+  bull_code: string | null;
+  canister: string;
+  packed_units: number;
+  cellsBySessionId: Record<string, { start_units: number | null; end_units: number | null; id?: string }>;
 }
 
 interface SemenLine {
@@ -135,6 +157,8 @@ const ProjectBilling = () => {
   const [billingRecord, setBillingRecord] = useState<any>(null);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
+  const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
+  const [generatingWorksheet, setGeneratingWorksheet] = useState(false);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
@@ -213,16 +237,18 @@ const ProjectBilling = () => {
   }, [projectId, orgId]);
 
   async function loadBillingChildren(bId: string) {
-    const [prodRes, sessRes, semRes, labRes] = await Promise.all([
+    const [prodRes, sessRes, semRes, labRes, invRes] = await Promise.all([
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
+      (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
     setSemenLines((semRes.data ?? []) as SemenLine[]);
     setLaborLines((labRes.data ?? []) as LaborLine[]);
+    setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
   }
 
   /* ── compute suggestions from project data (head_count + pack lines) ── */
@@ -580,6 +606,149 @@ const ProjectBilling = () => {
     }
   }
 
+  /* ────────────────── Session Inventory Worksheet ────────────────── */
+
+  async function generateWorksheet() {
+    if (!billingId || !project) return;
+    if (sessions.length === 0) {
+      toast({ title: "No sessions", description: "Add Field Sessions first before generating a worksheet.", variant: "destructive" });
+      return;
+    }
+    setGeneratingWorksheet(true);
+    try {
+      const { data: packProjects } = await supabase
+        .from("tank_pack_projects")
+        .select("tank_pack_id")
+        .eq("project_id", project.id);
+
+      if (!packProjects || packProjects.length === 0) {
+        toast({ title: "No packs", description: "This project has no packs yet. Pack it first, then generate the worksheet.", variant: "destructive" });
+        return;
+      }
+      const packIds = packProjects.map(pp => pp.tank_pack_id);
+
+      const { data: packLines } = await supabase
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, bull_code, field_canister, units")
+        .in("tank_pack_id", packIds);
+
+      if (!packLines || packLines.length === 0) {
+        toast({ title: "No pack lines", description: "Packs exist but have no lines.", variant: "destructive" });
+        return;
+      }
+
+      const comboMap = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string; packed_units: number }>();
+      for (const pl of packLines) {
+        const canister = pl.field_canister || "1";
+        const bullKey = pl.bull_catalog_id || `name:${pl.bull_name}`;
+        const comboKey = `${bullKey}|${canister}`;
+        if (comboMap.has(comboKey)) {
+          comboMap.get(comboKey)!.packed_units += pl.units;
+        } else {
+          comboMap.set(comboKey, {
+            bull_catalog_id: pl.bull_catalog_id,
+            bull_name: pl.bull_name,
+            bull_code: pl.bull_code,
+            canister,
+            packed_units: pl.units,
+          });
+        }
+      }
+      const combos = Array.from(comboMap.values()).sort((a, b) => {
+        const nameCmp = a.bull_name.localeCompare(b.bull_name);
+        if (nameCmp !== 0) return nameCmp;
+        return a.canister.localeCompare(b.canister, undefined, { numeric: true });
+      });
+
+      await (supabase.from as any)("project_billing_session_inventory")
+        .delete()
+        .eq("billing_id", billingId);
+
+      const newRows: Omit<SessionInventoryLine, "id">[] = [];
+      let sortIdx = 0;
+      const sortedSessions = [...sessions].sort((a, b) => {
+        const aOrder = a.sort_order ?? 0;
+        const bOrder = b.sort_order ?? 0;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.session_date.localeCompare(b.session_date);
+      });
+      for (const combo of combos) {
+        let sessIdx = 0;
+        for (const sess of sortedSessions) {
+          newRows.push({
+            billing_id: billingId,
+            session_id: sess.id!,
+            bull_catalog_id: combo.bull_catalog_id,
+            bull_name: combo.bull_name,
+            bull_code: combo.bull_code,
+            canister: combo.canister,
+            start_units: sessIdx === 0 ? combo.packed_units : null,
+            end_units: null,
+            sort_order: sortIdx++,
+          });
+          sessIdx++;
+        }
+      }
+
+      const { data: inserted, error } = await (supabase.from as any)("project_billing_session_inventory")
+        .insert(newRows)
+        .select();
+      if (error) throw error;
+
+      setSessionInventory((inserted ?? []) as SessionInventoryLine[]);
+      toast({ title: "Worksheet generated", description: `Created ${newRows.length} tracking rows.` });
+    } catch (err: any) {
+      toast({ title: "Failed to generate worksheet", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setGeneratingWorksheet(false);
+    }
+  }
+
+  async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units", value: number | null) {
+    setSessionInventory(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
+    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+      .update({ [field]: value })
+      .eq("id", rowId);
+    if (error) {
+      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+    }
+  }
+
+  function buildWorksheetRows(): WorksheetRow[] {
+    const map = new Map<string, WorksheetRow>();
+    for (const inv of sessionInventory) {
+      const bullKey = inv.bull_catalog_id || `name:${inv.bull_name}`;
+      const key = `${bullKey}|${inv.canister}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          bull_catalog_id: inv.bull_catalog_id,
+          bull_name: inv.bull_name,
+          bull_code: inv.bull_code,
+          canister: inv.canister,
+          packed_units: 0,
+          cellsBySessionId: {},
+        });
+      }
+      map.get(key)!.cellsBySessionId[inv.session_id] = {
+        start_units: inv.start_units,
+        end_units: inv.end_units,
+        id: inv.id,
+      };
+    }
+    const sortedSessions = [...sessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+    const firstSessionId = sortedSessions[0]?.id;
+    for (const row of map.values()) {
+      if (firstSessionId && row.cellsBySessionId[firstSessionId]) {
+        row.packed_units = row.cellsBySessionId[firstSessionId].start_units ?? 0;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const n = a.bull_name.localeCompare(b.bull_name);
+      if (n !== 0) return n;
+      return a.canister.localeCompare(b.canister, undefined, { numeric: true });
+    });
+  }
+
   function saveSessionLine(idx: number, updates: Partial<SessionLine>) {
     const line = { ...sessions[idx], ...updates };
     const newLines = [...sessions];
@@ -720,7 +889,7 @@ const ProjectBilling = () => {
     if (!project || !billingRecord) return;
     generateBillingSheetPdf(project, billingRecord, productLines, semenLines, sessions, laborLines, {
       productsTotal, semenTotal, laborTotal, grandTotal,
-    });
+    }, sessionInventory);
     toast({ title: "PDF downloaded" });
   }
 
@@ -1199,6 +1368,137 @@ const ProjectBilling = () => {
             <Button variant="outline" size="sm" className="mt-3" onClick={addSession}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Add Session
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* ── Session Inventory Tracking ── */}
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Session Inventory Tracking</CardTitle>
+            {sessionInventory.length === 0 && sessions.length > 0 && (
+              <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {generatingWorksheet ? "Generating..." : "Generate Worksheet"}
+              </Button>
+            )}
+            {sessionInventory.length > 0 && (
+              <Button size="sm" variant="outline" onClick={generateWorksheet} disabled={generatingWorksheet}>
+                Regenerate
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Add Field Sessions above first.</p>
+            ) : sessionInventory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No worksheet yet. Click "Generate Worksheet" above to create one row per bull/canister combo based on the pack data for this project.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {(() => {
+                  const sortedSessions = [...sessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+                  const worksheetRows = buildWorksheetRows();
+                  const byBull = new Map<string, WorksheetRow[]>();
+                  for (const row of worksheetRows) {
+                    const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
+                    if (!byBull.has(bullKey)) byBull.set(bullKey, []);
+                    byBull.get(bullKey)!.push(row);
+                  }
+                  return Array.from(byBull.entries()).map(([bullKey, rows]) => {
+                    const first = rows[0];
+                    return (
+                      <div key={bullKey}>
+                        <div className="text-sm font-medium mb-1">
+                          {first.bull_name}
+                          {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
+                        </div>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[80px]">Canister</TableHead>
+                                <TableHead className="w-[80px] text-right">Packed</TableHead>
+                                {sortedSessions.map(s => (
+                                  <TableHead key={s.id} colSpan={2} className="text-center border-l">
+                                    <div className="text-xs">{format(parseISO(s.session_date), "MMM d")}</div>
+                                    <div className="text-[10px] font-normal text-muted-foreground">{s.session_label || "Session"}</div>
+                                  </TableHead>
+                                ))}
+                              </TableRow>
+                              <TableRow>
+                                <TableHead></TableHead>
+                                <TableHead></TableHead>
+                                {sortedSessions.map(s => (
+                                  <React.Fragment key={s.id}>
+                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center border-l">Start</TableHead>
+                                    <TableHead className="text-[10px] font-normal text-muted-foreground text-center">End</TableHead>
+                                  </React.Fragment>
+                                ))}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {rows.map((row) => (
+                                <TableRow key={`${row.bull_name}-${row.canister}`}>
+                                  <TableCell className="font-mono text-xs">{row.canister}</TableCell>
+                                  <TableCell className="text-right text-xs text-muted-foreground">{row.packed_units}</TableCell>
+                                  {sortedSessions.map(s => {
+                                    const cell = row.cellsBySessionId[s.id!];
+                                    return (
+                                      <React.Fragment key={s.id}>
+                                        <TableCell className="p-1 border-l">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={cell?.start_units ?? ""}
+                                            placeholder="—"
+                                            onBlur={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== cell.start_units) saveWorksheetCell(cell.id, "start_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, start_units: v } : r));
+                                            }}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="p-1">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={cell?.end_units ?? ""}
+                                            placeholder="—"
+                                            onBlur={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== cell.end_units) saveWorksheetCell(cell.id, "end_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!cell?.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, end_units: v } : r));
+                                            }}
+                                          />
+                                        </TableCell>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+                <p className="text-xs text-muted-foreground pt-2 border-t">
+                  Tip: Session 1 Start is pre-filled from the packed amount. Fill in End after each session. Cells save automatically when you click away.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
