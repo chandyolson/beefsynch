@@ -901,6 +901,8 @@ const ProjectBilling = () => {
     setSessionInventory(prev => prev.filter(r => !rowIds.includes(r.id!)));
     toast({ title: "Canister removed from worksheet" });
   }
+
+  function buildWorksheetRows(): WorksheetRow[] {
     const breedingSessions = sessions.filter(s => {
       const label = (s.session_label || "").toLowerCase();
       return label.includes("breed") || label.includes("ai ") || label === "ai";
