@@ -401,7 +401,7 @@ const SemenInventory = () => {
           {viewMode === "detail" ? (
             <Table className="table-fixed">
               <TableHeader>
-                <TableRow className="bg-muted/30">
+                <TableRow className="bg-muted/30 h-9">
                   <TableHead className="w-[160px]"><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
                   <TableHead className="w-[90px] whitespace-nowrap">Bull Code</TableHead>
                   <TableHead className="w-[140px]"><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
@@ -429,30 +429,28 @@ const SemenInventory = () => {
                 ) : (
                   filtered.map((row) => (
                     <TableRow key={row.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/tanks/${row.tankId}`)}>
-                      <TableCell className="font-medium max-w-[160px] truncate">
+                      <TableCell className="py-2 font-medium max-w-[160px] truncate" title={row.bullName}>
                         {row.bullName}
                         {row.itemType === "embryo" && (
                           <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
-                      <TableCell className="max-w-[140px] truncate">{row.customer}</TableCell>
-                      <TableCell className="max-w-[120px] truncate">{row.tankName}</TableCell>
-                      <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
-                      <TableCell>{row.canister}</TableCell>
-                      <TableCell>{row.subCanister}</TableCell>
-                      <TableCell className="text-right">{row.units}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{row.bullCode}</TableCell>
+                      <TableCell className="py-2 max-w-[140px] truncate" title={row.customer}>{row.customer}</TableCell>
+                      <TableCell className="py-2 max-w-[120px] truncate" title={row.tankName}>{row.tankName}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{row.tankNumber}</TableCell>
+                      <TableCell className="py-2">{row.canister}</TableCell>
+                      <TableCell className="py-2">{row.subCanister}</TableCell>
+                      <TableCell className="py-2 text-right">{row.units}</TableCell>
+                      <TableCell className="py-2">
                         <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>
                           {row.storageType}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                      {row.owner ? (
-                          <span>{row.owner}</span>
-                        ) : "—"}
+                      <TableCell className="py-2 max-w-[140px] truncate" title={row.owner || ""}>
+                        {row.owner ? row.owner : "—"}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="py-2 whitespace-nowrap">
                         {row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}
                       </TableCell>
                     </TableRow>
