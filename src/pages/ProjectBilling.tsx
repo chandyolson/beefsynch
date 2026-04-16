@@ -666,7 +666,19 @@ const ProjectBilling = () => {
 
       const newRows: Omit<SessionInventoryLine, "id">[] = [];
       let sortIdx = 0;
-      const sortedSessions = [...sessions].sort((a, b) => {
+      // Only include breeding sessions — product events (CIDR, PGF, GnRH, MGA) don't involve semen
+      const breedingSessions = sessions.filter(s => {
+        const label = (s.session_label || "").toLowerCase();
+        return label.includes("breed") || label.includes("ai ") || label === "ai";
+      });
+
+      if (breedingSessions.length === 0) {
+        toast({ title: "No breeding sessions", description: "None of the sessions are breeding events. The inventory worksheet only tracks semen usage during breeding sessions (e.g. 'Timed Breeding').", variant: "destructive" });
+        setGeneratingWorksheet(false);
+        return;
+      }
+
+      const sortedSessions = [...breedingSessions].sort((a, b) => {
         const aOrder = a.sort_order ?? 0;
         const bOrder = b.sort_order ?? 0;
         if (aOrder !== bOrder) return aOrder - bOrder;
