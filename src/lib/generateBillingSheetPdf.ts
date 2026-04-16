@@ -205,7 +205,11 @@ export function generateBillingSheetPdf(
 
     // Inventory Worksheet
     if (sessionInventory.length > 0) {
-      const sortedSessions = [...sessions].sort((a: any, b: any) => {
+      const breedingSessions = sessions.filter((s: any) => {
+        const label = (s.session_label || "").toLowerCase();
+        return label.includes("breed") || label.includes("ai ") || label === "ai";
+      });
+      const sortedSessions = [...breedingSessions].sort((a: any, b: any) => {
         const ao = a.sort_order ?? 0;
         const bo = b.sort_order ?? 0;
         if (ao !== bo) return ao - bo;
