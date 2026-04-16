@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -889,7 +889,7 @@ const ProjectBilling = () => {
     if (!project || !billingRecord) return;
     generateBillingSheetPdf(project, billingRecord, productLines, semenLines, sessions, laborLines, {
       productsTotal, semenTotal, laborTotal, grandTotal,
-    });
+    }, sessionInventory);
     toast({ title: "PDF downloaded" });
   }
 
