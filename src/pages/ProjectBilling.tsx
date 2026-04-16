@@ -748,8 +748,16 @@ const ProjectBilling = () => {
   }
 
   function buildWorksheetRows(): WorksheetRow[] {
+    const breedingSessions = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai";
+    });
+
     const map = new Map<string, WorksheetRow>();
     for (const inv of sessionInventory) {
+      const sess = breedingSessions.find(s => s.id === inv.session_id);
+      if (!sess) continue;
+
       const bullKey = inv.bull_catalog_id || `name:${inv.bull_name}`;
       const key = `${bullKey}|${inv.canister}`;
       if (!map.has(key)) {
@@ -759,26 +767,37 @@ const ProjectBilling = () => {
           bull_code: inv.bull_code,
           canister: inv.canister,
           packed_units: 0,
+          returned_units: inv.returned_units ?? null,
           cellsBySessionId: {},
         });
       }
-      map.get(key)!.cellsBySessionId[inv.session_id] = {
+      const row = map.get(key)!;
+      if (inv.returned_units != null) {
+        row.returned_units = inv.returned_units;
+      }
+      row.cellsBySessionId[inv.session_id] = {
         start_units: inv.start_units,
         end_units: inv.end_units,
         id: inv.id,
       };
     }
-    const breedingSessions = sessions.filter(s => {
-      const label = (s.session_label || "").toLowerCase();
-      return label.includes("breed") || label.includes("ai ") || label === "ai";
-    });
-    const sortedSessions = [...breedingSessions].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+
+    const sortedSessions = [...breedingSessions].sort((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date)
+    );
     const firstSessionId = sortedSessions[0]?.id;
     for (const row of map.values()) {
       if (firstSessionId && row.cellsBySessionId[firstSessionId]) {
         row.packed_units = row.cellsBySessionId[firstSessionId].start_units ?? 0;
       }
     }
+
+    return Array.from(map.values()).sort((a, b) => {
+      const n = a.bull_name.localeCompare(b.bull_name);
+      if (n !== 0) return n;
+      return a.canister.localeCompare(b.canister, undefined, { numeric: true });
+    });
+  }
     return Array.from(map.values()).sort((a, b) => {
       const n = a.bull_name.localeCompare(b.bull_name);
       if (n !== 0) return n;
