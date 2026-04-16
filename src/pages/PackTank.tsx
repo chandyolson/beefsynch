@@ -438,6 +438,13 @@ const PackTank = () => {
     }
   }, [preselectedProjectId, orgId, didPreselect]);
 
+  // Pre-select order from URL param
+  useEffect(() => {
+    if (preselectedOrderId && orgId && packType === "order" && selectedOrders.length === 0) {
+      setSelectedOrders([preselectedOrderId]);
+    }
+  }, [preselectedOrderId, orgId, packType]);
+
   // Pre-fill pack lines from selected orders
   useEffect(() => {
     if (packType !== "order" || selectedOrders.length === 0) return;
