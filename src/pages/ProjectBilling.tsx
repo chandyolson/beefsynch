@@ -901,7 +901,7 @@ const ProjectBilling = () => {
                               type="number"
                               className="h-8 w-[80px] text-right text-xs ml-auto"
                               value={line.doses || ""}
-                              placeholder="0"
+                              placeholder="Doses"
                               onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
                             />
                           </div>
@@ -914,7 +914,7 @@ const ProjectBilling = () => {
                             type="number"
                             step="0.01"
                             className="h-8 w-[90px] text-right text-xs ml-auto"
-                            value={line.unit_price ?? 0}
+                            value={line.unit_price ?? ""}
                             onChange={(e) => saveProductLine(idx, { unit_price: Number(e.target.value) || 0 })}
                           />
                         </TableCell>
@@ -957,7 +957,7 @@ const ProjectBilling = () => {
                         </span>
                       )}
                       <Input type="number" className="h-8 text-xs" value={line.doses || ""}
-                        placeholder="0"
+                        placeholder="Doses"
                         onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
@@ -1016,24 +1016,24 @@ const ProjectBilling = () => {
                           )}
                           <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
                             value={line.units_packed ?? ""}
-                            placeholder="0"
+                            placeholder="Packed"
                             onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_returned ?? 0}
+                          value={line.units_returned ?? ""}
                           onChange={(e) => saveSemenLine(idx, { units_returned: Number(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell className="text-right">
                         <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_blown ?? 0}
+                          value={line.units_blown ?? ""}
                           onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{line.units_billable ?? 0}</TableCell>
                       <TableCell className="text-right">
                         <Input type="number" step="0.01" className="h-8 w-[70px] text-right text-xs ml-auto"
-                          value={line.unit_price ?? 0}
+                          value={line.unit_price ?? ""}
                           onChange={(e) => saveSemenLine(idx, { unit_price: Number(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
@@ -1057,17 +1057,17 @@ const ProjectBilling = () => {
                         </span>
                       )}
                       <Input type="number" className="h-8 text-xs" value={line.units_packed ?? ""}
-                        placeholder="0"
+                        placeholder="Packed"
                         onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground">Ret'd</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_returned ?? 0}
+                      <Input type="number" className="h-8 text-xs" value={line.units_returned ?? ""}
                         onChange={(e) => saveSemenLine(idx, { units_returned: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground">Blown</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_blown ?? 0}
+                      <Input type="number" className="h-8 text-xs" value={line.units_blown ?? ""}
                         onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
                     </div>
                     <div>
@@ -1216,7 +1216,7 @@ const ProjectBilling = () => {
                   <Input className="h-9 w-[120px] text-sm" placeholder="Dates" value={line.labor_dates || ""}
                     onChange={(e) => saveLaborLine(idx, { labor_dates: e.target.value })} />
                   <Input type="number" step="0.01" className="h-9 w-[100px] text-right text-sm" placeholder="$0.00"
-                    value={line.amount ?? 0}
+                    value={line.amount ?? ""}
                     onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
                     <Trash2 className="h-4 w-4" />
