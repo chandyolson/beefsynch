@@ -14,6 +14,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CustomerPicker from "@/components/CustomerPicker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -214,6 +215,7 @@ const TankDetail = () => {
   const [manualCanister, setManualCanister] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualCustomerId, setManualCustomerId] = useState<string | null>(null);
   const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
 
   // Fetch tank
@@ -493,19 +495,27 @@ const TankDetail = () => {
 
   // Manual add handler
   const handleManualAdd = async () => {
-    if (!tank?.customer_id || !manualBullName.trim() || manualUnits <= 0 || !orgId) return;
+    if (!manualBullName.trim() || manualUnits <= 0 || !orgId || !tank) return;
     setManualSubmitting(true);
     try {
+      // Use the selected customer from the picker. If none, fall back to the tank's customer.
+      // On a communal/inventory tank with no picked customer, leave null (company inventory).
+      const effectiveCustomerId = manualCustomerId || tank.customer_id || null;
+      const storageType = effectiveCustomerId
+        ? (tank.customer_id ? "customer" : "communal")
+        : "inventory";
+
       const { error: invErr } = await supabase
         .from("tank_inventory")
         .insert({
           tank_id: tank.id,
-          customer_id: tank.customer_id,
+          customer_id: effectiveCustomerId,
           custom_bull_name: manualBullName.trim(),
           bull_code: manualBullCode.trim() || null,
           units: manualUnits,
           canister: manualCanister.trim() || "1",
           organization_id: orgId,
+          storage_type: storageType,
         })
         .select()
         .single();
@@ -514,7 +524,7 @@ const TankDetail = () => {
 
       toast({ title: "Bull added to inventory" });
       setShowManualAdd(false);
-      setManualBullName(""); setManualBullCode(""); setManualUnits(0); setManualCanister(""); setManualNotes("");
+      setManualBullName(""); setManualBullCode(""); setManualUnits(0); setManualCanister(""); setManualNotes(""); setManualCustomerId(null);
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
     } catch (err: any) {
@@ -627,9 +637,7 @@ const TankDetail = () => {
               </>
             )}
             <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
-            {tank.customer_id && (
-              <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
           </div>
         </div>
 
@@ -1009,6 +1017,14 @@ const TankDetail = () => {
             <DialogDescription>Manually add semen that's already in this tank but not in the system.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Customer</Label>
+              {orgId ? (
+                <CustomerPicker value={manualCustomerId} onChange={setManualCustomerId} orgId={orgId} />
+              ) : (
+                <span className="text-sm text-muted-foreground">Loading...</span>
+              )}
+            </div>
             <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
               <Label className="text-right">Bull Name *</Label>
               <Input value={manualBullName} onChange={(e) => setManualBullName(e.target.value)} />
