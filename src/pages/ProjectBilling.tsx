@@ -165,6 +165,11 @@ const ProjectBilling = () => {
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
   const [generatingWorksheet, setGeneratingWorksheet] = useState(false);
+  const [showAddBullToWorksheet, setShowAddBullToWorksheet] = useState(false);
+  const [newBullName, setNewBullName] = useState("");
+  const [newBullCode, setNewBullCode] = useState("");
+  const [newBullCanister, setNewBullCanister] = useState("");
+  const [newBullPacked, setNewBullPacked] = useState<number | "">("");
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
