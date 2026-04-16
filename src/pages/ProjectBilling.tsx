@@ -172,6 +172,7 @@ const ProjectBilling = () => {
 
   const [billingId, setBillingId] = useState<string | null>(null);
   const [billingRecord, setBillingRecord] = useState<any>(null);
+  const [finalizing, setFinalizing] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
