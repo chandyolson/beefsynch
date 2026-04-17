@@ -69,10 +69,11 @@ export async function generateFullExport(orgId: string) {
     .eq("organization_id", orgId);
   if (invErr) throw new Error(`Failed to export pending invites: ${invErr.message}`);
 
-  // Bulls catalog (global)
+  // Bulls catalog (org-specific + shared)
   const { data: bullsCatalog, error: catErr } = await supabase
     .from("bulls_catalog")
-    .select("*");
+    .select("*")
+    .or(`organization_id.is.null,organization_id.eq.${orgId}`);
   if (catErr) throw new Error(`Failed to export bulls catalog: ${catErr.message}`);
 
   const exportData = {

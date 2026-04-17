@@ -128,7 +128,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const { role } = useOrgRole();
+  const { role, orgId } = useOrgRole();
   const { toast } = useToast();
   const canOverride = role === "owner" || role === "admin";
 
@@ -193,8 +193,9 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   };
 
   const loadAvailableTanks = async () => {
+    if (!orgId) return;
     const query = supabase.from("tanks").select("id, tank_number, tank_name") as any;
-    const { data } = await query.eq("location_status", "here").eq("nitrogen_status", "wet").order("tank_number");
+    const { data } = await query.eq("organization_id", orgId).eq("location_status", "here").eq("nitrogen_status", "wet").order("tank_number");
     setAvailableTanks((data || []) as TankOption[]);
   };
 

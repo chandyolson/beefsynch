@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { CalendarIcon, X, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { generateBulkCsv } from "@/lib/generateBulkCsv";
 import { generateBulkPdf } from "@/lib/generateBulkPdf";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ interface BulkActionToolbarProps {
 }
 
 const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = true }: BulkActionToolbarProps) => {
+  const { orgId } = useOrgRole();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastContactPickerOpen, setLastContactPickerOpen] = useState(false);
@@ -81,7 +83,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
       const { error } = await supabase.from("projects").update({
         last_contacted_date: dateStr,
         last_contacted_by: user?.id ?? null,
-      }).eq("id", p.id);
+      }).eq("id", p.id).eq("organization_id", orgId!);
       if (error) failed.push(p.name);
     }
     setBusy(false);
@@ -96,7 +98,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
       await supabase.from("google_calendar_events").delete().eq("project_id", p.id);
       await supabase.from("protocol_events").delete().eq("project_id", p.id);
       await supabase.from("project_bulls").delete().eq("project_id", p.id);
-      const { error } = await supabase.from("projects").delete().eq("id", p.id);
+      const { error } = await supabase.from("projects").delete().eq("id", p.id).eq("organization_id", orgId!);
       if (error) failed.push(p.name);
     }
     setBusy(false);

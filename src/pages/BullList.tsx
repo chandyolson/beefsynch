@@ -113,15 +113,17 @@ const BullList = () => {
   const [detailBull, setDetailBull] = useState<CatalogBull | null>(null);
 
   const { data: bulls = [], isLoading } = useQuery({
-    queryKey: ["bulls_catalog"],
+    queryKey: ["bulls_catalog", orgId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bulls_catalog")
         .select("*")
+        .or(`organization_id.is.null,organization_id.eq.${orgId}`)
         .order("bull_name");
       if (error) throw error;
       return data as CatalogBull[];
     },
+    enabled: !!orgId,
   });
 
   const breeds = useMemo(() => {

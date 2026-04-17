@@ -1,5 +1,5 @@
 // Organization role context
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type OrgRole = "owner" | "admin" | "member" | null;
@@ -119,8 +119,12 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const contextValue = useMemo(() => ({
+    role, orgId, orgName, userId, loading, userOrgs, switchOrg, refresh
+  }), [role, orgId, orgName, userId, loading, userOrgs, switchOrg, refresh]);
+
   return (
-    <OrgRoleContext.Provider value={{ role, orgId, orgName, userId, loading, userOrgs, switchOrg, refresh }}>
+    <OrgRoleContext.Provider value={contextValue}>
       {children}
     </OrgRoleContext.Provider>
   );
