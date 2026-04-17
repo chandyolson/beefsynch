@@ -346,7 +346,8 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   const [tankEid, setTankEid] = useState("");
   const [tankCustomerId, setTankCustomerId] = useState<string>("none");
   const [tankType, setTankType] = useState("customer_tank");
-  const [tankStatus, setTankStatus] = useState("wet");
+  const [tankNitrogenStatus, setTankNitrogenStatus] = useState("wet");
+  const [tankLocationStatus, setTankLocationStatus] = useState("here");
   const [tankModel, setTankModel] = useState("");
   const [tankSerial, setTankSerial] = useState("");
   const [tankDesc, setTankDesc] = useState("");
@@ -443,14 +444,15 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
     const { error } = await supabase.from("tanks").insert({
       organization_id: orgId, tank_number: tankNumber.trim(), tank_name: tankName.trim() || null,
       eid: tankEid.trim() || null, customer_id: tankCustomerId === "none" ? null : tankCustomerId,
-      tank_type: tankType, status: tankStatus, model: tankModel.trim() || null,
+      tank_type: tankType, nitrogen_status: tankNitrogenStatus, location_status: tankLocationStatus,
+      model: tankModel.trim() || null,
       serial_number: tankSerial.trim() || null, description: tankDesc.trim() || null,
     } as any);
     setSaving(false);
     if (error) { toast({ title: "Error", description: "Could not add tank.", variant: "destructive" }); }
     else { queryClient.invalidateQueries({ queryKey: ["all_tanks"] }); toast({ title: "Tank added" }); setDialogOpen(false); resetForm(); }
   };
-  const resetForm = () => { setTankNumber(""); setTankName(""); setTankEid(""); setTankCustomerId("none"); setTankType("customer_tank"); setTankStatus("wet"); setTankModel(""); setTankSerial(""); setTankDesc(""); };
+  const resetForm = () => { setTankNumber(""); setTankName(""); setTankEid(""); setTankCustomerId("none"); setTankType("customer_tank"); setTankNitrogenStatus("wet"); setTankLocationStatus("here"); setTankModel(""); setTankSerial(""); setTankDesc(""); };
 
   const getFillColor = (lastFill: string | null) => {
     if (!lastFill) return "";
@@ -605,7 +607,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Tank Type</Label>
                 <Select value={tankType} onValueChange={setTankType}>
@@ -614,10 +616,24 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={tankStatus} onValueChange={setTankStatus}>
+                <Label>Nitrogen Status</Label>
+                <Select value={tankNitrogenStatus} onValueChange={setTankNitrogenStatus}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.filter((s) => s.value !== "all").map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="wet">Wet</SelectItem>
+                    <SelectItem value="dry">Dry</SelectItem>
+                    <SelectItem value="unknown">Unknown</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Location</Label>
+                <Select value={tankLocationStatus} onValueChange={setTankLocationStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="here">Here (In Shop)</SelectItem>
+                    <SelectItem value="out">Out (With Customer)</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>

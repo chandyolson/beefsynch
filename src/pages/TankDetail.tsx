@@ -477,8 +477,9 @@ const TankDetail = () => {
       toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
       return;
     }
-    // Update tank status
-    await supabase.from("tanks").update({ nitrogen_status: moveStatusAfter } as any).eq("id", id);
+    // Update tank status — movement out sets location to 'out', return sets to 'here'
+    const locationAfter = (moveType === "picked_up" || moveType === "delivered" || moveType === "sent_out") ? "out" : "here";
+    await supabase.from("tanks").update({ nitrogen_status: moveStatusAfter, location_status: locationAfter } as any).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });
@@ -635,6 +636,27 @@ const TankDetail = () => {
                 <Button variant="outline" size="sm" onClick={() => navigate(`/tanks/${id}/reinventory`)} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Re-inventory</Button>
                 <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
               </>
+            )}
+            {tank.location_status === "here" ? (
+              <Button variant="outline" size="sm" onClick={async () => {
+                const { error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", id);
+                if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                toast({ title: "Tank marked as out" });
+                queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
+                queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
+              }} className="gap-1.5">
+                <Truck className="h-4 w-4" /> Mark Out
+              </Button>
+            ) : (
+              <Button size="sm" onClick={async () => {
+                const { error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", id);
+                if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                toast({ title: "Tank marked as in shop" });
+                queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
+                queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
+              }} className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" /> Mark In
+              </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
             <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
