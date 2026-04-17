@@ -523,6 +523,43 @@ const CustomerDetail = () => {
     queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
   };
 
+  const handleMovement = async () => {
+    if (!custMoveTankId || !orgId) return;
+    setCustMoveSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const locationAfter = custMoveType === "picked_up" ? "out" : "here";
+
+    const { error: moveErr } = await supabase.from("tank_movements").insert({
+      organization_id: orgId,
+      tank_id: custMoveTankId,
+      movement_type: custMoveType,
+      movement_date: format(new Date(), "yyyy-MM-dd"),
+      location_status_after: locationAfter,
+      customer_id: id,
+      performed_by: user?.id || null,
+      notes: custMoveNotes.trim() || null,
+    } as any);
+
+    if (moveErr) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
+      return;
+    }
+
+    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", custMoveTankId).select();
+    if (error || !data || data.length === 0) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Movement recorded but tank status update failed.", variant: "destructive" });
+      return;
+    }
+
+    setCustMoveSaving(false);
+    toast({ title: locationAfter === "out" ? "Tank marked as out" : "Tank marked as in" });
+    queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+    setCustMoveOpen(false);
+    setCustMoveNotes("");
+  };
+
   const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
     if (!orgId) return;
     const { data: { user } } = await supabase.auth.getUser();
