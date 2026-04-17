@@ -970,7 +970,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
   const handleReturn = async () => {
     if (!returnTankId || !orgId) return;
     setReturnSaving(true);
-    const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), tank_status_after: returnStatus, performed_by: userId, notes: returnNotes.trim() || null } as any);
+    const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), location_status_after: "here", performed_by: userId, notes: returnNotes.trim() || null } as any);
     if (moveErr) { setReturnSaving(false); toast({ title: "Error", description: "Could not record return.", variant: "destructive" }); return; }
     await (supabase as any).from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);

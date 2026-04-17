@@ -201,7 +201,6 @@ const TankDetail = () => {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveType, setMoveType] = useState("picked_up");
   const [moveDate, setMoveDate] = useState<Date>(new Date());
-  const [moveStatusAfter, setMoveStatusAfter] = useState("wet");
   const [moveCustomerId, setMoveCustomerId] = useState("none");
   const [moveProjectId, setMoveProjectId] = useState("none");
   const [moveNotes, setMoveNotes] = useState("");
@@ -461,12 +460,14 @@ const TankDetail = () => {
     setMoveSaving(true);
     const custId = moveCustomerId === "none" ? null : moveCustomerId;
     const projId = moveProjectId === "none" ? null : moveProjectId;
+    // Derive location from movement type — picked_up/shipped_out = out, returned/received_back = here
+    const locationAfter = (moveType === "picked_up" || moveType === "shipped_out") ? "out" : "here";
     const { error: moveErr } = await supabase.from("tank_movements").insert({
       organization_id: orgId,
       tank_id: id,
       movement_type: moveType,
       movement_date: format(moveDate, "yyyy-MM-dd"),
-      tank_status_after: moveStatusAfter,
+      location_status_after: locationAfter,
       customer_id: custId,
       project_id: projId,
       performed_by: userId,
@@ -477,19 +478,17 @@ const TankDetail = () => {
       toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
       return;
     }
-    // Update tank status — movement out sets location to 'out', return sets to 'here'
-    const locationAfter = (moveType === "picked_up" || moveType === "delivered" || moveType === "sent_out") ? "out" : "here";
-    await supabase.from("tanks").update({ nitrogen_status: moveStatusAfter, location_status: locationAfter } as any).eq("id", id);
+    // Update the tank's location status to match the movement
+    await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });
     queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
-    toast({ title: "Movement recorded" });
+    toast({ title: locationAfter === "out" ? "Tank marked as out" : "Tank marked as returned" });
     setMoveOpen(false);
     setMoveNotes("");
     setMoveType("picked_up");
     setMoveDate(new Date());
-    setMoveStatusAfter("wet");
     setMoveCustomerId("none");
     setMoveProjectId("none");
   };
@@ -658,7 +657,7 @@ const TankDetail = () => {
                 <ArrowLeft className="h-4 w-4" /> Mark In
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
+            <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
             <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
           </div>
         </div>
@@ -835,7 +834,7 @@ const TankDetail = () => {
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <Table>
               <TableHeader><TableRow className="bg-muted/10">
-                <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Status After</TableHead><TableHead>Customer</TableHead><TableHead>Project</TableHead><TableHead>Notes</TableHead>
+                <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Location After</TableHead><TableHead>Customer</TableHead><TableHead>Project</TableHead><TableHead>Notes</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {movements.length === 0 ? (
@@ -844,7 +843,7 @@ const TankDetail = () => {
                   <TableRow key={m.id}>
                     <TableCell className="whitespace-nowrap">{format(parseISO(m.movement_date), "MMM d, yyyy")}</TableCell>
                     <TableCell><Badge variant="outline" className={MOVEMENT_BADGE[m.movement_type] || "bg-muted text-muted-foreground border-border"}>{m.movement_type.replace(/_/g, " ")}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_BADGE[m.tank_status_after] || "bg-muted text-muted-foreground border-border"}>{m.tank_status_after}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className={m.location_status_after === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" : "bg-blue-600/20 text-blue-400 border-blue-600/30"}>{m.location_status_after === "here" ? "in shop" : "out"}</Badge></TableCell>
                     <TableCell>{m.customers?.name || "—"}</TableCell>
                     <TableCell>{m.projects?.name || "—"}</TableCell>
                     <TableCell>{m.notes || "—"}</TableCell>
@@ -994,13 +993,6 @@ const TankDetail = () => {
                   <Calendar mode="single" selected={moveDate} onSelect={(d) => d && setMoveDate(d)} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status After</Label>
-              <Select value={moveStatusAfter} onValueChange={setMoveStatusAfter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{NITROGEN_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Customer</Label>

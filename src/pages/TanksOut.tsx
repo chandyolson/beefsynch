@@ -170,7 +170,7 @@ const TanksOut = () => {
       tank_id: returnTankId,
       movement_type: "returned",
       movement_date: format(returnDate, "yyyy-MM-dd"),
-      tank_status_after: returnStatus,
+      location_status_after: "here",
       performed_by: userId,
       notes: returnNotes.trim() || null,
     } as any);
