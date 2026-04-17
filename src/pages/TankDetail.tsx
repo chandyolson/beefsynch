@@ -415,12 +415,17 @@ const TankDetail = () => {
   const handleDryToggle = async () => {
     if (!id || !tank) return;
     const newNitrogen = tank.nitrogen_status === "dry" ? "wet" : "dry";
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tanks")
       .update({ nitrogen_status: newNitrogen } as any)
-      .eq("id", id);
+      .eq("id", id)
+      .select();
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" });
       return;
     }
     toast({ title: newNitrogen === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
@@ -638,8 +643,9 @@ const TankDetail = () => {
             )}
             {tank.location_status === "here" ? (
               <Button variant="outline" size="sm" onClick={async () => {
-                const { error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", id);
+                const { data, error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", id).select();
                 if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
                 toast({ title: "Tank marked as out" });
                 queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
                 queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
@@ -648,8 +654,9 @@ const TankDetail = () => {
               </Button>
             ) : (
               <Button size="sm" onClick={async () => {
-                const { error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", id);
+                const { data, error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", id).select();
                 if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
                 toast({ title: "Tank marked as in shop" });
                 queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
                 queryClient.invalidateQueries({ queryKey: ["all_tanks"] });

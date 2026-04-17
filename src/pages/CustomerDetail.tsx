@@ -498,12 +498,17 @@ const CustomerDetail = () => {
 
   const handleDryToggle = async (tankId: string, currentStatus: string) => {
     const newStatus = currentStatus === "dry" ? "wet" : "dry";
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tanks")
       .update({ nitrogen_status: newStatus } as any)
-      .eq("id", tankId);
+      .eq("id", tankId)
+      .select();
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" });
       return;
     }
     toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
@@ -724,8 +729,9 @@ const CustomerDetail = () => {
                   <div className="flex flex-wrap gap-2">
                     {tank.location_status === "here" ? (
                       <Button variant="outline" size="sm" onClick={async () => {
-                        const { error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", tank.id);
+                        const { data, error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", tank.id).select();
                         if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
                         toast({ title: "Tank marked as out" });
                         queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
                       }} className="gap-1">
@@ -733,8 +739,9 @@ const CustomerDetail = () => {
                       </Button>
                     ) : (
                       <Button variant="outline" size="sm" onClick={async () => {
-                        const { error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", tank.id);
+                        const { data, error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", tank.id).select();
                         if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
                         toast({ title: "Tank marked as in shop" });
                         queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
                       }} className="gap-1">
