@@ -208,6 +208,7 @@ export async function pushEventsToGoogleCalendar(
     body.end = { date: addOneDay(ev.eventDate) };
 
     const existingGoogleId = syncMap.get(ev.protocolEventId);
+    let needsCreate = !existingGoogleId;
 
     try {
       if (existingGoogleId) {
@@ -216,19 +217,32 @@ export async function pushEventsToGoogleCalendar(
           { method: "PATCH", headers, body: JSON.stringify(body) }
         );
         if (!res.ok) {
-          const text = await res.text();
-          console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
-          errors.push(`Update failed for "${ev.summary}": ${res.status} ${text}`);
-          continue;
+          if (res.status === 404 || res.status === 410) {
+            console.warn("[BeefSynch] Event gone from Google, will re-create:", ev.summary);
+            await supabase
+              .from("google_calendar_events")
+              .delete()
+              .eq("user_id", userId)
+              .eq("protocol_event_id", ev.protocolEventId);
+            needsCreate = true;
+          } else {
+            const text = await res.text();
+            console.error("[BeefSynch] Failed:", ev.summary, "→", res.status, text);
+            errors.push(`Update failed for "${ev.summary}": ${res.status} ${text}`);
+            continue;
+          }
+        } else {
+          await supabase
+            .from("google_calendar_events")
+            .update({ synced_at: new Date().toISOString() })
+            .eq("user_id", userId)
+            .eq("protocol_event_id", ev.protocolEventId);
+          updated++;
+          console.log("[BeefSynch] Updated:", ev.summary);
         }
-        await supabase
-          .from("google_calendar_events")
-          .update({ synced_at: new Date().toISOString() })
-          .eq("user_id", userId)
-          .eq("protocol_event_id", ev.protocolEventId);
-        updated++;
-        console.log("[BeefSynch] Updated:", ev.summary);
-      } else {
+      }
+
+      if (needsCreate) {
         const res = await fetch(
           `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events`,
           { method: "POST", headers, body: JSON.stringify(body) }
