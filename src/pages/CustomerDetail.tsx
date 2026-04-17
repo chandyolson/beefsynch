@@ -103,6 +103,14 @@ const CustomerDetail = () => {
   const [semenNotes, setSemenNotes] = useState("");
   const [semenSaving, setSemenSaving] = useState(false);
 
+  // Mark Out / Mark In movement dialog
+  const [custMoveOpen, setCustMoveOpen] = useState(false);
+  const [custMoveTankId, setCustMoveTankId] = useState("");
+  const [custMoveTankLabel, setCustMoveTankLabel] = useState("");
+  const [custMoveType, setCustMoveType] = useState<"picked_up" | "returned">("picked_up");
+  const [custMoveNotes, setCustMoveNotes] = useState("");
+  const [custMoveSaving, setCustMoveSaving] = useState(false);
+
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
 
@@ -728,22 +736,22 @@ const CustomerDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {tank.location_status === "here" ? (
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { data, error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", tank.id).select();
-                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                        toast({ title: "Tank marked as out" });
-                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("picked_up");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
                       }} className="gap-1">
                         <Truck className="h-4 w-4" /> Mark Out
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { data, error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", tank.id).select();
-                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                        toast({ title: "Tank marked as in shop" });
-                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("returned");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
                       }} className="gap-1">
                         <ArrowLeft className="h-4 w-4" /> Mark In
                       </Button>
