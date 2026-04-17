@@ -500,7 +500,7 @@ const CustomerDetail = () => {
     const newStatus = currentStatus === "dry" ? "wet" : "dry";
     const { error } = await supabase
       .from("tanks")
-      .update({ status: newStatus })
+      .update({ nitrogen_status: newStatus } as any)
       .eq("id", tankId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
