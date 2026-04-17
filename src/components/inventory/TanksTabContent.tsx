@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 /* ── shared constants ── */
 const TANK_TYPES = [
@@ -57,24 +58,6 @@ const STATUSES = [
   { value: "inactive", label: "Inactive" },
   { value: "bad_tank", label: "Bad Tank" },
 ];
-const TYPE_BADGE: Record<string, string> = {
-  customer_tank: "bg-teal-600/20 text-teal-400 border-teal-600/30",
-  inventory_tank: "bg-purple-600/20 text-purple-400 border-purple-600/30",
-  shipper: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  mushroom: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  rental_tank: "bg-amber-600/20 text-amber-400 border-amber-600/30",
-  communal_tank: "bg-orange-600/20 text-orange-400 border-orange-600/30",
-  freeze_branding: "bg-muted text-muted-foreground border-border",
-};
-const _STATUS_BADGE: Record<string, string> = {
-  wet: "bg-green-600/20 text-green-400 border-green-600/30",
-  dry: "bg-yellow-600/20 text-yellow-400 border-yellow-600/30",
-  out: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  inactive: "bg-muted text-muted-foreground border-border",
-  bad_tank: "bg-destructive/20 text-destructive border-destructive/30",
-  "bad tank": "bg-destructive/20 text-destructive border-destructive/30",
-  unknown: "bg-muted text-muted-foreground border-border",
-};
 const TYPE_LABELS: Record<string, string> = {
   customer_tank: "Customer Tank", inventory_tank: "Inventory Tank", shipper: "Shipper",
   mushroom: "Mushroom", rental_tank: "Rental Tank", communal_tank: "Communal Tank", freeze_branding: "Freeze Branding",
@@ -582,14 +565,10 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
                 <TableCell className="font-medium whitespace-nowrap">{tank.tank_number}</TableCell>
                 <TableCell className="whitespace-nowrap text-primary hover:underline">{tank.tank_name || "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">{tank.customerName || orgName || "Company Owned"}</TableCell>
-                <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className={getBadgeClass('tankType', tank.tank_type)}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={
-                      tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
-                      tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
-                      "bg-muted text-muted-foreground border-border"
-                    }>
+                    <Badge variant="outline" className={getBadgeClass('tankStatus', tank.nitrogen_status || "unknown")}>
                       {tank.nitrogen_status || "unknown"}
                     </Badge>
                     <Badge variant="outline" className={
@@ -886,11 +865,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
                   <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Badge variant="outline" className={
-                        tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
-                        tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
-                        "bg-muted text-muted-foreground border-border"
-                      }>
+                      <Badge variant="outline" className={getBadgeClass('tankStatus', tank.nitrogen_status || "unknown")}>
                         {tank.nitrogen_status || "unknown"}
                       </Badge>
                       {tank.location_status === "out" && (
@@ -1015,7 +990,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
                 <TableCell className="font-medium whitespace-nowrap">{tank.tank_number}</TableCell>
                 <TableCell className="whitespace-nowrap">{tank.tank_name || "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">{tank.customerName || "—"}</TableCell>
-                <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className={getBadgeClass('tankType', tank.tank_type)}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
                 <TableCell className="whitespace-nowrap">{tank.dateOut ? format(parseISO(tank.dateOut), "MMM d, yyyy") : "—"}</TableCell>
                 <TableCell className={cn("text-right font-medium", tank.daysOut !== null && tank.daysOut > 60 && "text-destructive", tank.daysOut !== null && tank.daysOut > 30 && tank.daysOut <= 60 && "text-orange-400")}>{tank.daysOut ?? "—"}</TableCell>
                 <TableCell className="text-xs max-w-[200px] truncate">{tank.moveNotes || "—"}</TableCell>

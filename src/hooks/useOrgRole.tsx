@@ -49,6 +49,12 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Separate step 1: resolve which org to use
+  const resolveCurrentOrg = useCallback((orgs: UserOrg[], currentOrgId: string | null) => {
+    return orgs.find((o) => o.orgId === currentOrgId) ?? orgs[0];
+  }, []);
+
+  // Separate step 2: fetch role for that org
   const fetchRole = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.is_anonymous) {
@@ -61,11 +67,21 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
       return;
     }
     setUserId(user.id);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("organization_members")
       .select("role, organization_id, organizations(name)")
       .eq("user_id", user.id)
       .eq("accepted", true);
+
+    if (error) {
+      console.error("Error fetching organization role:", error);
+      setUserOrgs([]);
+      setRole(null);
+      setOrgId(null);
+      setOrgName(null);
+      setLoading(false);
+      return;
+    }
 
     if (data && data.length > 0) {
       const orgs: UserOrg[] = data.map((d: any) => ({
@@ -74,7 +90,7 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
         role: d.role as OrgRole,
       }));
       setUserOrgs(orgs);
-      const current = orgs.find((o) => o.orgId === orgId) ?? orgs[0];
+      const current = resolveCurrentOrg(orgs, orgId);
       setRole(current.role);
       setOrgId(current.orgId);
       setOrgName(current.orgName);
@@ -85,7 +101,7 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
       setOrgName(null);
     }
     setLoading(false);
-  }, [orgId]);
+  }, [resolveCurrentOrg]);
 
   const refresh = useCallback(async () => {
     setLoading(true);

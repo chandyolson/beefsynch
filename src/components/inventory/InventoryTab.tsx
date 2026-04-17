@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
+import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -459,7 +461,9 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       </div>
 
       <div className="rounded-lg border border-border/50 overflow-hidden">
-        {viewMode === "detail" ? (
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={12} />
+        ) : viewMode === "detail" ? (
           <Table className="table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/30">
@@ -478,10 +482,16 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-12 text-muted-foreground">{rows.length === 0 ? "No inventory data." : "No results match your filters."}</TableCell></TableRow>
+              {filtered.length === 0 && !isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={12}>
+                    <EmptyState
+                      icon={Archive}
+                      title={rows.length === 0 ? "No inventory data" : "No results"}
+                      description={rows.length === 0 ? "No semen inventory to display." : "No inventory matches your filters. Try adjusting your filters."}
+                    />
+                  </TableCell>
+                </TableRow>
               ) : (
                 filtered.map((row) => (
                   <TableRow key={row.id} className="hover:bg-muted/20">
@@ -548,10 +558,16 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
-              ) : groupedByBull.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">{rows.length === 0 ? "No inventory data." : "No results match your filters."}</TableCell></TableRow>
+              {groupedByBull.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4}>
+                    <EmptyState
+                      icon={Archive}
+                      title={rows.length === 0 ? "No inventory data" : "No results"}
+                      description={rows.length === 0 ? "No semen inventory to display." : "No inventory matches your filters. Try adjusting your filters."}
+                    />
+                  </TableCell>
+                </TableRow>
               ) : (
                 groupedByBull.map((group) => (
                   <>

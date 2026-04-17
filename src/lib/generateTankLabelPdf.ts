@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { PDF_FONTS } from "./pdfUtils";
 
 export function generateTankLabelPdf(bullName: string, units: number) {
   // DYMO 30327 file folder label: 3-7/16" × 9/16" = 248pt × 40pt
@@ -8,7 +9,7 @@ export function generateTankLabelPdf(bullName: string, units: number) {
 
   // Bull name — left aligned, bold, truncate if needed
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(PDF_FONTS.sizeSmall);
   let name = bullName;
   const maxNameWidth = 248 - m * 2 - 40; // leave room for units on right
   if (doc.getTextWidth(name) > maxNameWidth) {
@@ -20,7 +21,7 @@ export function generateTankLabelPdf(bullName: string, units: number) {
   doc.text(name, m, midY);
 
   // Units — right aligned, bold
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text(`${units}u`, 248 - m, midY, { align: "right" });
 
   // Open in new tab for printing

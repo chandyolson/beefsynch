@@ -1,6 +1,10 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  getStandardHeadStylesDark,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 interface ReconciliationRow {
   bullName: string;
@@ -37,14 +41,14 @@ export const generateReceivingReportPdf = (
   const pw = doc.internal.pageSize.getWidth();
 
   // Header
-  doc.setFontSize(18);
+  doc.setFontSize(PDF_FONTS.sizeMedium);
   doc.setFont("helvetica", "bold");
   doc.text("BeefSynch", 14, 18);
-  doc.setFontSize(14);
+  doc.setFontSize(PDF_FONTS.sizeBody);
   doc.text(`Receiving Report${isConfirmed ? "" : " — DRAFT"}`, 14, 28);
 
   // Metadata
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.setFont("helvetica", "normal");
   let y = 38;
   const addMeta = (label: string, value: string) => {
@@ -86,14 +90,14 @@ export const generateReceivingReportPdf = (
       (r.delta >= 0 ? "+" : "") + r.delta.toString(),
       statusLabel(r.status, r.delta),
     ]),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [41, 41, 41], textColor: 255 },
+    styles: { fontSize: PDF_FONTS.sizeSmall },
+    headStyles: getStandardHeadStylesDark(),
   });
 
   // Totals
   const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
   let ty = finalY + 10;
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.setFont("helvetica", "bold");
   doc.text("Summary", 14, ty);
   ty += 6;
@@ -117,9 +121,10 @@ export const generateReceivingReportPdf = (
 
   // Packing slip note
   ty += 6;
-  doc.setFontSize(8);
+  doc.setFontSize(PDF_FONTS.sizeSmallTiny);
   doc.setTextColor(120);
   doc.text("Packing slip photo on file — view in BeefSynch", 14, ty);
+  doc.setTextColor(0);
 
   const dateStr = meta.received_date ? format(new Date(meta.received_date + "T00:00:00"), "yyyy-MM-dd") : "unknown";
   const filename = `Receiving Report — ${meta.received_from_name || "Unknown"} — ${dateStr}.pdf`;

@@ -6,6 +6,7 @@ import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { format, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 interface ProjectsTableProps {
   projects: BreedingProject[];
@@ -19,17 +20,6 @@ interface ProjectsTableProps {
 
 type SortKey = keyof BreedingProject;
 type SortDir = "asc" | "desc";
-
-const statusStyles: Record<string, string> = {
-  Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-emerald-500 text-white",
-  Tentative: "bg-warning/20 text-warning",
-};
-
-const typeStyles: Record<string, string> = {
-  Heifer: "bg-info/20 text-info",
-  Cow: "bg-accent/20 text-accent",
-};
 
 // calendar-sync indicator v4
 const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProject = {}, syncedProjectIds = new Set(), canEditAll = false, currentUserId = null }: ProjectsTableProps) => {
@@ -276,7 +266,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectType', project.animalType)}`}>
                     {project.animalType}
                   </span>
                 </td>
@@ -285,7 +275,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</td>
                 <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', project.status)}`}>
                     {project.status}
                   </span>
                 </td>
@@ -333,10 +323,10 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 </h3>
 
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${typeStyles[project.animalType]}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectType', project.animalType)}`}>
                     {project.animalType}
                   </span>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[project.status]}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', project.status)}`}>
                     {project.status}
                   </span>
                   <span className="text-xs text-muted-foreground">{project.protocol}</span>

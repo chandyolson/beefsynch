@@ -149,6 +149,9 @@ const CustomerDetail = () => {
   });
 
   // Fetch inventory rows for this customer (to find communal tanks)
+  // NOTE: This query is needed to identify tanks that a customer has semen in (communal tanks).
+  // allInventory (below) fetches from all customer tanks but only for rows with this customer's items,
+  // so we need this to first discover which communal tank IDs belong to this customer.
   const { data: customerInventory = [] } = useQuery({
     queryKey: ["customer_inventory", id, orgId],
     enabled: !!id && !!orgId,
@@ -367,6 +370,25 @@ const CustomerDetail = () => {
 
   const handleEditSave = async () => {
     if (!formName.trim() || !id) return;
+
+    // Validate email if provided
+    if (formEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formEmail.trim())) {
+        toast({ title: "Invalid email", description: "Please enter a valid email address", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Validate phone if provided
+    if (formPhone.trim()) {
+      const phoneDigits = formPhone.trim().replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        toast({ title: "Invalid phone", description: "Phone number must have at least 10 digits", variant: "destructive" });
+        return;
+      }
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from("customers")
@@ -417,6 +439,8 @@ const CustomerDetail = () => {
       toast({ title: "Error", description: "Could not add tank.", variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
       toast({ title: "Tank added" });
       setTankDialogOpen(false);
       resetTankForm();
@@ -432,6 +456,12 @@ const CustomerDetail = () => {
   // Add semen handler
   const handleAddSemen = async () => {
     if (!semenCanister.trim() || !semenTankId || !orgId) return;
+    // Validate units
+    const units = parseInt(semenUnits);
+    if (isNaN(units) || units < 1) {
+      toast({ title: "Error", description: "Units must be a number greater than 0", variant: "destructive" });
+      return;
+    }
     setSemenSaving(true);
     const { error } = await supabase
       .from("tank_inventory")
@@ -444,7 +474,7 @@ const CustomerDetail = () => {
         bull_catalog_id: semenBullCatalogId || null,
         custom_bull_name: semenBullCatalogId ? null : semenBullName.trim() || null,
         bull_code: semenBullCode.trim() || null,
-        units: parseInt(semenUnits) || 0,
+        units: units,
         storage_type: semenStorageType,
         notes: semenNotes.trim() || null,
       } as any);
@@ -664,7 +694,7 @@ const CustomerDetail = () => {
             const tankTxns = txnsByTank.get(tank.id) || [];
             const lastTankFill = tankFills[0];
             const fillOverdue = lastTankFill
-              ? differenceInDays(new Date(), new Date(lastTankFill.fill_date + "T00:00:00")) > 90
+              ? differenceInDays(new Date(), new Date(lastTankFill.fill_date + "T00:00:00")) >= 90
               : false;
 
             return (

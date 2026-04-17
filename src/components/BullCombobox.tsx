@@ -165,6 +165,10 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => query && setOpen(true)}
           placeholder="Search or type bull name..."
+          aria-label="Search or enter bull name"
+          aria-expanded={open}
+          role="combobox"
+          aria-autocomplete="list"
           className="h-9 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
         {catalogId && (
@@ -173,7 +177,11 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
           </span>
         )}
         {open && (results.length > 0 || query.trim().length > 0) && (
-          <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto">
+          <div
+            className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto"
+            role="listbox"
+            aria-label="Bull search results"
+          >
             {results.map((bull) => (
               <button
                 key={bull.id}

@@ -17,23 +17,26 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Download, CalendarIcon, X, Plus } from "lucide-react";
+import { Loader2, Search, Download, CalendarIcon, X, Plus, Package } from "lucide-react";
 import { format } from "date-fns";
+import TableSkeleton from "@/components/TableSkeleton";
+import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 /* ── Packs constants ── */
-const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  packed: { label: "Packed", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  in_field: { label: "In Field", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  shipped: { label: "Shipped", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
-  delivered: { label: "Delivered", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  picked_up: { label: "Picked Up", className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
-  unpacked: { label: "Unpacked", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  tank_returned: { label: "Tank Returned", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
+const STATUS_LABELS: Record<string, string> = {
+  packed: "Packed",
+  in_field: "In Field",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  picked_up: "Picked Up",
+  unpacked: "Unpacked",
+  tank_returned: "Tank Returned",
+  cancelled: "Cancelled",
 };
 
-const TYPE_BADGE: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
   project: "Project",
   shipment: "Shipment",
   order: "Order",
@@ -235,13 +238,13 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading packs…
-            </div>
+            <TableSkeleton rows={6} columns={8} />
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              {hasFilters ? "No packs match your filters. Try adjusting or clearing filters." : "No packs yet. Click '+ Pack Tank' to create one."}
-            </div>
+            <EmptyState
+              icon={Package}
+              title={hasFilters ? "No matching packs" : "No packs yet"}
+              description={hasFilters ? "No packs match your filters. Try adjusting or clearing filters." : "Click '+ Pack Tank' to create your first pack."}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -260,19 +263,18 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                 <TableBody>
                   {filtered.map((row: any) => {
                     const stats = getLineStats(row);
-                    const statusStyle = STATUS_BADGE[row.status] || { label: row.status || "Unknown", className: "bg-muted text-muted-foreground border-border" };
                     return (
                       <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pack/${row.id}`)}>
                         <TableCell>{row.packed_at ? format(new Date(row.packed_at), "MMM d, yyyy") : "—"}</TableCell>
                         <TableCell className="font-medium">{fieldTankLabel(row)}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize">{TYPE_BADGE[row.pack_type] || row.pack_type}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{TYPE_LABELS[row.pack_type] || row.pack_type}</Badge>
                         </TableCell>
                         <TableCell className="text-sm max-w-[200px] truncate">{getDestination(row)}</TableCell>
                         <TableCell className="text-right">{stats.count}</TableCell>
                         <TableCell className="text-right">{stats.units}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", statusStyle.className)}>{statusStyle.label}</Badge>
+                          <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
                       </TableRow>
@@ -436,13 +438,13 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading unpacks…
-            </div>
+            <TableSkeleton rows={6} columns={8} />
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              {hasFilters ? "No unpacks match your filters." : "No unpacks yet. Unpacks happen from a pack's detail page after a pack returns from the field."}
-            </div>
+            <EmptyState
+              icon={Package}
+              title={hasFilters ? "No matching unpacks" : "No unpacks yet"}
+              description={hasFilters ? "No unpacks match your filters. Try adjusting or clearing filters." : "Unpacks happen from a pack's detail page after a pack returns from the field."}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

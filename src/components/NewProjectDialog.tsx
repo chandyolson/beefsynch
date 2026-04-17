@@ -4,12 +4,13 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calculateProtocolEvents } from "@/lib/protocolEvents";
 import BullCombobox from "@/components/BullCombobox";
+import BullsRowManager from "@/components/BullsRowManager";
 
 import {
   Dialog,
@@ -449,37 +450,18 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
             )}
 
             {/* Bulls & Semen */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground font-display">Bulls & Semen</h3>
-                <Button type="button" variant="outline" size="sm" onClick={addBullRow} className="gap-1">
-                  <Plus className="h-3.5 w-3.5" /> Add Bull
-                </Button>
-              </div>
-              {bulls.length === 0 && (
-                <p className="text-sm text-muted-foreground">No bulls added yet. Click "Add Bull" to assign semen.</p>
-              )}
-              {bulls.map((bull, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <BullCombobox
-                    value={bull.name}
-                    catalogId={bull.catalogId}
-                    onChange={(name, catId) => updateBull(i, name, catId)}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    value={bull.units}
-                    onChange={(e) => updateBullUnits(i, parseInt(e.target.value) || 0)}
-                    className="w-20"
-                    placeholder="Units"
-                  />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeBullRow(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <BullsRowManager
+              bulls={bulls.map((b) => ({
+                bull_name: b.name,
+                bull_catalog_id: b.catalogId,
+                units: b.units,
+              }))}
+              onAdd={addBullRow}
+              onRemove={removeBullRow}
+              onUpdateBull={updateBull}
+              onUpdateUnits={updateBullUnits}
+              showUnits={true}
+            />
 
             {/* Notes */}
             <FormField control={form.control} name="notes" render={({ field }) => (

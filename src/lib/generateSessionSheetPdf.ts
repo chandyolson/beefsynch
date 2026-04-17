@@ -1,6 +1,13 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  addFooterToPdf,
+  buildPdfFilename,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 interface SessionSheetData {
   fieldTankName: string;
@@ -17,16 +24,16 @@ interface SessionSheetLine {
 export function generateSessionSheetPdf(pack: SessionSheetData, lines: SessionSheetLine[]) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 40;
-  let y = 40;
+  const margin = PDF_LAYOUT.marginSmall;
+  let y = margin;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(PDF_FONTS.sizeMedium);
   doc.text("BeefSynch — Breeding Session Sheet", margin, y);
   y += 20;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text(`Projects: ${pack.projectNames.join(", ")}`, margin, y);
   y += 14;
   doc.text(`Field Tank: ${pack.fieldTankName}    |    Date Packed: ${format(new Date(pack.packedAt), "MMMM d, yyyy")}`, margin, y);
@@ -51,8 +58,8 @@ export function generateSessionSheetPdf(pack: SessionSheetData, lines: SessionSh
       "Sess 3\nStart", "Sess 3\nEnd",
     ]],
     body: tableBody,
-    styles: { fontSize: 8, cellPadding: 6, minCellHeight: 24 },
-    headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold", fontSize: 7, halign: "center" },
+    styles: { fontSize: PDF_FONTS.sizeSmallTiny, cellPadding: 6, minCellHeight: 24 },
+    headStyles: { fillColor: PDF_COLORS.headFill, textColor: PDF_COLORS.headText, fontStyle: "bold" as const, fontSize: PDF_FONTS.sizeTiny, halign: "center" as const },
     columnStyles: {
       0: { cellWidth: 140 },
       1: { cellWidth: 55, halign: "center" },
@@ -72,10 +79,10 @@ export function generateSessionSheetPdf(pack: SessionSheetData, lines: SessionSh
 
   if (notesY + 80 < doc.internal.pageSize.getHeight() - 40) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(PDF_FONTS.sizeBodyTiny);
     doc.text("Notes:", margin, notesY);
     notesY += 14;
-    doc.setDrawColor(200);
+    doc.setDrawColor(PDF_COLORS.lineLight);
     doc.setLineWidth(0.3);
     for (let i = 0; i < 4; i++) {
       doc.line(margin, notesY, pageWidth - margin, notesY);
@@ -83,16 +90,8 @@ export function generateSessionSheetPdf(pack: SessionSheetData, lines: SessionSh
     }
   }
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text("BeefSynch by Chuteside, LLC", pageWidth / 2, doc.internal.pageSize.getHeight() - 20, { align: "center" });
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC", PDF_LAYOUT.footerOffsetSmall);
 
-  const safeName = pack.fieldTankName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   const safeDate = format(new Date(pack.packedAt), "yyyyMMdd");
-  doc.save(`BeefSynch_SessionSheet_${safeName}_${safeDate}.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_SessionSheet", pack.fieldTankName, safeDate));
 }

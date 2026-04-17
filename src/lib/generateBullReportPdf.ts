@@ -1,6 +1,14 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  addFooterToPdf,
+  drawDividerLine,
+  getStandardHeadStyles,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 export interface BullReportRow {
   bullName: string;
@@ -39,18 +47,18 @@ export function generateBullReportPdf(
 ) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 40;
-  let y = 40;
+  const margin = PDF_LAYOUT.marginSmall;
+  let y = margin;
 
   // Header
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
+  doc.setFontSize(PDF_FONTS.sizeLargeMedium);
   doc.text("BeefSynch — Bull Report", margin, y);
   y += 18;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(100);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
+  doc.setTextColor(PDF_COLORS.textGray);
   const fromLabel = filters.fromDate
     ? format(new Date(filters.fromDate + "T00:00:00"), "MMM d, yyyy")
     : "—";
@@ -75,18 +83,16 @@ export function generateBullReportPdf(
     y += 14;
   }
 
-  doc.setTextColor(0);
+  doc.setTextColor(PDF_COLORS.textNormal);
   y += 4;
 
   // Divider
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
+  drawDividerLine(doc, margin, pageWidth - margin, y, PDF_COLORS.lineDark, 0.5);
   y += 16;
 
   // Stat cards summary
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(PDF_FONTS.sizeBodySmall);
   const statItems = [
     ["Total Bulls in Use", String(stats.totalBulls)],
     ["Total Semen Units", String(stats.totalUnits)],
@@ -97,20 +103,18 @@ export function generateBullReportPdf(
   for (let i = 0; i < statItems.length; i++) {
     const x = margin + i * colW;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(120);
+    doc.setFontSize(PDF_FONTS.sizeSmall);
+    doc.setTextColor(PDF_COLORS.textDimmed);
     doc.text(statItems[i][0], x, y);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(0);
+    doc.setFontSize(PDF_FONTS.sizeSubhead);
+    doc.setTextColor(PDF_COLORS.textNormal);
     doc.text(statItems[i][1], x, y + 16);
   }
   y += 36;
 
   // Divider
-  doc.setDrawColor(200);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
+  drawDividerLine(doc, margin, pageWidth - margin, y, PDF_COLORS.lineLight, 0.3);
   y += 12;
 
   // Table
@@ -131,8 +135,8 @@ export function generateBullReportPdf(
     margin: { left: margin, right: margin },
     head: [["Bull Name", "Company", "Reg. #", "Units", "Source", "Projects", "Project/Order Names", "Date(s)", "Cattle Type"]],
     body: tableBody,
-    styles: { fontSize: 7.5, cellPadding: 3.5, overflow: "linebreak" },
-    headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: PDF_FONTS.sizeMini, cellPadding: 3.5, overflow: "linebreak" },
+    headStyles: getStandardHeadStyles(),
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
       0: { cellWidth: 80 },
@@ -147,20 +151,7 @@ export function generateBullReportPdf(
     },
   });
 
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text(
-      "BeefSynch by Chuteside, LLC",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 24,
-      { align: "center" }
-    );
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC", 24);
 
   const safeName = `BeefSynch_Bull_Report_${filters.fromDate}_to_${filters.toDate}`.replace(/[^a-zA-Z0-9_]/g, "_");
   doc.save(`${safeName}.pdf`);

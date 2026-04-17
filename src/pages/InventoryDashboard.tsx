@@ -1,12 +1,11 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Package, ClipboardList } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import AppFooter from "@/components/AppFooter";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { useSupabaseCount } from "@/hooks/useSupabaseCount";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -30,23 +29,19 @@ const InventoryDashboard = () => {
   const setTab = (tab: TabKey) => setSearchParams({ tab }, { replace: true });
 
   // Badge counts
-  const { data: inventoryCount = 0 } = useQuery({
-    queryKey: ["inv_dash_inv_count", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { count } = await supabase.from("tank_inventory").select("id", { count: "exact", head: true }).eq("organization_id", orgId!);
-      return count ?? 0;
-    },
-  });
+  const { data: inventoryCount = 0 } = useSupabaseCount(
+    ["inv_dash_inv_count", orgId],
+    "tank_inventory",
+    (query) => query.eq("organization_id", orgId!),
+    !!orgId
+  );
 
-  const { data: orderCount = 0 } = useQuery({
-    queryKey: ["inv_dash_order_count", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { count } = await supabase.from("semen_orders").select("id", { count: "exact", head: true }).eq("organization_id", orgId!);
-      return count ?? 0;
-    },
-  });
+  const { data: orderCount = 0 } = useSupabaseCount(
+    ["inv_dash_order_count", orgId],
+    "semen_orders",
+    (query) => query.eq("organization_id", orgId!),
+    !!orgId
+  );
 
   const badgeCounts: Record<TabKey, string> = {
     inventory: inventoryCount.toLocaleString(),

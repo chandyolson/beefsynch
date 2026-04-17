@@ -2,36 +2,16 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO, addDays } from "date-fns";
 import type { BulkProjectData, BulkEventData, BulkBullData } from "./generateBulkCsv";
-
-const isNoTimeEvent = (name: string) => {
-  const exact = ["Return Heat", "Estimated Calving"];
-  const contains = ["CIDR Insert", "GnRH"];
-  return exact.includes(name) || contains.some((k) => name.includes(k));
-};
-
-const formatTime12 = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-};
-
-function addFooters(doc: jsPDF) {
-  const pageCount = doc.getNumberOfPages();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text(
-      "BeefSynch by Chuteside Resources",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 30,
-      { align: "center" }
-    );
-  }
-}
+import {
+  addFooterToPdf,
+  buildPdfFilename,
+  getStandardHeadStyles,
+  DEFAULT_PRODUCT_DIRECTIONS,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { formatTime12, isNoTimeEvent } from "./formatUtils";
 
 function renderProjectPage(
   doc: jsPDF,
@@ -40,29 +20,29 @@ function renderProjectPage(
   bulls: BulkBullData[]
 ) {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y = margin;
 
   // Header
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.setTextColor(0);
+  doc.setFontSize(PDF_FONTS.sizeLarge);
+  doc.setTextColor(PDF_COLORS.textNormal);
   doc.text("BeefSynch", margin, y);
   y += 18;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
+  doc.setFontSize(PDF_FONTS.sizeBodySmall);
+  doc.setTextColor(PDF_COLORS.textGray);
   doc.text("Synchronization Planner", margin, y);
-  doc.setTextColor(0);
+  doc.setTextColor(PDF_COLORS.textNormal);
   y += 6;
-  doc.setDrawColor(180);
+  doc.setDrawColor(PDF_COLORS.lineDark);
   doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
+  y += PDF_LAYOUT.gap;
 
   // Project info
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(project.name, margin, y);
   y += 22;
 
@@ -85,13 +65,13 @@ function renderProjectPage(
     ["Estimated Calving", estimatedCalving],
   ];
 
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   for (const [label, value] of infoRows) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, margin, y);
     doc.setFont("helvetica", "normal");
     doc.text(value, margin + 110, y);
-    y += 15;
+    y += PDF_LAYOUT.lineHeight;
   }
   y += 10;
 
@@ -147,8 +127,8 @@ function renderProjectPage(
       margin: { left: margin, right: margin },
       head: [["Event", "Date", "Time"]],
       body: tableBody,
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
       alternateRowStyles: { fillColor: [245, 245, 245] },
     });
   }
@@ -182,30 +162,29 @@ function renderProjectPage(
   dirY += 34;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text("GnRH Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Cystorelin, Factrel, Fertagyl, Ovacyst", boxX + 14 + doc.getTextWidth("GnRH Products: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.gnrh.products}`, boxX + 14 + doc.getTextWidth("GnRH Products: "), dirY);
   dirY += 15;
   doc.setFont("helvetica", "bolditalic");
   doc.text("Directions:", boxX + 14, dirY);
   doc.setFont("helvetica", "italic");
-  doc.text(" Give 2 cc's intramuscularly in the neck.", boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.gnrh.directions}`, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
   dirY += 24;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text("PGF Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Lutalyse, Prostamate, Synchsure, Estrumate", boxX + 14 + doc.getTextWidth("PGF Products: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.pgf.products}`, boxX + 14 + doc.getTextWidth("PGF Products: "), dirY);
   dirY += 15;
   doc.setFont("helvetica", "bolditalic");
   doc.text("Directions:", boxX + 14, dirY);
   doc.setFont("helvetica", "italic");
-  const pgfDirText = " Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse, Prostamate)";
-  doc.text(pgfDirText, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.pgf.directionsLine1}`, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
   dirY += 13;
-  doc.text("intramuscularly in the neck.", boxX + 14, dirY);
+  doc.text(DEFAULT_PRODUCT_DIRECTIONS.pgf.directionsLine2, boxX + 14, dirY);
 }
 
 export function generateBulkPdf(
@@ -273,7 +252,7 @@ export function generateBulkPdf(
     renderProjectPage(doc, project, eventsByProject[pid] || [], bullsByProject[pid] || []);
   });
 
-  addFooters(doc);
+  addFooterToPdf(doc, "BeefSynch by Chuteside Resources");
 
   const today = format(new Date(), "M_d_yyyy");
   doc.save(`BeefSynch_Export_${projectIds.length}_Projects_${today}.pdf`);

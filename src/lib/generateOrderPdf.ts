@@ -1,6 +1,17 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
+import {
+  addStandardHeader,
+  addFooterToPdf,
+  buildPdfFilename,
+  getStandardHeadStyles,
+  ensurePageSpace,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { sanitizeFilename } from "./pdfUtils";
 
 interface OrderData {
   customer_name: string;
@@ -24,29 +35,15 @@ interface OrderItemData {
 export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y = margin;
 
   // Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.text("BeefSynch", margin, y);
-  y += 18;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text("Semen Order", margin, y);
-  doc.setTextColor(0);
-  y += 6;
-
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
+  y = addStandardHeader(doc, margin, "BeefSynch", "Semen Order");
 
   // Customer Info
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(order.customer_name, margin, y);
   y += 22;
 
@@ -58,13 +55,13 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
 
   if (order.project_name) infoRows.push(["Linked Project", order.project_name]);
 
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   for (const [label, value] of infoRows) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, margin, y);
     doc.setFont("helvetica", "normal");
     doc.text(value, margin + 110, y);
-    y += 15;
+    y += PDF_LAYOUT.lineHeight;
   }
   y += 10;
 
@@ -90,8 +87,8 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
       margin: { left: margin, right: margin },
       head: [["Bull Name", "Company", "Reg #", "Units"]],
       body: tableBody,
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
       alternateRowStyles: { fillColor: [245, 245, 245] },
       didParseCell: (data) => {
         if (data.row.index === tableBody.length - 1 && data.section === "body") {
@@ -106,9 +103,10 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
   let notesY = finalY + 20;
 
   if (order.notes) {
-    if (notesY + 60 > doc.internal.pageSize.getHeight() - 50) {
-      doc.addPage();
-      notesY = 50;
+    notesY = ensurePageSpace(doc, notesY, 60, margin);
+    if (notesY !== finalY + 20) {
+      // We added a page, so reset notesY
+      notesY = margin;
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
@@ -120,22 +118,8 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
     doc.text(lines, margin, notesY);
   }
 
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text(
-      "BeefSynch by Chuteside, LLC",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 30,
-      { align: "center" }
-    );
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC");
 
-  const safeName = order.customer_name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   const safeDate = order.order_date.replace(/-/g, "");
-  doc.save(`BeefSynch_Order_${safeName}_${safeDate}.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_Order", order.customer_name, safeDate));
 }
