@@ -231,7 +231,7 @@ const Auth = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex flex-col items-center justify-center p-4"
       style={{
         background: "linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%)",
         backgroundAttachment: "fixed"
@@ -458,7 +458,7 @@ const Auth = () => {
         }
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-1 text-xs text-white/40">
+      <div className="mt-auto pt-8 pb-4 flex flex-col items-center gap-1 text-xs text-white/40">
         <span>BeefSynch by Chuteside Resources</span>
         <div className="flex gap-1">
           <a href="/privacy" className="hover:text-white/60 transition-colors underline">Privacy Policy</a>
