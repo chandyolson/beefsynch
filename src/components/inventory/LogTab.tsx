@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { Search, ClipboardList, BarChart3, PackageCheck, ChevronRight, ChevronDown } from "lucide-react";
+import { Search, ClipboardList, BarChart3, PackageCheck, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,22 +15,23 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 const PAGE_SIZE = 1000;
 
-const TYPE_META: Record<string, { label: string; badgeClass: string }> = {
-  received:       { label: "Received",        badgeClass: "bg-green-500/20 text-green-300 border-green-500/30" },
-  pack_out:       { label: "Packed Out",       badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-  unpack_return:  { label: "Unpack Return",    badgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/30" },
-  used_in_field:  { label: "Used in Field",    badgeClass: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
-  manual_add:     { label: "Manually Added",   badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-  transfer_in:    { label: "Transfer In",      badgeClass: "bg-green-500/20 text-green-300 border-green-500/30" },
-  transfer_out:   { label: "Transfer Out",     badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-  adjustment:     { label: "Adjustment",       badgeClass: "bg-gray-500/20 text-gray-300 border-gray-500/30" },
+const TYPE_LABELS: Record<string, string> = {
+  received: "Received",
+  pack_out: "Packed Out",
+  unpack_return: "Unpack Return",
+  used_in_field: "Used in Field",
+  manual_add: "Manually Added",
+  transfer_in: "Transfer In",
+  transfer_out: "Transfer Out",
+  adjustment: "Adjustment",
 };
 
-const getTypeLabel = (t: string) => TYPE_META[t]?.label ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-const getTypeBadgeClass = (t: string) => TYPE_META[t]?.badgeClass ?? "";
+const getTypeLabel = (t: string) => TYPE_LABELS[t] ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const getTypeBadgeClass = (t: string) => getBadgeClass('logType', t);
 
 interface TxnRow {
   id: string;
@@ -226,9 +228,15 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       {/* Grouped layout */}
       <div className="rounded-lg border border-border/50 overflow-hidden">
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading transactions…</div>
+          <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading transactions…
+          </div>
         ) : grouped.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">No transactions found</div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No transactions"
+            description="No transaction history to display."
+          />
         ) : (
           <div className="divide-y divide-border/50">
             {grouped.map((dg) => (

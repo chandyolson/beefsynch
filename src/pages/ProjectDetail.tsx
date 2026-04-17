@@ -197,32 +197,42 @@ const ProjectDetail = () => {
     if (!project || !contactDate || !contactBy || !orgId) return;
     setContactSaving(true);
     const dateStr = format(contactDate, "yyyy-MM-dd");
-    // Insert into project_contacts
-    const { error: insertErr } = await supabase
-      .from("project_contacts")
-      .insert({
-        project_id: project.id,
-        organization_id: orgId,
-        contact_date: dateStr,
-        contacted_by: contactBy,
-        notes: contactNotes.trim() || null,
-      });
-    if (insertErr) {
-      toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+    try {
+      // Insert into project_contacts
+      const { error: insertErr } = await supabase
+        .from("project_contacts")
+        .insert({
+          project_id: project.id,
+          organization_id: orgId,
+          contact_date: dateStr,
+          contacted_by: contactBy,
+          notes: contactNotes.trim() || null,
+        });
+      if (insertErr) {
+        toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+        setContactSaving(false);
+        return;
+      }
+      // Also update the projects table for backward compat
+      const { error: updateErr } = await supabase
+        .from("projects")
+        .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
+        .eq("id", project.id);
+      if (updateErr) {
+        toast({ title: "Partial failure", description: "Contact logged but failed to update project. Please refresh.", variant: "destructive" });
+        setContactSaving(false);
+        return;
+      }
+      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+      await fetchContacts();
+      setContactEditing(false);
+      setContactNotes("");
+      toast({ title: "Contact logged" });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to log contact", variant: "destructive" });
+    } finally {
       setContactSaving(false);
-      return;
     }
-    // Also update the projects table for backward compat
-    await supabase
-      .from("projects")
-      .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
-      .eq("id", project.id);
-    setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
-    await fetchContacts();
-    setContactEditing(false);
-    setContactNotes("");
-    toast({ title: "Contact logged" });
-    setContactSaving(false);
   };
 
   const handleDeleteContact = async (contactId: string) => {
@@ -260,23 +270,28 @@ const ProjectDetail = () => {
 
   const load = async () => {
     if (!id) return;
-    const [pRes, eRes, bRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", id).single(),
-      supabase
-        .from("protocol_events")
-        .select("*")
-        .eq("project_id", id)
-        .order("event_date", { ascending: true }),
-      supabase
-        .from("project_bulls")
-        .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
-        .eq("project_id", id),
-    ]);
+    try {
+      const [pRes, eRes, bRes] = await Promise.all([
+        supabase.from("projects").select("*").eq("id", id).single(),
+        supabase
+          .from("protocol_events")
+          .select("*")
+          .eq("project_id", id)
+          .order("event_date", { ascending: true }),
+        supabase
+          .from("project_bulls")
+          .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
+          .eq("project_id", id),
+      ]);
 
-    if (pRes.data) setProject(pRes.data as ProjectRow);
-    if (eRes.data) setEvents(eRes.data as EventRow[]);
-    if (bRes.data) setBulls(bRes.data as BullRow[]);
-    setLoading(false);
+      if (pRes.data) setProject(pRes.data as ProjectRow);
+      if (eRes.data) setEvents(eRes.data as EventRow[]);
+      if (bRes.data) setBulls(bRes.data as BullRow[]);
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to load project details", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch last sync timestamp

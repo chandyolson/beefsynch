@@ -1,11 +1,14 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
-
-function fmt$(v: number | null) {
-  if (v == null) return "$0.00";
-  return `$${v.toFixed(2)}`;
-}
+import { formatDollar } from "./formatUtils";
+import {
+  addFooterToPdf,
+  getStandardHeadStylesDark,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 interface SessionInventoryCell {
   id?: string;
@@ -91,11 +94,11 @@ export function generateBillingSheetPdf(
         p.product_name,
         String(p.doses),
         `${(p.units_billed ?? p.units_calculated ?? 0).toFixed(1)} ${p.unit_label || ""}`,
-        fmt$(p.unit_price),
-        fmt$(p.line_total),
+        formatDollar(p.unit_price),
+        formatDollar(p.line_total),
       ];
     });
-    prodBody.push(["", "", "", "", "", "Subtotal", fmt$(totals.productsTotal)]);
+    prodBody.push(["", "", "", "", "", "Subtotal", formatDollar(totals.productsTotal)]);
 
     autoTable(doc, {
       startY: y,
@@ -103,7 +106,7 @@ export function generateBillingSheetPdf(
       body: prodBody,
       margin: { left: m, right: m },
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
+      headStyles: { ...getStandardHeadStylesDark(), fontSize: PDF_FONTS.sizeTiny },
       columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" } },
       didParseCell: (data) => {
         if (data.row.index === prodBody.length - 1) data.cell.styles.fontStyle = "bold";
@@ -124,9 +127,9 @@ export function generateBillingSheetPdf(
       s.bull_name, s.bull_code || "—",
       String(s.units_packed ?? 0), String(s.units_returned ?? 0),
       String(s.units_blown ?? 0), String(s.units_billable ?? 0),
-      fmt$(s.unit_price), fmt$(s.line_total),
+      formatDollar(s.unit_price), formatDollar(s.line_total),
     ]);
-    semBody.push(["", "", "", "", "", "", "Subtotal", fmt$(totals.semenTotal)]);
+    semBody.push(["", "", "", "", "", "", "Subtotal", formatDollar(totals.semenTotal)]);
 
     autoTable(doc, {
       startY: y,
@@ -134,7 +137,7 @@ export function generateBillingSheetPdf(
       body: semBody,
       margin: { left: m, right: m },
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
+      headStyles: { ...getStandardHeadStylesDark(), fontSize: PDF_FONTS.sizeTiny },
       columnStyles: { 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" } },
       didParseCell: (data) => {
         if (data.row.index === semBody.length - 1) data.cell.styles.fontStyle = "bold";
@@ -151,8 +154,8 @@ export function generateBillingSheetPdf(
     doc.text("Labor", m, y);
     y += 2;
 
-    const labBody = labor.map(l => [l.description, l.labor_dates || "", fmt$(l.amount)]);
-    labBody.push(["", "Subtotal", fmt$(totals.laborTotal)]);
+    const labBody = labor.map(l => [l.description, l.labor_dates || "", formatDollar(l.amount)]);
+    labBody.push(["", "Subtotal", formatDollar(totals.laborTotal)]);
 
     autoTable(doc, {
       startY: y,
@@ -160,7 +163,7 @@ export function generateBillingSheetPdf(
       body: labBody,
       margin: { left: m, right: m },
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
+      headStyles: { ...getStandardHeadStylesDark(), fontSize: PDF_FONTS.sizeTiny },
       columnStyles: { 2: { halign: "right" } },
       didParseCell: (data) => {
         if (data.row.index === labBody.length - 1) data.cell.styles.fontStyle = "bold";
@@ -171,9 +174,9 @@ export function generateBillingSheetPdf(
 
   // Grand total
   if (y > 240) { doc.addPage(); y = 16; }
-  doc.setFontSize(12);
+  doc.setFontSize(PDF_FONTS.sizeBody);
   doc.setFont("helvetica", "bold");
-  doc.text(`GRAND TOTAL: ${fmt$(totals.grandTotal)}`, pw - m, y, { align: "right" });
+  doc.text(`GRAND TOTAL: ${formatDollar(totals.grandTotal)}`, pw - m, y, { align: "right" });
   y += 10;
 
   // Page 2: Field Sessions + Inventory Worksheet
@@ -199,7 +202,7 @@ export function generateBillingSheetPdf(
       body: sessBody,
       margin: { left: m, right: m },
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 37, 36], textColor: 255, fontSize: 7 },
+      headStyles: { ...getStandardHeadStylesDark(), fontSize: PDF_FONTS.sizeTiny },
       columnStyles: { 3: { halign: "right" } },
     });
     y = ((doc as any).lastAutoTable?.finalY ?? y + 12) + 8;
@@ -434,15 +437,7 @@ export function generateBillingSheetPdf(
   }
 
   // Footer on all pages
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(7);
-    doc.setTextColor(140);
-    doc.text("BeefSynch by Chuteside, LLC", pw / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
-    doc.setTextColor(0);
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC", PDF_LAYOUT.footerOffsetMini);
 
   const safeName = project.name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   doc.save(`BeefSynch_Billing_${safeName}_${format(new Date(), "yyyy-MM-dd")}.pdf`);

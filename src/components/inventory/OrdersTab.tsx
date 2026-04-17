@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
+import EmptyState from "@/components/EmptyState";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,21 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-
-// ─── Orders Tab Constants ───
-const fulfillmentColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
-};
-const billingColors: Record<string, string> = {
-  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  paid: "bg-green-500/20 text-green-300 border-green-500/30",
-};
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 const OrdersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
@@ -156,10 +143,17 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell></TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">{orders.length === 0 ? "No semen orders yet." : "No orders match your filters."}</TableCell></TableRow>
+            {filtered.length === 0 && !isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <EmptyState
+                    icon={ShoppingCart}
+                    title={orders.length === 0 ? "No semen orders" : "No results"}
+                    description={orders.length === 0 ? "No orders to display yet." : "No orders match your filters. Try adjusting your filters."}
+                    action={orders.length === 0 ? { label: "Create Order", onClick: () => { setEditOrder(null); setDialogOpen(true); } } : undefined}
+                  />
+                </TableCell>
+              </TableRow>
             ) : (
               filtered.map((order: any) => (
                 <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
@@ -168,8 +162,8 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                   <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                   <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
                   <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>{order.fulfillment_status}</Badge></TableCell>
-                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>{order.billing_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderFulfillment', order.fulfillment_status))}>{order.fulfillment_status}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderBilling', order.billing_status))}>{order.billing_status}</Badge></TableCell>
                 </TableRow>
               ))
             )}

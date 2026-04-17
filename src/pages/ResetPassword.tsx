@@ -18,7 +18,7 @@ import {
 
 const schema = z
   .object({
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -64,8 +64,15 @@ const ResetPassword = () => {
   const [validSession, setValidSession] = useState(false);
 
   useEffect(() => {
+    // Verify that URL hash contains type=recovery
+    const hash = window.location.hash;
+    if (!hash.includes("type=recovery")) {
+      navigate("/auth");
+      return;
+    }
+
     // Supabase sets the session from the recovery link hash automatically
-    supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setValidSession(true);
       }
@@ -75,7 +82,9 @@ const ResetPassword = () => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setValidSession(true);
     });
-  }, []);
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),

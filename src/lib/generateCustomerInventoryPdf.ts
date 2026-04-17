@@ -1,8 +1,13 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  getStandardHeadStylesDark,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 interface TankData {
+  id: string;
   tank_name: string | null;
   tank_number: string;
   model: string | null;
@@ -27,10 +32,12 @@ interface CustomerData {
   email: string | null;
 }
 
+interface InventoryByTankMap extends Map<string, InventoryItem[]> {}
+
 export function generateCustomerInventoryPdf(
   customer: CustomerData,
   tanks: TankData[],
-  inventoryByTank: Map<string, InventoryItem[]>,
+  inventoryByTank: InventoryByTankMap,
   tankIds: string[]
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -38,13 +45,13 @@ export function generateCustomerInventoryPdf(
   let y = 18;
 
   // Header
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.setFont("helvetica", "bold");
   doc.text("BeefSynch — Customer Semen Inventory", pageWidth / 2, y, { align: "center" });
   y += 10;
 
   // Customer info
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.setFont("helvetica", "bold");
   doc.text(customer.name, 14, y);
   y += 5;
@@ -62,7 +69,7 @@ export function generateCustomerInventoryPdf(
   let grandTotal = 0;
 
   for (const tankId of tankIds) {
-    const tank = tanks.find((t: any) => t.id === tankId) as any;
+    const tank = tanks.find((t: TankData) => t.id === tankId);
     if (!tank) continue;
     const items = inventoryByTank.get(tankId) || [];
     const tankTotal = items.reduce((s, i) => s + (i.units || 0), 0);
@@ -76,7 +83,7 @@ export function generateCustomerInventoryPdf(
 
     if (y > 260) { doc.addPage(); y = 18; }
 
-    doc.setFontSize(11);
+    doc.setFontSize(PDF_FONTS.sizeBodySmall);
     doc.setFont("helvetica", "bold");
     doc.text(`${tankLabel}${modelStr}`, 14, y);
     y += 2;
@@ -97,8 +104,8 @@ export function generateCustomerInventoryPdf(
       head: [["Canister", "Sub-can", "Bull", "Bull Code", "Company", "Units"]],
       body: tableBody,
       theme: "grid",
-      headStyles: { fillColor: [41, 41, 41], textColor: 255, fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
+      headStyles: { ...getStandardHeadStylesDark(), fontSize: PDF_FONTS.sizeSmallTiny },
+      bodyStyles: { fontSize: PDF_FONTS.sizeSmallTiny },
       columnStyles: { 5: { halign: "right" } },
       margin: { left: 14, right: 14 },
       didParseCell: (data) => {
@@ -114,7 +121,7 @@ export function generateCustomerInventoryPdf(
 
   // Grand total
   if (y > 270) { doc.addPage(); y = 18; }
-  doc.setFontSize(12);
+  doc.setFontSize(PDF_FONTS.sizeBody);
   doc.setFont("helvetica", "bold");
   doc.text(`Grand Total: ${grandTotal} units`, 14, y);
 

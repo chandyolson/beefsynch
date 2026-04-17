@@ -146,10 +146,18 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
         onFocus={() => sourceTankId && setOpen(true)}
         placeholder={sourceTankId ? "Search inventory…" : "Select source tank first"}
         disabled={!sourceTankId}
+        aria-label="Search semen inventory"
+        aria-expanded={open}
+        role="combobox"
+        aria-autocomplete="list"
         className="h-9 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
       />
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto">
+        <div
+          className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto"
+          role="listbox"
+          aria-label="Inventory search results"
+        >
           {results.map((row) => (
             <button
               key={row.id}

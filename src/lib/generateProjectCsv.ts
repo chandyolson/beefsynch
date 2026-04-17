@@ -1,4 +1,5 @@
 import { format, parseISO, addDays } from "date-fns";
+import { formatTime12, isNoTimeEvent, escapeCSV } from "./formatUtils";
 
 interface ProjectData {
   name: string;
@@ -23,24 +24,6 @@ interface BullData {
   bull_catalog_id: string | null;
   bulls_catalog: { bull_name: string; company: string; registration_number: string } | null;
 }
-
-const isNoTimeEvent = (name: string) => {
-  const exact = ["Return Heat", "Estimated Calving"];
-  const contains = ["CIDR Insert", "GnRH"];
-  return exact.includes(name) || contains.some((k) => name.includes(k));
-};
-
-const formatTime12 = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-};
-
-const esc = (v: string | number) => {
-  const s = String(v);
-  return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
-};
 
 export function generateProjectCsv(
   project: ProjectData,
@@ -92,7 +75,7 @@ export function generateProjectCsv(
       isNoTime || !ev.event_time ? "" : formatTime12(ev.event_time),
     ];
     const prefix = firstRow ? projectFields : blank10;
-    rows.push([...prefix, ...eventFields, "", "", "", ""].map((v) => esc(v)));
+    rows.push([...prefix, ...eventFields, "", "", "", ""].map((v) => escapeCSV(v)));
     firstRow = false;
   }
 
@@ -103,16 +86,16 @@ export function generateProjectCsv(
     const company = b.bulls_catalog ? b.bulls_catalog.company : "";
     const bullFields = [bullName, regNum, company, b.units];
     const prefix = firstRow ? projectFields : blank10;
-    rows.push([...prefix, "", "", "", ...bullFields].map((v) => esc(v)));
+    rows.push([...prefix, "", "", "", ...bullFields].map((v) => escapeCSV(v)));
     firstRow = false;
   }
 
   // If no events and no bulls, just one row with project info
   if (rows.length === 0) {
-    rows.push([...projectFields, "", "", "", "", "", "", ""].map((v) => esc(v)));
+    rows.push([...projectFields, "", "", "", "", "", "", ""].map((v) => escapeCSV(v)));
   }
 
-  const csv = [headers.map(esc).join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const csv = [headers.map(escapeCSV).join(","), ...rows.map((r) => r.join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

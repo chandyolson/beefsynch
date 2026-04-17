@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown, Printer } from "lucide-react";
 import { format } from "date-fns";
 
@@ -8,8 +7,8 @@ import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import BackButton from "@/components/BackButton";
 import StatCard from "@/components/StatCard";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { usePaginatedSupabaseQuery } from "@/hooks/usePaginatedSupabaseQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,27 +48,13 @@ const SemenInventory = () => {
   const [viewMode, setViewMode] = useState<"detail" | "grouped" | "by_tank">("detail");
 
   // Fetch inventory with joins
-  const { data: inventory = [], isLoading } = useQuery({
+  const { data: inventory = [], isLoading } = usePaginatedSupabaseQuery({
     queryKey: ["semen-inventory", orgId],
+    table: "tank_inventory",
+    select: "*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company)",
+    filters: (query) => query.eq("organization_id", orgId!),
+    pageSize: 1000,
     enabled: !!orgId,
-    queryFn: async () => {
-      const PAGE = 1000;
-      const allRows: any[] = [];
-      let from = 0;
-      while (true) {
-        const { data, error } = await supabase
-          .from("tank_inventory")
-          .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company)")
-          .eq("organization_id", orgId!)
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const rows = data ?? [];
-        allRows.push(...rows);
-        if (rows.length < PAGE) break;
-        from += PAGE;
-      }
-      return allRows;
-    },
   });
 
   // Enriched rows
@@ -174,6 +159,8 @@ const SemenInventory = () => {
     const map = new Map<string, { tankName: string; tankNumber: string; tankId: string; rows: typeof filtered; totalUnits: number }>();
 
     for (const row of filtered) {
+      // Skip rows with null tankId
+      if (!row.tankId) continue;
       if (!map.has(row.tankId)) {
         map.set(row.tankId, { tankName: row.tankName, tankNumber: row.tankNumber, tankId: row.tankId, rows: [], totalUnits: 0 });
       }

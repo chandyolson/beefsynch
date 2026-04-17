@@ -194,6 +194,25 @@ const Customers = () => {
 
   const handleSave = async () => {
     if (!formName.trim()) return;
+
+    // Validate email if provided
+    if (formEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formEmail.trim())) {
+        toast({ title: "Invalid email", description: "Please enter a valid email address", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Validate phone if provided
+    if (formPhone.trim()) {
+      const phoneDigits = formPhone.trim().replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        toast({ title: "Invalid phone", description: "Phone number must have at least 10 digits", variant: "destructive" });
+        return;
+      }
+    }
+
     setSaving(true);
     await saveMutation.mutateAsync();
     setSaving(false);
