@@ -1204,6 +1204,35 @@ const CustomerDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Mark Out / Mark In Dialog */}
+      <Dialog open={custMoveOpen} onOpenChange={setCustMoveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{custMoveType === "picked_up" ? "Mark Tank Out" : "Mark Tank In"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              {custMoveTankLabel} — {custMoveType === "picked_up" ? "leaving the shop" : "coming back to the shop"}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={custMoveNotes}
+                onChange={(e) => setCustMoveNotes(e.target.value)}
+                rows={2}
+                placeholder={custMoveType === "picked_up" ? "e.g. Customer picked up for breeding season" : "e.g. Returned after spring breeding"}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCustMoveOpen(false)}>Cancel</Button>
+              <Button onClick={handleMovement} disabled={custMoveSaving}>
+                {custMoveSaving ? "Saving…" : custMoveType === "picked_up" ? "Mark Out" : "Mark In"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <AppFooter />
     </div>
   );
