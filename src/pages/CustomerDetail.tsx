@@ -707,6 +707,13 @@ const CustomerDetail = () => {
                         {tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number}
                       </span>
                       {statusBadge(tank.nitrogen_status || "unknown")}
+                      <Badge variant="outline" className={
+                        tank.location_status === "here"
+                          ? "bg-green-600/20 text-green-400 border-green-600/30"
+                          : "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                      }>
+                        {tank.location_status === "here" ? "in shop" : "out"}
+                      </Badge>
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                       {tank.model && <span>Model: {tank.model}</span>}
@@ -714,7 +721,26 @@ const CustomerDetail = () => {
                       {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {tank.location_status === "here" ? (
+                      <Button variant="outline" size="sm" onClick={async () => {
+                        const { error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", tank.id);
+                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        toast({ title: "Tank marked as out" });
+                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      }} className="gap-1">
+                        <Truck className="h-4 w-4" /> Mark Out
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={async () => {
+                        const { error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", tank.id);
+                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                        toast({ title: "Tank marked as in shop" });
+                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      }} className="gap-1">
+                        <ArrowLeft className="h-4 w-4" /> Mark In
+                      </Button>
+                    )}
                     {tank.nitrogen_status === "dry" ? (
                       <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.nitrogen_status)} className="gap-1">
                         <Droplets className="h-4 w-4" /> Mark Wet
