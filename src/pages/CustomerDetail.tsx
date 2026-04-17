@@ -103,6 +103,14 @@ const CustomerDetail = () => {
   const [semenNotes, setSemenNotes] = useState("");
   const [semenSaving, setSemenSaving] = useState(false);
 
+  // Mark Out / Mark In movement dialog
+  const [custMoveOpen, setCustMoveOpen] = useState(false);
+  const [custMoveTankId, setCustMoveTankId] = useState("");
+  const [custMoveTankLabel, setCustMoveTankLabel] = useState("");
+  const [custMoveType, setCustMoveType] = useState<"picked_up" | "returned">("picked_up");
+  const [custMoveNotes, setCustMoveNotes] = useState("");
+  const [custMoveSaving, setCustMoveSaving] = useState(false);
+
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
 
@@ -515,6 +523,43 @@ const CustomerDetail = () => {
     queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
   };
 
+  const handleMovement = async () => {
+    if (!custMoveTankId || !orgId) return;
+    setCustMoveSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const locationAfter = custMoveType === "picked_up" ? "out" : "here";
+
+    const { error: moveErr } = await supabase.from("tank_movements").insert({
+      organization_id: orgId,
+      tank_id: custMoveTankId,
+      movement_type: custMoveType,
+      movement_date: format(new Date(), "yyyy-MM-dd"),
+      location_status_after: locationAfter,
+      customer_id: id,
+      performed_by: user?.id || null,
+      notes: custMoveNotes.trim() || null,
+    } as any);
+
+    if (moveErr) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
+      return;
+    }
+
+    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", custMoveTankId).select();
+    if (error || !data || data.length === 0) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Movement recorded but tank status update failed.", variant: "destructive" });
+      return;
+    }
+
+    setCustMoveSaving(false);
+    toast({ title: locationAfter === "out" ? "Tank marked as out" : "Tank marked as in" });
+    queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+    setCustMoveOpen(false);
+    setCustMoveNotes("");
+  };
+
   const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
     if (!orgId) return;
     const { data: { user } } = await supabase.auth.getUser();
@@ -728,22 +773,22 @@ const CustomerDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {tank.location_status === "here" ? (
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { data, error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", tank.id).select();
-                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                        toast({ title: "Tank marked as out" });
-                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("picked_up");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
                       }} className="gap-1">
                         <Truck className="h-4 w-4" /> Mark Out
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const { data, error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", tank.id).select();
-                        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                        if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                        toast({ title: "Tank marked as in shop" });
-                        queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("returned");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
                       }} className="gap-1">
                         <ArrowLeft className="h-4 w-4" /> Mark In
                       </Button>
@@ -1153,6 +1198,35 @@ const CustomerDetail = () => {
               <Button variant="outline" onClick={() => setSemenDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleAddSemen} disabled={semenSaving || !semenCanister.trim()}>
                 {semenSaving ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Out / Mark In Dialog */}
+      <Dialog open={custMoveOpen} onOpenChange={setCustMoveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{custMoveType === "picked_up" ? "Mark Tank Out" : "Mark Tank In"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              {custMoveTankLabel} — {custMoveType === "picked_up" ? "leaving the shop" : "coming back to the shop"}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={custMoveNotes}
+                onChange={(e) => setCustMoveNotes(e.target.value)}
+                rows={2}
+                placeholder={custMoveType === "picked_up" ? "e.g. Customer picked up for breeding season" : "e.g. Returned after spring breeding"}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCustMoveOpen(false)}>Cancel</Button>
+              <Button onClick={handleMovement} disabled={custMoveSaving}>
+                {custMoveSaving ? "Saving…" : custMoveType === "picked_up" ? "Mark Out" : "Mark In"}
               </Button>
             </div>
           </div>

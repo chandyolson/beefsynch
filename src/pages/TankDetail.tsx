@@ -642,29 +642,28 @@ const TankDetail = () => {
               </>
             )}
             {tank.location_status === "here" ? (
-              <Button variant="outline" size="sm" onClick={async () => {
-                const { data, error } = await supabase.from("tanks").update({ location_status: "out" } as any).eq("id", id).select();
-                if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                toast({ title: "Tank marked as out" });
-                queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
-                queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
+              <Button variant="outline" size="sm" onClick={() => {
+                setMoveDate(new Date());
+                setMoveNotes("");
+                setMoveType("picked_up");
+                setMoveCustomerId(tank.customer_id || "none");
+                setMoveProjectId("none");
+                setMoveOpen(true);
               }} className="gap-1.5">
                 <Truck className="h-4 w-4" /> Mark Out
               </Button>
             ) : (
-              <Button size="sm" onClick={async () => {
-                const { data, error } = await supabase.from("tanks").update({ location_status: "here" } as any).eq("id", id).select();
-                if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-                if (!data || data.length === 0) { toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" }); return; }
-                toast({ title: "Tank marked as in shop" });
-                queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
-                queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
+              <Button size="sm" onClick={() => {
+                setMoveDate(new Date());
+                setMoveNotes("");
+                setMoveType("returned");
+                setMoveCustomerId(tank.customer_id || "none");
+                setMoveProjectId("none");
+                setMoveOpen(true);
               }} className="gap-1.5">
                 <ArrowLeft className="h-4 w-4" /> Mark In
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
             <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
           </div>
         </div>
@@ -973,7 +972,7 @@ const TankDetail = () => {
       {/* ───── Record Movement Dialog ───── */}
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Record Movement</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{moveType === "picked_up" || moveType === "shipped_out" ? "Mark Tank Out" : "Mark Tank In"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Movement Type</Label>
