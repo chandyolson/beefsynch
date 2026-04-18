@@ -1464,6 +1464,7 @@ const ProjectBilling = () => {
                     <div>
                       <label className="text-[10px] text-muted-foreground">Total</label>
                       <p className="text-sm font-medium mt-1">{formatCurrency(line.line_total)}</p>
+                    </div>
                   </div>
                   <label className="flex items-center gap-2 text-xs">
                     <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
