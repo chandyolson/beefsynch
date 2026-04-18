@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Package, Truck, PackagePlus, ShoppingCart,
-  Layers, ScrollText, List, Users,
+  Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
 
+import HubTab from "@/components/operations/HubTab";
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
