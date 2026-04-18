@@ -198,7 +198,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
                     <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1 bg-muted text-muted-foreground">Custom</Badge>
                   )}
                 </span>
-                <span className="text-xs text-muted-foreground">{bull.company}</span>
+                <span className="text-xs text-muted-foreground">{bull.company || "Custom"}</span>
               </button>
             ))}
             {query.trim().length > 0 && (

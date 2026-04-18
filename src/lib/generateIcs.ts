@@ -126,7 +126,7 @@ export function buildProjectIcsEvents(
     : "—";
 
   const bullLines = bulls.length > 0
-    ? "Bulls: " + bulls.map((b) => `${b.bull_name} ${b.registration_number} (${b.units} units)`).join(", ")
+    ? "Bulls: " + bulls.map((b) => `${b.bull_name}${b.registration_number ? " " + b.registration_number : ""} (${b.units} units)`).join(", ")
     : "";
 
   const descParts = [

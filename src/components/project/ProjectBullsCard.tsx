@@ -71,12 +71,12 @@ export default function ProjectBullsCard({
                   <TableCell className="font-medium">
                     {b.bulls_catalog
                       ? (() => {
-                          const isSelectSires = b.bulls_catalog!.company
+                          const isSelectSires = (b.bulls_catalog?.company || "")
                             .toLowerCase()
                             .includes("select sires");
-                          const bullDisplay = `${b.bulls_catalog!.bull_name} (${b.bulls_catalog!.company})`;
+                          const bullDisplay = `${b.bulls_catalog!.bull_name} (${b.bulls_catalog?.company || "Custom"})`;
                           if (isSelectSires) {
-                            const breedSlug = b.bulls_catalog!.breed
+                            const breedSlug = (b.bulls_catalog?.breed || "")
                               .toLowerCase()
                               .replace(/\s+/g, "-");
                             const nameSlug = b.bulls_catalog!.bull_name

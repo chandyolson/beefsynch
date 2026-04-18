@@ -115,9 +115,9 @@ export function useBullReport(
         const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
         const key = getBullKey(row.bull_catalog_id, row.bulls_catalog, row.custom_bull_name);
         const bullName = isCatalog ? row.bulls_catalog!.bull_name : row.custom_bull_name ?? "Unknown";
-        const co = isCatalog ? row.bulls_catalog!.company : "";
-        const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
-        const br = isCatalog ? row.bulls_catalog!.breed : "";
+        const co = isCatalog ? (row.bulls_catalog!.company || "") : "";
+        const regNum = isCatalog ? (row.bulls_catalog!.registration_number || "") : "";
+        const br = isCatalog ? (row.bulls_catalog!.breed || "") : "";
 
         if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
         if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
@@ -148,9 +148,9 @@ export function useBullReport(
         const isCatalog = !!row.bull_catalog_id && !!row.bulls_catalog;
         const key = getBullKey(row.bull_catalog_id, row.bulls_catalog, row.custom_bull_name);
         const bullName = isCatalog ? row.bulls_catalog!.bull_name : row.custom_bull_name ?? "Unknown";
-        const co = isCatalog ? row.bulls_catalog!.company : "";
-        const regNum = isCatalog ? row.bulls_catalog!.registration_number : "";
-        const br = isCatalog ? row.bulls_catalog!.breed : "";
+        const co = isCatalog ? (row.bulls_catalog!.company || "") : "";
+        const regNum = isCatalog ? (row.bulls_catalog!.registration_number || "") : "";
+        const br = isCatalog ? (row.bulls_catalog!.breed || "") : "";
 
         if (appliedCompany !== "All Companies" && co !== appliedCompany) continue;
         if (appliedBreed !== "All Breeds" && br !== appliedBreed) continue;
