@@ -49,7 +49,7 @@ import {
 } from "lucide-react";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { generateBullReportPdf, BullReportRow } from "@/lib/generateBullReportPdf";
-import ClickableRegNumber from "@/components/ClickableRegNumber";
+
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 
 const PROTOCOLS = [
