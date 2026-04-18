@@ -19,6 +19,7 @@ import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { useOrgRole } from "@/hooks/useOrgRole";
 
 const TABS = [
+  { key: "hub", label: "Hub", icon: LayoutDashboard },
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
