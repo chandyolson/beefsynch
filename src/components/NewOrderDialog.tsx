@@ -121,6 +121,25 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setPlacedBy(editData.placed_by ?? "");
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      // Fetch existing supply lines for edit
+      if (editData.id) {
+        (supabase as any)
+          .from("order_supply_items")
+          .select("*")
+          .eq("semen_order_id", editData.id)
+          .then(({ data }: { data: any }) => {
+            setSupplyLines((data ?? []).map((d: any) => ({
+              productId: d.billing_product_id || "",
+              productName: d.product_name,
+              quantity: d.quantity,
+              unitPrice: d.unit_price || 0,
+              unitLabel: d.unit_label || "",
+              lineTotal: d.line_total || 0,
+            })));
+          });
+      } else {
+        setSupplyLines([]);
+      }
     } else {
       setCustomerId(null);
       setOrderDate(new Date());
@@ -132,6 +151,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setPlacedBy("");
       setOrderType("customer");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      setSupplyLines([]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
