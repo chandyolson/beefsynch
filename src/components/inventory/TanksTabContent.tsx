@@ -659,6 +659,8 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
   const [selectedTankId, setSelectedTankId] = useState<string>("");
   const [tankComboboxOpen, setTankComboboxOpen] = useState(false);
   const [fillDate, setFillDate] = useState<Date>(new Date());
+  const [fillType, setFillType] = useState("Monthly Fill");
+  const [fillNotes, setFillNotes] = useState("");
   const [fillSaving, setFillSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -707,10 +709,10 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
   const handleRecordFill = async () => {
     if (!selectedTankId || !orgId) return;
     setFillSaving(true);
-    const { error } = await supabase.from("tank_fills").insert({ organization_id: orgId, tank_id: selectedTankId, fill_date: format(fillDate, "yyyy-MM-dd"), filled_by: userId } as any);
+    const { error } = await supabase.from("tank_fills").insert({ organization_id: orgId, tank_id: selectedTankId, fill_date: format(fillDate, "yyyy-MM-dd"), filled_by: userId, fill_type: fillType, notes: fillNotes.trim() || null } as any);
     setFillSaving(false);
     if (error) { toast({ title: "Error", description: "Could not record fill.", variant: "destructive" }); }
-    else { const tank = tanks.find((t: any) => t.id === selectedTankId); toast({ title: "Fill recorded", description: tank ? `${tank.tank_number} ${tank.tank_name || ""}` : "" }); queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] }); setSelectedTankId(""); }
+    else { const tank = tanks.find((t: any) => t.id === selectedTankId); toast({ title: "Fill recorded", description: tank ? `${tank.tank_number} ${tank.tank_name || ""}` : "" }); queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] }); setSelectedTankId(""); setFillNotes(""); }
   };
 
   const handleFileChange = (file: File | undefined) => {
@@ -795,6 +797,22 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={fillDate} onSelect={(d) => d && setFillDate(d)} initialFocus className="p-3 pointer-events-auto" /></PopoverContent>
             </Popover>
+          </div>
+          <div className="space-y-1.5 min-w-[160px]">
+            <Label>Fill Type</Label>
+            <Select value={fillType} onValueChange={setFillType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Monthly Fill">Monthly Fill</SelectItem>
+                <SelectItem value="Full Fill">Full Fill</SelectItem>
+                <SelectItem value="Topped Off">Topped Off</SelectItem>
+                <SelectItem value="Route Fill">Route Fill</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 min-w-[160px] flex-1 max-w-xs">
+            <Label>Notes</Label>
+            <Input value={fillNotes} onChange={(e) => setFillNotes(e.target.value)} placeholder="Optional notes…" />
           </div>
           <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2"><Droplets className="h-4 w-4" /> {fillSaving ? "Saving…" : "Record Fill"}</Button>
         </div>
