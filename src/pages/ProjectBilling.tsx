@@ -1160,6 +1160,7 @@ const ProjectBilling = () => {
     ...laborLines.map(l => l.invoiced),
   ].every(Boolean);
   const isProjectComplete = project?.status === "Complete";
+  const readOnly = isProjectComplete;
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
@@ -1201,6 +1202,42 @@ const ProjectBilling = () => {
       toast({ title: "Error", description: err?.message || "Could not finalize inventory.", variant: "destructive" });
     } finally {
       setFinalizing(false);
+    }
+  }
+
+  /* ── Complete Project ── */
+  const [completing, setCompleting] = useState(false);
+
+  async function handleCompleteProject() {
+    if (!projectId || !billingId) return;
+    setCompleting(true);
+    try {
+      const { error: projErr } = await supabase
+        .from("projects")
+        .update({ status: "Complete" })
+        .eq("id", projectId);
+      if (projErr) throw projErr;
+
+      const userId = (await supabase.auth.getUser()).data.user?.id || null;
+      const { error: billErr } = await (supabase
+        .from("project_billing") as any)
+        .update({
+          billing_completed_at: new Date().toISOString(),
+          billing_completed_by: userId,
+        })
+        .eq("id", billingId);
+      if (billErr) throw billErr;
+
+      toast({ title: "Project completed" });
+      setProject((prev: any) => ({ ...prev, status: "Complete" }));
+      setBillingRecord((prev: any) => ({
+        ...prev,
+        billing_completed_at: new Date().toISOString(),
+      }));
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not complete project.", variant: "destructive" });
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -1262,6 +1299,7 @@ const ProjectBilling = () => {
             <Select
               value={billingRecord?.status || "draft"}
               onValueChange={(v) => saveBillingField("status", v)}
+              disabled={readOnly}
             >
               <SelectTrigger className="w-[120px] h-9">
                 <SelectValue />
@@ -1272,18 +1310,20 @@ const ProjectBilling = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs"
-              onClick={() => {
-                if (confirm("Reset this billing sheet? All entered values will be cleared. This cannot be undone.")) {
-                  handleResetSheet();
-                }
-              }}
-            >
-              Reset Sheet
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  if (confirm("Reset this billing sheet? All entered values will be cleared. This cannot be undone.")) {
+                    handleResetSheet();
+                  }
+                }}
+              >
+                Reset Sheet
+              </Button>
+            )}
             {billingRecord?.inventory_finalized_at ? (
               <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
                 <Check className="h-4 w-4" />
@@ -1370,6 +1410,7 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.catl_invoice_number || ""}
+              disabled={readOnly}
               onBlur={(e) => saveBillingField("catl_invoice_number", e.target.value || null)}
             />
           </div>
@@ -1378,6 +1419,7 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.select_sires_invoice_number || ""}
+              disabled={readOnly}
               onBlur={(e) => saveBillingField("select_sires_invoice_number", e.target.value || null)}
             />
           </div>
@@ -1386,12 +1428,14 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.zoho_project_id || ""}
+              disabled={readOnly}
               placeholder="Zoho project ID"
               onBlur={(e) => saveBillingField("zoho_project_id", e.target.value || null)}
             />
           </div>
         </div>
 
+        <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
         {/* ── Products Section ── */}
         <Card>
           <CardHeader className="pb-3">
@@ -1480,7 +1524,7 @@ const ProjectBilling = () => {
                           {formatCurrency(line.line_total)}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                          <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} /></fieldset>
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
@@ -1531,7 +1575,7 @@ const ProjectBilling = () => {
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-xs">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} /></fieldset>
                     <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
                   </label>
                 </div>
@@ -1604,7 +1648,7 @@ const ProjectBilling = () => {
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
                       <TableCell className="text-center">
-                        <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                        <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} /></fieldset>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1649,7 +1693,7 @@ const ProjectBilling = () => {
                     <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
                   </div>
                   <label className="flex items-center gap-2 text-xs">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} /></fieldset>
                     <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
                   </label>
                 </div>
@@ -1716,7 +1760,7 @@ const ProjectBilling = () => {
                             onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} />
+                          <fieldset disabled={false} className="contents"><Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} /></fieldset>
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
@@ -2093,7 +2137,7 @@ const ProjectBilling = () => {
                     value={line.amount ?? ""}
                     onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
                   <div className="flex items-center justify-center w-9">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} /></fieldset>
                   </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
                     <Trash2 className="h-4 w-4" />
@@ -2143,6 +2187,8 @@ const ProjectBilling = () => {
           </DialogContent>
         </Dialog>
 
+        </fieldset>
+
         {/* ── Grand Total ── */}
         <Card className="border-2 border-primary/30">
           <CardContent className="py-4 space-y-3">
@@ -2188,11 +2234,66 @@ const ProjectBilling = () => {
             <Textarea
               className="min-h-[80px]"
               defaultValue={billingRecord?.notes || ""}
+              disabled={readOnly}
               placeholder="General billing notes..."
               onBlur={(e) => saveBillingField("notes", e.target.value || null)}
             />
           </CardContent>
         </Card>
+
+        {/* ── Complete Project ── */}
+        {!isProjectComplete && (
+          <Card className="border-dashed">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="font-medium text-sm">Complete Project</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {!inventoryFinalized
+                      ? "Finalize inventory before completing."
+                      : !isUnpacked
+                      ? "Unpack the field tank before completing."
+                      : "Mark this project as complete. The billing page will become read-only."}
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      disabled={completing || !inventoryFinalized || !isUnpacked}
+                      className="gap-1.5"
+                    >
+                      {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {completing ? "Completing…" : "Complete Project"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Complete this project?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will mark {project?.name} as Complete. The billing page will become
+                        read-only (invoiced checkboxes will stay toggleable). This can be undone by
+                        changing the project status back from the project detail page.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleCompleteProject}>
+                        Complete Project
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isProjectComplete && (
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-500 justify-center py-2">
+            <Check className="h-4 w-4" />
+            <span>Project completed {billingRecord?.billing_completed_at ? format(parseISO(billingRecord.billing_completed_at), "MMM d, yyyy") : ""}</span>
+          </div>
+        )}
       </main>
       {/* Fixed-position save confirmation — visible from anywhere on the page */}
       {saved && (
