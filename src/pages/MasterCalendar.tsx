@@ -24,6 +24,12 @@ import {
 } from "date-fns";
 import Navbar from "@/components/Navbar";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   generateIcsFile,
   buildProjectIcsEvents,
   downloadIcsFile,
