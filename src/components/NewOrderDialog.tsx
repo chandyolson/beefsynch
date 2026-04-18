@@ -97,6 +97,14 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       .eq("organization_id", orgId)
       .order("name")
       .then(({ data }) => setCompanies(data ?? []));
+    (supabase as any)
+      .from("billing_products")
+      .select("id, product_name, product_category, default_price, unit_label")
+      .eq("organization_id", orgId)
+      .eq("active", true)
+      .in("product_category", ["breeding_supply", "sheath", "glove", "gun_warmer", "ai_gun", "heat_detection", "nutritional", "patch"])
+      .order("sort_order")
+      .then(({ data }: { data: any }) => setSupplyProducts(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
