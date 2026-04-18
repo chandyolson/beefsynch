@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Package, Truck, PackagePlus, ShoppingCart,
-  Layers, ScrollText, List, Users,
+  Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
 
+import HubTab from "@/components/operations/HubTab";
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
@@ -18,6 +19,7 @@ import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { useOrgRole } from "@/hooks/useOrgRole";
 
 const TABS = [
+  { key: "hub", label: "Hub", icon: LayoutDashboard },
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
@@ -34,7 +36,7 @@ const OperationsDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const activeTab = (searchParams.get("tab") as TabKey) || "projects";
+  const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
@@ -69,6 +71,9 @@ const OperationsDashboard = () => {
 
         {/* Tab content */}
         <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+          {activeTab === "hub" && orgId && (
+            <HubTab orgId={orgId} onSwitchTab={(tab, extra) => setTab(tab as TabKey, extra)} />
+          )}
           {activeTab === "projects" && orgId && (
             <ProjectsTab orgId={orgId} />
           )}
