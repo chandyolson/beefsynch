@@ -125,8 +125,8 @@ const BullList = () => {
   });
 
   const breeds = useMemo(() => {
-    const set = new Set(bulls.map((b) => b.breed));
-    return [...set].sort();
+    const set = new Set(bulls.map((b) => b.breed).filter(Boolean));
+    return [...set].sort() as string[];
   }, [bulls]);
 
   const filtered = useMemo(() => {
