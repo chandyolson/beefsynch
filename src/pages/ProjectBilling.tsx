@@ -69,6 +69,9 @@ interface ProductLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+}
+
+interface SessionLine {
   id?: string;
   billing_id: string;
   session_date: string;
@@ -80,6 +83,9 @@ interface ProductLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+}
+
+interface SessionInventoryLine {
   id?: string;
   billing_id: string;
   session_id: string;
@@ -118,6 +124,9 @@ interface SemenLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+}
+
+interface LaborLine {
   id?: string;
   billing_id: string;
   description: string;
