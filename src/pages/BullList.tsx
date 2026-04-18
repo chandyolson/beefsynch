@@ -52,9 +52,9 @@ type SortDir = "asc" | "desc";
 interface CatalogBull {
   id: string;
   bull_name: string;
-  registration_number: string;
-  breed: string;
-  company: string;
+  registration_number: string | null;
+  breed: string | null;
+  company: string | null;
   naab_code: string | null;
   active: boolean;
   is_custom?: boolean;
