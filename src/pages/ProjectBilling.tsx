@@ -33,6 +33,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 
 /* ────────────────── types ────────────────── */
