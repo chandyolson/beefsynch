@@ -179,7 +179,8 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                     <TableBody>
                       {filteredConfirmed.map((row: any) => {
                         const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const orderName = (row.semen_orders as any)?.customers?.name;
+                        const so = (row.semen_orders as any);
+                        const orderName = so?.customers?.name || (so?.order_type === "inventory" ? (so?.placed_by ? `Inventory — ${so.placed_by}` : "Inventory Order") : null);
                         return (
                           <TableRow
                             key={row.id}
@@ -233,7 +234,8 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                     <TableBody>
                       {filteredDrafts.map((row: any) => {
                         const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const orderName = (row.semen_orders as any)?.customers?.name;
+                        const so = (row.semen_orders as any);
+                        const orderName = so?.customers?.name || (so?.order_type === "inventory" ? (so?.placed_by ? `Inventory — ${so.placed_by}` : "Inventory Order") : null);
                         const lastEdited = row.updated_at || row.created_at;
                         return (
                           <TableRow
