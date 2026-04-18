@@ -91,6 +91,7 @@ const MasterCalendar = () => {
   const [projectMap, setProjectMap] = useState<Map<string, ProjectMeta>>(new Map());
   const [bullMap, setBullMap] = useState<Map<string, { bull_name: string; registration_number: string; units: number }[]>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
