@@ -97,7 +97,7 @@ interface BulkRow {
 /* ═══════════════════════════════════════════════════
    TAB 1 — CUSTOMERS
    ═══════════════════════════════════════════════════ */
-const CustomersTab = ({ orgId }: { orgId: string }) => {
+export const CustomersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -1074,13 +1074,12 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
 /* ═══════════════════════════════════════════════════
    MAIN WRAPPER
    ═══════════════════════════════════════════════════ */
-type SubTabKey = "customers" | "tanks" | "fills" | "out";
+type SubTabKey = "tanks" | "fills" | "out";
 
 const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: string | null; userId: string | null }) => {
-  const [subTab, setSubTab] = useState<SubTabKey>("customers");
+  const [subTab, setSubTab] = useState<SubTabKey>("tanks");
 
   const subTabs: { key: SubTabKey; label: string }[] = [
-    { key: "customers", label: "Customers" },
     { key: "tanks", label: "Tanks" },
     { key: "fills", label: "Fills" },
     { key: "out", label: "Out" },
@@ -1105,7 +1104,7 @@ const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: s
         ))}
       </div>
 
-      {subTab === "customers" && <CustomersTab orgId={orgId} />}
+      
       {subTab === "tanks" && <TanksTab orgId={orgId} orgName={orgName} />}
       {subTab === "fills" && <FillsTab orgId={orgId} userId={userId} />}
       {subTab === "out" && <TanksOutTab orgId={orgId} userId={userId} />}
