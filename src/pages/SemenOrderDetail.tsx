@@ -237,7 +237,8 @@ const SemenOrderDetail = () => {
         project_name: project?.name || null,
       },
       items,
-      reconData
+      reconData,
+      supplyItems,
     );
     toast({ title: "PDF downloaded" });
   };
