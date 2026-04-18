@@ -81,6 +81,7 @@ const SemenOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
+  const [packData, setPackData] = useState<any[]>([]);
 
   const load = async () => {
     if (!id) return;
