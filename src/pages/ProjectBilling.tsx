@@ -67,6 +67,8 @@ interface ProductLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
+  invoiced: boolean;
+  invoiced_at: string | null;
 }
 
 interface SessionLine {
@@ -79,9 +81,9 @@ interface SessionLine {
   crew: string | null;
   notes: string | null;
   sort_order: number | null;
+  invoiced: boolean;
+  invoiced_at: string | null;
 }
-
-interface SessionInventoryLine {
   id?: string;
   billing_id: string;
   session_id: string;
@@ -118,6 +120,8 @@ interface SemenLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
+  invoiced: boolean;
+  invoiced_at: string | null;
 }
 
 interface LaborLine {
@@ -127,6 +131,8 @@ interface LaborLine {
   labor_dates: string | null;
   amount: number | null;
   sort_order: number | null;
+  invoiced: boolean;
+  invoiced_at: string | null;
 }
 
 /* ────────────────── helpers ────────────────── */
@@ -1083,11 +1089,46 @@ const ProjectBilling = () => {
     showSaved();
   }
 
+  /* ── invoiced toggle helpers ── */
+  function toggleProductInvoiced(idx: number) {
+    const nowInvoiced = !productLines[idx].invoiced;
+    saveProductLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleSemenInvoiced(idx: number) {
+    const nowInvoiced = !semenLines[idx].invoiced;
+    saveSemenLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleSessionInvoiced(idx: number) {
+    const nowInvoiced = !sessions[idx].invoiced;
+    saveSessionLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleLaborInvoiced(idx: number) {
+    const nowInvoiced = !laborLines[idx].invoiced;
+    saveLaborLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+
   /* ── totals ── */
   const productsTotal = productLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+  const productsInvoiced = productLines.filter(l => l.invoiced).reduce((s, l) => s + (l.line_total ?? 0), 0);
   const semenTotal = semenLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+  const semenInvoiced = semenLines.filter(l => l.invoiced).reduce((s, l) => s + (l.line_total ?? 0), 0);
   const laborTotal = laborLines.reduce((s, l) => s + (l.amount ?? 0), 0);
+  const laborInvoiced = laborLines.filter(l => l.invoiced).reduce((s, l) => s + (l.amount ?? 0), 0);
   const grandTotal = productsTotal + semenTotal + laborTotal;
+  const grandInvoiced = productsInvoiced + semenInvoiced + laborInvoiced;
+  const grandOutstanding = grandTotal - grandInvoiced;
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
