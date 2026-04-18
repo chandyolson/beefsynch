@@ -67,11 +67,8 @@ interface ProductLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
-  invoiced: boolean;
-  invoiced_at: string | null;
-}
-
-interface SessionLine {
+  invoiced?: boolean;
+  invoiced_at?: string | null;
   id?: string;
   billing_id: string;
   session_date: string;
@@ -81,11 +78,8 @@ interface SessionLine {
   crew: string | null;
   notes: string | null;
   sort_order: number | null;
-  invoiced: boolean;
-  invoiced_at: string | null;
-}
-
-interface SessionInventoryLine {
+  invoiced?: boolean;
+  invoiced_at?: string | null;
   id?: string;
   billing_id: string;
   session_id: string;
@@ -122,19 +116,16 @@ interface SemenLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
-  invoiced: boolean;
-  invoiced_at: string | null;
-}
-
-interface LaborLine {
+  invoiced?: boolean;
+  invoiced_at?: string | null;
   id?: string;
   billing_id: string;
   description: string;
   labor_dates: string | null;
   amount: number | null;
   sort_order: number | null;
-  invoiced: boolean;
-  invoiced_at: string | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 /* ────────────────── helpers ────────────────── */
