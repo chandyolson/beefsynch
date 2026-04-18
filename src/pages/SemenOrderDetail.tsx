@@ -133,6 +133,14 @@ const SemenOrderDetail = () => {
       .eq("semen_order_id", id);
     setPackData(packLinks || []);
 
+    // Fetch supply items for this order
+    const { data: supplyData } = await (supabase as any)
+      .from("order_supply_items")
+      .select("*")
+      .eq("semen_order_id", id)
+      .order("created_at");
+    setSupplyItems(supplyData ?? []);
+
     setLoading(false);
   };
 
