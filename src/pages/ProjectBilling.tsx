@@ -1328,6 +1328,41 @@ const ProjectBilling = () => {
           </div>
         </div>
 
+        {/* ── Closeout Checklist ── */}
+        <div className="sticky top-0 z-10">
+          <Card className="border border-border/60 bg-card/95 backdrop-blur-sm shadow-sm">
+            <CardContent className="py-3 px-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium">
+                <span className="text-muted-foreground uppercase tracking-wider mr-2 self-center">Closeout</span>
+                <span className={hasPack ? "text-emerald-600" : "text-muted-foreground"}>
+                  {hasPack ? "☑" : "☐"} Packed
+                </span>
+                <span className={hasSessions ? "text-emerald-600" : "text-muted-foreground"}>
+                  {hasSessions ? "☑" : "☐"} Sessions
+                </span>
+                <span className={isUnpacked ? "text-emerald-600" : "text-muted-foreground"}>
+                  {isUnpacked ? "☑" : "☐"} Unpacked
+                </span>
+                <span className={worksheetDone ? "text-emerald-600" : "text-muted-foreground"}>
+                  {worksheetDone ? "☑" : "☐"} Worksheet
+                </span>
+                <span className={blownEntered ? "text-emerald-600" : "text-muted-foreground"}>
+                  {blownEntered ? "☑" : "☐"} Blown
+                </span>
+                <span className={inventoryFinalized ? "text-emerald-600" : "text-muted-foreground"}>
+                  {inventoryFinalized ? "☑" : "☐"} Finalized
+                </span>
+                <span className={allInvoiced ? "text-emerald-600" : "text-muted-foreground"}>
+                  {allInvoiced ? "☑" : "☐"} Invoiced
+                </span>
+                <span className={isProjectComplete ? "text-emerald-600" : "text-muted-foreground"}>
+                  {isProjectComplete ? "☑" : "☐"} Complete
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* ── Invoice Numbers ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
