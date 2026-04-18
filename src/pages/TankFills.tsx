@@ -355,7 +355,7 @@ const TankFills = () => {
         {/* Section 1 — Quick Fill Entry */}
         <div className="rounded-lg border border-border/50 p-4 bg-muted/10 space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Record Fill</h3>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <div className="space-y-1.5 min-w-[240px] flex-1 max-w-sm">
               <Label>Tank</Label>
               <Select value={selectedTankId} onValueChange={setSelectedTankId}>
@@ -399,7 +399,7 @@ const TankFills = () => {
               <Label>Notes</Label>
               <Input value={fillNotes} onChange={(e) => setFillNotes(e.target.value)} placeholder="Optional notes…" />
             </div>
-            <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2">
+            <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2 mt-6">
               <Droplets className="h-4 w-4" /> {fillSaving ? "Saving…" : "Record Fill"}
             </Button>
           </div>
