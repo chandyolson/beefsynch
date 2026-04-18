@@ -181,6 +181,7 @@ const ProjectBilling = () => {
 
   const [billingId, setBillingId] = useState<string | null>(null);
   const [billingRecord, setBillingRecord] = useState<any>(null);
+  const [projectPacks, setProjectPacks] = useState<any[]>([]);
   const [finalizing, setFinalizing] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
@@ -264,6 +265,13 @@ const ProjectBilling = () => {
         (productsRes.data ?? []) as BillingProduct[],
       );
     }
+
+    // Fetch pack info for this project
+    const { data: packLinks } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id)")
+      .eq("project_id", projectId!);
+    setProjectPacks((packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean));
 
     setLoading(false);
   }, [projectId, orgId]);
