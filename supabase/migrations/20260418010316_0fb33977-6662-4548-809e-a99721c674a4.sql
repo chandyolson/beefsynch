@@ -1,0 +1,4 @@
+ALTER TABLE public.project_billing_products ADD COLUMN IF NOT EXISTS invoiced boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS invoiced_at timestamptz;
+ALTER TABLE public.project_billing_semen ADD COLUMN IF NOT EXISTS invoiced boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS invoiced_at timestamptz;
+ALTER TABLE public.project_billing_sessions ADD COLUMN IF NOT EXISTS invoiced boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS invoiced_at timestamptz;
+ALTER TABLE public.project_billing_labor ADD COLUMN IF NOT EXISTS invoiced boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS invoiced_at timestamptz;

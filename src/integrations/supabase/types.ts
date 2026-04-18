@@ -586,6 +586,8 @@ export type Database = {
           created_at: string | null
           description: string
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           labor_dates: string | null
           sort_order: number | null
         }
@@ -595,6 +597,8 @@ export type Database = {
           created_at?: string | null
           description: string
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           labor_dates?: string | null
           sort_order?: number | null
         }
@@ -604,6 +608,8 @@ export type Database = {
           created_at?: string | null
           description?: string
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           labor_dates?: string | null
           sort_order?: number | null
         }
@@ -626,6 +632,8 @@ export type Database = {
           doses_per_unit: number | null
           event_date: string | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           line_total: number | null
           product_category: string | null
           product_name: string
@@ -645,6 +653,8 @@ export type Database = {
           doses_per_unit?: number | null
           event_date?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
           product_category?: string | null
           product_name: string
@@ -664,6 +674,8 @@ export type Database = {
           doses_per_unit?: number | null
           event_date?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
           product_category?: string | null
           product_name?: string
@@ -700,6 +712,8 @@ export type Database = {
           bull_name: string
           created_at: string | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           line_total: number | null
           sort_order: number | null
           unit_price: number | null
@@ -715,6 +729,8 @@ export type Database = {
           bull_name: string
           created_at?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
           sort_order?: number | null
           unit_price?: number | null
@@ -730,6 +746,8 @@ export type Database = {
           bull_name?: string
           created_at?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
           sort_order?: number | null
           unit_price?: number | null
@@ -826,6 +844,8 @@ export type Database = {
           crew: string | null
           head_count: number | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           notes: string | null
           session_date: string
           session_label: string | null
@@ -838,6 +858,8 @@ export type Database = {
           crew?: string | null
           head_count?: number | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           notes?: string | null
           session_date: string
           session_label?: string | null
@@ -850,6 +872,8 @@ export type Database = {
           crew?: string | null
           head_count?: number | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           notes?: string | null
           session_date?: string
           session_label?: string | null
