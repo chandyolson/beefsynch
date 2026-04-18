@@ -1160,6 +1160,7 @@ const ProjectBilling = () => {
     ...laborLines.map(l => l.invoiced),
   ].every(Boolean);
   const isProjectComplete = project?.status === "Complete";
+  const readOnly = isProjectComplete;
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
@@ -1201,6 +1202,42 @@ const ProjectBilling = () => {
       toast({ title: "Error", description: err?.message || "Could not finalize inventory.", variant: "destructive" });
     } finally {
       setFinalizing(false);
+    }
+  }
+
+  /* ── Complete Project ── */
+  const [completing, setCompleting] = useState(false);
+
+  async function handleCompleteProject() {
+    if (!projectId || !billingId) return;
+    setCompleting(true);
+    try {
+      const { error: projErr } = await supabase
+        .from("projects")
+        .update({ status: "Complete" })
+        .eq("id", projectId);
+      if (projErr) throw projErr;
+
+      const userId = (await supabase.auth.getUser()).data.user?.id || null;
+      const { error: billErr } = await (supabase
+        .from("project_billing") as any)
+        .update({
+          billing_completed_at: new Date().toISOString(),
+          billing_completed_by: userId,
+        })
+        .eq("id", billingId);
+      if (billErr) throw billErr;
+
+      toast({ title: "Project completed" });
+      setProject((prev: any) => ({ ...prev, status: "Complete" }));
+      setBillingRecord((prev: any) => ({
+        ...prev,
+        billing_completed_at: new Date().toISOString(),
+      }));
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not complete project.", variant: "destructive" });
+    } finally {
+      setCompleting(false);
     }
   }
 
