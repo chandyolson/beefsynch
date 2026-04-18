@@ -115,6 +115,23 @@ const SemenOrderDetail = () => {
       }
     }
     if (iRes.data) setItems(iRes.data as ItemRow[]);
+
+    // Fetch linked packs (for customer orders filled from inventory)
+    const { data: packLinks } = await supabase
+      .from("tank_pack_orders")
+      .select(`
+        tank_pack_id,
+        tank_packs(
+          id, status, pack_type, packed_at, field_tank_id,
+          tanks!tank_packs_field_tank_id_fkey(tank_number, tank_name),
+          tank_pack_lines(bull_name, bull_code, units, source_tank_id, source_canister, field_canister,
+            tanks!tank_pack_lines_source_tank_id_fkey(tank_number, tank_name)
+          )
+        )
+      `)
+      .eq("semen_order_id", id);
+    setPackData(packLinks || []);
+
     setLoading(false);
   };
 
