@@ -14,9 +14,9 @@ import ClickableRegNumber from "@/components/ClickableRegNumber";
 interface Bull {
   id: string;
   bull_name: string;
-  company: string;
-  registration_number: string;
-  breed: string;
+  company: string | null;
+  registration_number: string | null;
+  breed: string | null;
   naab_code: string | null;
   active: boolean;
   is_custom?: boolean;
@@ -34,8 +34,8 @@ interface BullDetailDialogProps {
 }
 
 const selectSiresUrl = (bull: Bull): string | null => {
-  if (!bull.company.toLowerCase().includes("select sires")) return null;
-  const breedSlug = bull.breed.toLowerCase().replace(/\s+/g, "-");
+  if (!(bull.company || "").toLowerCase().includes("select sires")) return null;
+  const breedSlug = (bull.breed || "").toLowerCase().replace(/\s+/g, "-");
   const nameSlug = bull.bull_name.toLowerCase().replace(/\s+/g, "-");
   return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
 };
@@ -63,14 +63,14 @@ export default function BullDetailDialog({
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription>{bull.company} · {bull.breed}</DialogDescription>
+          <DialogDescription>{bull.company || "Custom"} · {bull.breed || "—"}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm py-2">
           <span className="text-right text-muted-foreground">Registration</span>
           <span>
             <ClickableRegNumber
-              registrationNumber={bull.registration_number}
-              breed={bull.breed}
+              registrationNumber={bull.registration_number || ""}
+              breed={bull.breed || ""}
             />
           </span>
 
@@ -78,10 +78,10 @@ export default function BullDetailDialog({
           <span>{bull.naab_code || "—"}</span>
 
           <span className="text-right text-muted-foreground">Company</span>
-          <span>{bull.company}</span>
+          <span>{bull.company || "Custom"}</span>
 
           <span className="text-right text-muted-foreground">Breed</span>
-          <span>{bull.breed}</span>
+          <span>{bull.breed || "—"}</span>
 
           <span className="text-right text-muted-foreground">Status</span>
           <span>{bull.active ? "Active" : "Inactive"}</span>

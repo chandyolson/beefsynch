@@ -135,7 +135,7 @@ const MasterCalendar = () => {
               if (!bMap.has(pid)) bMap.set(pid, []);
               bMap.get(pid)!.push({
                 bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
-                registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
+                registration_number: b.bulls_catalog ? (b.bulls_catalog.registration_number || "") : "",
                 units: b.units,
               });
             }
