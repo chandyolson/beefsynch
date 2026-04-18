@@ -33,6 +33,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 
 /* ────────────────── types ────────────────── */
@@ -66,6 +67,8 @@ interface ProductLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 interface SessionLine {
@@ -78,6 +81,8 @@ interface SessionLine {
   crew: string | null;
   notes: string | null;
   sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 interface SessionInventoryLine {
@@ -117,6 +122,8 @@ interface SemenLine {
   unit_price: number | null;
   line_total: number | null;
   sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 interface LaborLine {
@@ -126,6 +133,8 @@ interface LaborLine {
   labor_dates: string | null;
   amount: number | null;
   sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 /* ────────────────── helpers ────────────────── */
@@ -1082,11 +1091,46 @@ const ProjectBilling = () => {
     showSaved();
   }
 
+  /* ── invoiced toggle helpers ── */
+  function toggleProductInvoiced(idx: number) {
+    const nowInvoiced = !productLines[idx].invoiced;
+    saveProductLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleSemenInvoiced(idx: number) {
+    const nowInvoiced = !semenLines[idx].invoiced;
+    saveSemenLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleSessionInvoiced(idx: number) {
+    const nowInvoiced = !sessions[idx].invoiced;
+    saveSessionLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+  function toggleLaborInvoiced(idx: number) {
+    const nowInvoiced = !laborLines[idx].invoiced;
+    saveLaborLine(idx, {
+      invoiced: nowInvoiced,
+      invoiced_at: nowInvoiced ? new Date().toISOString() : null,
+    });
+  }
+
   /* ── totals ── */
   const productsTotal = productLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+  const productsInvoiced = productLines.filter(l => l.invoiced).reduce((s, l) => s + (l.line_total ?? 0), 0);
   const semenTotal = semenLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+  const semenInvoiced = semenLines.filter(l => l.invoiced).reduce((s, l) => s + (l.line_total ?? 0), 0);
   const laborTotal = laborLines.reduce((s, l) => s + (l.amount ?? 0), 0);
+  const laborInvoiced = laborLines.filter(l => l.invoiced).reduce((s, l) => s + (l.amount ?? 0), 0);
   const grandTotal = productsTotal + semenTotal + laborTotal;
+  const grandInvoiced = productsInvoiced + semenInvoiced + laborInvoiced;
+  const grandOutstanding = grandTotal - grandInvoiced;
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
@@ -1302,6 +1346,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[100px] text-right">Units</TableHead>
                     <TableHead className="w-[100px] text-right">Price</TableHead>
                     <TableHead className="w-[100px] text-right">Total</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1370,6 +1415,9 @@ const ProjectBilling = () => {
                         <TableCell className="text-right text-sm font-medium">
                           {formatCurrency(line.line_total)}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                        </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1418,6 +1466,10 @@ const ProjectBilling = () => {
                       <p className="text-sm font-medium mt-1">{formatCurrency(line.line_total)}</p>
                     </div>
                   </div>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                    <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
+                  </label>
                 </div>
               ))}
             </div>
@@ -1449,6 +1501,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[70px] text-right">Billable</TableHead>
                     <TableHead className="w-[80px] text-right">Price</TableHead>
                     <TableHead className="w-[90px] text-right">Total</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1486,6 +1539,9 @@ const ProjectBilling = () => {
                           onChange={(e) => saveSemenLine(idx, { unit_price: Number(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1528,6 +1584,10 @@ const ProjectBilling = () => {
                     <span className="text-xs text-muted-foreground">Total</span>
                     <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
                   </div>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                    <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
+                  </label>
                 </div>
               ))}
             </div>
@@ -1554,6 +1614,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[90px] text-right">Head Count</TableHead>
                     <TableHead className="w-[120px]">Crew</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1589,6 +1650,9 @@ const ProjectBilling = () => {
                         <TableCell>
                           <Input className="h-8 text-xs" value={s.notes || ""}
                             onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} />
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
@@ -1964,6 +2028,9 @@ const ProjectBilling = () => {
                   <Input type="number" step="0.01" className="h-9 w-[100px] text-right text-sm" placeholder="$0.00"
                     value={line.amount ?? ""}
                     onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
+                  <div className="flex items-center justify-center w-9">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} />
+                  </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -2014,7 +2081,7 @@ const ProjectBilling = () => {
 
         {/* ── Grand Total ── */}
         <Card className="border-2 border-primary/30">
-          <CardContent className="py-4">
+          <CardContent className="py-4 space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
                 <p className="text-muted-foreground">Products</p>
@@ -2033,6 +2100,18 @@ const ProjectBilling = () => {
                 <p className="text-xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
               </div>
             </div>
+            {grandInvoiced > 0 && (
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t text-sm">
+                <div>
+                  <p className="text-muted-foreground">Invoiced</p>
+                  <p className="font-semibold text-emerald-600">{formatCurrency(grandInvoiced)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Outstanding</p>
+                  <p className="font-semibold text-amber-600">{formatCurrency(grandOutstanding)}</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
