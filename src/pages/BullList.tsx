@@ -66,8 +66,8 @@ const buildCsv = (bulls: CatalogBull[]): string => {
   const rows = bulls.map((b) => {
     const name = `"${b.bull_name.replace(/"/g, '""')}"`;
     const reg = b.registration_number || "";
-    const breed = `"${b.breed.replace(/"/g, '""')}"`;
-    const company = `"${b.company.replace(/"/g, '""')}"`;
+    const breed = `"${(b.breed || "").replace(/"/g, '""')}"`;
+    const company = `"${(b.company || "").replace(/"/g, '""')}"`;
     const active = b.active ? "Yes" : "No";
     return `${name},${reg},${breed},${company},${active}`;
   });
