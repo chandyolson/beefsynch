@@ -462,8 +462,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   };
 
   const handleRowClick = (tank: any) => {
-    if (tank.customer_id) navigate(`/customers/${tank.customer_id}`);
-    else navigate(`/tanks/${tank.id}`);
+    navigate(`/tanks/${tank.id}`);
   };
 
   const handleExportTanksCsv = () => {
