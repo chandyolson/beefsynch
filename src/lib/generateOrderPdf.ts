@@ -32,7 +32,21 @@ interface OrderItemData {
   } | null;
 }
 
-export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
+interface ReconciliationLine {
+  bull_name: string;
+  bull_code: string | null;
+  units: number;
+  source: string;
+}
+
+interface ReconciliationData {
+  type: "received" | "packed";
+  lines: ReconciliationLine[];
+  totalOrdered: number;
+  totalFulfilled: number;
+}
+
+export function generateOrderPdf(order: OrderData, items: OrderItemData[], reconciliation?: ReconciliationData | null) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = PDF_LAYOUT.margin;
@@ -96,6 +110,49 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
         }
       },
     });
+  }
+
+  // Reconciliation
+  if (reconciliation && reconciliation.lines.length > 0) {
+    let reconY = ((doc as any).lastAutoTable?.finalY ?? y) + 20;
+    reconY = ensurePageSpace(doc, reconY, 80, margin);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(reconciliation.type === "packed" ? "Packed from Inventory" : "Received Shipments", margin, reconY);
+    reconY += 8;
+
+    const reconBody = reconciliation.lines.map((line) => [
+      line.bull_name,
+      line.bull_code || "—",
+      line.source,
+      String(line.units),
+    ]);
+
+    autoTable(doc, {
+      startY: reconY,
+      margin: { left: margin, right: margin },
+      head: [["Bull", "Code", reconciliation.type === "packed" ? "Source Tank" : "Shipment", "Units"]],
+      body: reconBody,
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    let summaryY = ((doc as any).lastAutoTable?.finalY ?? reconY) + 14;
+    summaryY = ensurePageSpace(doc, summaryY, 30, margin);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const outstanding = reconciliation.totalOrdered - reconciliation.totalFulfilled;
+    const summaryText = `Ordered: ${reconciliation.totalOrdered}  |  ${reconciliation.type === "packed" ? "Packed" : "Received"}: ${reconciliation.totalFulfilled}  |  Outstanding: ${outstanding >= 0 ? outstanding : 0}`;
+    doc.text(summaryText, margin, summaryY);
+
+    if (outstanding <= 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(34, 139, 34);
+      doc.text("  ✓ Fully fulfilled", margin + doc.getTextWidth(summaryText) + 5, summaryY);
+      doc.setTextColor(0, 0, 0);
+    }
   }
 
   // Notes

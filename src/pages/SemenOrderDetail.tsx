@@ -185,6 +185,39 @@ const SemenOrderDetail = () => {
 
   const handleExportPdf = () => {
     if (!order) return;
+
+    const totalOrdered = items.reduce((s, i) => s + (i.units || 0), 0);
+
+    let reconData: {
+      type: "packed";
+      lines: { bull_name: string; bull_code: string | null; units: number; source: string }[];
+      totalOrdered: number;
+      totalFulfilled: number;
+    } | null = null;
+
+    if (order.order_type === "customer" && packData && packData.length > 0) {
+      const lines: { bull_name: string; bull_code: string | null; units: number; source: string }[] = [];
+      for (const link of packData) {
+        const pack = link.tank_packs;
+        if (!pack) continue;
+        for (const line of (pack.tank_pack_lines || [])) {
+          const srcTank = line.tanks;
+          lines.push({
+            bull_name: line.bull_name,
+            bull_code: line.bull_code || null,
+            units: line.units,
+            source: srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? " — " + srcTank.tank_name : ""}` : "—",
+          });
+        }
+      }
+      reconData = {
+        type: "packed",
+        lines,
+        totalOrdered,
+        totalFulfilled: lines.reduce((s, l) => s + l.units, 0),
+      };
+    }
+
     generateOrderPdf(
       {
         customer_name: customerName,
@@ -194,7 +227,8 @@ const SemenOrderDetail = () => {
         notes: order.notes,
         project_name: project?.name || null,
       },
-      items
+      items,
+      reconData
     );
     toast({ title: "PDF downloaded" });
   };
