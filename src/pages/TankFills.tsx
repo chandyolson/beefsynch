@@ -355,7 +355,7 @@ const TankFills = () => {
         {/* Section 1 — Quick Fill Entry */}
         <div className="rounded-lg border border-border/50 p-4 bg-muted/10 space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Record Fill</h3>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <div className="space-y-1.5 min-w-[240px] flex-1 max-w-sm">
               <Label>Tank</Label>
               <Select value={selectedTankId} onValueChange={setSelectedTankId}>
