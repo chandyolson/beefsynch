@@ -412,6 +412,77 @@ const SemenOrderDetail = () => {
           </CardContent>
         </Card>
 
+        {/* Packed for this Order (customer orders filled from inventory) */}
+        {order.order_type === "customer" && packData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Packed for this Order</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {packData.map((link: any) => {
+                const pack = link.tank_packs;
+                if (!pack) return null;
+                const fieldTank = pack.tanks;
+                const lines = pack.tank_pack_lines || [];
+                const totalPacked = lines.reduce((s: number, l: any) => s + (l.units || 0), 0);
+                return (
+                  <div key={pack.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {fieldTank ? `${fieldTank.tank_number}${fieldTank.tank_name ? ` — ${fieldTank.tank_name}` : ""}` : "Unknown tank"}
+                        </span>
+                        <Badge variant="outline" className="text-xs capitalize">{pack.status}</Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Packed {pack.packed_at ? format(new Date(pack.packed_at), "MMM d, yyyy") : ""}
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead>Bull</TableHead>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Source Tank</TableHead>
+                            <TableHead className="text-right">Units</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lines.map((line: any, i: number) => {
+                            const srcTank = line.tanks;
+                            return (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{line.bull_name}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
+                                <TableCell className="text-sm">{srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? ` — ${srcTank.tank_name}` : ""}` : "—"}</TableCell>
+                                <TableCell className="text-right">{line.units}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow className="bg-muted/20 font-bold">
+                            <TableCell colSpan={3} className="text-right">Total Packed</TableCell>
+                            <TableCell className="text-right">{totalPacked}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <div className="flex gap-4 text-sm px-1">
+                      <span className="text-muted-foreground">Ordered: <span className="font-medium text-foreground">{totalUnits}</span></span>
+                      <span className="text-muted-foreground">Packed: <span className="font-medium text-foreground">{totalPacked}</span></span>
+                      {totalPacked >= totalUnits ? (
+                        <span className="text-emerald-500 font-medium">✓ Fully filled</span>
+                      ) : (
+                        <span className="text-amber-500 font-medium">{totalUnits - totalPacked} outstanding</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
         {id && <OrderShipmentReconciliation orderId={id} />}
       </div>
 
