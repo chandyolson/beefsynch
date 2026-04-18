@@ -157,7 +157,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             ) : (
               filtered.map((order: any) => (
                 <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
-                  <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || "—"}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || (order.order_type === "inventory" ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order") : "—")}</TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
                   <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>

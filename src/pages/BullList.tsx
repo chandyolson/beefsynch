@@ -52,9 +52,9 @@ type SortDir = "asc" | "desc";
 interface CatalogBull {
   id: string;
   bull_name: string;
-  registration_number: string;
-  breed: string;
-  company: string;
+  registration_number: string | null;
+  breed: string | null;
+  company: string | null;
   naab_code: string | null;
   active: boolean;
   is_custom?: boolean;
@@ -66,8 +66,8 @@ const buildCsv = (bulls: CatalogBull[]): string => {
   const rows = bulls.map((b) => {
     const name = `"${b.bull_name.replace(/"/g, '""')}"`;
     const reg = b.registration_number || "";
-    const breed = `"${b.breed.replace(/"/g, '""')}"`;
-    const company = `"${b.company.replace(/"/g, '""')}"`;
+    const breed = `"${(b.breed || "").replace(/"/g, '""')}"`;
+    const company = `"${(b.company || "").replace(/"/g, '""')}"`;
     const active = b.active ? "Yes" : "No";
     return `${name},${reg},${breed},${company},${active}`;
   });
@@ -125,8 +125,8 @@ const BullList = () => {
   });
 
   const breeds = useMemo(() => {
-    const set = new Set(bulls.map((b) => b.breed));
-    return [...set].sort();
+    const set = new Set(bulls.map((b) => b.breed).filter(Boolean));
+    return [...set].sort() as string[];
   }, [bulls]);
 
   const filtered = useMemo(() => {
@@ -135,8 +135,8 @@ const BullList = () => {
       const matchesSearch =
         !q ||
         b.bull_name.toLowerCase().includes(q) ||
-        b.registration_number.toLowerCase().includes(q) ||
-        b.company.toLowerCase().includes(q) ||
+        (b.registration_number || "").toLowerCase().includes(q) ||
+        (b.company || "").toLowerCase().includes(q) ||
         (b.naab_code && b.naab_code.toLowerCase().includes(q));
       const matchesCompany =
         companyFilter === "all" || b.company === companyFilter;
@@ -222,7 +222,8 @@ const BullList = () => {
   };
 
   const selectSiresUrl = (bull: CatalogBull): string | null => {
-    if (!bull.company.toLowerCase().includes("select sires")) return null;
+    if (!bull.company || !bull.company.toLowerCase().includes("select sires")) return null;
+    if (!bull.breed) return null;
     const breedSlug = bull.breed.toLowerCase().replace(/\s+/g, "-");
     const nameSlug = bull.bull_name.toLowerCase().replace(/\s+/g, "-");
     return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
@@ -355,7 +356,7 @@ const BullList = () => {
     return (
       <div
         key={bull.id}
-        className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 cursor-pointer hover:bg-muted/30 transition-colors ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+        className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 cursor-pointer hover:bg-muted/30 transition-colors ${COMPANY_COLORS[bull.company || ""] ?? "border-l-transparent"}`}
         onClick={() => setDetailBull(bull)}
       >
         <div className="flex items-center justify-between gap-2">
@@ -388,18 +389,18 @@ const BullList = () => {
                 Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
                 Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
                 Universal: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-              } as Record<string, string>)[bull.company] ?? ""
+              } as Record<string, string>)[bull.company || ""] ?? ""
             }`}
           >
-            {bull.company}
+            {bull.company || "Custom"}
           </Badge>
         </div>
         <div className={`flex items-center gap-2 mt-0.5 ${activeTab === "all" ? "pl-10" : "pl-6"}`}>
-          <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+          <ClickableRegNumber registrationNumber={bull.registration_number || ""} breed={bull.breed || ""} />
           {bull.naab_code && (
             <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
           )}
-          <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
+          {bull.breed && <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>}
         </div>
       </div>
     );
@@ -409,7 +410,7 @@ const BullList = () => {
     return (
       <TableRow
         key={bull.id}
-        className={`cursor-pointer hover:bg-muted/20 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
+        className={`cursor-pointer hover:bg-muted/20 border-l-4 ${COMPANY_COLORS[bull.company || ""] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
         onClick={() => setDetailBull(bull)}
       >
         <TableCell className="w-8">
@@ -438,10 +439,10 @@ const BullList = () => {
           )}
         </TableCell>
         <TableCell>
-          <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+          <ClickableRegNumber registrationNumber={bull.registration_number || ""} breed={bull.breed || ""} />
         </TableCell>
         <TableCell className="text-muted-foreground">
-          {bull.breed}
+          {bull.breed || "—"}
         </TableCell>
         <TableCell>
           <Badge
@@ -454,10 +455,10 @@ const BullList = () => {
                 Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
                 Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
                 Universal: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-              } as Record<string, string>)[bull.company] ?? ""
+              } as Record<string, string>)[bull.company || ""] ?? ""
             }`}
           >
-            {bull.company}
+            {bull.company || "Custom"}
           </Badge>
         </TableCell>
       </TableRow>
@@ -756,20 +757,20 @@ const BullList = () => {
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Custom</Badge>
                   )}
                 </DialogTitle>
-                <DialogDescription>{detailBull.company} · {detailBull.breed}</DialogDescription>
+                <DialogDescription>{detailBull.company || "Custom"} · {detailBull.breed || "—"}</DialogDescription>
               </DialogHeader>
               <div className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm py-2">
                 <span className="text-right text-muted-foreground">Registration</span>
-                <span><ClickableRegNumber registrationNumber={detailBull.registration_number} breed={detailBull.breed} /></span>
+                <span><ClickableRegNumber registrationNumber={detailBull.registration_number || ""} breed={detailBull.breed || ""} /></span>
 
                 <span className="text-right text-muted-foreground">NAAB Code</span>
                 <span>{detailBull.naab_code || "—"}</span>
 
                 <span className="text-right text-muted-foreground">Company</span>
-                <span>{detailBull.company}</span>
+                <span>{detailBull.company || "Custom"}</span>
 
                 <span className="text-right text-muted-foreground">Breed</span>
-                <span>{detailBull.breed}</span>
+                <span>{detailBull.breed || "—"}</span>
 
                 <span className="text-right text-muted-foreground">Status</span>
                 <span>{detailBull.active ? "Active" : "Inactive"}</span>
