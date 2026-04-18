@@ -439,10 +439,10 @@ const BullList = () => {
           )}
         </TableCell>
         <TableCell>
-          <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+          <ClickableRegNumber registrationNumber={bull.registration_number || ""} breed={bull.breed || ""} />
         </TableCell>
         <TableCell className="text-muted-foreground">
-          {bull.breed}
+          {bull.breed || "—"}
         </TableCell>
         <TableCell>
           <Badge
@@ -455,10 +455,10 @@ const BullList = () => {
                 Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
                 Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
                 Universal: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-              } as Record<string, string>)[bull.company] ?? ""
+              } as Record<string, string>)[bull.company || ""] ?? ""
             }`}
           >
-            {bull.company}
+            {bull.company || "Custom"}
           </Badge>
         </TableCell>
       </TableRow>
