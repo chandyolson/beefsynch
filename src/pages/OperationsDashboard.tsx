@@ -36,7 +36,7 @@ const OperationsDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const activeTab = (searchParams.get("tab") as TabKey) || "projects";
+  const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
