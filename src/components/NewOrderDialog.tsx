@@ -70,6 +70,10 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
 
+  // Supplies state
+  const [supplyLines, setSupplyLines] = useState<{ productId: string; productName: string; quantity: number | ""; unitPrice: number; unitLabel: string; lineTotal: number }[]>([]);
+  const [supplyProducts, setSupplyProducts] = useState<{ id: string; product_name: string; product_category: string; default_price: number; unit_label: string }[]>([]);
+
   // Semen company state
   const [semenCompanyId, setSemenCompanyId] = useState("none");
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
@@ -93,6 +97,14 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       .eq("organization_id", orgId)
       .order("name")
       .then(({ data }) => setCompanies(data ?? []));
+    (supabase as any)
+      .from("billing_products")
+      .select("id, product_name, product_category, default_price, unit_label")
+      .eq("organization_id", orgId)
+      .eq("active", true)
+      .in("product_category", ["breeding_supply", "sheath", "glove", "gun_warmer", "ai_gun", "heat_detection", "nutritional", "patch"])
+      .order("sort_order")
+      .then(({ data }: { data: any }) => setSupplyProducts(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
@@ -109,6 +121,25 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setPlacedBy(editData.placed_by ?? "");
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      // Fetch existing supply lines for edit
+      if (editData.id) {
+        (supabase as any)
+          .from("order_supply_items")
+          .select("*")
+          .eq("semen_order_id", editData.id)
+          .then(({ data }: { data: any }) => {
+            setSupplyLines((data ?? []).map((d: any) => ({
+              productId: d.billing_product_id || "",
+              productName: d.product_name,
+              quantity: d.quantity,
+              unitPrice: d.unit_price || 0,
+              unitLabel: d.unit_label || "",
+              lineTotal: d.line_total || 0,
+            })));
+          });
+      } else {
+        setSupplyLines([]);
+      }
     } else {
       setCustomerId(null);
       setOrderDate(new Date());
@@ -120,6 +151,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setPlacedBy("");
       setOrderType("customer");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      setSupplyLines([]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
@@ -188,6 +220,32 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         }));
         const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
+      }
+
+      // Supplies — delete existing and re-insert
+      if (isEditing) {
+        const { error: delSupErr } = await (supabase as any)
+          .from("order_supply_items")
+          .delete()
+          .eq("semen_order_id", orderId);
+        if (delSupErr) throw delSupErr;
+      }
+      const validSupplies = supplyLines.filter((s) => s.productName.trim() && s.quantity);
+      if (validSupplies.length > 0) {
+        const supplyRows = validSupplies.map((s) => {
+          const qty = typeof s.quantity === "number" ? s.quantity : parseInt(String(s.quantity)) || 0;
+          return {
+            semen_order_id: orderId,
+            billing_product_id: s.productId || null,
+            product_name: s.productName,
+            quantity: qty,
+            unit_price: s.unitPrice,
+            unit_label: s.unitLabel || null,
+            line_total: qty * s.unitPrice,
+          };
+        });
+        const { error: supplyErr } = await (supabase as any).from("order_supply_items").insert(supplyRows);
+        if (supplyErr) throw supplyErr;
       }
 
       toast({ title: isEditing ? "Order updated" : "Order created" });
@@ -395,6 +453,89 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
               showUnits={true}
               emptyMessage="No bulls added yet. Click 'Add Bull' to add semen."
             />
+          </div>
+
+          {/* Supplies */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Supplies</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSupplyLines((prev) => [
+                    ...prev,
+                    { productId: "", productName: "", quantity: "", unitPrice: 0, unitLabel: "", lineTotal: 0 },
+                  ])
+                }
+              >
+                + Add Supply
+              </Button>
+            </div>
+            {supplyLines.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No supplies added.</p>
+            ) : (
+              supplyLines.map((line, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Select
+                    value={line.productId || undefined}
+                    onValueChange={(v) => {
+                      const prod = supplyProducts.find((p) => p.id === v);
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx
+                            ? {
+                                ...s,
+                                productId: prod ? prod.id : "",
+                                productName: prod ? prod.product_name : s.productName,
+                                unitPrice: prod ? Number(prod.default_price) || 0 : s.unitPrice,
+                                unitLabel: prod ? prod.unit_label || "" : s.unitLabel,
+                              }
+                            : s,
+                        ),
+                      );
+                    }}
+                  >
+                    <SelectTrigger className="flex-1 min-w-[200px]">
+                      <SelectValue placeholder="Select product…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supplyProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.product_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    className="w-[80px]"
+                    placeholder="Qty"
+                    value={line.quantity}
+                    onChange={(e) =>
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx ? { ...s, quantity: e.target.value === "" ? "" : parseInt(e.target.value) || 0 } : s,
+                        ),
+                      )
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground w-[60px] text-right">
+                    ${line.unitPrice.toFixed(2)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setSupplyLines((prev) => prev.filter((_, i) => i !== idx))}
+                  >
+                    <span className="text-lg">×</span>
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Notes */}
