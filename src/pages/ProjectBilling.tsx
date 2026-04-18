@@ -1346,6 +1346,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[100px] text-right">Units</TableHead>
                     <TableHead className="w-[100px] text-right">Price</TableHead>
                     <TableHead className="w-[100px] text-right">Total</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1413,6 +1414,9 @@ const ProjectBilling = () => {
                         </TableCell>
                         <TableCell className="text-right text-sm font-medium">
                           {formatCurrency(line.line_total)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
@@ -1493,6 +1497,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[70px] text-right">Billable</TableHead>
                     <TableHead className="w-[80px] text-right">Price</TableHead>
                     <TableHead className="w-[90px] text-right">Total</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1530,6 +1535,9 @@ const ProjectBilling = () => {
                           onChange={(e) => saveSemenLine(idx, { unit_price: Number(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
