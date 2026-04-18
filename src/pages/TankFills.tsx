@@ -399,7 +399,7 @@ const TankFills = () => {
               <Label>Notes</Label>
               <Input value={fillNotes} onChange={(e) => setFillNotes(e.target.value)} placeholder="Optional notes…" />
             </div>
-            <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2">
+            <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2 mt-6">
               <Droplets className="h-4 w-4" /> {fillSaving ? "Saving…" : "Record Fill"}
             </Button>
           </div>
