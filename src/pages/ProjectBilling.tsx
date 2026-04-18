@@ -1160,7 +1160,6 @@ const ProjectBilling = () => {
     ...laborLines.map(l => l.invoiced),
   ].every(Boolean);
   const isProjectComplete = project?.status === "Complete";
-  const grandOutstanding = grandTotal - grandInvoiced;
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
