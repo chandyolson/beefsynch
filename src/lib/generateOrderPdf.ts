@@ -32,7 +32,21 @@ interface OrderItemData {
   } | null;
 }
 
-export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
+interface ReconciliationLine {
+  bull_name: string;
+  bull_code: string | null;
+  units: number;
+  source: string;
+}
+
+interface ReconciliationData {
+  type: "received" | "packed";
+  lines: ReconciliationLine[];
+  totalOrdered: number;
+  totalFulfilled: number;
+}
+
+export function generateOrderPdf(order: OrderData, items: OrderItemData[], reconciliation?: ReconciliationData | null) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = PDF_LAYOUT.margin;
