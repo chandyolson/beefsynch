@@ -1299,6 +1299,7 @@ const ProjectBilling = () => {
             <Select
               value={billingRecord?.status || "draft"}
               onValueChange={(v) => saveBillingField("status", v)}
+              disabled={readOnly}
             >
               <SelectTrigger className="w-[120px] h-9">
                 <SelectValue />
@@ -1309,18 +1310,20 @@ const ProjectBilling = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs"
-              onClick={() => {
-                if (confirm("Reset this billing sheet? All entered values will be cleared. This cannot be undone.")) {
-                  handleResetSheet();
-                }
-              }}
-            >
-              Reset Sheet
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  if (confirm("Reset this billing sheet? All entered values will be cleared. This cannot be undone.")) {
+                    handleResetSheet();
+                  }
+                }}
+              >
+                Reset Sheet
+              </Button>
+            )}
             {billingRecord?.inventory_finalized_at ? (
               <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
                 <Check className="h-4 w-4" />
@@ -2237,6 +2240,60 @@ const ProjectBilling = () => {
             />
           </CardContent>
         </Card>
+
+        {/* ── Complete Project ── */}
+        {!isProjectComplete && (
+          <Card className="border-dashed">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="font-medium text-sm">Complete Project</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {!inventoryFinalized
+                      ? "Finalize inventory before completing."
+                      : !isUnpacked
+                      ? "Unpack the field tank before completing."
+                      : "Mark this project as complete. The billing page will become read-only."}
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      disabled={completing || !inventoryFinalized || !isUnpacked}
+                      className="gap-1.5"
+                    >
+                      {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {completing ? "Completing…" : "Complete Project"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Complete this project?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will mark {project?.name} as Complete. The billing page will become
+                        read-only (invoiced checkboxes will stay toggleable). This can be undone by
+                        changing the project status back from the project detail page.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleCompleteProject}>
+                        Complete Project
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isProjectComplete && (
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-500 justify-center py-2">
+            <Check className="h-4 w-4" />
+            <span>Project completed {billingRecord?.billing_completed_at ? format(parseISO(billingRecord.billing_completed_at), "MMM d, yyyy") : ""}</span>
+          </div>
+        )}
       </main>
       {/* Fixed-position save confirmation — visible from anywhere on the page */}
       {saved && (
