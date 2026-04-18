@@ -222,6 +222,32 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         if (itemErr) throw itemErr;
       }
 
+      // Supplies — delete existing and re-insert
+      if (isEditing) {
+        const { error: delSupErr } = await (supabase as any)
+          .from("order_supply_items")
+          .delete()
+          .eq("semen_order_id", orderId);
+        if (delSupErr) throw delSupErr;
+      }
+      const validSupplies = supplyLines.filter((s) => s.productName.trim() && s.quantity);
+      if (validSupplies.length > 0) {
+        const supplyRows = validSupplies.map((s) => {
+          const qty = typeof s.quantity === "number" ? s.quantity : parseInt(String(s.quantity)) || 0;
+          return {
+            semen_order_id: orderId,
+            billing_product_id: s.productId || null,
+            product_name: s.productName,
+            quantity: qty,
+            unit_price: s.unitPrice,
+            unit_label: s.unitLabel || null,
+            line_total: qty * s.unitPrice,
+          };
+        });
+        const { error: supplyErr } = await (supabase as any).from("order_supply_items").insert(supplyRows);
+        if (supplyErr) throw supplyErr;
+      }
+
       toast({ title: isEditing ? "Order updated" : "Order created" });
       queryClient.invalidateQueries({ queryKey: ["semen_orders"] });
       onOpenChange(false);
