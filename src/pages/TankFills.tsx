@@ -101,6 +101,8 @@ const TankFills = () => {
   // Quick entry
   const [selectedTankId, setSelectedTankId] = useState<string>("");
   const [fillDate, setFillDate] = useState<Date>(new Date());
+  const [fillType, setFillType] = useState("Monthly Fill");
+  const [fillNotes, setFillNotes] = useState("");
   const [fillSaving, setFillSaving] = useState(false);
 
   // Bulk import
@@ -221,6 +223,8 @@ const TankFills = () => {
       tank_id: selectedTankId,
       fill_date: format(fillDate, "yyyy-MM-dd"),
       filled_by: userId,
+      fill_type: fillType,
+      notes: fillNotes.trim() || null,
     } as any);
     setFillSaving(false);
     if (error) {
@@ -230,6 +234,7 @@ const TankFills = () => {
       toast({ title: "Fill recorded", description: tank ? `${tank.tank_number} ${tank.tank_name || ""}` : "" });
       queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] });
       setSelectedTankId("");
+      setFillNotes("");
     }
   };
 
@@ -344,6 +349,22 @@ const TankFills = () => {
                   <Calendar mode="single" selected={fillDate} onSelect={(d) => d && setFillDate(d)} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="space-y-1.5 min-w-[160px]">
+              <Label>Fill Type</Label>
+              <Select value={fillType} onValueChange={setFillType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Monthly Fill">Monthly Fill</SelectItem>
+                  <SelectItem value="Full Fill">Full Fill</SelectItem>
+                  <SelectItem value="Topped Off">Topped Off</SelectItem>
+                  <SelectItem value="Route Fill">Route Fill</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 min-w-[160px] flex-1 max-w-xs">
+              <Label>Notes</Label>
+              <Input value={fillNotes} onChange={(e) => setFillNotes(e.target.value)} placeholder="Optional notes…" />
             </div>
             <Button onClick={handleRecordFill} disabled={fillSaving || !selectedTankId} className="gap-2">
               <Droplets className="h-4 w-4" /> {fillSaving ? "Saving…" : "Record Fill"}
