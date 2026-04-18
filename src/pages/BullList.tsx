@@ -356,7 +356,7 @@ const BullList = () => {
     return (
       <div
         key={bull.id}
-        className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 cursor-pointer hover:bg-muted/30 transition-colors ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"}`}
+        className={`rounded-lg border border-border bg-card px-3 py-2 border-l-4 cursor-pointer hover:bg-muted/30 transition-colors ${COMPANY_COLORS[bull.company || ""] ?? "border-l-transparent"}`}
         onClick={() => setDetailBull(bull)}
       >
         <div className="flex items-center justify-between gap-2">
