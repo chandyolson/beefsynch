@@ -181,6 +181,7 @@ const ProjectBilling = () => {
 
   const [billingId, setBillingId] = useState<string | null>(null);
   const [billingRecord, setBillingRecord] = useState<any>(null);
+  const [projectPacks, setProjectPacks] = useState<any[]>([]);
   const [finalizing, setFinalizing] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
@@ -264,6 +265,13 @@ const ProjectBilling = () => {
         (productsRes.data ?? []) as BillingProduct[],
       );
     }
+
+    // Fetch pack info for this project
+    const { data: packLinks } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id)")
+      .eq("project_id", projectId!);
+    setProjectPacks((packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean));
 
     setLoading(false);
   }, [projectId, orgId]);
@@ -1132,6 +1140,27 @@ const ProjectBilling = () => {
   const grandInvoiced = productsInvoiced + semenInvoiced + laborInvoiced;
   const grandOutstanding = grandTotal - grandInvoiced;
 
+  /* ── closeout checklist ── */
+  const hasPack = projectPacks.length > 0;
+  const packStatus = projectPacks[0]?.status || null;
+  const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+  const hasSessions = sessions.length > 0;
+  const worksheetDone = sessionInventory.length > 0 && sessionInventory.every(
+    (si) => si.start_units != null && si.end_units != null
+  );
+  const blownEntered = semenLines.length > 0 && semenLines.every(
+    (sl) => sl.units_blown != null
+  );
+  const inventoryFinalized = !!billingRecord?.inventory_finalized_at;
+  const totalLines = productLines.length + semenLines.length + sessions.length + laborLines.length;
+  const allInvoiced = totalLines > 0 && [
+    ...productLines.map(l => l.invoiced),
+    ...semenLines.map(l => l.invoiced),
+    ...sessions.map(l => l.invoiced),
+    ...laborLines.map(l => l.invoiced),
+  ].every(Boolean);
+  const isProjectComplete = project?.status === "Complete";
+
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
     const prod = billingProducts.find(p => p.id === newProductId);
@@ -1297,6 +1326,41 @@ const ProjectBilling = () => {
               <Printer className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+
+        {/* ── Closeout Checklist ── */}
+        <div className="sticky top-0 z-10">
+          <Card className="border border-border/60 bg-card/95 backdrop-blur-sm shadow-sm">
+            <CardContent className="py-3 px-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium">
+                <span className="text-muted-foreground uppercase tracking-wider mr-2 self-center">Closeout</span>
+                <span className={hasPack ? "text-emerald-600" : "text-muted-foreground"}>
+                  {hasPack ? "☑" : "☐"} Packed
+                </span>
+                <span className={hasSessions ? "text-emerald-600" : "text-muted-foreground"}>
+                  {hasSessions ? "☑" : "☐"} Sessions
+                </span>
+                <span className={isUnpacked ? "text-emerald-600" : "text-muted-foreground"}>
+                  {isUnpacked ? "☑" : "☐"} Unpacked
+                </span>
+                <span className={worksheetDone ? "text-emerald-600" : "text-muted-foreground"}>
+                  {worksheetDone ? "☑" : "☐"} Worksheet
+                </span>
+                <span className={blownEntered ? "text-emerald-600" : "text-muted-foreground"}>
+                  {blownEntered ? "☑" : "☐"} Blown
+                </span>
+                <span className={inventoryFinalized ? "text-emerald-600" : "text-muted-foreground"}>
+                  {inventoryFinalized ? "☑" : "☐"} Finalized
+                </span>
+                <span className={allInvoiced ? "text-emerald-600" : "text-muted-foreground"}>
+                  {allInvoiced ? "☑" : "☐"} Invoiced
+                </span>
+                <span className={isProjectComplete ? "text-emerald-600" : "text-muted-foreground"}>
+                  {isProjectComplete ? "☑" : "☐"} Complete
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* ── Invoice Numbers ── */}
