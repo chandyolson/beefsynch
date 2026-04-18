@@ -63,6 +63,16 @@ const TYPE_LABELS: Record<string, string> = {
   mushroom: "Mushroom", rental_tank: "Rental Tank", communal_tank: "Communal Tank", freeze_branding: "Freeze Branding",
 };
 
+const TYPE_BADGE: Record<string, string> = {
+  customer_tank: "bg-teal-600/20 text-teal-400 border-teal-600/30",
+  inventory_tank: "bg-purple-600/20 text-purple-400 border-purple-600/30",
+  shipper: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  mushroom: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  rental_tank: "bg-amber-600/20 text-amber-400 border-amber-600/30",
+  communal_tank: "bg-orange-600/20 text-orange-400 border-orange-600/30",
+  freeze_branding: "bg-muted text-muted-foreground border-border",
+};
+
 const EID_HEADERS = ["eid", "tank_eid", "tank_number", "tank", "number", "id", "tag", "electronic_id"];
 const DATE_HEADERS = ["date", "fill_date", "scan_date", "filled", "timestamp"];
 const DATE_FORMATS = ["yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "yyyy/MM/dd"];
@@ -87,7 +97,7 @@ interface BulkRow {
 /* ═══════════════════════════════════════════════════
    TAB 1 — CUSTOMERS
    ═══════════════════════════════════════════════════ */
-const CustomersTab = ({ orgId }: { orgId: string }) => {
+export const CustomersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -1064,13 +1074,12 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
 /* ═══════════════════════════════════════════════════
    MAIN WRAPPER
    ═══════════════════════════════════════════════════ */
-type SubTabKey = "customers" | "tanks" | "fills" | "out";
+type SubTabKey = "tanks" | "fills" | "out";
 
 const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: string | null; userId: string | null }) => {
-  const [subTab, setSubTab] = useState<SubTabKey>("customers");
+  const [subTab, setSubTab] = useState<SubTabKey>("tanks");
 
   const subTabs: { key: SubTabKey; label: string }[] = [
-    { key: "customers", label: "Customers" },
     { key: "tanks", label: "Tanks" },
     { key: "fills", label: "Fills" },
     { key: "out", label: "Out" },
@@ -1095,7 +1104,7 @@ const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: s
         ))}
       </div>
 
-      {subTab === "customers" && <CustomersTab orgId={orgId} />}
+      
       {subTab === "tanks" && <TanksTab orgId={orgId} orgName={orgName} />}
       {subTab === "fills" && <FillsTab orgId={orgId} userId={userId} />}
       {subTab === "out" && <TanksOutTab orgId={orgId} userId={userId} />}
