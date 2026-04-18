@@ -235,6 +235,13 @@ const SemenOrderDetail = () => {
                 <Package className="h-4 w-4 mr-1" /> Fill from Inventory
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/receive-shipment?order=${id}`)}
+            >
+              <Package className="h-4 w-4 mr-1" /> Receive Shipment
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> Export PDF
             </Button>
