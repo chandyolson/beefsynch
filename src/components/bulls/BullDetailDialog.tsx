@@ -128,9 +128,9 @@ export default function BullDetailDialog({
           <Button
             variant="destructive"
             onClick={() => onDelete(bull)}
-            disabled={deleting === bull.id}
+            disabled={deleting}
           >
-            {deleting === bull.id ? "Checking…" : "Delete"}
+            {deleting ? "Checking…" : "Delete"}
           </Button>
         </DialogFooter>
       </DialogContent>

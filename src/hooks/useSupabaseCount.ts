@@ -11,7 +11,7 @@ export function useSupabaseCount(
     queryKey,
     enabled: enabled ?? true,
     queryFn: async () => {
-      let query = supabase.from(table).select("id", { count: "exact", head: true });
+      let query: any = supabase.from(table as any).select("id", { count: "exact", head: true });
 
       // Apply filters if provided
       if (filters) {

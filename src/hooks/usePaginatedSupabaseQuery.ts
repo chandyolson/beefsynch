@@ -22,7 +22,7 @@ export function usePaginatedSupabaseQuery<T = any>(options: PaginatedQueryOption
       let from = 0;
 
       while (true) {
-        let query = supabase.from(table).select(select);
+        let query: any = supabase.from(table as any).select(select);
 
         // Apply filters if provided
         if (filters) {
@@ -39,7 +39,7 @@ export function usePaginatedSupabaseQuery<T = any>(options: PaginatedQueryOption
 
         if (error) throw error;
 
-        const rows = data ?? [];
+        const rows = (data ?? []) as T[];
         allRows.push(...rows);
 
         // Stop if we got fewer rows than pageSize (last page)

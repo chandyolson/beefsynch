@@ -152,10 +152,15 @@ export function drawDividerLine(
   x1: number,
   x2: number,
   y: number,
-  color?: [number, number, number],
+  color?: [number, number, number] | number,
   lineWidth: number = 0.5
 ): void {
-  doc.setDrawColor(...(color || PDF_COLORS.lineDark));
+  const c = color ?? PDF_COLORS.lineDark;
+  if (Array.isArray(c)) {
+    doc.setDrawColor(c[0], c[1], c[2]);
+  } else {
+    doc.setDrawColor(c);
+  }
   doc.setLineWidth(lineWidth);
   doc.line(x1, y, x2, y);
 }
