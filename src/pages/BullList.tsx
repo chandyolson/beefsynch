@@ -389,18 +389,18 @@ const BullList = () => {
                 Genex: "bg-purple-500/20 text-purple-300 border-purple-500/30",
                 Custom: "bg-gray-500/20 text-gray-300 border-gray-500/30",
                 Universal: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-              } as Record<string, string>)[bull.company] ?? ""
+              } as Record<string, string>)[bull.company || ""] ?? ""
             }`}
           >
-            {bull.company}
+            {bull.company || "Custom"}
           </Badge>
         </div>
         <div className={`flex items-center gap-2 mt-0.5 ${activeTab === "all" ? "pl-10" : "pl-6"}`}>
-          <ClickableRegNumber registrationNumber={bull.registration_number} breed={bull.breed} />
+          <ClickableRegNumber registrationNumber={bull.registration_number || ""} breed={bull.breed || ""} />
           {bull.naab_code && (
             <span className="text-[11px] text-muted-foreground">· {bull.naab_code}</span>
           )}
-          <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>
+          {bull.breed && <span className="text-[11px] text-muted-foreground">· {bull.breed}</span>}
         </div>
       </div>
     );
