@@ -209,12 +209,14 @@ const SemenOrderDetail = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => navigate(`/pack-tank?packType=order&orderId=${id}`)}
-            >
-              <Package className="h-4 w-4 mr-1" /> Fill from Inventory
-            </Button>
+            {order.order_type === "customer" && (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/pack-tank?packType=order&orderId=${id}`)}
+              >
+                <Package className="h-4 w-4 mr-1" /> Fill from Inventory
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> Export PDF
             </Button>
