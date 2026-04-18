@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,8 @@ import {
   Mail,
   Download,
   Star,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { format, startOfYear, endOfYear } from "date-fns";
 import { generateBullReportPdf, BullReportRow } from "@/lib/generateBullReportPdf";
@@ -146,6 +148,17 @@ const BullReport = () => {
   const [sortKey, setSortKey] = useState<SortKey>("totalUnits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  // Expanded bull rows
+  const [expandedBulls, setExpandedBulls] = useState<Set<number>>(new Set());
+  const toggleExpand = (idx: number) => {
+    setExpandedBulls((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
   // Share dialog
   const [shareOpen, setShareOpen] = useState(false);
   const [pdfRows, setPdfRows] = useState<BullReportRow[]>([]);
@@ -222,6 +235,7 @@ const BullReport = () => {
 
   // Group by bull — merge both sources
   const reportRows = useMemo(() => {
+    type DetailEntry = { name: string; units: number; date: string; cattleType: string; headCount: number; type: "project" | "order"; id: string };
     const map = new Map<string, BullReportRow & { 
       projectIds: Set<string>; 
       orderIds: Set<string>;
@@ -231,6 +245,7 @@ const BullReport = () => {
       typesSet: Set<string>;
       fromProjects: boolean;
       fromOrders: boolean;
+      detailsList: DetailEntry[];
     }>();
 
     const getBullKey = (catalogId: string | null, catalog: { bull_name: string } | null, customName: string | null) => {
@@ -248,6 +263,7 @@ const BullReport = () => {
           projectIds: new Set(), orderIds: new Set(), headSet: new Map(),
           namesList: [], datesList: [], typesSet: new Set(),
           fromProjects: false, fromOrders: false,
+          detailsList: [],
         });
       }
       return map.get(key)!;
@@ -282,6 +298,18 @@ const BullReport = () => {
             entry.datesList.push(format(new Date(proj.breeding_date + "T00:00:00"), "M/d/yyyy"));
           }
           entry.typesSet.add(proj.cattle_type);
+          entry.detailsList.push({
+            name: proj.name,
+            units: row.units,
+            date: proj.breeding_date ? format(new Date(proj.breeding_date + "T00:00:00"), "M/d/yyyy") : "—",
+            cattleType: proj.cattle_type,
+            headCount: proj.head_count,
+            type: "project",
+            id: proj.id,
+          });
+        } else {
+          const existing = entry.detailsList.find((d) => d.id === proj.id && d.type === "project");
+          if (existing) existing.units += row.units;
         }
       }
     }
@@ -311,6 +339,18 @@ const BullReport = () => {
           entry.orderIds.add(ord.id);
           entry.namesList.push(`Order: ${ord.customers?.name || "Unknown"}`);
           entry.datesList.push(format(new Date(ord.order_date + "T00:00:00"), "M/d/yyyy"));
+          entry.detailsList.push({
+            name: ord.customers?.name || "Unknown",
+            units: row.units,
+            date: format(new Date(ord.order_date + "T00:00:00"), "M/d/yyyy"),
+            cattleType: "Order",
+            headCount: 0,
+            type: "order",
+            id: ord.id,
+          });
+        } else {
+          const existing = entry.detailsList.find((d) => d.id === ord.id && d.type === "order");
+          if (existing) existing.units += row.units;
         }
       }
     }
@@ -335,6 +375,7 @@ const BullReport = () => {
         breedingDates: entry.datesList.join(", "),
         cattleTypes: [...entry.typesSet].join(", "),
         source: entry.source,
+        details: entry.detailsList.slice().sort((a, b) => a.date.localeCompare(b.date)),
       });
     }
 
@@ -735,6 +776,7 @@ const BullReport = () => {
                   <TableHeader>
                     <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                       <TableHead className="w-8"></TableHead>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead
                         className="cursor-pointer select-none"
                         onClick={() => toggleSort("bullName")}
@@ -742,81 +784,101 @@ const BullReport = () => {
                         Bull Name <SortIcon col="bullName" />
                       </TableHead>
                       <TableHead>Company</TableHead>
-                      <TableHead>Reg. Number</TableHead>
                       <TableHead
                         className="cursor-pointer select-none text-right"
                         onClick={() => toggleSort("totalUnits")}
                       >
                         Units <SortIcon col="totalUnits" />
                       </TableHead>
-                      <TableHead>Source</TableHead>
                       <TableHead
                         className="cursor-pointer select-none text-right"
                         onClick={() => toggleSort("projectCount")}
                       >
                         Projects <SortIcon col="projectCount" />
                       </TableHead>
-                      <TableHead>Names</TableHead>
-                      <TableHead>Date(s)</TableHead>
-                      <TableHead>Cattle Type</TableHead>
+                      <TableHead>Source</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportRows.map((row, i) => {
                       const catalogId = findCatalogId(row.bullName);
                       const isFav = catalogId ? favoritedIds.has(catalogId) : false;
+                      const isExpanded = expandedBulls.has(i);
                       return (
-                        <TableRow key={i}>
-                          <TableCell className="w-8">
-                            <button onClick={(e) => {
-                              if (catalogId) toggleFavorite(catalogId, e);
-                            }}>
-                              <Star className={`h-4 w-4 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
-                            </button>
-                          </TableCell>
-                          <TableCell className="font-medium text-foreground">
-                            {row.bullName}
-                          </TableCell>
-                          <TableCell>
-                            {row.company ? (
-                              <Badge
-                                variant="secondary"
-                                className={`text-xs ${COMPANY_BADGE[row.company] ?? ""}`}
+                        <Fragment key={`bull-${i}`}>
+                          <TableRow
+                            className="cursor-pointer hover:bg-muted/20"
+                            onClick={() => toggleExpand(i)}
+                          >
+                            <TableCell className="w-8">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (catalogId) toggleFavorite(catalogId, e);
+                                }}
                               >
-                                {row.company}
+                                <Star className={`h-4 w-4 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`} />
+                              </button>
+                            </TableCell>
+                            <TableCell className="w-8 text-muted-foreground">
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </TableCell>
+                            <TableCell className="font-medium text-foreground">
+                              {row.bullName}
+                              {row.registrationNumber && (
+                                <span className="ml-2 text-xs text-muted-foreground">({row.registrationNumber})</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {row.company ? (
+                                <Badge variant="secondary" className={`text-xs ${COMPANY_BADGE[row.company] ?? ""}`}>
+                                  {row.company}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-lg">{row.totalUnits}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">{row.projectCount}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  row.source === "Both"
+                                    ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                                    : row.source === "Order"
+                                    ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                                    : "bg-green-500/20 text-green-300 border-green-500/30"
+                                }`}
+                              >
+                                {row.source}
                               </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <ClickableRegNumber registrationNumber={row.registrationNumber || null} breed={row.breed} />
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {row.totalUnits}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`text-xs ${
-                              row.source === "Both" ? "bg-purple-500/20 text-purple-300 border-purple-500/30" :
-                              row.source === "Order" ? "bg-blue-500/20 text-blue-300 border-blue-500/30" :
-                              "bg-green-500/20 text-green-300 border-green-500/30"
-                            }`}>
-                              {row.source}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {row.projectCount}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground max-w-[220px]">
-                            {row.projectNames}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {row.breedingDates}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {row.cattleTypes}
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded &&
+                            row.details &&
+                            row.details.map((d, di) => (
+                              <TableRow
+                                key={`detail-${i}-${di}`}
+                                className="bg-muted/10 hover:bg-muted/20 cursor-pointer"
+                                onClick={() =>
+                                  navigate(d.type === "project" ? `/project/${d.id}` : `/orders/${d.id}`)
+                                }
+                              >
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className="text-sm pl-8" colSpan={2}>
+                                  {d.type === "order" ? `Order: ${d.name}` : d.name}
+                                  <span className="ml-2 text-xs text-muted-foreground">{d.date}</span>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">{d.units}</TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground">
+                                  {d.type === "project" ? `${d.headCount} hd` : ""}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{d.cattleType}</TableCell>
+                              </TableRow>
+                            ))}
+                        </Fragment>
                       );
                     })}
                   </TableBody>

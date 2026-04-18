@@ -21,6 +21,7 @@ export interface BullReportRow {
   breedingDates: string;
   cattleTypes: string;
   source: "Project" | "Order" | "Both";
+  details?: { name: string; units: number; date: string; cattleType: string; headCount: number; type: "project" | "order"; id: string }[];
 }
 
 export interface BullReportStats {
