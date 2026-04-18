@@ -157,10 +157,11 @@ const BullReport = () => {
       const { data, error } = await supabase
         .from("bulls_catalog")
         .select("breed")
+        .not("breed", "is", null)
         .order("breed");
       if (error) throw error;
-      const set = new Set((data ?? []).map((d) => d.breed));
-      return [...set].sort();
+      const set = new Set((data ?? []).map((d) => d.breed).filter(Boolean));
+      return [...set].sort() as string[];
     },
   });
 
