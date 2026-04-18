@@ -113,7 +113,7 @@ const ReceiveShipment = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, customers(name)")
+        .select("id, order_date, fulfillment_status, customer_id, order_type, placed_by, customers(name)")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
