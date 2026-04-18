@@ -398,7 +398,7 @@ const TankDetail = () => {
       eid: eTankEid.trim() || null,
       tank_type: eTankType,
       nitrogen_status: eNitrogenStatus,
-      location_status: eLocationStatus,
+      
       model: eTankModel.trim() || null,
       serial_number: eTankSerial.trim() || null,
       description: eTankDesc.trim() || null,
@@ -946,13 +946,8 @@ const TankDetail = () => {
               </Select>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <Label className="text-sm">Location</Label>
-              <Select value={eLocationStatus} onValueChange={setELocationStatus}>
-                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {LOCATION_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label className="text-sm text-muted-foreground">Location</Label>
+              <span className="text-sm">{eLocationStatus === "here" ? "In Shop" : "Out with Customer"}</span>
             </div>
             <div className="space-y-1.5"><Label>Model</Label><Input value={eTankModel} onChange={(e) => setETankModel(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Serial Number</Label><Input value={eTankSerial} onChange={(e) => setETankSerial(e.target.value)} /></div>
