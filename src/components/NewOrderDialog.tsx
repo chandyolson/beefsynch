@@ -455,6 +455,89 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             />
           </div>
 
+          {/* Supplies */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Supplies</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSupplyLines((prev) => [
+                    ...prev,
+                    { productId: "", productName: "", quantity: "", unitPrice: 0, unitLabel: "", lineTotal: 0 },
+                  ])
+                }
+              >
+                + Add Supply
+              </Button>
+            </div>
+            {supplyLines.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No supplies added.</p>
+            ) : (
+              supplyLines.map((line, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Select
+                    value={line.productId || undefined}
+                    onValueChange={(v) => {
+                      const prod = supplyProducts.find((p) => p.id === v);
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx
+                            ? {
+                                ...s,
+                                productId: prod ? prod.id : "",
+                                productName: prod ? prod.product_name : s.productName,
+                                unitPrice: prod ? Number(prod.default_price) || 0 : s.unitPrice,
+                                unitLabel: prod ? prod.unit_label || "" : s.unitLabel,
+                              }
+                            : s,
+                        ),
+                      );
+                    }}
+                  >
+                    <SelectTrigger className="flex-1 min-w-[200px]">
+                      <SelectValue placeholder="Select product…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supplyProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.product_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    className="w-[80px]"
+                    placeholder="Qty"
+                    value={line.quantity}
+                    onChange={(e) =>
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx ? { ...s, quantity: e.target.value === "" ? "" : parseInt(e.target.value) || 0 } : s,
+                        ),
+                      )
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground w-[60px] text-right">
+                    ${line.unitPrice.toFixed(2)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setSupplyLines((prev) => prev.filter((_, i) => i !== idx))}
+                  >
+                    <span className="text-lg">×</span>
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+
           {/* Notes */}
           <div className="grid grid-cols-[100px_1fr] items-start gap-x-4">
             <Label className="text-right text-sm pt-2">Notes</Label>
