@@ -84,6 +84,8 @@ interface SessionLine {
   invoiced: boolean;
   invoiced_at: string | null;
 }
+
+interface SessionInventoryLine {
   id?: string;
   billing_id: string;
   session_id: string;
