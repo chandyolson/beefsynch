@@ -115,12 +115,21 @@ const BullList = () => {
   const { data: bulls = [], isLoading } = useQuery({
     queryKey: ["bulls_catalog"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bulls_catalog")
-        .select("*")
-        .order("bull_name");
-      if (error) throw error;
-      return data as CatalogBull[];
+      const PAGE = 1000;
+      let all: CatalogBull[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("bulls_catalog")
+          .select("*")
+          .order("bull_name")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        all = all.concat(data as CatalogBull[]);
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
   });
 
