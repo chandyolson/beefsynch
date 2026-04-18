@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown, Download } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ExportConfig } from "@/lib/exports";
 import { Plus, Loader2 } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -691,7 +693,29 @@ const TankDetail = () => {
 
         {/* ───── Inventory ───── */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Inventory ({totalUnits} units)</h2>
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold">Inventory ({totalUnits} units)</h2>
+            {!isCommunal && activeRows.length > 0 && (
+              <ExportMenu
+                config={{
+                  title: `Tank Inventory — ${tankLabel}`,
+                  subtitle: `${activeRows.length} ${activeRows.length === 1 ? "item" : "items"} • ${totalUnits} units`,
+                  filenameBase: `tank_${(tank?.tank_number || "inventory").replace(/[^a-z0-9]+/gi, "_").toLowerCase()}_inventory`,
+                  columns: [
+                    { label: "Canister", value: (r: any) => r.canister },
+                    { label: "Sub-can", value: (r: any) => r.sub_canister || "" },
+                    { label: "Bull", value: (r: any) => r.bulls_catalog?.bull_name || r.custom_bull_name || "" },
+                    { label: "Bull Code", value: (r: any) => r.bull_code || "" },
+                    { label: "Company", value: (r: any) => r.bulls_catalog?.company || "" },
+                    { label: "Owner", value: (r: any) => r.owner || r.customers?.name || "" },
+                    { label: "Units", value: (r: any) => r.units },
+                    { label: "Storage Type", value: (r: any) => r.storage_type || "" },
+                  ],
+                } as ExportConfig<any>}
+                rows={activeRows}
+              />
+            )}
+          </div>
 
           {isCommunal && inventoryByCustomer ? (
             inventoryByCustomer.map((group, gi) => (
