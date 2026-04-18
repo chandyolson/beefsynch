@@ -135,8 +135,8 @@ const BullList = () => {
       const matchesSearch =
         !q ||
         b.bull_name.toLowerCase().includes(q) ||
-        b.registration_number.toLowerCase().includes(q) ||
-        b.company.toLowerCase().includes(q) ||
+        (b.registration_number || "").toLowerCase().includes(q) ||
+        (b.company || "").toLowerCase().includes(q) ||
         (b.naab_code && b.naab_code.toLowerCase().includes(q));
       const matchesCompany =
         companyFilter === "all" || b.company === companyFilter;
