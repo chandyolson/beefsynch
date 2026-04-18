@@ -1464,8 +1464,11 @@ const ProjectBilling = () => {
                     <div>
                       <label className="text-[10px] text-muted-foreground">Total</label>
                       <p className="text-sm font-medium mt-1">{formatCurrency(line.line_total)}</p>
-                    </div>
                   </div>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                    <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
+                  </label>
                 </div>
               ))}
             </div>
@@ -1580,12 +1583,11 @@ const ProjectBilling = () => {
                     <span className="text-xs text-muted-foreground">Total</span>
                     <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
                   </div>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                    <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
+                  </label>
                 </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end mt-3">
-              <p className="text-sm font-semibold">Semen Total: {formatCurrency(semenTotal)}</p>
             </div>
           </CardContent>
         </Card>
