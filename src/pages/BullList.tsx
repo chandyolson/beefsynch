@@ -222,7 +222,8 @@ const BullList = () => {
   };
 
   const selectSiresUrl = (bull: CatalogBull): string | null => {
-    if (!bull.company.toLowerCase().includes("select sires")) return null;
+    if (!bull.company || !bull.company.toLowerCase().includes("select sires")) return null;
+    if (!bull.breed) return null;
     const breedSlug = bull.breed.toLowerCase().replace(/\s+/g, "-");
     const nameSlug = bull.bull_name.toLowerCase().replace(/\s+/g, "-");
     return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
