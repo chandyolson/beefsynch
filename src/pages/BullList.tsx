@@ -410,7 +410,7 @@ const BullList = () => {
     return (
       <TableRow
         key={bull.id}
-        className={`cursor-pointer hover:bg-muted/20 border-l-4 ${COMPANY_COLORS[bull.company] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
+        className={`cursor-pointer hover:bg-muted/20 border-l-4 ${COMPANY_COLORS[bull.company || ""] ?? "border-l-transparent"} ${selectedIds.has(bull.id) ? "bg-primary/5" : ""}`}
         onClick={() => setDetailBull(bull)}
       >
         <TableCell className="w-8">
