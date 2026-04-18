@@ -1588,6 +1588,11 @@ const ProjectBilling = () => {
                     <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
                   </label>
                 </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end mt-3">
+              <p className="text-sm font-semibold">Semen Total: {formatCurrency(semenTotal)}</p>
             </div>
           </CardContent>
         </Card>
