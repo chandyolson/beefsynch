@@ -71,6 +71,9 @@ const OperationsDashboard = () => {
 
         {/* Tab content */}
         <div className="rounded-xl border border-border/40 bg-card/40 p-4">
+          {activeTab === "hub" && orgId && (
+            <HubTab orgId={orgId} onSwitchTab={(tab, extra) => setTab(tab as TabKey, extra)} />
+          )}
           {activeTab === "projects" && orgId && (
             <ProjectsTab orgId={orgId} />
           )}
