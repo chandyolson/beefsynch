@@ -1521,7 +1521,7 @@ const ProjectBilling = () => {
                           {formatCurrency(line.line_total)}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                          <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} /></fieldset>
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
@@ -1572,7 +1572,7 @@ const ProjectBilling = () => {
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-xs">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} /></fieldset>
                     <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
                   </label>
                 </div>
@@ -1645,7 +1645,7 @@ const ProjectBilling = () => {
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
                       <TableCell className="text-center">
-                        <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                        <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} /></fieldset>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1690,7 +1690,7 @@ const ProjectBilling = () => {
                     <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
                   </div>
                   <label className="flex items-center gap-2 text-xs">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} /></fieldset>
                     <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
                   </label>
                 </div>
@@ -1757,7 +1757,7 @@ const ProjectBilling = () => {
                             onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} />
+                          <fieldset disabled={false} className="contents"><Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} /></fieldset>
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
@@ -2134,7 +2134,7 @@ const ProjectBilling = () => {
                     value={line.amount ?? ""}
                     onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
                   <div className="flex items-center justify-center w-9">
-                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} />
+                    <fieldset disabled={false} className="contents"><Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} /></fieldset>
                   </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
                     <Trash2 className="h-4 w-4" />
