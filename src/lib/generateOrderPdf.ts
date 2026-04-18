@@ -168,6 +168,43 @@ export function generateOrderPdf(
     }
   }
 
+  // Supplies
+  if (supplies && supplies.length > 0) {
+    let supplyY = ((doc as any).lastAutoTable?.finalY ?? y) + 20;
+    supplyY = ensurePageSpace(doc, supplyY, 80, margin);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Supplies", margin, supplyY);
+    supplyY += 8;
+
+    const supplyBody = supplies.map((s) => [
+      s.product_name,
+      String(s.quantity),
+      s.unit_label || "—",
+      `$${(Number(s.unit_price) || 0).toFixed(2)}`,
+      `$${(Number(s.line_total) || 0).toFixed(2)}`,
+    ]);
+
+    const supplyTotal = supplies.reduce((sum, i) => sum + (Number(i.line_total) || 0), 0);
+    supplyBody.push(["", "", "", "Total", `$${supplyTotal.toFixed(2)}`]);
+
+    autoTable(doc, {
+      startY: supplyY,
+      margin: { left: margin, right: margin },
+      head: [["Product", "Qty", "Unit", "Price", "Total"]],
+      body: supplyBody,
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      didParseCell: (data) => {
+        if (data.row.index === supplyBody.length - 1 && data.section === "body") {
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  }
+
   // Notes
   const finalY = (doc as any).lastAutoTable?.finalY ?? y + 20;
   let notesY = finalY + 20;
