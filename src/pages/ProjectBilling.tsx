@@ -1606,6 +1606,7 @@ const ProjectBilling = () => {
                     <TableHead className="w-[90px] text-right">Head Count</TableHead>
                     <TableHead className="w-[120px]">Crew</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                     <TableHead className="w-[40px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1641,6 +1642,9 @@ const ProjectBilling = () => {
                         <TableCell>
                           <Input className="h-8 text-xs" value={s.notes || ""}
                             onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} />
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
@@ -2016,6 +2020,9 @@ const ProjectBilling = () => {
                   <Input type="number" step="0.01" className="h-9 w-[100px] text-right text-sm" placeholder="$0.00"
                     value={line.amount ?? ""}
                     onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
+                  <div className="flex items-center justify-center w-9">
+                    <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleLaborInvoiced(idx)} />
+                  </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -2066,7 +2073,7 @@ const ProjectBilling = () => {
 
         {/* ── Grand Total ── */}
         <Card className="border-2 border-primary/30">
-          <CardContent className="py-4">
+          <CardContent className="py-4 space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
                 <p className="text-muted-foreground">Products</p>
@@ -2085,6 +2092,18 @@ const ProjectBilling = () => {
                 <p className="text-xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
               </div>
             </div>
+            {grandInvoiced > 0 && (
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t text-sm">
+                <div>
+                  <p className="text-muted-foreground">Invoiced</p>
+                  <p className="font-semibold text-emerald-600">{formatCurrency(grandInvoiced)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Outstanding</p>
+                  <p className="font-semibold text-amber-600">{formatCurrency(grandOutstanding)}</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
