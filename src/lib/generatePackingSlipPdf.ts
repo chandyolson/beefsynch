@@ -38,7 +38,7 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = PDF_LAYOUT.margin;
-  let y = margin;
+  let y: number = margin;
 
   y = addStandardHeader(doc, margin, "BeefSynch", pack.packType === "shipment" ? "Shipping Packing List" : "Packing Slip");
 

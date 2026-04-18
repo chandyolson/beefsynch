@@ -896,7 +896,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
                   <TableCell className="font-medium whitespace-nowrap">{tank.tank_number}</TableCell>
                   <TableCell className="whitespace-nowrap">{tank.tank_name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{tank.customerName || "Company"}</TableCell>
-                  <TableCell><Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className={getBadgeClass('tankType', tank.tank_type)}>{TYPE_LABELS[tank.tank_type] || tank.tank_type}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Badge variant="outline" className={getBadgeClass('tankStatus', tank.nitrogen_status || "unknown")}>
