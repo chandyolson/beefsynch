@@ -1407,6 +1407,7 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.catl_invoice_number || ""}
+              disabled={readOnly}
               onBlur={(e) => saveBillingField("catl_invoice_number", e.target.value || null)}
             />
           </div>
@@ -1415,6 +1416,7 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.select_sires_invoice_number || ""}
+              disabled={readOnly}
               onBlur={(e) => saveBillingField("select_sires_invoice_number", e.target.value || null)}
             />
           </div>
@@ -1423,12 +1425,14 @@ const ProjectBilling = () => {
             <Input
               className="mt-1"
               defaultValue={billingRecord?.zoho_project_id || ""}
+              disabled={readOnly}
               placeholder="Zoho project ID"
               onBlur={(e) => saveBillingField("zoho_project_id", e.target.value || null)}
             />
           </div>
         </div>
 
+        <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
         {/* ── Products Section ── */}
         <Card>
           <CardHeader className="pb-3">
@@ -2180,6 +2184,8 @@ const ProjectBilling = () => {
           </DialogContent>
         </Dialog>
 
+        </fieldset>
+
         {/* ── Grand Total ── */}
         <Card className="border-2 border-primary/30">
           <CardContent className="py-4 space-y-3">
@@ -2225,6 +2231,7 @@ const ProjectBilling = () => {
             <Textarea
               className="min-h-[80px]"
               defaultValue={billingRecord?.notes || ""}
+              disabled={readOnly}
               placeholder="General billing notes..."
               onBlur={(e) => saveBillingField("notes", e.target.value || null)}
             />
