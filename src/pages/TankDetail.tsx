@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown, Download } from "lucide-react";
+import { ArrowLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ExportConfig } from "@/lib/exports";
 import { Plus, Loader2 } from "lucide-react";
