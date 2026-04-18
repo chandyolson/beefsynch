@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, AlertCircle, Droplets, Search, Upload, Check, X, FileSpreadsheet } from "lucide-react";
 import { format, parseISO, differenceInDays, parse, isValid } from "date-fns";
@@ -97,6 +98,7 @@ interface BulkRow {
 const TankFills = () => {
   const { orgId, userId } = useOrgRole();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Quick entry
   const [selectedTankId, setSelectedTankId] = useState<string>("");
@@ -117,6 +119,9 @@ const TankFills = () => {
   const [nitrogenFilter, setNitrogenFilter] = useState<string>("wet");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Fill history by date
+  const [historyDate, setHistoryDate] = useState<string>("");
 
   // Fetch tanks
   const { data: tanks = [] } = useQuery({
@@ -140,7 +145,7 @@ const TankFills = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_fills")
-        .select("tank_id, fill_date")
+        .select("id, tank_id, fill_date, fill_type, notes, filled_by")
         .eq("organization_id", orgId!)
         .order("fill_date", { ascending: false });
       if (error) throw error;
@@ -156,6 +161,34 @@ const TankFills = () => {
     }
     return map;
   }, [fills]);
+
+  // Distinct fill dates for the history picker (most recent first)
+  const fillDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    for (const f of fills) {
+      if (f.fill_date) dateSet.add(f.fill_date);
+    }
+    return [...dateSet].sort((a, b) => b.localeCompare(a));
+  }, [fills]);
+
+  // Fills for the selected history date, enriched with tank info
+  const historyFills = useMemo(() => {
+    if (!historyDate) return [];
+    return fills
+      .filter((f: any) => f.fill_date === historyDate)
+      .map((f: any) => {
+        const tank = tanks.find((t: any) => t.id === f.tank_id);
+        return {
+          ...f,
+          tank_number: tank?.tank_number || "—",
+          tank_name: tank?.tank_name || "",
+          tank_id: f.tank_id,
+          customerName: tank?.customers?.name || "Company",
+          tank_type: tank?.tank_type || "",
+        };
+      })
+      .sort((a: any, b: any) => (a.tank_number || "").localeCompare(b.tank_number || ""));
+  }, [historyDate, fills, tanks]);
 
   // Enriched tanks
   const enriched = useMemo(() =>
@@ -473,7 +506,65 @@ const TankFills = () => {
           )}
         </div>
 
-        {/* Section 3 — Overdue Report */}
+        {/* Section 3 — Fill History by Date */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Fill History by Date</h3>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5 min-w-[200px]">
+              <Label>Select Fill Date</Label>
+              <Select value={historyDate} onValueChange={setHistoryDate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a date…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fillDates.slice(0, 50).map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {format(parseISO(d), "MMM d, yyyy")} — {fills.filter((f: any) => f.fill_date === d).length} tanks
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {historyDate && (
+              <p className="text-sm text-muted-foreground pb-1">
+                {historyFills.length} tank{historyFills.length !== 1 ? "s" : ""} filled on {format(parseISO(historyDate), "MMMM d, yyyy")}
+              </p>
+            )}
+          </div>
+
+          {historyDate && historyFills.length > 0 && (
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Tank #</TableHead>
+                    <TableHead>Tank Name</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Fill Type</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {historyFills.map((fill: any) => (
+                    <TableRow key={fill.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/tanks/${fill.tank_id}`)}>
+                      <TableCell className="font-medium">{fill.tank_number}</TableCell>
+                      <TableCell>{fill.tank_name || "—"}</TableCell>
+                      <TableCell>{fill.customerName}</TableCell>
+                      <TableCell>{fill.fill_type || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{fill.notes || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {historyDate && historyFills.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4">No fills recorded for this date.</p>
+          )}
+        </div>
+
+        {/* Section 4 — Overdue Report */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Overdue Tanks Report</h3>
 
