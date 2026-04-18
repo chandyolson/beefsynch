@@ -35,7 +35,7 @@ export function generateReturnSlipPdf(pack: ReturnSlipData, lines: ReturnSlipLin
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = PDF_LAYOUT.margin;
-  let y = margin;
+  let y: number = margin;
 
   // Header
   y = addStandardHeader(doc, margin, "BeefSynch", "Return Slip");
