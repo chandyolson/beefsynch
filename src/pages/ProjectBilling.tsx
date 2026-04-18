@@ -1140,6 +1140,28 @@ const ProjectBilling = () => {
   const grandInvoiced = productsInvoiced + semenInvoiced + laborInvoiced;
   const grandOutstanding = grandTotal - grandInvoiced;
 
+  /* ── closeout checklist ── */
+  const hasPack = projectPacks.length > 0;
+  const packStatus = projectPacks[0]?.status || null;
+  const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+  const hasSessions = sessions.length > 0;
+  const worksheetDone = sessionInventory.length > 0 && sessionInventory.every(
+    (si) => si.start_units != null && si.end_units != null
+  );
+  const blownEntered = semenLines.length > 0 && semenLines.every(
+    (sl) => sl.units_blown != null
+  );
+  const inventoryFinalized = !!billingRecord?.inventory_finalized_at;
+  const totalLines = productLines.length + semenLines.length + sessions.length + laborLines.length;
+  const allInvoiced = totalLines > 0 && [
+    ...productLines.map(l => l.invoiced),
+    ...semenLines.map(l => l.invoiced),
+    ...sessions.map(l => l.invoiced),
+    ...laborLines.map(l => l.invoiced),
+  ].every(Boolean);
+  const isProjectComplete = project?.status === "Complete";
+  const grandOutstanding = grandTotal - grandInvoiced;
+
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
     const prod = billingProducts.find(p => p.id === newProductId);
