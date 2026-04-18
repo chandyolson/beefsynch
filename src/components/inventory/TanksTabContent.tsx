@@ -63,6 +63,16 @@ const TYPE_LABELS: Record<string, string> = {
   mushroom: "Mushroom", rental_tank: "Rental Tank", communal_tank: "Communal Tank", freeze_branding: "Freeze Branding",
 };
 
+const TYPE_BADGE: Record<string, string> = {
+  customer_tank: "bg-teal-600/20 text-teal-400 border-teal-600/30",
+  inventory_tank: "bg-purple-600/20 text-purple-400 border-purple-600/30",
+  shipper: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  mushroom: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  rental_tank: "bg-amber-600/20 text-amber-400 border-amber-600/30",
+  communal_tank: "bg-orange-600/20 text-orange-400 border-orange-600/30",
+  freeze_branding: "bg-muted text-muted-foreground border-border",
+};
+
 const EID_HEADERS = ["eid", "tank_eid", "tank_number", "tank", "number", "id", "tag", "electronic_id"];
 const DATE_HEADERS = ["date", "fill_date", "scan_date", "filled", "timestamp"];
 const DATE_FORMATS = ["yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy", "MM-dd-yyyy", "yyyy/MM/dd"];
