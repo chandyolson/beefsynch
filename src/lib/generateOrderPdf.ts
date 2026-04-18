@@ -46,7 +46,20 @@ interface ReconciliationData {
   totalFulfilled: number;
 }
 
-export function generateOrderPdf(order: OrderData, items: OrderItemData[], reconciliation?: ReconciliationData | null) {
+interface OrderSupplyData {
+  product_name: string;
+  quantity: number;
+  unit_label: string | null;
+  unit_price: number | null;
+  line_total: number | null;
+}
+
+export function generateOrderPdf(
+  order: OrderData,
+  items: OrderItemData[],
+  reconciliation?: ReconciliationData | null,
+  supplies?: OrderSupplyData[] | null,
+) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = PDF_LAYOUT.margin;
