@@ -272,17 +272,20 @@ const MasterCalendar = () => {
                   inMonth ? "bg-white/[0.04]" : "bg-white/[0.01]"
                 } ${isToday ? "ring-1 ring-primary/50" : ""}`}
               >
-                <span
-                  className={`text-xs font-medium mb-1 self-end w-6 h-6 flex items-center justify-center rounded-full ${
+                <button
+                  type="button"
+                  onClick={() => dayEvents.length > 0 && setSelectedDay(dateKey)}
+                  disabled={dayEvents.length === 0}
+                  className={`text-xs font-medium mb-1 self-end w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
                     isToday
                       ? "bg-primary text-white"
                       : inMonth
-                      ? "text-foreground"
+                      ? "text-foreground hover:bg-muted/40"
                       : "text-muted-foreground/40"
-                  }`}
+                  } ${dayEvents.length > 0 ? "cursor-pointer" : "cursor-default"}`}
                 >
                   {format(day, "d")}
-                </span>
+                </button>
                 <div className="flex flex-col gap-0.5 overflow-hidden flex-1">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <button
@@ -295,15 +298,46 @@ const MasterCalendar = () => {
                     </button>
                   ))}
                   {dayEvents.length > 3 && (
-                    <span className="text-[10px] text-muted-foreground pl-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(dateKey)}
+                      className="text-[10px] text-primary hover:text-primary/80 pl-1 text-left transition-colors cursor-pointer"
+                    >
                       +{dayEvents.length - 3} more
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Day Detail Dialog */}
+        <Dialog open={!!selectedDay} onOpenChange={(open) => { if (!open) setSelectedDay(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedDay ? format(parseISO(selectedDay), "EEEE, MMMM d, yyyy") : ""}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {selectedDay && (eventsByDate[selectedDay] || []).length === 0 && (
+                <p className="text-sm text-muted-foreground">No events on this day.</p>
+              )}
+              {selectedDay && (eventsByDate[selectedDay] || []).map((ev) => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => { setSelectedDay(null); navigate(`/project/${ev.project_id}`); }}
+                  className={`${getEventColor(ev.event_name)} w-full text-left text-sm px-3 py-2 rounded-lg hover:opacity-80 transition-opacity cursor-pointer flex items-center justify-between gap-2`}
+                >
+                  <span className="font-medium truncate">{ev.project_name}</span>
+                  <span className="text-xs opacity-90 shrink-0">{ev.event_name}{ev.event_time ? ` · ${ev.event_time}` : ""}</span>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Legend */}
         {legendItems.length > 0 && (
