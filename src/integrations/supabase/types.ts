@@ -515,10 +515,14 @@ export type Database = {
       }
       project_billing: {
         Row: {
+          billing_completed_at: string | null
+          billing_completed_by: string | null
           catl_invoice_number: string | null
           created_at: string | null
           detection_type: string | null
           id: string
+          inventory_finalized_at: string | null
+          inventory_finalized_by: string | null
           mass_breed_head: number | null
           notes: string | null
           organization_id: string
@@ -531,10 +535,14 @@ export type Database = {
           zoho_project_id: string | null
         }
         Insert: {
+          billing_completed_at?: string | null
+          billing_completed_by?: string | null
           catl_invoice_number?: string | null
           created_at?: string | null
           detection_type?: string | null
           id?: string
+          inventory_finalized_at?: string | null
+          inventory_finalized_by?: string | null
           mass_breed_head?: number | null
           notes?: string | null
           organization_id: string
@@ -547,10 +555,14 @@ export type Database = {
           zoho_project_id?: string | null
         }
         Update: {
+          billing_completed_at?: string | null
+          billing_completed_by?: string | null
           catl_invoice_number?: string | null
           created_at?: string | null
           detection_type?: string | null
           id?: string
+          inventory_finalized_at?: string | null
+          inventory_finalized_by?: string | null
           mass_breed_head?: number | null
           notes?: string | null
           organization_id?: string
