@@ -757,20 +757,20 @@ const BullList = () => {
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground">Custom</Badge>
                   )}
                 </DialogTitle>
-                <DialogDescription>{detailBull.company} · {detailBull.breed}</DialogDescription>
+                <DialogDescription>{detailBull.company || "Custom"} · {detailBull.breed || "—"}</DialogDescription>
               </DialogHeader>
               <div className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm py-2">
                 <span className="text-right text-muted-foreground">Registration</span>
-                <span><ClickableRegNumber registrationNumber={detailBull.registration_number} breed={detailBull.breed} /></span>
+                <span><ClickableRegNumber registrationNumber={detailBull.registration_number || ""} breed={detailBull.breed || ""} /></span>
 
                 <span className="text-right text-muted-foreground">NAAB Code</span>
                 <span>{detailBull.naab_code || "—"}</span>
 
                 <span className="text-right text-muted-foreground">Company</span>
-                <span>{detailBull.company}</span>
+                <span>{detailBull.company || "Custom"}</span>
 
                 <span className="text-right text-muted-foreground">Breed</span>
-                <span>{detailBull.breed}</span>
+                <span>{detailBull.breed || "—"}</span>
 
                 <span className="text-right text-muted-foreground">Status</span>
                 <span>{detailBull.active ? "Active" : "Inactive"}</span>
