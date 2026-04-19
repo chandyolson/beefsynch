@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Plus, Check, Trash2, Package, Loader2, PackageOpen } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Check, Trash2, Package, Loader2, PackageOpen, ChevronRight, ChevronDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +69,7 @@ interface ProductLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  session_id?: string | null;
 }
 
 interface SessionLine {
@@ -83,6 +84,7 @@ interface SessionLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  session_type?: string | null;
 }
 
 interface SessionInventoryLine {
@@ -191,9 +193,9 @@ const ProjectBilling = () => {
 
   const [suggestedDoses, setSuggestedDoses] = useState<Record<string, number>>({});
 
-  // Tab and edit mode state
-  const [activeTab, setActiveTab] = useState<"products" | "sessions" | "summary">("products");
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  // Tab state for the new two-tab layout (Sessions | Billing)
+  const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,10 +265,10 @@ const ProjectBilling = () => {
       );
     }
 
-    // Fetch pack info for this project
+    // Fetch pack info for this project (include tank name/number for the status bar)
     const { data: packLinks } = await supabase
       .from("tank_pack_projects")
-      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id)")
+      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id, tanks:field_tank_id(id, tank_number, tank_name))")
       .eq("project_id", projectId!);
     setProjectPacks((packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean));
 
@@ -1155,26 +1157,53 @@ const ProjectBilling = () => {
 
   const currentStatus = billingRecord?.status || "in_process";
 
-  /* ── Section edit toggle helper ── */
-  const SectionEditToggle = ({ section }: { section: string }) => {
-    if (readOnly) return null;
-    const isEditing = editingSection === section;
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => setEditingSection(isEditing ? null : section)}
-      >
-        {isEditing ? "Done" : "Edit"}
-      </Button>
-    );
-  };
+  /* ── Group products by session_id for the Sessions tab ── */
+  const productsBySession = useMemo(() => {
+    const map = new Map<string | null, ProductLine[]>();
+    for (const p of productLines) {
+      const key = p.session_id || null;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    return map;
+  }, [productLines]);
+
+  /* ── Helper: detect breeding sessions ── */
+  function isBreedingSession(s: SessionLine) {
+    const label = (s.session_label || "").toLowerCase();
+    return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+  }
+
+  /* ── Toggle a session card open/closed ── */
+  function toggleSession(sessionId: string) {
+    setExpandedSessions(prev => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }
+
+  /* ── Sessions sorted chronologically (with sort_order tiebreaker) ── */
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const dateCmp = a.session_date.localeCompare(b.session_date);
+      if (dateCmp !== 0) return dateCmp;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  }, [sessions]);
+
+  /* ── Field tank label for the pack status bar ── */
+  const firstPack: any = projectPacks[0] || null;
+  const packTankLabel = firstPack?.tanks
+    ? (firstPack.tanks.tank_name || firstPack.tanks.tank_number || "")
+    : "";
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -1185,8 +1214,7 @@ const ProjectBilling = () => {
               <h1 className="text-2xl font-bold">{project.name}</h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <Badge className="bg-primary/20 text-primary border-primary/30">{project.protocol}</Badge>
-                <Badge variant="outline">{project.cattle_type}</Badge>
-                <Badge variant="outline">{project.head_count} head</Badge>
+                <Badge variant="outline">{project.cattle_type} · {project.head_count} head</Badge>
                 {project.breeding_date && (
                   <Badge variant="outline">Breed: {format(parseISO(project.breeding_date), "MMM d, yyyy")}</Badge>
                 )}
@@ -1208,7 +1236,6 @@ const ProjectBilling = () => {
               </SelectTrigger>
               <SelectContent>
                 {BILLING_STATUSES.map(s => {
-                  // Allow manual advance to invoiced_closed only when all lines invoiced
                   const disabled = s === "invoiced_closed" && !allInvoiced && currentStatus !== "invoiced_closed";
                   return (
                     <SelectItem key={s} value={s} disabled={disabled}>
@@ -1224,1020 +1251,451 @@ const ProjectBilling = () => {
           </div>
         </div>
 
-        {/* ── Closeout Checklist ── */}
-        <div className="sticky top-0 z-10">
-          <Card className="border border-border/60 bg-card/95 backdrop-blur-sm shadow-sm">
-            <CardContent className="py-3 px-4">
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium">
-                <span className="text-muted-foreground uppercase tracking-wider mr-2 self-center">Closeout</span>
-                <span className={hasPack ? "text-emerald-600" : "text-muted-foreground"}>
-                  {hasPack ? "☑" : "☐"} Packed
+        {/* ── Pack status bar ── */}
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/50 rounded-lg flex-wrap">
+          <div className="flex items-center gap-2 text-sm">
+            {hasPack ? (
+              <>
+                {isUnpacked ? (
+                  <Check className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+                )}
+                <span className="font-medium">
+                  {isUnpacked ? "Unpacked" : "Packed"}
                 </span>
-                <span className={hasSessions ? "text-emerald-600" : "text-muted-foreground"}>
-                  {hasSessions ? "☑" : "☐"} Sessions
-                </span>
-                <span className={isUnpacked ? "text-emerald-600" : "text-muted-foreground"}>
-                  {isUnpacked ? "☑" : "☐"} Unpacked
-                </span>
-                <span className={worksheetDone ? "text-emerald-600" : "text-muted-foreground"}>
-                  {worksheetDone ? "☑" : "☐"} Worksheet
-                </span>
-                <span className={blownEntered ? "text-emerald-600" : "text-muted-foreground"}>
-                  {blownEntered ? "☑" : "☐"} Blown
-                </span>
-                <span className={inventoryFinalized ? "text-emerald-600" : "text-muted-foreground"}>
-                  {inventoryFinalized ? "☑" : "☐"} Finalized
-                </span>
-                <span className={allInvoiced ? "text-emerald-600" : "text-muted-foreground"}>
-                  {allInvoiced ? "☑" : "☐"} Invoiced
-                </span>
-                <span className={isProjectComplete ? "text-emerald-600" : "text-muted-foreground"}>
-                  {isProjectComplete ? "☑" : "☐"} Complete
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                {packTankLabel && (
+                  <span className="text-muted-foreground">
+                    — Tank #{packTankLabel}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Not packed</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {!hasPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/pack-tank?projectId=${projectId}`)}>
+                <Package className="h-3.5 w-3.5 mr-1" />
+                Pack Tank
+              </Button>
+            )}
+            {hasPack && firstPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/pack/${firstPack.id}`)}>
+                View Pack
+              </Button>
+            )}
+            {hasPack && !isUnpacked && firstPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/unpack/${firstPack.id}`)}>
+                <PackageOpen className="h-3.5 w-3.5 mr-1" />
+                Unpack Tank
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* ── Tab Navigation ── */}
         <div className="flex gap-1 border-b border-border">
-          {([
-            { key: "products" as const, label: "Products" },
-            { key: "sessions" as const, label: "Sessions & Semen" },
-            { key: "summary" as const, label: "Summary & Closeout" },
-          ]).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setEditingSection(null); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveTab("sessions")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "sessions"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Sessions
+          </button>
+          <button
+            onClick={() => setActiveTab("billing")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "billing"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Billing
+          </button>
         </div>
 
         <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
 
-        {/* ════════════════════ PRODUCTS TAB ════════════════════ */}
-        {activeTab === "products" && (
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between w-full">
-                <CardTitle className="text-lg">Products by protocol event</CardTitle>
-                <SectionEditToggle section="products" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[70px]">Date</TableHead>
-                      <TableHead className="w-[140px]">Event</TableHead>
-                      <TableHead className="w-[180px]">Product</TableHead>
-                      <TableHead className="w-[100px] text-right">Doses</TableHead>
-                      <TableHead className="w-[100px] text-right">Units</TableHead>
-                      <TableHead className="w-[100px] text-right">Price</TableHead>
-                      <TableHead className="w-[100px] text-right">Total</TableHead>
-                      <TableHead className="w-[50px] text-center">Inv.</TableHead>
-                      {editingSection === "products" && <TableHead className="w-[40px]"></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productLines.map((line, idx) => {
-                      const prevLine = idx > 0 ? productLines[idx - 1] : null;
-                      const showDate = !prevLine || prevLine.event_date !== line.event_date;
-                      const showEvent = !prevLine || prevLine.protocol_event_label !== line.protocol_event_label || showDate;
-                      const categoryProducts = billingProducts.filter(p => p.product_category === line.product_category);
-                      const isEditing = editingSection === "products";
-
-                      return (
-                        <TableRow key={line.id || idx}>
-                          <TableCell className="text-xs">
-                            {showDate && line.event_date ? format(parseISO(line.event_date), "MMM d") : ""}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {showEvent ? line.protocol_event_label : ""}
-                          </TableCell>
-                          <TableCell>
-                            {isEditing && categoryProducts.length > 1 ? (
-                              <Select
-                                value={line.billing_product_id || ""}
-                                onValueChange={(v) => swapProduct(idx, v)}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue>{line.product_name}</SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categoryProducts.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className="text-sm">{line.product_name}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <div className="flex items-center gap-1.5 justify-end">
-                                {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
-                                  <span className="text-xs text-teal-400 whitespace-nowrap">
-                                    {suggestedDoses[`${line.product_category}-${line.event_date}`]}
-                                  </span>
-                                )}
-                                <Input
-                                  type="number"
-                                  className="h-8 w-[80px] text-right text-xs ml-auto"
-                                  value={line.doses || ""}
-                                  placeholder="Doses"
-                                  onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
-                                />
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${line.doses ? "" : "text-muted-foreground"}`}>
-                                {line.doses || "—"}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-xs">
-                            {(line.units_billed ?? line.units_calculated ?? 0).toFixed(1)} {line.unit_label || ""}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isEditing ? (
-                              <Input
-                                type="number"
-                                step="0.01"
-                                className="h-8 w-[90px] text-right text-xs ml-auto"
-                                value={line.unit_price ?? ""}
-                                onChange={(e) => saveProductLine(idx, { unit_price: Number(e.target.value) || 0 })}
-                              />
-                            ) : (
-                              <span className={`text-sm ${line.unit_price ? "" : "text-muted-foreground"}`}>
-                                {line.unit_price ? formatCurrency(line.unit_price) : "—"}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-sm font-medium">
-                            {formatCurrency(line.line_total)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <fieldset disabled={false} className="contents">
-                              <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
-                            </fieldset>
-                          </TableCell>
-                          {isEditing && (
-                            <TableCell>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
-                {productLines.map((line, idx) => {
-                  const isEditing = editingSection === "products";
-                  return (
-                    <div key={line.id || idx} className="border rounded-lg p-3 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            {line.event_date ? format(parseISO(line.event_date), "MMM d") : ""} · {line.protocol_event_label}
-                          </p>
-                          <p className="font-medium text-sm">{line.product_name}</p>
-                        </div>
-                        {isEditing && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Doses</label>
-                          {isEditing ? (
-                            <>
-                              {suggestedDoses[`${line.product_category}-${line.event_date}`] != null && (
-                                <span className="text-[10px] text-teal-400 ml-1">
-                                  ({suggestedDoses[`${line.product_category}-${line.event_date}`]})
-                                </span>
-                              )}
-                              <Input type="number" className="h-8 text-xs" value={line.doses || ""}
-                                placeholder="Doses"
-                                onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })} />
-                            </>
-                          ) : (
-                            <p className="text-sm mt-1">{line.doses || "—"}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Units</label>
-                          <p className="text-sm mt-1">{(line.units_billed ?? 0).toFixed(1)} {line.unit_label || ""}</p>
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Total</label>
-                          <p className="text-sm font-medium mt-1">{formatCurrency(line.line_total)}</p>
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-2 text-xs">
-                        <fieldset disabled={false} className="contents">
-                          <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleProductInvoiced(idx)} />
-                        </fieldset>
-                        <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-between mt-3">
-                {editingSection === "products" ? (
-                  <Button variant="outline" size="sm" onClick={addProductLine}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Product
-                  </Button>
-                ) : <div />}
-                <p className="text-sm font-semibold">Products Total: {formatCurrency(productsTotal)}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ════════════════════ SESSIONS & SEMEN TAB ════════════════════ */}
+        {/* ════════════════════ SESSIONS TAB ════════════════════ */}
         {activeTab === "sessions" && (
-          <>
-            {/* ── Semen Section ── */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between w-full">
-                  <CardTitle className="text-lg">Semen</CardTitle>
-                  <SectionEditToggle section="semen" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="hidden md:block overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Bull</TableHead>
-                        <TableHead className="w-[90px]">Code</TableHead>
-                        <TableHead className="w-[70px] text-right">Packed</TableHead>
-                        <TableHead className="w-[70px] text-right">Returned</TableHead>
-                        <TableHead className="w-[70px] text-right">Blown</TableHead>
-                        <TableHead className="w-[70px] text-right">Billable</TableHead>
-                        <TableHead className="w-[80px] text-right">Price</TableHead>
-                        <TableHead className="w-[90px] text-right">Total</TableHead>
-                        <TableHead className="w-[50px] text-center">Inv.</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {semenLines.map((line, idx) => {
-                        const isEditing = editingSection === "semen";
-                        return (
-                          <TableRow key={line.id || idx}>
-                            <TableCell className="text-sm font-medium">{line.bull_name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
-                            <TableCell className="text-right text-sm">
-                              {line.units_packed ?? 0}
-                            </TableCell>
-                            <TableCell className="text-right text-sm">
-                              {line.units_returned ?? 0}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {isEditing ? (
-                                <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                                  value={line.units_blown ?? ""}
-                                  onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
-                              ) : (
-                                <span className={`text-sm ${line.units_blown ? "" : "text-muted-foreground"}`}>
-                                  {line.units_blown ?? "—"}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right text-sm font-medium">{line.units_billable ?? 0}</TableCell>
-                            <TableCell className="text-right">
-                              {isEditing ? (
-                                <Input type="number" step="0.01" className="h-8 w-[70px] text-right text-xs ml-auto"
-                                  value={line.unit_price ?? ""}
-                                  onChange={(e) => saveSemenLine(idx, { unit_price: Number(e.target.value) || 0 })} />
-                              ) : (
-                                <span className={`text-sm ${line.unit_price ? "" : "text-muted-foreground"}`}>
-                                  {line.unit_price ? formatCurrency(line.unit_price) : "—"}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
-                            <TableCell className="text-center">
-                              <fieldset disabled={false} className="contents">
-                                <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
-                              </fieldset>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {sortedSessions.length} session{sortedSessions.length === 1 ? "" : "s"}
+              </p>
+              {!readOnly && (
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={addSession}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Session
+                </Button>
+              )}
+            </div>
 
-                {/* Mobile */}
-                <div className="md:hidden space-y-3">
-                  {semenLines.map((line, idx) => {
-                    const isEditing = editingSection === "semen";
-                    return (
-                      <div key={line.id || idx} className="border rounded-lg p-3 space-y-2">
-                        <p className="font-medium text-sm">{line.bull_name} <span className="text-muted-foreground text-xs">{line.bull_code}</span></p>
-                        <div className="grid grid-cols-4 gap-2">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Packed</label>
-                            <p className="text-sm mt-1">{line.units_packed ?? 0}</p>
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Ret'd</label>
-                            <p className="text-sm mt-1">{line.units_returned ?? 0}</p>
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Blown</label>
-                            {isEditing ? (
-                              <Input type="number" className="h-8 text-xs" value={line.units_blown ?? ""}
-                                onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
-                            ) : (
-                              <p className="text-sm mt-1">{line.units_blown ?? "—"}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Billable</label>
-                            <p className="text-sm mt-1 font-medium">{line.units_billable ?? 0}</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-xs text-muted-foreground">Total</span>
-                          <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
-                        </div>
-                        <label className="flex items-center gap-2 text-xs">
-                          <fieldset disabled={false} className="contents">
-                            <Checkbox checked={!!line.invoiced} onCheckedChange={() => toggleSemenInvoiced(idx)} />
-                          </fieldset>
-                          <span className="text-muted-foreground">{line.invoiced ? "Invoiced" : "Not invoiced"}</span>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
+            {sortedSessions.length === 0 && (
+              <Card>
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  No sessions yet. Add a session to start tracking field activity and billing.
+                </CardContent>
+              </Card>
+            )}
 
-                <div className="flex justify-end mt-3">
-                  <p className="text-sm font-semibold">Semen Total: {formatCurrency(semenTotal)}</p>
-                </div>
-              </CardContent>
-            </Card>
+            {sortedSessions.map((s) => {
+              const sessionIdx = sessions.findIndex(x => x.id === s.id);
+              const sessionId = s.id || "";
+              const isExpanded = expandedSessions.has(sessionId);
+              const sessionProducts = productsBySession.get(sessionId) || [];
+              const sessionTotal = sessionProducts.reduce((sum, p) => sum + (p.line_total ?? 0), 0);
+              const allSessionInvoiced = sessionProducts.length > 0 &&
+                sessionProducts.every(p => p.invoiced) &&
+                (s.invoiced ?? false);
+              const isCustomerAdmin = s.session_type === "customer_administered";
+              const isBreed = isBreedingSession(s);
+              const breedInventoryRows = isBreed
+                ? sessionInventory.filter(si => si.session_id === sessionId)
+                : [];
 
-            {/* ── Sessions Section ── */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between w-full">
-                  <CardTitle className="text-lg">Field Sessions</CardTitle>
-                  <SectionEditToggle section="sessions" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="hidden md:block overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[80px]">Date</TableHead>
-                        <TableHead className="w-[150px]">Event</TableHead>
-                        <TableHead className="w-[100px]">Time</TableHead>
-                        <TableHead className="w-[90px] text-right">Head Count</TableHead>
-                        <TableHead className="w-[120px]">Crew</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead className="w-[50px] text-center">Inv.</TableHead>
-                        {editingSection === "sessions" && <TableHead className="w-[40px]"></TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sessions.map((s, idx) => {
-                        const diff = s.head_count != null && project.head_count
-                          ? s.head_count - project.head_count : null;
-                        const isEditing = editingSection === "sessions";
-                        return (
-                          <TableRow key={s.id || idx}>
-                            <TableCell className="text-xs">{format(parseISO(s.session_date), "MMM d")}</TableCell>
-                            <TableCell className="text-xs">{s.session_label}</TableCell>
-                            <TableCell>
-                              {isEditing ? (
-                                <Input className="h-8 text-xs" value={s.time_of_day || ""}
-                                  onChange={(e) => saveSessionLine(idx, { time_of_day: e.target.value })} />
-                              ) : (
-                                <span className={`text-xs ${s.time_of_day ? "" : "text-muted-foreground"}`}>{s.time_of_day || "—"}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {isEditing ? (
-                                <div className="flex flex-col items-end">
-                                  <Input type="number" className="h-8 w-[70px] text-right text-xs"
-                                    value={s.head_count ?? ""}
-                                    placeholder="—"
-                                    onChange={(e) => saveSessionLine(idx, { head_count: e.target.value ? Number(e.target.value) : null })} />
-                                  {diff !== null && diff !== 0 && (
-                                    <span className={`text-[10px] ${diff < 0 ? "text-destructive" : "text-emerald-600"}`}>
-                                      {diff > 0 ? "+" : ""}{diff} vs projected
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className={`text-xs ${s.head_count != null ? "" : "text-muted-foreground"}`}>{s.head_count ?? "—"}</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {isEditing ? (
-                                <Input className="h-8 text-xs" value={s.crew || ""}
-                                  onChange={(e) => saveSessionLine(idx, { crew: e.target.value })} />
-                              ) : (
-                                <span className={`text-xs ${s.crew ? "" : "text-muted-foreground"}`}>{s.crew || "—"}</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {isEditing ? (
-                                <Input className="h-8 text-xs" value={s.notes || ""}
-                                  onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
-                              ) : (
-                                <span className={`text-xs ${s.notes ? "" : "text-muted-foreground"}`}>{s.notes || "—"}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <fieldset disabled={false} className="contents">
-                                <Checkbox checked={!!s.invoiced} onCheckedChange={() => toggleSessionInvoiced(idx)} />
-                              </fieldset>
-                            </TableCell>
-                            {isEditing && (
-                              <TableCell>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Mobile */}
-                <div className="md:hidden space-y-3">
-                  {sessions.map((s, idx) => {
-                    const diff = s.head_count != null && project.head_count ? s.head_count - project.head_count : null;
-                    const isEditing = editingSection === "sessions";
-                    return (
-                      <div key={s.id || idx} className="border rounded-lg p-3 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-xs text-muted-foreground">{format(parseISO(s.session_date), "MMM d")}</p>
-                            <p className="font-medium text-sm">{s.session_label}</p>
-                          </div>
-                          {isEditing && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Time</label>
-                            {isEditing ? (
-                              <Input className="h-8 text-xs" value={s.time_of_day || ""}
-                                onChange={(e) => saveSessionLine(idx, { time_of_day: e.target.value })} />
-                            ) : (
-                              <p className="text-sm mt-1">{s.time_of_day || "—"}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Head</label>
-                            {isEditing ? (
-                              <>
-                                <Input type="number" className="h-8 text-xs" value={s.head_count ?? ""}
-                                  placeholder="—"
-                                  onChange={(e) => saveSessionLine(idx, { head_count: e.target.value ? Number(e.target.value) : null })} />
-                                {diff !== null && diff !== 0 && (
-                                  <span className={`text-[10px] ${diff < 0 ? "text-destructive" : "text-emerald-600"}`}>
-                                    {diff > 0 ? "+" : ""}{diff}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm mt-1">{s.head_count ?? "—"}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">Crew</label>
-                            {isEditing ? (
-                              <Input className="h-8 text-xs" value={s.crew || ""}
-                                onChange={(e) => saveSessionLine(idx, { crew: e.target.value })} />
-                            ) : (
-                              <p className="text-sm mt-1">{s.crew || "—"}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {editingSection === "sessions" && (
-                  <Button variant="outline" size="sm" className="mt-3" onClick={addSession}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Session
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ── Session Inventory Tracking ── */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between w-full flex-wrap gap-2">
-                  <CardTitle className="text-lg">Session Inventory Tracking</CardTitle>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {editingSection === "worksheet" && (
-                      <>
-                        {sessionInventory.length > 0 && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={addWorksheetSession}>
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Session
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setShowAddBullToWorksheet(true)}>
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Bull
-                            </Button>
-                          </>
-                        )}
-                        {sessionInventory.length === 0 && sessions.length > 0 && (
-                          <Button size="sm" onClick={generateWorksheet} disabled={generatingWorksheet}>
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            {generatingWorksheet ? "Generating..." : "Generate Worksheet"}
-                          </Button>
-                        )}
-                        {sessionInventory.length > 0 && (
-                          <Button size="sm" variant="outline" onClick={generateWorksheet} disabled={generatingWorksheet}>
-                            Regenerate
-                          </Button>
-                        )}
-                      </>
+              return (
+                <Card key={sessionId} className="overflow-hidden">
+                  {/* Collapsed header — clickable */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSession(sessionId)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
-                    <SectionEditToggle section="worksheet" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {sessions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Add Field Sessions above first.</p>
-                ) : sessionInventory.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Click "Edit" then "Generate Worksheet" to create tracking rows from this project's pack data.
-                  </p>
-                ) : (() => {
-                  const breedingSessions = sessions.filter(s => {
-                    const label = (s.session_label || "").toLowerCase();
-                    return label.includes("breed") || label.includes("ai ") || label === "ai";
-                  });
-                  const sortedSessions = [...breedingSessions].sort((a, b) =>
-                    (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date)
-                  );
-                  const worksheetRows = buildWorksheetRows();
-                  const isEditing = editingSection === "worksheet";
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">
+                          {format(parseISO(s.session_date), "MMM d, yyyy")}
+                        </span>
+                        <span className="text-sm text-muted-foreground">·</span>
+                        <span className="text-sm">{s.session_label || "Session"}</span>
+                        {isCustomerAdmin && (
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5">Customer</Badge>
+                        )}
+                        {isBreed && (
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary">
+                            Breeding
+                          </Badge>
+                        )}
+                        {allSessionInvoiced && (
+                          <Badge className="text-[10px] py-0 px-1.5 bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/15">
+                            Previously invoiced
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums shrink-0">
+                      {formatCurrency(sessionTotal)}
+                    </div>
+                  </button>
 
-                  const byBull = new Map<string, WorksheetRow[]>();
-                  for (const row of worksheetRows) {
-                    const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
-                    if (!byBull.has(bullKey)) byBull.set(bullKey, []);
-                    byBull.get(bullKey)!.push(row);
-                  }
+                  {/* Expanded body */}
+                  {isExpanded && (
+                    <CardContent className="border-t pt-4 space-y-4">
+                      {/* Session details row */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <label className="text-muted-foreground">Time</label>
+                          <Input
+                            className="h-8 text-xs mt-1"
+                            value={s.time_of_day || ""}
+                            placeholder="—"
+                            disabled={readOnly}
+                            onChange={(e) => saveSessionLine(sessionIdx, { time_of_day: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted-foreground">Head Count</label>
+                          <Input
+                            type="number"
+                            className="h-8 text-xs mt-1"
+                            value={s.head_count ?? ""}
+                            placeholder="—"
+                            disabled={readOnly}
+                            onChange={(e) => saveSessionLine(sessionIdx, {
+                              head_count: e.target.value ? Number(e.target.value) : null
+                            })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted-foreground">Crew</label>
+                          <Input
+                            className="h-8 text-xs mt-1"
+                            value={s.crew || ""}
+                            placeholder="—"
+                            disabled={readOnly}
+                            onChange={(e) => saveSessionLine(sessionIdx, { crew: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted-foreground">Notes</label>
+                          <Input
+                            className="h-8 text-xs mt-1"
+                            value={s.notes || ""}
+                            placeholder="—"
+                            disabled={readOnly}
+                            onChange={(e) => saveSessionLine(sessionIdx, { notes: e.target.value })}
+                          />
+                        </div>
+                      </div>
 
-                  return (
-                    <div className="space-y-6">
-                      {Array.from(byBull.entries()).map(([bullKey, rows]) => {
-                        const first = rows[0];
-                        const totalPacked = rows.reduce((s, r) => s + r.packed_units, 0);
-
-                        return (
-                          <div key={bullKey}>
-                            <div className="text-sm font-medium mb-1 flex items-center justify-between">
-                              <div>
-                                {first.bull_name}
-                                {first.bull_code && <span className="ml-2 text-xs text-muted-foreground font-normal">· {first.bull_code}</span>}
-                                <span className="ml-2 text-xs text-muted-foreground font-normal">· {totalPacked} packed</span>
-                              </div>
-                              {isEditing && rows.length === 1 && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  onClick={() => deleteWorksheetCanister(bullKey, rows[0].canister)}
-                                  title="Remove from worksheet"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
+                      {/* Customer-administered short-circuit */}
+                      {isCustomerAdmin ? (
+                        <p className="text-sm text-muted-foreground italic">
+                          Products accounted for in customer pickup. No billable activity.
+                        </p>
+                      ) : (
+                        <>
+                          {/* Products for this session */}
+                          {sessionProducts.length > 0 ? (
                             <div className="overflow-x-auto">
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="w-[50px] text-center">Can.</TableHead>
-                                    <TableHead>Session</TableHead>
-                                    <TableHead className="w-[80px] text-center">Start</TableHead>
-                                    <TableHead className="w-[80px] text-center">End</TableHead>
+                                    <TableHead className="w-[180px]">Product</TableHead>
+                                    <TableHead className="w-[80px] text-right">Doses</TableHead>
+                                    <TableHead className="w-[100px] text-right">Units</TableHead>
+                                    <TableHead className="w-[90px] text-right">Price</TableHead>
+                                    <TableHead className="w-[100px] text-right">Total</TableHead>
+                                    <TableHead className="w-[50px] text-center">Inv.</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {rows.map((row) => (
-                                    <React.Fragment key={`${row.bull_name}-${row.canister}`}>
-                                      {sortedSessions.map((s, sIdx) => {
-                                        const cell = row.cellsBySessionId[s.id!];
-                                        return (
-                                          <TableRow key={`${row.canister}-${s.id}`}>
-                                            {sIdx === 0 && (
-                                              <TableCell
-                                                className="text-center font-mono text-xs align-top font-medium"
-                                                rowSpan={sortedSessions.length + 1}
-                                              >
-                                                <div className="flex flex-col items-center gap-1">
-                                                  <span>{row.canister}</span>
-                                                  {isEditing && rows.length > 1 && (
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="icon"
-                                                      className="h-5 w-5 text-destructive hover:text-destructive"
-                                                      onClick={() => deleteWorksheetCanister(bullKey, row.canister)}
-                                                      title={`Remove canister ${row.canister}`}
-                                                    >
-                                                      <Trash2 className="h-3 w-3" />
-                                                    </Button>
-                                                  )}
-                                                </div>
-                                              </TableCell>
-                                            )}
-                                            <TableCell className="text-xs">
-                                              {s.session_label || "Breed"} · {format(parseISO(s.session_date), "MMM d")}
-                                            </TableCell>
-                                            <TableCell className="p-1">
-                                              {isEditing ? (
-                                                <Input
-                                                  type="number"
-                                                  className="h-8 w-full text-right text-xs"
-                                                  value={cell?.start_units ?? ""}
-                                                  placeholder="—"
-                                                  onBlur={(e) => {
-                                                    if (!cell?.id) return;
-                                                    const v = e.target.value === "" ? null : Number(e.target.value);
-                                                    if (v !== cell.start_units) saveWorksheetCell(cell.id, "start_units", v);
-                                                  }}
-                                                  onChange={(e) => {
-                                                    if (!cell?.id) return;
-                                                    const v = e.target.value === "" ? null : Number(e.target.value);
-                                                    setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, start_units: v } : r));
-                                                  }}
-                                                />
-                                              ) : (
-                                                <span className="text-xs text-right block">{cell?.start_units ?? "—"}</span>
-                                              )}
-                                            </TableCell>
-                                            <TableCell className="p-1">
-                                              {isEditing ? (
-                                                <Input
-                                                  type="number"
-                                                  className="h-8 w-full text-right text-xs"
-                                                  value={cell?.end_units ?? ""}
-                                                  placeholder="—"
-                                                  onBlur={(e) => {
-                                                    if (!cell?.id) return;
-                                                    const v = e.target.value === "" ? null : Number(e.target.value);
-                                                    if (v !== cell.end_units) saveWorksheetCell(cell.id, "end_units", v);
-                                                  }}
-                                                  onChange={(e) => {
-                                                    if (!cell?.id) return;
-                                                    const v = e.target.value === "" ? null : Number(e.target.value);
-                                                    setSessionInventory(prev => prev.map(r => r.id === cell.id ? { ...r, end_units: v } : r));
-                                                  }}
-                                                />
-                                              ) : (
-                                                <span className="text-xs text-right block">{cell?.end_units ?? "—"}</span>
-                                              )}
-                                            </TableCell>
-                                          </TableRow>
-                                        );
-                                      })}
-                                      {/* Returned row for this canister */}
-                                      <TableRow key={`${row.canister}-returned`} className="bg-muted/30">
-                                        <TableCell className="text-xs font-medium">Returned</TableCell>
-                                        <TableCell colSpan={2} className="p-1">
-                                          {isEditing ? (
-                                            <Input
-                                              type="number"
-                                              className="h-8 w-[80px] text-right text-xs"
-                                              value={row.returned_units ?? ""}
-                                              placeholder="—"
-                                              onBlur={(e) => {
-                                                const v = e.target.value === "" ? null : Number(e.target.value);
-                                                if (v !== row.returned_units) saveReturnedUnits(bullKey, row.canister, v);
-                                              }}
-                                              onChange={(e) => {
-                                                const v = e.target.value === "" ? null : Number(e.target.value);
-                                                const firstRow = sessionInventory.find(r =>
-                                                  (r.bull_catalog_id || `name:${r.bull_name}`) === bullKey && r.canister === row.canister
-                                                );
-                                                if (firstRow?.id) {
-                                                  setSessionInventory(prev => prev.map(r => r.id === firstRow.id ? { ...r, returned_units: v } : r));
-                                                }
-                                              }}
-                                            />
+                                  {sessionProducts.map((line) => {
+                                    const idx = productLines.findIndex(p => p.id === line.id);
+                                    const categoryProducts = billingProducts.filter(
+                                      p => p.product_category === line.product_category
+                                    );
+                                    return (
+                                      <TableRow key={line.id || idx}>
+                                        <TableCell className="text-sm">
+                                          {!readOnly && categoryProducts.length > 1 ? (
+                                            <Select
+                                              value={line.billing_product_id || ""}
+                                              onValueChange={(v) => swapProduct(idx, v)}
+                                            >
+                                              <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue>{line.product_name}</SelectValue>
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {categoryProducts.map(p => (
+                                                  <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
                                           ) : (
-                                            <span className="text-xs">{row.returned_units ?? "—"}</span>
+                                            <span>{line.product_name}</span>
                                           )}
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-[70px] text-right text-xs ml-auto"
+                                            value={line.doses || ""}
+                                            placeholder="—"
+                                            disabled={readOnly}
+                                            onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-right text-xs">
+                                          {(line.units_billed ?? line.units_calculated ?? 0).toFixed(1)} {line.unit_label || ""}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            className="h-8 w-[80px] text-right text-xs ml-auto"
+                                            value={line.unit_price ?? ""}
+                                            disabled={readOnly}
+                                            onChange={(e) => saveProductLine(idx, { unit_price: Number(e.target.value) || 0 })}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-right text-sm font-medium">
+                                          {formatCurrency(line.line_total)}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Checkbox
+                                            checked={!!line.invoiced}
+                                            onCheckedChange={() => toggleProductInvoiced(idx)}
+                                          />
+                                        </TableCell>
                                       </TableRow>
-                                    </React.Fragment>
-                                  ))}
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>
-                          </div>
-                        );
-                      })}
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">No products on this session.</p>
+                          )}
 
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          </>
-        )}
+                          {/* Breeding session: semen inventory tracking */}
+                          {isBreed && breedInventoryRows.length > 0 && (
+                            <div className="space-y-2 pt-2">
+                              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                Semen inventory
+                              </div>
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Bull</TableHead>
+                                      <TableHead className="w-[60px] text-center">Can.</TableHead>
+                                      <TableHead className="w-[80px] text-right">Start</TableHead>
+                                      <TableHead className="w-[80px] text-right">End</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {breedInventoryRows.map((row) => (
+                                      <TableRow key={row.id}>
+                                        <TableCell className="text-xs">
+                                          {row.bull_name}
+                                          {row.bull_code && (
+                                            <span className="ml-1 text-muted-foreground">· {row.bull_code}</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="text-center text-xs font-mono">{row.canister}</TableCell>
+                                        <TableCell className="p-1">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={row.start_units ?? ""}
+                                            placeholder="—"
+                                            disabled={readOnly}
+                                            onBlur={(e) => {
+                                              if (!row.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== row.start_units) saveWorksheetCell(row.id, "start_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!row.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r =>
+                                                r.id === row.id ? { ...r, start_units: v } : r
+                                              ));
+                                            }}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="p-1">
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-full text-right text-xs"
+                                            value={row.end_units ?? ""}
+                                            placeholder="—"
+                                            disabled={readOnly}
+                                            onBlur={(e) => {
+                                              if (!row.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              if (v !== row.end_units) saveWorksheetCell(row.id, "end_units", v);
+                                            }}
+                                            onChange={(e) => {
+                                              if (!row.id) return;
+                                              const v = e.target.value === "" ? null : Number(e.target.value);
+                                              setSessionInventory(prev => prev.map(r =>
+                                                r.id === row.id ? { ...r, end_units: v } : r
+                                              ));
+                                            }}
+                                          />
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
 
-        {/* ════════════════════ SUMMARY & CLOSEOUT TAB ════════════════════ */}
-        {activeTab === "summary" && (
-          <>
-            {/* ── Invoice Numbers ── */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between w-full">
-                  <CardTitle className="text-lg">Invoice Numbers</CardTitle>
-                  <SectionEditToggle section="invoices" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">CATL Resources Invoice #</label>
-                    {editingSection === "invoices" ? (
-                      <Input
-                        className="mt-1"
-                        defaultValue={billingRecord?.catl_invoice_number || ""}
-                        disabled={readOnly}
-                        onBlur={(e) => saveBillingField("catl_invoice_number", e.target.value || null)}
-                      />
-                    ) : (
-                      <p className={`mt-1 text-sm ${billingRecord?.catl_invoice_number ? "" : "text-muted-foreground"}`}>
-                        {billingRecord?.catl_invoice_number || "—"}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Select Sires Invoice #</label>
-                    {editingSection === "invoices" ? (
-                      <Input
-                        className="mt-1"
-                        defaultValue={billingRecord?.select_sires_invoice_number || ""}
-                        disabled={readOnly}
-                        onBlur={(e) => saveBillingField("select_sires_invoice_number", e.target.value || null)}
-                      />
-                    ) : (
-                      <p className={`mt-1 text-sm ${billingRecord?.select_sires_invoice_number ? "" : "text-muted-foreground"}`}>
-                        {billingRecord?.select_sires_invoice_number || "—"}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Project ID</label>
-                    {editingSection === "invoices" ? (
-                      <Input
-                        className="mt-1"
-                        defaultValue={billingRecord?.zoho_project_id || ""}
-                        disabled={readOnly}
-                        placeholder="Zoho project ID"
-                        onBlur={(e) => saveBillingField("zoho_project_id", e.target.value || null)}
-                      />
-                    ) : (
-                      <p className={`mt-1 text-sm ${billingRecord?.zoho_project_id ? "" : "text-muted-foreground"}`}>
-                        {billingRecord?.zoho_project_id || "—"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* ── Grand Total ── */}
-            <Card className="border-2 border-primary/30">
-              <CardContent className="py-4 space-y-3">
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Products</p>
-                    <p className="font-semibold">{formatCurrency(productsTotal)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Semen</p>
-                    <p className="font-semibold">{formatCurrency(semenTotal)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Grand Total</p>
-                    <p className="text-xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
-                  </div>
-                </div>
-                {grandInvoiced > 0 && (
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Invoiced</p>
-                      <p className="font-semibold text-emerald-600">{formatCurrency(grandInvoiced)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Outstanding</p>
-                      <p className="font-semibold text-amber-600">{formatCurrency(grandOutstanding)}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ── Unpack Tank ── */}
-            {projectPacks.length > 0 && (
-              <Card>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="font-medium text-sm">Unpack field tank</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {isUnpacked
-                          ? "Tank has been unpacked and semen returned."
-                          : "Return unused semen to source tanks."}
-                      </p>
-                    </div>
-                    {isUnpacked ? (
-                      <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
-                        <Check className="h-4 w-4" />
-                        <span>Unpacked</span>
-                      </div>
-                    ) : (
-                      <Button variant="outline" size="sm" className="h-9 gap-1.5"
-                        onClick={() => navigate(`/unpack/${projectPacks[0]?.id}`)}>
-                        <PackageOpen className="h-4 w-4" />
-                        Unpack Tank
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* ── Finalize Inventory ── */}
-            <Card>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div>
-                    <p className="font-medium text-sm">Finalize Inventory</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {inventoryFinalized
-                        ? `Finalized ${billingRecord?.inventory_finalized_at ? format(parseISO(billingRecord.inventory_finalized_at), "MMM d, yyyy") : ""}`
-                        : "Subtract used semen from field tank inventory."}
-                    </p>
-                  </div>
-                  {inventoryFinalized ? (
-                    <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-500 px-2">
-                      <Check className="h-4 w-4" />
-                      <span>Finalized</span>
-                    </div>
-                  ) : (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 gap-1.5"
-                          disabled={finalizing || semenLines.length === 0}
-                        >
-                          {finalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-                          {finalizing ? "Finalizing…" : "Finalize Inventory"}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Finalize Inventory?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will subtract all used semen from the field tank inventory.
-                            Used units = Packed − Returned − Blown. This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleFinalizeInventory} disabled={finalizing}>
-                            {finalizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Finalize
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      {!readOnly && (
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => removeSession(sessionIdx)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Remove session
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </Card>
+              );
+            })}
 
-            {/* ── Notes ── */}
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between w-full">
-                  <CardTitle className="text-lg">Notes</CardTitle>
-                  <SectionEditToggle section="notes" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {editingSection === "notes" ? (
-                  <Textarea
-                    className="min-h-[80px]"
-                    defaultValue={billingRecord?.notes || ""}
-                    disabled={readOnly}
-                    placeholder="General billing notes..."
-                    onBlur={(e) => saveBillingField("notes", e.target.value || null)}
-                  />
-                ) : (
-                  <p className={`text-sm whitespace-pre-wrap ${billingRecord?.notes ? "" : "text-muted-foreground"}`}>
-                    {billingRecord?.notes || "No notes."}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ── Complete Project ── */}
-            {!isProjectComplete && (
-              <Card className="border-dashed">
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="font-medium text-sm">Complete Project</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {!inventoryFinalized
-                          ? "Finalize inventory before completing."
-                          : !isUnpacked
-                          ? "Unpack the field tank before completing."
-                          : "Mark this project as complete. The billing page will become read-only."}
-                      </p>
-                    </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          disabled={completing || !inventoryFinalized || !isUnpacked}
-                          className="gap-1.5"
-                        >
-                          {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                          {completing ? "Completing…" : "Complete Project"}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Complete this project?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will mark {project?.name} as Complete. The billing page will become
-                            read-only (invoiced checkboxes will stay toggleable). This can be undone by
-                            changing the project status back from the project detail page.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleCompleteProject}>
-                            Complete Project
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+            {/* Standalone (unassigned) products card */}
+            {(productsBySession.get(null)?.length ?? 0) > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Unassigned products</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Date</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead className="w-[80px] text-right">Doses</TableHead>
+                          <TableHead className="w-[100px] text-right">Total</TableHead>
+                          <TableHead className="w-[50px] text-center">Inv.</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(productsBySession.get(null) || []).map((line) => {
+                          const idx = productLines.findIndex(p => p.id === line.id);
+                          return (
+                            <TableRow key={line.id || idx}>
+                              <TableCell className="text-xs">
+                                {line.event_date ? format(parseISO(line.event_date), "MMM d") : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">{line.product_name}</TableCell>
+                              <TableCell className="text-right text-sm">{line.doses || "—"}</TableCell>
+                              <TableCell className="text-right text-sm font-medium">
+                                {formatCurrency(line.line_total)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Checkbox
+                                  checked={!!line.invoiced}
+                                  onCheckedChange={() => toggleProductInvoiced(idx)}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
             )}
-
-            {isProjectComplete && (
-              <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-500 justify-center py-2">
-                <Check className="h-4 w-4" />
-                <span>Project completed {billingRecord?.billing_completed_at ? format(parseISO(billingRecord.billing_completed_at), "MMM d, yyyy") : ""}</span>
-              </div>
-            )}
-          </>
+          </div>
         )}
+
+        {/* ════════════════════ BILLING TAB (placeholder — built in Prompt 2) ════════════════════ */}
+        {activeTab === "billing" && (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Billing summary — coming in next prompt
+            </CardContent>
+          </Card>
+        )}
+
 
         {/* Add Bull to Worksheet Dialog — accessible from any tab */}
         <Dialog open={showAddBullToWorksheet} onOpenChange={setShowAddBullToWorksheet}>
