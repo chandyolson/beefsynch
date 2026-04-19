@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -190,7 +190,6 @@ const ProjectBilling = () => {
   // Labor removed — sessions cover it
 
   const [suggestedDoses, setSuggestedDoses] = useState<Record<string, number>>({});
-  const [suggestedPackedUnits, setSuggestedPackedUnits] = useState<Record<string, number>>({});
 
   // Tab and edit mode state
   const [activeTab, setActiveTab] = useState<"products" | "sessions" | "summary">("products");
@@ -320,26 +319,6 @@ const ProjectBilling = () => {
     }
     setSuggestedDoses(doseMap);
 
-    // Packed units suggestions from pack data
-    const packedMap: Record<string, number> = {};
-    const { data: packProjects } = await supabase
-      .from("tank_pack_projects")
-      .select("tank_pack_id")
-      .eq("project_id", proj.id);
-
-    if (packProjects && packProjects.length > 0) {
-      const packIds = packProjects.map(pp => pp.tank_pack_id);
-      const { data: packLines } = await supabase
-        .from("tank_pack_lines")
-        .select("bull_catalog_id, bull_name, units")
-        .in("tank_pack_id", packIds);
-
-      for (const pl of packLines ?? []) {
-        const key = pl.bull_catalog_id || pl.bull_name;
-        packedMap[key] = (packedMap[key] || 0) + pl.units;
-      }
-    }
-    setSuggestedPackedUnits(packedMap);
   }
 
   /* ── create blank billing with zeroed quantities ── */
@@ -448,21 +427,40 @@ const ProjectBilling = () => {
       setSessions((inserted ?? []) as SessionLine[]);
     }
 
-    // ── Semen from project bulls (zeroed out) ──
+    // ── Semen from project bulls, auto-filled with actual pack data ──
+    const { data: semenPackProjects } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id")
+      .eq("project_id", proj.id);
+
+    const packedByBull: Record<string, number> = {};
+    if (semenPackProjects && semenPackProjects.length > 0) {
+      const semenPackIds = semenPackProjects.map(pp => pp.tank_pack_id);
+      const { data: semenPackLines } = await supabase
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, units")
+        .in("tank_pack_id", semenPackIds);
+      for (const pl of semenPackLines ?? []) {
+        const key = pl.bull_catalog_id || pl.bull_name;
+        packedByBull[key] = (packedByBull[key] || 0) + pl.units;
+      }
+    }
+
     const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
       const bullName = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
+      const packed = packedByBull[catalogId || bullName] || 0;
 
       return {
         billing_id: bId,
         bull_catalog_id: catalogId,
         bull_name: bullName,
         bull_code: bullCode,
-        units_packed: 0,
+        units_packed: packed,
         units_returned: 0,
         units_blown: 0,
-        units_billable: 0,
+        units_billable: packed,
         unit_price: 0,
         line_total: 0,
         sort_order: i,
@@ -981,6 +979,57 @@ const ProjectBilling = () => {
   ].every(Boolean);
   const isProjectComplete = project?.status === "Complete";
   const readOnly = isProjectComplete || billingRecord?.status === "work_complete" || billingRecord?.status === "invoiced_closed";
+
+  /* ── auto-fill returned units from worksheet ── */
+  const worksheetReturnedByBull = useMemo(() => {
+    const counted = new Set<string>();
+    const result: Record<string, number> = {};
+    for (const si of sessionInventory) {
+      const bullKey = si.bull_catalog_id || `name:${si.bull_name}`;
+      const canKey = `${bullKey}:${si.canister}`;
+      if (si.returned_units != null && !counted.has(canKey)) {
+        result[bullKey] = (result[bullKey] || 0) + si.returned_units;
+        counted.add(canKey);
+      }
+    }
+    return result;
+  }, [sessionInventory]);
+
+  useEffect(() => {
+    if (Object.keys(worksheetReturnedByBull).length === 0) return;
+    let changed = false;
+    const updated = semenLines.map(sl => {
+      const key = sl.bull_catalog_id || `name:${sl.bull_name}`;
+      const wsReturned = worksheetReturnedByBull[key] ?? 0;
+      if (sl.units_returned !== wsReturned) {
+        changed = true;
+        const newBillable = Math.max(0, (sl.units_packed ?? 0) - wsReturned - (sl.units_blown ?? 0));
+        return {
+          ...sl,
+          units_returned: wsReturned,
+          units_billable: newBillable,
+          line_total: newBillable * (sl.unit_price ?? 0),
+        };
+      }
+      return sl;
+    });
+    if (changed) {
+      setSemenLines(updated);
+      for (const sl of updated) {
+        const original = semenLines.find(s => s.id === sl.id);
+        if (sl.id && original && sl.units_returned !== original.units_returned) {
+          debouncedSave(`semen-ret-${sl.id}`, () =>
+            supabase.from("project_billing_semen").update({
+              units_returned: sl.units_returned,
+              units_billable: sl.units_billable,
+              line_total: sl.line_total,
+            }).eq("id", sl.id!)
+          );
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheetReturnedByBull]);
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
@@ -1924,60 +1973,6 @@ const ProjectBilling = () => {
                         );
                       })}
 
-                      {/* Summary table */}
-                      <div className="pt-4 border-t">
-                        <p className="text-sm font-medium mb-2">Per-Bull Summary</p>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Bull</TableHead>
-                              <TableHead className="text-right">Packed</TableHead>
-                              <TableHead className="text-right">Returned</TableHead>
-                              <TableHead className="text-right">Blown</TableHead>
-                              <TableHead className="text-right">Used</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {(() => {
-                              const rendered: any[] = [];
-                              let totalPacked = 0, totalReturned = 0, totalBlown = 0, totalUsed = 0;
-                              for (const [bullKey, rows] of Array.from(byBull.entries())) {
-                                const first = rows[0];
-                                const packed = rows.reduce((s, r) => s + r.packed_units, 0);
-                                const returned = rows.reduce((s, r) => s + (r.returned_units ?? 0), 0);
-                                const semenLine = semenLines.find(sl =>
-                                  (sl.bull_catalog_id || sl.bull_name) === bullKey || sl.bull_name === first.bull_name
-                                );
-                                const blown = semenLine?.units_blown ?? 0;
-                                const used = Math.max(0, packed - returned - blown);
-                                totalPacked += packed; totalReturned += returned; totalBlown += blown; totalUsed += used;
-                                rendered.push(
-                                  <TableRow key={bullKey}>
-                                    <TableCell className="text-xs">{first.bull_name}</TableCell>
-                                    <TableCell className="text-xs text-right">{packed}</TableCell>
-                                    <TableCell className="text-xs text-right">{returned || "—"}</TableCell>
-                                    <TableCell className="text-xs text-right">{blown || "—"}</TableCell>
-                                    <TableCell className="text-xs text-right font-medium">{returned > 0 || blown > 0 ? used : "—"}</TableCell>
-                                  </TableRow>
-                                );
-                              }
-                              rendered.push(
-                                <TableRow key="total" className="bg-muted/30 font-medium">
-                                  <TableCell className="text-xs">Total</TableCell>
-                                  <TableCell className="text-xs text-right">{totalPacked}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalReturned || "—"}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalBlown || "—"}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalReturned > 0 || totalBlown > 0 ? totalUsed : "—"}</TableCell>
-                                </TableRow>
-                              );
-                              return rendered;
-                            })()}
-                          </TableBody>
-                        </Table>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Used = Packed − Returned − Blown. Blown is entered on the Semen section above. These totals feed directly into billing.
-                        </p>
-                      </div>
                     </div>
                   );
                 })()}
