@@ -480,6 +480,66 @@ const ProjectBilling = () => {
     loadData();
   }, [loadData]);
 
+  /* ── Auto-fill units_returned on semen lines from tank_unpack_lines ── */
+  async function syncReturnedFromUnpack() {
+    if (!projectPacks.length) return;
+    const packIds = projectPacks.map((p) => p.id);
+    const { data: unpackLines } = await supabase
+      .from("tank_unpack_lines")
+      .select("bull_catalog_id, bull_name, units_returned")
+      .in("tank_pack_id", packIds);
+
+    if (!unpackLines?.length) return;
+
+    const returnedByBull: Record<string, number> = {};
+    for (const ul of unpackLines) {
+      const key = (ul.bull_catalog_id as string) || ul.bull_name;
+      returnedByBull[key] = (returnedByBull[key] || 0) + (ul.units_returned || 0);
+    }
+
+    const updates: Array<{ id: string; units_returned: number; units_billable: number; line_total: number }> = [];
+    const updated = semenLines.map((sl) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const returned = returnedByBull[key] ?? 0;
+      if (sl.units_returned !== returned) {
+        const used = (sl.units_packed ?? 0) - returned;
+        const billable = Math.max(0, used - (sl.units_blown ?? 0));
+        const line_total = billable * (sl.unit_price ?? 0);
+        if (sl.id) {
+          updates.push({ id: sl.id, units_returned: returned, units_billable: billable, line_total });
+        }
+        return { ...sl, units_returned: returned, units_billable: billable, line_total };
+      }
+      return sl;
+    });
+
+    if (updates.length === 0) return;
+    setSemenLines(updated);
+    await Promise.all(
+      updates.map((u) =>
+        supabase
+          .from("project_billing_semen")
+          .update({
+            units_returned: u.units_returned,
+            units_billable: u.units_billable,
+            line_total: u.line_total,
+          })
+          .eq("id", u.id),
+      ),
+    );
+  }
+
+  // Re-sync returned units whenever the pack becomes unpacked (or when semen lines first load).
+  useEffect(() => {
+    const hasPack = projectPacks.length > 0;
+    const packStatus = projectPacks[0]?.status || null;
+    const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+    if (hasPack && isUnpacked && semenLines.length > 0) {
+      syncReturnedFromUnpack();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectPacks, semenLines.length]);
+
   /* ── save helpers ── */
 
   function saveBillingField(field: string, value: any) {
