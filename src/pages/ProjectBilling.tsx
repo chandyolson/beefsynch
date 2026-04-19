@@ -319,26 +319,6 @@ const ProjectBilling = () => {
     }
     setSuggestedDoses(doseMap);
 
-    // Packed units suggestions from pack data
-    const packedMap: Record<string, number> = {};
-    const { data: packProjects } = await supabase
-      .from("tank_pack_projects")
-      .select("tank_pack_id")
-      .eq("project_id", proj.id);
-
-    if (packProjects && packProjects.length > 0) {
-      const packIds = packProjects.map(pp => pp.tank_pack_id);
-      const { data: packLines } = await supabase
-        .from("tank_pack_lines")
-        .select("bull_catalog_id, bull_name, units")
-        .in("tank_pack_id", packIds);
-
-      for (const pl of packLines ?? []) {
-        const key = pl.bull_catalog_id || pl.bull_name;
-        packedMap[key] = (packedMap[key] || 0) + pl.units;
-      }
-    }
-    setSuggestedPackedUnits(packedMap);
   }
 
   /* ── create blank billing with zeroed quantities ── */
