@@ -530,17 +530,17 @@ const ProjectBilling = () => {
   }
 
   // Re-sync returned units whenever the pack becomes unpacked.
-  const unpackSyncDone = useRef(false);
-  useEffect(() => {
-    const hasPack = projectPacks.length > 0;
-    const packStatus = projectPacks[0]?.status || null;
-    const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
-    if (hasPack && isUnpacked && !unpackSyncDone.current) {
-      unpackSyncDone.current = true;
-      syncReturnedFromUnpack();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectPacks]);
+  // DISABLED — debugging infinite render loop
+  // const unpackSyncDone = useRef(false);
+  // useEffect(() => {
+  //   const hasPack = projectPacks.length > 0;
+  //   const packStatus = projectPacks[0]?.status || null;
+  //   const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+  //   if (hasPack && isUnpacked && !unpackSyncDone.current) {
+  //     unpackSyncDone.current = true;
+  //     syncReturnedFromUnpack();
+  //   }
+  // }, [projectPacks]);
 
   /* ── save helpers ── */
 
@@ -1159,6 +1159,28 @@ const ProjectBilling = () => {
     toast({ title: "PDF downloaded" });
   }
 
+  const currentStatus = billingRecord?.status || "in_process";
+
+  /* ── Group products by session_id for the Sessions tab ── */
+  const productsBySession = useMemo(() => {
+    const map = new Map<string | null, ProductLine[]>();
+    for (const p of productLines) {
+      const key = p.session_id || null;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    return map;
+  }, [productLines]);
+
+  /* ── Sessions sorted chronologically (with sort_order tiebreaker) ── */
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const dateCmp = a.session_date.localeCompare(b.session_date);
+      if (dateCmp !== 0) return dateCmp;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  }, [sessions]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -1182,19 +1204,6 @@ const ProjectBilling = () => {
     );
   }
 
-  const currentStatus = billingRecord?.status || "in_process";
-
-  /* ── Group products by session_id for the Sessions tab ── */
-  const productsBySession = useMemo(() => {
-    const map = new Map<string | null, ProductLine[]>();
-    for (const p of productLines) {
-      const key = p.session_id || null;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(p);
-    }
-    return map;
-  }, [productLines]);
-
   /* ── Helper: detect breeding sessions ── */
   function isBreedingSession(s: SessionLine) {
     const label = (s.session_label || "").toLowerCase();
@@ -1210,15 +1219,6 @@ const ProjectBilling = () => {
       return next;
     });
   }
-
-  /* ── Sessions sorted chronologically (with sort_order tiebreaker) ── */
-  const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
-      const dateCmp = a.session_date.localeCompare(b.session_date);
-      if (dateCmp !== 0) return dateCmp;
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    });
-  }, [sessions]);
 
   /* ── Field tank label for the pack status bar ── */
   const firstPack: any = projectPacks[0] || null;
