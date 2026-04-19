@@ -529,16 +529,18 @@ const ProjectBilling = () => {
     );
   }
 
-  // Re-sync returned units whenever the pack becomes unpacked (or when semen lines first load).
+  // Re-sync returned units whenever the pack becomes unpacked.
+  const unpackSyncDone = useRef(false);
   useEffect(() => {
     const hasPack = projectPacks.length > 0;
     const packStatus = projectPacks[0]?.status || null;
     const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
-    if (hasPack && isUnpacked && semenLines.length > 0) {
+    if (hasPack && isUnpacked && !unpackSyncDone.current) {
+      unpackSyncDone.current = true;
       syncReturnedFromUnpack();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectPacks, semenLines.length]);
+  }, [projectPacks]);
 
   /* ── save helpers ── */
 
@@ -1058,8 +1060,12 @@ const ProjectBilling = () => {
     return result;
   }, [sessionInventory]);
 
+  const wsReturnSyncRef = useRef<string>("");
   useEffect(() => {
+    const wsKey = JSON.stringify(worksheetReturnedByBull);
+    if (wsKey === wsReturnSyncRef.current) return;
     if (Object.keys(worksheetReturnedByBull).length === 0) return;
+    wsReturnSyncRef.current = wsKey;
     let changed = false;
     const updated = semenLines.map(sl => {
       const key = sl.bull_catalog_id || `name:${sl.bull_name}`;
