@@ -108,7 +108,13 @@ const ProjectBilling = () => {
       .from("tank_pack_projects")
       .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id, tanks:field_tank_id(id, tank_number, tank_name))")
       .eq("project_id", projectId!);
-    setProjectPacks((packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean));
+    const packs = (packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean);
+    setProjectPacks(packs);
+
+    // Auto-generate semen worksheet if pack exists + breeding sessions + no inventory rows yet
+    if (existingBilling && packs.length > 0) {
+      await autoGenerateSessionInventory(existingBilling.id, packs);
+    }
 
     setLoading(false);
   }, [projectId, orgId]);
@@ -124,6 +130,80 @@ const ProjectBilling = () => {
     setSessions((sessRes.data ?? []) as SessionLine[]);
     setSemenLines((semRes.data ?? []) as SemenLine[]);
     setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
+    return {
+      sessions: (sessRes.data ?? []) as SessionLine[],
+      inventory: (invRes.data ?? []) as SessionInventoryLine[],
+    };
+  }
+
+  async function autoGenerateSessionInventory(bId: string, packs: any[]) {
+    // Only run if we have no inventory rows yet
+    const { data: existingInv } = await (supabase.from as any)("project_billing_session_inventory")
+      .select("id").eq("billing_id", bId).limit(1);
+    if (existingInv && existingInv.length > 0) return;
+
+    // Get breeding sessions
+    const { data: allSessions } = await supabase
+      .from("project_billing_sessions").select("*").eq("billing_id", bId);
+    const breedingSessions = (allSessions ?? []).filter((s: any) => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+    });
+    if (breedingSessions.length === 0) return;
+
+    // Get pack lines to find bull/canister combos
+    const packIds = packs.map((p: any) => p.id);
+    const { data: packLines } = await supabase
+      .from("tank_pack_lines").select("bull_catalog_id, bull_name, bull_code, field_canister, units")
+      .in("tank_pack_id", packIds);
+    if (!packLines || packLines.length === 0) return;
+
+    // Build bull×canister combos with packed units
+    const comboMap = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string; packed_units: number }>();
+    for (const pl of packLines) {
+      const canister = pl.field_canister || "1";
+      const bullKey = pl.bull_catalog_id || `name:${pl.bull_name}`;
+      const comboKey = `${bullKey}|${canister}`;
+      if (comboMap.has(comboKey)) {
+        comboMap.get(comboKey)!.packed_units += pl.units;
+      } else {
+        comboMap.set(comboKey, {
+          bull_catalog_id: pl.bull_catalog_id, bull_name: pl.bull_name,
+          bull_code: pl.bull_code, canister, packed_units: pl.units,
+        });
+      }
+    }
+    const combos = Array.from(comboMap.values()).sort((a, b) => {
+      const n = a.bull_name.localeCompare(b.bull_name);
+      return n !== 0 ? n : a.canister.localeCompare(b.canister, undefined, { numeric: true });
+    });
+
+    // Sort breeding sessions chronologically
+    const sorted = [...breedingSessions].sort((a: any, b: any) =>
+      a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    // Create inventory rows: each combo × each breeding session
+    const newRows: any[] = [];
+    let sortIdx = 0;
+    for (const combo of combos) {
+      let sessIdx = 0;
+      for (const sess of sorted) {
+        newRows.push({
+          billing_id: bId, session_id: (sess as any).id,
+          bull_catalog_id: combo.bull_catalog_id, bull_name: combo.bull_name,
+          bull_code: combo.bull_code, canister: combo.canister,
+          start_units: sessIdx === 0 ? combo.packed_units : null,
+          end_units: null, sort_order: sortIdx++,
+        });
+        sessIdx++;
+      }
+    }
+
+    if (newRows.length > 0) {
+      const { data: inserted } = await (supabase.from as any)("project_billing_session_inventory")
+        .insert(newRows).select();
+      setSessionInventory((inserted ?? []) as SessionInventoryLine[]);
+    }
   }
 
   /* ── Create billing with protocol-based suggestions ── */
