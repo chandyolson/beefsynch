@@ -141,7 +141,7 @@ export default function SessionsTab({
                     <div>
                       <label className="text-muted-foreground">Head count</label>
                       {isEditing ? (
-                        <Input type="number" className="h-8 text-xs mt-1" value={s.head_count ?? ""} placeholder="—"
+                        <Input type="number" className="h-8 text-xs mt-1 w-[80px]" value={s.head_count ?? ""} placeholder="—"
                           onChange={(e) => onSaveSession(sessionIdx, { head_count: e.target.value ? Number(e.target.value) : null })} />
                       ) : <p className="mt-1 font-medium">{s.head_count ?? "—"}</p>}
                     </div>
