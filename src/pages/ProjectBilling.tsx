@@ -190,7 +190,6 @@ const ProjectBilling = () => {
   // Labor removed — sessions cover it
 
   const [suggestedDoses, setSuggestedDoses] = useState<Record<string, number>>({});
-  const [suggestedPackedUnits, setSuggestedPackedUnits] = useState<Record<string, number>>({});
 
   // Tab and edit mode state
   const [activeTab, setActiveTab] = useState<"products" | "sessions" | "summary">("products");
