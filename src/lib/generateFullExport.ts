@@ -69,11 +69,20 @@ export async function generateFullExport(orgId: string) {
     .eq("organization_id", orgId);
   if (invErr) throw new Error(`Failed to export pending invites: ${invErr.message}`);
 
-  // Bulls catalog (global)
-  const { data: bullsCatalog, error: catErr } = await supabase
-    .from("bulls_catalog")
-    .select("*");
-  if (catErr) throw new Error(`Failed to export bulls catalog: ${catErr.message}`);
+  // Bulls catalog (global) — paginated to avoid 1,000-row cap
+  const bullsCatalog: any[] = [];
+  let bFrom = 0;
+  const B_PAGE = 1000;
+  while (true) {
+    const { data, error: catErr } = await supabase
+      .from("bulls_catalog")
+      .select("*")
+      .range(bFrom, bFrom + B_PAGE - 1);
+    if (catErr) throw new Error(`Failed to export bulls catalog: ${catErr.message}`);
+    bullsCatalog.push(...(data ?? []));
+    if (!data || data.length < B_PAGE) break;
+    bFrom += B_PAGE;
+  }
 
   const exportData = {
     exported_at: new Date().toISOString(),
