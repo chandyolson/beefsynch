@@ -1060,45 +1060,8 @@ const ProjectBilling = () => {
     return result;
   }, [sessionInventory]);
 
-  const wsReturnSyncRef = useRef<string>("");
-  useEffect(() => {
-    const wsKey = JSON.stringify(worksheetReturnedByBull);
-    if (wsKey === wsReturnSyncRef.current) return;
-    if (Object.keys(worksheetReturnedByBull).length === 0) return;
-    wsReturnSyncRef.current = wsKey;
-    let changed = false;
-    const updated = semenLines.map(sl => {
-      const key = sl.bull_catalog_id || `name:${sl.bull_name}`;
-      const wsReturned = worksheetReturnedByBull[key] ?? 0;
-      if (sl.units_returned !== wsReturned) {
-        changed = true;
-        const newBillable = Math.max(0, (sl.units_packed ?? 0) - wsReturned - (sl.units_blown ?? 0));
-        return {
-          ...sl,
-          units_returned: wsReturned,
-          units_billable: newBillable,
-          line_total: newBillable * (sl.unit_price ?? 0),
-        };
-      }
-      return sl;
-    });
-    if (changed) {
-      setSemenLines(updated);
-      for (const sl of updated) {
-        const original = semenLines.find(s => s.id === sl.id);
-        if (sl.id && original && sl.units_returned !== original.units_returned) {
-          debouncedSave(`semen-ret-${sl.id}`, () =>
-            supabase.from("project_billing_semen").update({
-              units_returned: sl.units_returned,
-              units_billable: sl.units_billable,
-              line_total: sl.line_total,
-            }).eq("id", sl.id!)
-          );
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worksheetReturnedByBull]);
+  // Worksheet returned auto-sync disabled — will be re-enabled after page stabilizes
+  // The returned values will sync when unpack happens via syncReturnedFromUnpack instead
 
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
@@ -1114,17 +1077,14 @@ const ProjectBilling = () => {
     });
   }
 
-  /* ── Auto-advance billing status ── */
-  useEffect(() => {
-    if (!billingRecord || readOnly) return;
-    const currentStatus = billingRecord.status;
-
-    // Auto-advance to work_complete when all closeout items are done
-    if (currentStatus === "in_process" && hasPack && isUnpacked && inventoryFinalized && hasSessions) {
-      saveBillingField("status", "work_complete");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPack, isUnpacked, inventoryFinalized, hasSessions, billingRecord?.status]);
+  // Auto-advance disabled temporarily — will re-enable after page stabilizes
+  // useEffect(() => {
+  //   if (!billingRecord || readOnly) return;
+  //   const currentStatus = billingRecord.status;
+  //   if (currentStatus === "in_process" && hasPack && isUnpacked && inventoryFinalized && hasSessions) {
+  //     saveBillingField("status", "work_complete");
+  //   }
+  // }, [hasPack, isUnpacked, inventoryFinalized, hasSessions, billingRecord?.status]);
 
   /* ── Finalize Inventory ── */
   async function handleFinalizeInventory() {
