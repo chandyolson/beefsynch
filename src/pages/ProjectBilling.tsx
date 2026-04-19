@@ -370,14 +370,16 @@ const ProjectBilling = () => {
 
   /* ── Add / remove helpers ── */
 
-  async function addSession() {
+  async function addSession(sessionType: string = "field_session") {
     if (!billingId) return;
+    const label = sessionType === "customer_pickup" ? "Customer Pickup" : "Additional Visit";
     const newLine: Omit<SessionLine, "id"> = {
       billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
-      session_label: "Additional Visit", time_of_day: null, head_count: null,
-      crew: null, notes: null, sort_order: sessions.length,
+      session_label: label, session_type: sessionType,
+      time_of_day: null, head_count: null, crew: null, notes: null,
+      sort_order: sessions.length,
     };
-    const { data } = await supabase.from("project_billing_sessions").insert(newLine).select().single();
+    const { data } = await supabase.from("project_billing_sessions").insert(newLine as any).select().single();
     if (data) setSessions(prev => [...prev, data as SessionLine]);
   }
 
@@ -385,6 +387,33 @@ const ProjectBilling = () => {
     const line = sessions[idx];
     if (line.id) await supabase.from("project_billing_sessions").delete().eq("id", line.id);
     setSessions(prev => prev.filter((_, i) => i !== idx));
+    showSaved();
+  }
+
+  async function addProductToSession(sessionId: string) {
+    if (!billingId) return;
+    const defaultProd = billingProducts[0];
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: defaultProd?.id || null,
+      product_name: defaultProd?.product_name || "New Product",
+      product_category: defaultProd?.product_category || null,
+      protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: defaultProd?.doses_per_unit || null,
+      unit_label: defaultProd?.unit_label || null,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: defaultProd?.default_price || 0, line_total: 0,
+      sort_order: productLines.length,
+    };
+    const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+
+  async function removeProductLine(idx: number) {
+    const line = productLines[idx];
+    if (line.id) await supabase.from("project_billing_products").delete().eq("id", line.id);
+    setProductLines(prev => prev.filter((_, i) => i !== idx));
     showSaved();
   }
 
@@ -607,6 +636,8 @@ const ProjectBilling = () => {
               onSaveSession={saveSessionLine} onSaveProduct={saveProductLine}
               onSwapProduct={swapProduct} onToggleProductInvoiced={toggleProductInvoiced}
               onAddSession={addSession} onRemoveSession={removeSession}
+              onRemoveProduct={removeProductLine}
+              onAddProductToSession={addProductToSession}
               onSaveWorksheetCell={saveWorksheetCell}
               onSetSessionInventory={setSessionInventory}
             />
