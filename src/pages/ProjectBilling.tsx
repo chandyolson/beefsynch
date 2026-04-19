@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Plus, Check, Trash2, Package, Loader2, PackageOpen } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Check, Trash2, Package, Loader2, PackageOpen, ChevronRight, ChevronDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
