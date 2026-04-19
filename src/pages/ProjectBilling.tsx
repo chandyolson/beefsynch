@@ -427,21 +427,40 @@ const ProjectBilling = () => {
       setSessions((inserted ?? []) as SessionLine[]);
     }
 
-    // ── Semen from project bulls (zeroed out) ──
+    // ── Semen from project bulls, auto-filled with actual pack data ──
+    const { data: semenPackProjects } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id")
+      .eq("project_id", proj.id);
+
+    const packedByBull: Record<string, number> = {};
+    if (semenPackProjects && semenPackProjects.length > 0) {
+      const semenPackIds = semenPackProjects.map(pp => pp.tank_pack_id);
+      const { data: semenPackLines } = await supabase
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, units")
+        .in("tank_pack_id", semenPackIds);
+      for (const pl of semenPackLines ?? []) {
+        const key = pl.bull_catalog_id || pl.bull_name;
+        packedByBull[key] = (packedByBull[key] || 0) + pl.units;
+      }
+    }
+
     const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
       const bullName = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
+      const packed = packedByBull[catalogId || bullName] || 0;
 
       return {
         billing_id: bId,
         bull_catalog_id: catalogId,
         bull_name: bullName,
         bull_code: bullCode,
-        units_packed: 0,
+        units_packed: packed,
         units_returned: 0,
         units_blown: 0,
-        units_billable: 0,
+        units_billable: packed,
         unit_price: 0,
         line_total: 0,
         sort_order: i,
