@@ -980,6 +980,57 @@ const ProjectBilling = () => {
   const isProjectComplete = project?.status === "Complete";
   const readOnly = isProjectComplete || billingRecord?.status === "work_complete" || billingRecord?.status === "invoiced_closed";
 
+  /* ── auto-fill returned units from worksheet ── */
+  const worksheetReturnedByBull = useMemo(() => {
+    const counted = new Set<string>();
+    const result: Record<string, number> = {};
+    for (const si of sessionInventory) {
+      const bullKey = si.bull_catalog_id || `name:${si.bull_name}`;
+      const canKey = `${bullKey}:${si.canister}`;
+      if (si.returned_units != null && !counted.has(canKey)) {
+        result[bullKey] = (result[bullKey] || 0) + si.returned_units;
+        counted.add(canKey);
+      }
+    }
+    return result;
+  }, [sessionInventory]);
+
+  useEffect(() => {
+    if (Object.keys(worksheetReturnedByBull).length === 0) return;
+    let changed = false;
+    const updated = semenLines.map(sl => {
+      const key = sl.bull_catalog_id || `name:${sl.bull_name}`;
+      const wsReturned = worksheetReturnedByBull[key] ?? 0;
+      if (sl.units_returned !== wsReturned) {
+        changed = true;
+        const newBillable = Math.max(0, (sl.units_packed ?? 0) - wsReturned - (sl.units_blown ?? 0));
+        return {
+          ...sl,
+          units_returned: wsReturned,
+          units_billable: newBillable,
+          line_total: newBillable * (sl.unit_price ?? 0),
+        };
+      }
+      return sl;
+    });
+    if (changed) {
+      setSemenLines(updated);
+      for (const sl of updated) {
+        const original = semenLines.find(s => s.id === sl.id);
+        if (sl.id && original && sl.units_returned !== original.units_returned) {
+          debouncedSave(`semen-ret-${sl.id}`, () =>
+            supabase.from("project_billing_semen").update({
+              units_returned: sl.units_returned,
+              units_billable: sl.units_billable,
+              line_total: sl.line_total,
+            }).eq("id", sl.id!)
+          );
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheetReturnedByBull]);
+
   /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
     const prod = billingProducts.find(p => p.id === newProductId);
