@@ -312,7 +312,7 @@ const ProjectBilling = () => {
   function saveBillingField(field: string, value: any) {
     if (!billingId) return;
     debouncedSave(`billing-${field}`, () =>
-      supabase.from("project_billing").update({ [field]: value }).eq("id", billingId)
+      supabase.from("project_billing").update({ [field]: value } as any).eq("id", billingId)
     );
     setBillingRecord((prev: any) => ({ ...prev, [field]: value }));
   }
