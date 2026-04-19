@@ -650,6 +650,7 @@ export type Database = {
           product_category: string | null
           product_name: string
           protocol_event_label: string | null
+          session_id: string | null
           sort_order: number | null
           unit_label: string | null
           unit_price: number | null
@@ -671,6 +672,7 @@ export type Database = {
           product_category?: string | null
           product_name: string
           protocol_event_label?: string | null
+          session_id?: string | null
           sort_order?: number | null
           unit_label?: string | null
           unit_price?: number | null
@@ -692,6 +694,7 @@ export type Database = {
           product_category?: string | null
           product_name?: string
           protocol_event_label?: string | null
+          session_id?: string | null
           sort_order?: number | null
           unit_label?: string | null
           unit_price?: number | null
@@ -712,6 +715,13 @@ export type Database = {
             columns: ["billing_product_id"]
             isOneToOne: false
             referencedRelation: "billing_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_products_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -861,6 +871,7 @@ export type Database = {
           notes: string | null
           session_date: string
           session_label: string | null
+          session_type: string
           sort_order: number | null
           time_of_day: string | null
         }
@@ -875,6 +886,7 @@ export type Database = {
           notes?: string | null
           session_date: string
           session_label?: string | null
+          session_type?: string
           sort_order?: number | null
           time_of_day?: string | null
         }
@@ -889,6 +901,7 @@ export type Database = {
           notes?: string | null
           session_date?: string
           session_label?: string | null
+          session_type?: string
           sort_order?: number | null
           time_of_day?: string | null
         }
