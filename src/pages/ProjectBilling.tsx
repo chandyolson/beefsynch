@@ -1922,60 +1922,6 @@ const ProjectBilling = () => {
                         );
                       })}
 
-                      {/* Summary table */}
-                      <div className="pt-4 border-t">
-                        <p className="text-sm font-medium mb-2">Per-Bull Summary</p>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Bull</TableHead>
-                              <TableHead className="text-right">Packed</TableHead>
-                              <TableHead className="text-right">Returned</TableHead>
-                              <TableHead className="text-right">Blown</TableHead>
-                              <TableHead className="text-right">Used</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {(() => {
-                              const rendered: any[] = [];
-                              let totalPacked = 0, totalReturned = 0, totalBlown = 0, totalUsed = 0;
-                              for (const [bullKey, rows] of Array.from(byBull.entries())) {
-                                const first = rows[0];
-                                const packed = rows.reduce((s, r) => s + r.packed_units, 0);
-                                const returned = rows.reduce((s, r) => s + (r.returned_units ?? 0), 0);
-                                const semenLine = semenLines.find(sl =>
-                                  (sl.bull_catalog_id || sl.bull_name) === bullKey || sl.bull_name === first.bull_name
-                                );
-                                const blown = semenLine?.units_blown ?? 0;
-                                const used = Math.max(0, packed - returned - blown);
-                                totalPacked += packed; totalReturned += returned; totalBlown += blown; totalUsed += used;
-                                rendered.push(
-                                  <TableRow key={bullKey}>
-                                    <TableCell className="text-xs">{first.bull_name}</TableCell>
-                                    <TableCell className="text-xs text-right">{packed}</TableCell>
-                                    <TableCell className="text-xs text-right">{returned || "—"}</TableCell>
-                                    <TableCell className="text-xs text-right">{blown || "—"}</TableCell>
-                                    <TableCell className="text-xs text-right font-medium">{returned > 0 || blown > 0 ? used : "—"}</TableCell>
-                                  </TableRow>
-                                );
-                              }
-                              rendered.push(
-                                <TableRow key="total" className="bg-muted/30 font-medium">
-                                  <TableCell className="text-xs">Total</TableCell>
-                                  <TableCell className="text-xs text-right">{totalPacked}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalReturned || "—"}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalBlown || "—"}</TableCell>
-                                  <TableCell className="text-xs text-right">{totalReturned > 0 || totalBlown > 0 ? totalUsed : "—"}</TableCell>
-                                </TableRow>
-                              );
-                              return rendered;
-                            })()}
-                          </TableBody>
-                        </Table>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Used = Packed − Returned − Blown. Blown is entered on the Semen section above. These totals feed directly into billing.
-                        </p>
-                      </div>
                     </div>
                   );
                 })()}
