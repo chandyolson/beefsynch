@@ -137,14 +137,7 @@ export default function SessionsTab({
                 )}
 
                 {showDetailFields && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div>
-                      <label className="text-muted-foreground">Time</label>
-                      {isEditing ? (
-                        <Input className="h-8 text-xs mt-1" value={s.time_of_day || ""} placeholder="—"
-                          onChange={(e) => onSaveSession(sessionIdx, { time_of_day: e.target.value })} />
-                      ) : <p className="mt-1 font-medium">{s.time_of_day || "—"}</p>}
-                    </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                     <div>
                       <label className="text-muted-foreground">Head count</label>
                       {isEditing ? (
