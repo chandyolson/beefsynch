@@ -196,6 +196,7 @@ const ProjectBilling = () => {
   // Tab state for the new two-tab layout (Sessions | Billing)
   const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [editingBilling, setEditingBilling] = useState(false);
 
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
