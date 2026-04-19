@@ -61,7 +61,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
       setProjects(mapped);
 
       const projectIds = data.map((p) => p.id);
-      let earliestDateMap: Record<string, string> = {};
+      const earliestDateMap: Record<string, string> = {};
       if (projectIds.length > 0) {
         const { data: eventsData } = await supabase
           .from("protocol_events")

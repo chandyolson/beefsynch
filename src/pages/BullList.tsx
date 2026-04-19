@@ -140,7 +140,7 @@ const BullList = () => {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let list = bulls.filter((b) => {
+    const list = bulls.filter((b) => {
       const matchesSearch =
         !q ||
         b.bull_name.toLowerCase().includes(q) ||
