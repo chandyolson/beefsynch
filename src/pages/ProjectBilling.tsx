@@ -69,6 +69,7 @@ interface ProductLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  session_id?: string | null;
 }
 
 interface SessionLine {
@@ -83,6 +84,7 @@ interface SessionLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  session_type?: string | null;
 }
 
 interface SessionInventoryLine {
@@ -191,9 +193,9 @@ const ProjectBilling = () => {
 
   const [suggestedDoses, setSuggestedDoses] = useState<Record<string, number>>({});
 
-  // Tab and edit mode state
-  const [activeTab, setActiveTab] = useState<"products" | "sessions" | "summary">("products");
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  // Tab state for the new two-tab layout (Sessions | Billing)
+  const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,10 +265,10 @@ const ProjectBilling = () => {
       );
     }
 
-    // Fetch pack info for this project
+    // Fetch pack info for this project (include tank name/number for the status bar)
     const { data: packLinks } = await supabase
       .from("tank_pack_projects")
-      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id)")
+      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id, tanks:field_tank_id(id, tank_number, tank_name))")
       .eq("project_id", projectId!);
     setProjectPacks((packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean));
 
