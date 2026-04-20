@@ -120,7 +120,7 @@ const UnpackTank = () => {
       if (!billings?.length) return [];
       const billingIds = billings.map((b: any) => b.id);
       const { data: semen } = await (supabase.from as any)("project_billing_semen")
-        .select("bull_catalog_id, bull_name, bull_code, units_packed, units_billable")
+        .select("bull_catalog_id, bull_name, bull_code, units_packed, units_returned, units_billable")
         .in("billing_id", billingIds);
       return (semen ?? []) as any[];
     },
@@ -154,8 +154,12 @@ const UnpackTank = () => {
         (bs.bull_code && bs.bull_code === line.bullCode) ||
         (bs.bull_name && bs.bull_name === line.bullName)
       );
-      if (!match || match.units_billable == null) return line;
-      return { ...line, unitsReturning: Math.max(0, line.unitsPacked - match.units_billable) };
+      if (!match) return line;
+      // units_returned = packed - used = physical straws still in tank
+      const expectedReturn = match.units_returned != null && match.units_returned >= 0
+        ? match.units_returned
+        : line.unitsPacked;
+      return { ...line, unitsReturning: Math.max(0, expectedReturn) };
     }));
     setSemenAdjusted(true);
   }, [billingSemen, returnLines, semenAdjusted]);
