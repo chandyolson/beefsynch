@@ -190,7 +190,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     form.setValue("protocol", "");
   };
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 0 }]);
 
   const removeBullRow = (index: number) => setBulls((prev) => prev.filter((_, i) => i !== index));
 

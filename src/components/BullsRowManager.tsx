@@ -61,12 +61,12 @@ const BullsRowManager = ({
             <Input
               type="number"
               min={0}
-              value={bull.units ?? 0}
+              value={bull.units || ""}
               onChange={(e) =>
                 onUpdateUnits?.(i, parseInt(e.target.value) || 0)
               }
               className="w-20"
-              placeholder="Units"
+              placeholder="—"
             />
           )}
           <Button
