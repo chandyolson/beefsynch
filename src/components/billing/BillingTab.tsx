@@ -58,7 +58,7 @@ export default function BillingTab({
             ) : (
               <div className="space-y-0">
                 {productLines
-                  .filter(line => editing || line.doses > 0 || (line.line_total ?? 0) > 0)
+                  .filter(line => line.doses > 0 || (line.line_total ?? 0) > 0)
                   .map((line) => {
                   const idx = productLines.findIndex(p => p.id === line.id);
                   const isInvoiced = !!line.invoiced;
