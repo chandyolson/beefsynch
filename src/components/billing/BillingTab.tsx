@@ -57,8 +57,12 @@ export default function BillingTab({
               <p className="text-sm text-muted-foreground py-2">No products yet.</p>
             ) : (
               <div className="space-y-0">
-                {productLines.map((line, idx) => {
+                {productLines
+                  .filter(line => editing || line.doses > 0 || (line.line_total ?? 0) > 0)
+                  .map((line) => {
+                  const idx = productLines.findIndex(p => p.id === line.id);
                   const isInvoiced = !!line.invoiced;
+                  const missingPrice = line.doses > 0 && (!line.unit_price || Number(line.unit_price) === 0);
                   return (
                     <div key={line.id || idx}
                       className={`flex items-center justify-between py-2 border-b border-border/50 text-sm ${
@@ -103,7 +107,8 @@ export default function BillingTab({
                             {line.doses && line.doses_per_unit
                               ? ` · ${(line.doses / line.doses_per_unit).toFixed(1)} ${line.unit_label || ""}`.trim()
                               : ""}
-                            {" × "}{line.unit_price ? formatCurrency(line.unit_price) : "—"}
+                            {" × "}{line.unit_price ? formatCurrency(line.unit_price)
+                              : <span className="text-amber-500 font-medium">needs price</span>}
                           </span>
                         )}
                         <span className={`font-medium w-[80px] text-right ${isInvoiced ? "text-muted-foreground" : ""}`}>

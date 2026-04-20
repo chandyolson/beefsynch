@@ -500,9 +500,11 @@ const ProjectBilling = () => {
     setSessions(prev => [...prev, sess as SessionLine]);
 
     // Pre-fill with protocol products (unique by billing_product_id, qty blank)
+    // Exclude services — those aren't physical products you pick up
     const seen = new Set<string>();
     const pickupProducts: any[] = [];
     for (const p of productLines) {
+      if (p.product_category === "service") continue;
       const key = p.billing_product_id || p.product_name;
       if (seen.has(key)) continue;
       seen.add(key);
