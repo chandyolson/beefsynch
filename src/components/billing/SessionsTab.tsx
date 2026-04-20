@@ -98,9 +98,10 @@ export default function SessionsTab({
                   return (
                     <TableRow key={line.id || idx}>
                       <TableCell className="text-sm">
-                        {isEditing && isMisc ? (
-                          <Input className="h-8 text-xs" value={line.product_name} placeholder="Item name"
-                            onChange={(e) => onSaveProduct(idx, { product_name: e.target.value })} />
+                        {isMisc ? (
+                          <Input className="h-8 text-xs" value={line.product_name === "Miscellaneous" ? "" : line.product_name}
+                            placeholder="What is this item?"
+                            onChange={(e) => onSaveProduct(idx, { product_name: e.target.value || "Miscellaneous" })} />
                         ) : isEditing && catProds.length > 1 ? (
                           <Select value={line.billing_product_id || ""} onValueChange={(v) => onSwapProduct(idx, v)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue>{line.product_name}</SelectValue></SelectTrigger>
