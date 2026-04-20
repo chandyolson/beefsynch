@@ -30,7 +30,7 @@ interface BreedingSectionProps {
   onRemoveSession: (idx: number) => void;
   onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
-  onTotalUsedChanged: (totalUsed: number) => void;
+  onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>) => void;
 }
 
 export default function BreedingSection({
@@ -109,7 +109,11 @@ export default function BreedingSection({
     return { bullTotals: bt, grandTotalUsed: grand };
   }, [sorted, bullCombos, invLookup, semenLines]);
 
-  useEffect(() => { onTotalUsedChanged(grandTotalUsed); }, [grandTotalUsed]);
+  useEffect(() => {
+    const bullUsed = new Map<string, number>();
+    bullTotals.forEach((v, k) => bullUsed.set(k, v.used));
+    onTotalUsedChanged(grandTotalUsed, bullUsed);
+  }, [grandTotalUsed]);
 
   const productsBySession = useMemo(() => {
     const m = new Map<string, ProductLine[]>();

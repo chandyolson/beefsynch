@@ -204,6 +204,32 @@ const ProjectBilling = () => {
         .insert(newRows).select();
       setSessionInventory((inserted ?? []) as SessionInventoryLine[]);
     }
+
+    // Also sync units_packed on semen lines from pack data
+    const packedByBull = new Map<string, number>();
+    for (const combo of combos) {
+      const key = combo.bull_catalog_id || combo.bull_name;
+      packedByBull.set(key, (packedByBull.get(key) || 0) + combo.packed_units);
+    }
+    const updatedSemen = semenLines.map(sl => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const packed = packedByBull.get(key);
+      if (packed != null && sl.units_packed !== packed) {
+        return { ...sl, units_packed: packed };
+      }
+      return sl;
+    });
+    if (JSON.stringify(updatedSemen) !== JSON.stringify(semenLines)) {
+      setSemenLines(updatedSemen);
+      // Persist packed updates
+      for (const sl of updatedSemen) {
+        const key = sl.bull_catalog_id || sl.bull_name;
+        const packed = packedByBull.get(key);
+        if (packed != null && sl.id) {
+          await supabase.from("project_billing_semen").update({ units_packed: packed } as any).eq("id", sl.id);
+        }
+      }
+    }
   }
 
   /* ── Create billing with protocol-based suggestions ── */
@@ -615,18 +641,39 @@ const ProjectBilling = () => {
     toast({ title: "PDF downloaded" });
   }
 
-  /* ── Auto-update AI Service quantity from breeding total ── */
+  /* ── Auto-update AI Service qty + semen line used values from breeding ── */
   const lastTotalUsedRef = useRef<number>(0);
-  function handleTotalUsedChanged(totalUsed: number) {
+  function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>) {
     if (totalUsed === lastTotalUsedRef.current) return;
     lastTotalUsedRef.current = totalUsed;
-    // Find AI Service product line and update its doses
+    // Update AI Service product line
     const serviceIdx = productLines.findIndex(p =>
       p.product_category === "service" || (p.product_name || "").toLowerCase().includes("service")
     );
     if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
       saveProductLine(serviceIdx, { doses: totalUsed });
     }
+    // Update semen lines with per-bull used values for billing tab
+    let changed = false;
+    const updated = semenLines.map((sl, idx) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const used = bullUsed.get(key) ?? 0;
+      const billable = Math.max(0, used - (sl.units_blown ?? 0));
+      const line_total = billable * (sl.unit_price ?? 0);
+      if (sl.units_billable !== billable) {
+        changed = true;
+        if (sl.id) {
+          debouncedSave(`semen-used-${sl.id}`, () =>
+            supabase.from("project_billing_semen").update({
+              units_returned: (sl.units_packed ?? 0) - used,
+              units_billable: billable, line_total,
+            } as any).eq("id", sl.id));
+        }
+        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_billable: billable, line_total };
+      }
+      return sl;
+    });
+    if (changed) setSemenLines(updated);
   }
 
   /* ════════════════════ COMPUTED VALUES ════════════════════ */

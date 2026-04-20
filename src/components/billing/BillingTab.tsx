@@ -142,20 +142,20 @@ export default function BillingTab({
                             )}
                           </TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">
-                            {line.units_packed ?? 0}
+                            {line.units_packed || "—"}
                           </TableCell>
-                          <TableCell className="text-right text-sm">{used}</TableCell>
+                          <TableCell className="text-right text-sm">{used || "—"}</TableCell>
                           <TableCell className="text-right">
                             {editing ? (
                               <Input type="number" className="h-7 w-[50px] text-right text-xs ml-auto"
-                                value={line.units_blown ?? ""} placeholder="0"
+                                value={line.units_blown ?? ""} placeholder="—"
                                 onChange={(e) => onSaveSemen(idx, { units_blown: Number(e.target.value) || 0 })} />
                             ) : (
                               <span className="text-sm">{line.units_blown ?? "—"}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.units_billable ?? 0}
+                            {line.units_billable || "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {editing ? (
