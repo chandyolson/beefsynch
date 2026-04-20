@@ -168,6 +168,7 @@ export default function SessionsTab({
         const sessionIdx = sessions.findIndex(x => x.id === s.id);
         const sessionId = s.id || "";
         const isExpanded = expandedSessions.has(sessionId);
+        const isEditing = editingSessions.has(sessionId);
         const prods = productsBySession.get(sessionId) || [];
         const total = prods.reduce((sum, p) => sum + (p.line_total ?? 0), 0);
         return (
@@ -186,7 +187,14 @@ export default function SessionsTab({
             </button>
             {isExpanded && (
               <CardContent className="border-t pt-4 space-y-3">
-                {renderProductTable(sessionId, true, prods)}
+                {!readOnly && (
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => toggleEdit(sessionId)}>
+                      {isEditing ? "Done" : <><Pencil className="h-3 w-3 mr-1" /> Edit</>}
+                    </Button>
+                  </div>
+                )}
+                {renderProductTable(sessionId, isEditing, prods)}
                 {!readOnly && (
                   <div className="flex justify-end pt-2">
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
