@@ -346,7 +346,7 @@ export default function SessionsTab({
                     </Button>
                   </div>
                 )}
-                {renderProductTable(sessionId, isEditing, prods)}
+                {renderProductTable(sessionId, isEditing, prods, true)}
                 {!readOnly && (
                   <div className="flex justify-end pt-2">
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
