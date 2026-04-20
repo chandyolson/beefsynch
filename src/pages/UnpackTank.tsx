@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PackageOpen, Loader2, ArrowLeft } from "lucide-react";
@@ -45,6 +45,7 @@ const UnpackTank = () => {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [linesInitialized, setLinesInitialized] = useState(false);
+  const [semenAdjusted, setSemenAdjusted] = useState(false);
 
   // Fetch pack
   const { data: pack, isLoading: packLoading } = useQuery({
@@ -105,6 +106,26 @@ const UnpackTank = () => {
     },
   });
 
+  // Fetch billing semen data to pre-populate expected return quantities
+  const { data: billingSemen = [] } = useQuery({
+    queryKey: ["unpack_billing_semen", packId, packProjects.length],
+    enabled: packProjects.length > 0,
+    queryFn: async () => {
+      const projectIds = packProjects.map((pp: any) => pp.project_id).filter(Boolean);
+      if (projectIds.length === 0) return [];
+      const { data: billings } = await supabase
+        .from("project_billing")
+        .select("id")
+        .in("project_id", projectIds);
+      if (!billings?.length) return [];
+      const billingIds = billings.map((b: any) => b.id);
+      const { data: semen } = await (supabase.from as any)("project_billing_semen")
+        .select("bull_catalog_id, bull_name, bull_code, units_packed, units_billable")
+        .in("billing_id", billingIds);
+      return (semen ?? []) as any[];
+    },
+  });
+
   // Initialize return lines from pack lines once loaded
   if (packLines.length > 0 && !linesInitialized) {
     const lines: ReturnLine[] = packLines.map((pl: any) => ({
@@ -124,9 +145,26 @@ const UnpackTank = () => {
     setLinesInitialized(true);
   }
 
+  // Once billing semen data loads, adjust return quantities to account for usage
+  useEffect(() => {
+    if (semenAdjusted || billingSemen.length === 0 || returnLines.length === 0) return;
+    setReturnLines(prev => prev.map(line => {
+      const match = billingSemen.find((bs: any) =>
+        (bs.bull_catalog_id && bs.bull_catalog_id === line.bullCatalogId) ||
+        (bs.bull_code && bs.bull_code === line.bullCode) ||
+        (bs.bull_name && bs.bull_name === line.bullName)
+      );
+      if (!match || match.units_billable == null) return line;
+      return { ...line, unitsReturning: Math.max(0, line.unitsPacked - match.units_billable) };
+    }));
+    setSemenAdjusted(true);
+  }, [billingSemen, returnLines, semenAdjusted]);
+
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
   const fieldTankId = pack?.tanks?.id || pack?.field_tank_id;
   const projectNames = packProjects.map((pp: any) => pp.projects?.name).filter(Boolean);
+  const firstProjectId = packProjects[0]?.project_id;
+  const backPath = firstProjectId ? `/project/${firstProjectId}/billing` : `/pack/${packId}`;
 
   const updateLine = (index: number, updates: Partial<ReturnLine>) => {
     setReturnLines(prev => prev.map((l, i) => i === index ? { ...l, ...updates } : l));
@@ -161,7 +199,7 @@ const UnpackTank = () => {
       if (!result?.ok) throw new Error("Unpack failed: invalid response from server");
 
       toast.success("Tank unpacked", { description: "Return slip ready to print." });
-      navigate(`/pack/${packId}`);
+      navigate(backPath);
     } catch (err: any) {
       toast.error("Error unpacking tank", { description: err?.message || "Unknown error" });
     } finally {
@@ -183,7 +221,9 @@ const UnpackTank = () => {
         <Navbar />
         <main className="container mx-auto px-4 py-8 max-w-4xl space-y-4">
           <p className="text-muted-foreground">This pack has already been unpacked.</p>
-          <Button variant="outline" onClick={() => navigate(`/pack/${packId}`)}>View Pack Details</Button>
+          <Button variant="outline" onClick={() => navigate(backPath)}>
+            {firstProjectId ? "Back to Project Billing" : "View Pack Details"}
+          </Button>
         </main>
         <AppFooter />
       </div>
@@ -196,7 +236,7 @@ const UnpackTank = () => {
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${packId}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
