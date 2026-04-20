@@ -33,7 +33,7 @@ interface SessionsTabProps {
   onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
   onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
-  onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>) => void;
+  onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) => void;
 }
 
 export default function SessionsTab({
