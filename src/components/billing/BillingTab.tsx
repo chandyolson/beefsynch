@@ -88,15 +88,22 @@ export default function BillingTab({
                         {editing ? (
                           <>
                             <Input type="number" className="h-7 w-[60px] text-right text-xs"
-                              value={line.doses ?? ""}
+                              value={line.doses ?? ""} placeholder="—"
                               onChange={(e) => onSaveProduct(idx, { doses: Number(e.target.value) || 0 })} />
+                            <span className="text-xs text-muted-foreground w-[70px] text-right">
+                              {line.doses && line.doses_per_unit ? `${(line.doses / line.doses_per_unit).toFixed(1)} ${line.unit_label || ""}`.trim() : "—"}
+                            </span>
                             <Input type="number" step="0.01" className="h-7 w-[70px] text-right text-xs"
-                              value={line.unit_price ?? ""}
+                              value={line.unit_price ?? ""} placeholder="—"
                               onChange={(e) => onSaveProduct(idx, { unit_price: Number(e.target.value) || 0 })} />
                           </>
                         ) : (
                           <span className="text-xs text-muted-foreground">
-                            {line.doses || "—"} × {formatCurrency(line.unit_price)}
+                            {line.doses || "—"} hd
+                            {line.doses && line.doses_per_unit
+                              ? ` · ${(line.doses / line.doses_per_unit).toFixed(1)} ${line.unit_label || ""}`.trim()
+                              : ""}
+                            {" × "}{line.unit_price ? formatCurrency(line.unit_price) : "—"}
                           </span>
                         )}
                         <span className={`font-medium w-[80px] text-right ${isInvoiced ? "text-muted-foreground" : ""}`}>
