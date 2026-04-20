@@ -615,6 +615,20 @@ const ProjectBilling = () => {
     toast({ title: "PDF downloaded" });
   }
 
+  /* ── Auto-update AI Service quantity from breeding total ── */
+  const lastTotalUsedRef = useRef<number>(0);
+  function handleTotalUsedChanged(totalUsed: number) {
+    if (totalUsed === lastTotalUsedRef.current) return;
+    lastTotalUsedRef.current = totalUsed;
+    // Find AI Service product line and update its doses
+    const serviceIdx = productLines.findIndex(p =>
+      p.product_category === "service" || (p.product_name || "").toLowerCase().includes("service")
+    );
+    if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
+      saveProductLine(serviceIdx, { doses: totalUsed });
+    }
+  }
+
   /* ════════════════════ COMPUTED VALUES ════════════════════ */
 
   const currentStatus = billingRecord?.status || "in_process";
@@ -759,8 +773,8 @@ const ProjectBilling = () => {
           {activeTab === "sessions" && (
             <SessionsTab
               sessions={sessions} productLines={productLines}
-              sessionInventory={sessionInventory} billingProducts={billingProducts}
-              readOnly={readOnly}
+              sessionInventory={sessionInventory} semenLines={semenLines}
+              billingProducts={billingProducts} readOnly={readOnly}
               onSaveSession={saveSessionLine} onSaveProduct={saveProductLine}
               onSwapProduct={swapProduct} onToggleProductInvoiced={toggleProductInvoiced}
               onAddBreedingSession={addBreedingSession}
@@ -771,6 +785,7 @@ const ProjectBilling = () => {
               onAddMiscProduct={addMiscProduct}
               onSaveWorksheetCell={saveWorksheetCell}
               onSetSessionInventory={setSessionInventory}
+              onTotalUsedChanged={handleTotalUsedChanged}
             />
           )}
           {activeTab === "billing" && (
