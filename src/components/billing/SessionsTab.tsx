@@ -83,7 +83,7 @@ export default function SessionsTab({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[180px]">Product</TableHead>
-                  <TableHead className="w-[80px] text-right">Qty</TableHead>
+                  <TableHead className="w-[80px] text-right">Head</TableHead>
                   <TableHead className="w-[100px] text-right">Units</TableHead>
                   <TableHead className="w-[90px] text-right">Price</TableHead>
                   <TableHead className="w-[100px] text-right">Total</TableHead>
@@ -293,7 +293,7 @@ export default function SessionsTab({
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="w-[100px]">Date</TableHead><TableHead>Product</TableHead>
-                  <TableHead className="w-[80px] text-right">Qty</TableHead><TableHead className="w-[100px] text-right">Total</TableHead>
+                  <TableHead className="w-[80px] text-right">Head</TableHead><TableHead className="w-[100px] text-right">Total</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {(productsBySession.get(null) || []).map((line) => (

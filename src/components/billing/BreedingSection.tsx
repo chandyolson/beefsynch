@@ -253,7 +253,7 @@ export default function BreedingSection({
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[180px]">Product</TableHead>
-                          <TableHead className="w-[80px] text-right">Qty</TableHead>
+                          <TableHead className="w-[80px] text-right">Head</TableHead>
                           <TableHead className="w-[90px] text-right">Price</TableHead>
                           <TableHead className="w-[100px] text-right">Total</TableHead>
                           {isEditing && <TableHead className="w-[40px]" />}
