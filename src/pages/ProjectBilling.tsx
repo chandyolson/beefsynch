@@ -598,6 +598,29 @@ const ProjectBilling = () => {
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
   }
 
+  async function addProductToSessionWithProduct(sessionId: string, productId: string) {
+    if (!billingId) return;
+    const prod = billingProducts.find(p => p.id === productId);
+    if (!prod) return;
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: prod.id,
+      product_name: prod.product_name,
+      product_category: prod.product_category,
+      protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: prod.doses_per_unit,
+      unit_label: prod.unit_label,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: prod.default_price || 0,
+      line_total: 0,
+      sort_order: productLines.length,
+    };
+    const { data, error } = await supabase
+      .from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+
   async function addMiscProduct(sessionId: string) {
     if (!billingId) return;
     const newLine: any = {
@@ -880,6 +903,7 @@ const ProjectBilling = () => {
               onRemoveSession={removeSession}
               onRemoveProduct={removeProductLine}
               onAddProductToSession={addProductToSession}
+              onAddProductToSessionWithProduct={addProductToSessionWithProduct}
               onAddMiscProduct={addMiscProduct}
               onSaveSemen={saveSemenLine}
               onSaveWorksheetCell={saveWorksheetCell}
