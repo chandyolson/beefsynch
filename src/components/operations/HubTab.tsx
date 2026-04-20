@@ -166,7 +166,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .filter(Boolean);
 
           // Sum available inventory per bull from tanks that are here
-          const { data: hereTanks } = await supabase
+          const { data: hereTanks } = await (supabase as any)
             .from("tanks")
             .select("id")
             .eq("organization_id", orgId)
