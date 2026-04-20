@@ -37,6 +37,7 @@ interface ActionCounts {
   unbilledNames: string[];
   tanksDueForFill: number;
   shippedNotReceived: number;
+  inventoryShortages: { projectName: string; projectId: string; bulls: { bullName: string; needed: number; available: number }[] }[];
 }
 
 const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
@@ -47,6 +48,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     pendingInventoryOrders: 0, tanksOut: 0, tankNames: [],
     unbilledProjects: 0, unbilledNames: [],
     tanksDueForFill: 0, shippedNotReceived: 0,
+    inventoryShortages: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -146,6 +148,76 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         !["shipped_out", "picked_up", "out", "with_customer"].includes(t.status)
       ).length;
 
+      // 3. Inventory shortage check for upcoming unpacked projects
+      const unpackedProjects = projectsWithPacks.filter(p => !p.pack_id);
+      const shortages: ActionCounts["inventoryShortages"] = [];
+
+      if (unpackedProjects.length > 0) {
+        const unpackedIds = unpackedProjects.map(p => p.id);
+        const { data: projBulls } = await supabase
+          .from("project_bulls")
+          .select("project_id, bull_catalog_id, custom_bull_name, units")
+          .in("project_id", unpackedIds);
+
+        if (projBulls && projBulls.length > 0) {
+          // Get all bull_catalog_ids we need to check
+          const catalogIds = (projBulls as any[])
+            .map(pb => pb.bull_catalog_id)
+            .filter(Boolean);
+
+          // Sum available inventory per bull from tanks that are here
+          const { data: hereTanks } = await supabase
+            .from("tanks")
+            .select("id")
+            .eq("organization_id", orgId)
+            .eq("location_status", "here");
+          const hereTankIds = (hereTanks || []).map((t: any) => t.id);
+
+          const { data: invData } = await (supabase.from as any)("tank_inventory")
+            .select("bull_catalog_id, units")
+            .in("bull_catalog_id", catalogIds.length > 0 ? catalogIds : ["00000000-0000-0000-0000-000000000000"])
+            .in("tank_id", hereTankIds.length > 0 ? hereTankIds : ["00000000-0000-0000-0000-000000000000"]);
+
+          const availableByBull = new Map<string, number>();
+          for (const inv of (invData || []) as any[]) {
+            if (inv.bull_catalog_id) {
+              availableByBull.set(inv.bull_catalog_id, (availableByBull.get(inv.bull_catalog_id) || 0) + (inv.units || 0));
+            }
+          }
+
+          // Get bull names from catalog
+          const { data: bullNames } = await supabase
+            .from("bulls_catalog")
+            .select("id, bull_name")
+            .in("id", catalogIds.length > 0 ? catalogIds : ["00000000-0000-0000-0000-000000000000"]);
+          const nameMap = new Map<string, string>();
+          for (const b of (bullNames || []) as any[]) nameMap.set(b.id, b.bull_name);
+
+          // Check each project
+          for (const proj of unpackedProjects) {
+            const bulls = (projBulls as any[]).filter(pb => pb.project_id === proj.id);
+            const shortBulls: { bullName: string; needed: number; available: number }[] = [];
+
+            for (const pb of bulls) {
+              const needed = pb.units || 0;
+              if (needed <= 0) continue;
+              const available = pb.bull_catalog_id ? (availableByBull.get(pb.bull_catalog_id) || 0) : 0;
+              if (available < needed) {
+                shortBulls.push({
+                  bullName: nameMap.get(pb.bull_catalog_id) || pb.custom_bull_name || "Unknown",
+                  needed,
+                  available,
+                });
+              }
+            }
+
+            if (shortBulls.length > 0) {
+              shortages.push({ projectName: proj.name, projectId: proj.id, bulls: shortBulls });
+            }
+          }
+        }
+      }
+
       setActions({
         pendingCustomerOrders: pendingCustCount,
         pendingCustomerUnits: pendingCustUnits,
@@ -156,6 +228,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         unbilledNames: unbilledList.map((p: any) => p.name),
         tanksDueForFill: wetHere,
         shippedNotReceived: 0,
+        inventoryShortages: shortages,
       });
 
       setLoading(false);
@@ -359,6 +432,33 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             </Card>
           )}
 
+          {actions.inventoryShortages.length > 0 && (
+            actions.inventoryShortages.map((shortage) => (
+              <Card
+                key={shortage.projectId}
+                className="cursor-pointer border-destructive/40 bg-destructive/5 transition-colors hover:bg-destructive/10"
+                onClick={() => navigate(`/project/${shortage.projectId}/billing`)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-sm">
+                        {shortage.projectName} — semen short
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {shortage.bulls.map(b =>
+                          `${b.bullName}: need ${b.needed}, have ${b.available}`
+                        ).join("; ")}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+
           {actions.tanksOut > 0 && (
             <Card
               className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
@@ -445,7 +545,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             </CardContent>
           </Card>
 
-          {actions.pendingCustomerOrders === 0 && actions.tanksOut === 0 && actions.unbilledProjects === 0 && actions.pendingInventoryOrders === 0 && (
+          {actions.pendingCustomerOrders === 0 && actions.tanksOut === 0 && actions.unbilledProjects === 0 && actions.pendingInventoryOrders === 0 && actions.inventoryShortages.length === 0 && (
             <Card className="border-emerald-500/40 bg-emerald-500/5 sm:col-span-2">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
