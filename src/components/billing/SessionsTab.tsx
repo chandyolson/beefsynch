@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { format, parseISO } from "date-fns";
-import { Plus, Trash2, ChevronRight, ChevronDown, Pencil } from "lucide-react";
+import { Plus, Trash2, ChevronRight, ChevronDown, Pencil, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import BreedingSection from "./BreedingSection";
 import {
   ProductLine, SessionLine, SessionInventoryLine, SemenLine, BillingProduct,
@@ -29,6 +30,7 @@ interface SessionsTabProps {
   onRemoveSession: (idx: number) => void;
   onRemoveProduct: (idx: number) => void;
   onAddProductToSession: (sessionId: string) => void;
+  onAddProductToSessionWithProduct: (sessionId: string, productId: string) => void;
   onAddMiscProduct: (sessionId: string) => void;
   onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
   onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
@@ -40,7 +42,8 @@ export default function SessionsTab({
   sessions, productLines, sessionInventory, semenLines, billingProducts, readOnly,
   onSaveSession, onSaveProduct, onSwapProduct, onToggleProductInvoiced,
   onAddBreedingSession, onCreateCustomerPickup, onRemoveSession,
-  onRemoveProduct, onAddProductToSession, onAddMiscProduct, onSaveSemen,
+  onRemoveProduct, onAddProductToSession, onAddProductToSessionWithProduct,
+  onAddMiscProduct, onSaveSemen,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
 }: SessionsTabProps) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
@@ -73,6 +76,94 @@ export default function SessionsTab({
     if (!line.doses) return "—";
     return `${(line.units_billed ?? line.units_calculated ?? 0).toFixed(1)} ${line.unit_label || ""}`.trim();
   };
+
+  const isManualOverride = (line: ProductLine) => {
+    if (line.units_billed == null || line.units_calculated == null) return false;
+    return Math.abs(line.units_billed - line.units_calculated) > 0.001;
+  };
+
+  function ProductPickerPopover({ sessionId, existingProductIds }: { sessionId: string; existingProductIds: Set<string> }) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const filtered = useMemo(() => {
+      const q = query.trim().toLowerCase();
+      if (!q) return billingProducts;
+      return billingProducts.filter(p =>
+        p.product_name.toLowerCase().includes(q) ||
+        (p.product_category || "").toLowerCase().includes(q)
+      );
+    }, [query]);
+    const grouped = useMemo(() => {
+      const acc: Record<string, BillingProduct[]> = {};
+      for (const p of filtered) {
+        const k = p.product_category || "Uncategorized";
+        if (!acc[k]) acc[k] = [];
+        acc[k].push(p);
+      }
+      return Object.entries(acc).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [filtered]);
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" /> Add Product
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0" align="start">
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Search products…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+          </div>
+          <div className="max-h-72 overflow-y-auto py-1">
+            {grouped.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-muted-foreground text-center">No products found.</div>
+            ) : grouped.map(([category, items]) => (
+              <div key={category}>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {category}
+                </div>
+                {items.map(p => {
+                  const already = existingProductIds.has(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        onAddProductToSessionWithProduct(sessionId, p.id);
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-muted/60 transition-colors flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium truncate">{p.product_name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {p.unit_label ? `${p.unit_label} · ` : ""}
+                          {p.default_price ? formatCurrency(p.default_price) : "—"}
+                        </div>
+                      </div>
+                      {already && (
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 shrink-0">already added</Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   function renderProductTable(sessionId: string, isEditing: boolean, products: ProductLine[]) {
     return (
