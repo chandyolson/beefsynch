@@ -332,7 +332,7 @@ export default function BreedingSection({
                                     onBlur={(e) => {
                                       if (!sr.row?.id) return;
                                       const v = e.target.value === "" ? null : Number(e.target.value);
-                                      if (v !== sr.row.start_units) onSaveWorksheetCell(sr.row.id, "start_units", v);
+                                      onSaveWorksheetCell(sr.row.id, "start_units", v);
                                     }}
                                     onChange={(e) => {
                                       if (!sr.row?.id) return;
@@ -350,7 +350,7 @@ export default function BreedingSection({
                                     onBlur={(e) => {
                                       if (!sr.row?.id) return;
                                       const v = e.target.value === "" ? null : Number(e.target.value);
-                                      if (v !== sr.row.end_units) onSaveWorksheetCell(sr.row.id, "end_units", v);
+                                      onSaveWorksheetCell(sr.row.id, "end_units", v);
                                     }}
                                     onChange={(e) => {
                                       if (!sr.row?.id) return;
