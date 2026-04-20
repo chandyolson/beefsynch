@@ -184,7 +184,7 @@ export default function BreedingSection({
                     <TableCell className="text-right text-sm text-muted-foreground">{packed}</TableCell>
                     <TableCell className="text-right text-sm font-medium">{used || "—"}</TableCell>
                     <TableCell className="text-right text-sm">{blown || "—"}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{packed - used - blown}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">{packed - used}</TableCell>
                   </TableRow>
                 );
               })}
