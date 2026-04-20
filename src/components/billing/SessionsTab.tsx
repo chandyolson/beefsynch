@@ -165,7 +165,11 @@ export default function SessionsTab({
     );
   }
 
-  function renderProductTable(sessionId: string, isEditing: boolean, products: ProductLine[]) {
+  function renderProductTable(sessionId: string, isEditing: boolean, products: ProductLine[], isPickup: boolean = false) {
+    const existingProductIds = new Set<string>();
+    for (const p of products) {
+      if (p.billing_product_id) existingProductIds.add(p.billing_product_id);
+    }
     return (
       <>
         {products.length > 0 && (
@@ -184,8 +188,21 @@ export default function SessionsTab({
               <TableBody>
                 {products.map((line) => {
                   const idx = productLines.findIndex(p => p.id === line.id);
-                  const catProds = billingProducts.filter(p => p.product_category === line.product_category);
+                  const catProds = isPickup
+                    ? billingProducts
+                    : billingProducts.filter(p => p.product_category === line.product_category);
+                  const showSwap = isEditing && (isPickup ? billingProducts.length > 1 : catProds.length > 1);
                   const isMisc = !line.billing_product_id && line.product_category === null;
+                  const groupedSwap = isPickup
+                    ? Object.entries(
+                        catProds.reduce((acc: Record<string, BillingProduct[]>, p: BillingProduct) => {
+                          const k = p.product_category || "Uncategorized";
+                          if (!acc[k]) acc[k] = [];
+                          acc[k].push(p);
+                          return acc;
+                        }, {})
+                      ).sort((a, b) => a[0].localeCompare(b[0]))
+                    : [];
                   return (
                     <TableRow key={line.id || idx}>
                       <TableCell className="text-sm">
@@ -193,10 +210,21 @@ export default function SessionsTab({
                           <Input className="h-8 text-xs" value={line.product_name === "Miscellaneous" ? "" : line.product_name}
                             placeholder="What is this item?"
                             onChange={(e) => onSaveProduct(idx, { product_name: e.target.value || "Miscellaneous" })} />
-                        ) : isEditing && catProds.length > 1 ? (
+                        ) : showSwap ? (
                           <Select value={line.billing_product_id || ""} onValueChange={(v) => onSwapProduct(idx, v)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue>{line.product_name}</SelectValue></SelectTrigger>
-                            <SelectContent>{catProds.map(p => <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>)}</SelectContent>
+                            <SelectContent>
+                              {isPickup ? (
+                                groupedSwap.map(([category, items]) => (
+                                  <React.Fragment key={category}>
+                                    <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase">{category}</div>
+                                    {items.map(p => <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>)}
+                                  </React.Fragment>
+                                ))
+                              ) : (
+                                catProds.map(p => <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>)
+                              )}
+                            </SelectContent>
                           </Select>
                         ) : <span>{line.product_name}</span>}
                       </TableCell>
@@ -206,7 +234,36 @@ export default function SessionsTab({
                             onChange={(e) => onSaveProduct(idx, { doses: Number(e.target.value) || 0 })} />
                         ) : <span className="text-sm">{line.doses || "—"}</span>}
                       </TableCell>
-                      <TableCell className="text-right text-xs">{fmtUnits(line)}</TableCell>
+                      <TableCell className="text-right">
+                        {isEditing && isPickup ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              className="h-8 w-[80px] text-right text-xs ml-auto"
+                              value={line.units_billed ?? ""}
+                              placeholder={line.units_calculated != null ? line.units_calculated.toFixed(1) : "—"}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                onSaveProduct(idx, { units_billed: v === "" ? null : Number(v) } as Partial<ProductLine>);
+                              }}
+                            />
+                            {isManualOverride(line) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                title="Reset to auto-calculated units"
+                                onClick={() => onSaveProduct(idx, { units_billed: line.units_calculated } as Partial<ProductLine>)}
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs">{fmtUnits(line)}</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         {isEditing ? (
                           <Input type="number" step="0.01" className="h-8 w-[80px] text-right text-xs ml-auto" value={line.unit_price ?? ""} placeholder="—"
@@ -229,9 +286,13 @@ export default function SessionsTab({
         )}
         {isEditing && !readOnly && (
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onAddProductToSession(sessionId)}>
-              <Plus className="h-3 w-3 mr-1" /> Add Product
-            </Button>
+            {isPickup ? (
+              <ProductPickerPopover sessionId={sessionId} existingProductIds={existingProductIds} />
+            ) : (
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onAddProductToSession(sessionId)}>
+                <Plus className="h-3 w-3 mr-1" /> Add Product
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onAddMiscProduct(sessionId)}>
               <Plus className="h-3 w-3 mr-1" /> Add Misc
             </Button>
