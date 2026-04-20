@@ -372,7 +372,7 @@ export default function BreedingSection({
                   </div>
                 )}
 
-                {isEditing && !readOnly && (
+                {!readOnly && (
                   <div className="flex justify-end pt-2">
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
                       onClick={() => onRemoveSession(sessionIdx)}>
