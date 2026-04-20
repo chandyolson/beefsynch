@@ -133,7 +133,7 @@ const PackTank = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("tanks")
-        .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
+        .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status, customer_id")
         .eq("organization_id", orgId!)
         .eq("location_status", "here")
         .eq("nitrogen_status", "wet")
@@ -142,6 +142,21 @@ const PackTank = () => {
       return data ?? [];
     },
   });
+
+  // Auto-fill pickup customer from the selected Customer Tank's customer_id.
+  // User can still override by typing or selecting a different customer.
+  // Only fires on pickup packs, and only when pickupCustomerId is currently empty
+  // (so we don't override a user's manual selection).
+  useEffect(() => {
+    if (packType !== "pickup") return;
+    if (!selectedTankId) return;
+    if (pickupCustomerId) return;
+
+    const tank = (allActiveTanks as any[]).find((t: any) => t.id === selectedTankId);
+    if (tank?.customer_id) {
+      setPickupCustomerId(tank.customer_id);
+    }
+  }, [selectedTankId, packType, allActiveTanks, pickupCustomerId]);
 
   // Fetch shipper tanks only (for shipment packs)
   const { data: shipperTanks = [] } = useQuery({
