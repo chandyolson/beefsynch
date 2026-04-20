@@ -41,7 +41,7 @@ const container = { padding: '32px 28px' }
 const h1 = {
   fontSize: '24px',
   fontWeight: 'bold' as const,
-  fontFamily: "'Space Grotesk', Arial, sans-serif",
+  fontFamily: "'Inter', Arial, sans-serif",
   color: '#0D0F35',
   margin: '0 0 20px',
 }
