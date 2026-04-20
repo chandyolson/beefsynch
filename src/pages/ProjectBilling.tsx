@@ -413,6 +413,45 @@ const ProjectBilling = () => {
     ));
   }
 
+  /* ── Auto-sync units_packed on semen lines from pack data ── */
+  const packedSyncDone = useRef(false);
+  useEffect(() => {
+    if (!projectPacks.length || !semenLines.length || packedSyncDone.current) return;
+    packedSyncDone.current = true;
+    syncPackedFromPacks();
+  }, [projectPacks, semenLines]);
+
+  async function syncPackedFromPacks() {
+    const packIds = projectPacks.map((p) => p.id);
+    const { data: packLines } = await supabase
+      .from("tank_pack_lines").select("bull_catalog_id, bull_name, units")
+      .in("tank_pack_id", packIds);
+    if (!packLines?.length) return;
+
+    const packedByBull: Record<string, number> = {};
+    for (const pl of packLines) {
+      const key = (pl.bull_catalog_id as string) || pl.bull_name;
+      packedByBull[key] = (packedByBull[key] || 0) + pl.units;
+    }
+
+    const updates: Array<{ id: string; units_packed: number }> = [];
+    const updated = semenLines.map((sl) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const packed = packedByBull[key] ?? 0;
+      if (packed > 0 && sl.units_packed !== packed && sl.id) {
+        updates.push({ id: sl.id, units_packed: packed });
+        return { ...sl, units_packed: packed };
+      }
+      return sl;
+    });
+
+    if (updates.length === 0) return;
+    setSemenLines(updated);
+    await Promise.all(updates.map((u) =>
+      supabase.from("project_billing_semen").update({ units_packed: u.units_packed }).eq("id", u.id)
+    ));
+  }
+
   /* ════════════════════ SAVE HELPERS ════════════════════ */
 
   function saveBillingField(field: string, value: any) {
@@ -467,7 +506,7 @@ const ProjectBilling = () => {
     }
   }
 
-  async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units", value: number | null) {
+  async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) {
     setSessionInventory(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
     const { error } = await (supabase.from as any)("project_billing_session_inventory")
       .update({ [field]: value }).eq("id", rowId);
@@ -645,7 +684,7 @@ const ProjectBilling = () => {
 
   /* ── Auto-update AI Service qty + semen line used values from breeding ── */
   const lastTotalUsedRef = useRef<number>(0);
-  function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>) {
+  function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) {
     if (totalUsed === lastTotalUsedRef.current) return;
     lastTotalUsedRef.current = totalUsed;
     // Update AI Service product line
@@ -655,23 +694,25 @@ const ProjectBilling = () => {
     if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
       saveProductLine(serviceIdx, { doses: totalUsed });
     }
-    // Update semen lines with per-bull used values for billing tab
+    // Update semen lines with per-bull used + blown values for billing tab
     let changed = false;
     const updated = semenLines.map((sl, idx) => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const used = bullUsed.get(key) ?? 0;
-      const billable = Math.max(0, used - (sl.units_blown ?? 0));
+      const blown = bullBlown.get(key) ?? 0;
+      const billable = Math.max(0, used - blown);
       const line_total = billable * (sl.unit_price ?? 0);
-      if (sl.units_billable !== billable) {
+      if (sl.units_billable !== billable || sl.units_blown !== blown) {
         changed = true;
         if (sl.id) {
           debouncedSave(`semen-used-${sl.id}`, () =>
             supabase.from("project_billing_semen").update({
               units_returned: (sl.units_packed ?? 0) - used,
+              units_blown: blown,
               units_billable: billable, line_total,
             } as any).eq("id", sl.id));
         }
-        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_billable: billable, line_total };
+        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_blown: blown, units_billable: billable, line_total };
       }
       return sl;
     });

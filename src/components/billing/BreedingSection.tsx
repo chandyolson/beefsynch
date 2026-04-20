@@ -28,9 +28,9 @@ interface BreedingSectionProps {
   onAddProductToSession: (sessionId: string) => void;
   onAddBreedingSession: () => void;
   onRemoveSession: (idx: number) => void;
-  onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
+  onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
-  onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>) => void;
+  onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) => void;
 }
 
 export default function BreedingSection({
@@ -85,9 +85,9 @@ export default function BreedingSection({
   };
 
   const { bullTotals, grandTotalUsed } = useMemo(() => {
-    const bt = new Map<string, { packed: number; used: number }>();
+    const bt = new Map<string, { packed: number; used: number; blown: number }>();
     for (const sl of semenLines) {
-      bt.set(sl.bull_catalog_id || sl.bull_name, { packed: sl.units_packed ?? 0, used: 0 });
+      bt.set(sl.bull_catalog_id || sl.bull_name, { packed: sl.units_packed ?? 0, used: 0, blown: 0 });
     }
     for (let si = 0; si < sorted.length; si++) {
       for (const combo of bullCombos) {
@@ -98,8 +98,15 @@ export default function BreedingSection({
         const end = row?.end_units;
         if (start != null && end != null && start > end) {
           const bk = combo.bull_catalog_id || combo.bull_name;
-          const existing = bt.get(bk) || { packed: 0, used: 0 };
+          const existing = bt.get(bk) || { packed: 0, used: 0, blown: 0 };
           existing.used += (start - end);
+          bt.set(bk, existing);
+        }
+        // Accumulate blown from session inventory
+        if (row?.blown_units) {
+          const bk = combo.bull_catalog_id || combo.bull_name;
+          const existing = bt.get(bk) || { packed: 0, used: 0, blown: 0 };
+          existing.blown += row.blown_units;
           bt.set(bk, existing);
         }
       }
@@ -109,11 +116,18 @@ export default function BreedingSection({
     return { bullTotals: bt, grandTotalUsed: grand };
   }, [sorted, bullCombos, invLookup, semenLines]);
 
+  const grandTotalBlown = useMemo(() => {
+    let total = 0;
+    bullTotals.forEach(v => total += v.blown);
+    return total;
+  }, [bullTotals]);
+
   useEffect(() => {
     const bullUsed = new Map<string, number>();
-    bullTotals.forEach((v, k) => bullUsed.set(k, v.used));
-    onTotalUsedChanged(grandTotalUsed, bullUsed);
-  }, [grandTotalUsed]);
+    const bullBlown = new Map<string, number>();
+    bullTotals.forEach((v, k) => { bullUsed.set(k, v.used); bullBlown.set(k, v.blown); });
+    onTotalUsedChanged(grandTotalUsed, bullUsed, bullBlown);
+  }, [grandTotalUsed, grandTotalBlown]);
 
   const productsBySession = useMemo(() => {
     const m = new Map<string, ProductLine[]>();
@@ -160,7 +174,7 @@ export default function BreedingSection({
                 const bt = bullTotals.get(key);
                 const packed = bt?.packed ?? (sl.units_packed ?? 0);
                 const used = bt?.used ?? 0;
-                const blown = sl.units_blown ?? 0;
+                const blown = bt?.blown ?? 0;
                 return (
                   <TableRow key={sl.id}>
                     <TableCell className="text-sm">
@@ -169,15 +183,7 @@ export default function BreedingSection({
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">{packed}</TableCell>
                     <TableCell className="text-right text-sm font-medium">{used || "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {readOnly ? (
-                        <span className="text-sm">{blown || "—"}</span>
-                      ) : (
-                        <Input type="number" className="h-8 w-[60px] text-right text-sm ml-auto"
-                          value={blown || ""} placeholder="—"
-                          onChange={(e) => onSaveSemen(slIdx, { units_blown: Number(e.target.value) || 0 })} />
-                      )}
-                    </TableCell>
+                    <TableCell className="text-right text-sm">{blown || "—"}</TableCell>
                     <TableCell className="text-right text-sm font-medium">{packed - used - blown}</TableCell>
                   </TableRow>
                 );
@@ -315,6 +321,7 @@ export default function BreedingSection({
                             <TableHead className="w-[100px] text-right">Start</TableHead>
                             <TableHead className="w-[100px] text-right">End</TableHead>
                             <TableHead className="w-[70px] text-right">Used</TableHead>
+                            <TableHead className="w-[80px] text-right">Blown</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -363,6 +370,24 @@ export default function BreedingSection({
                               </TableCell>
                               <TableCell className="text-right text-sm font-medium">
                                 {sr.used != null && sr.used > 0 ? sr.used : "—"}
+                              </TableCell>
+                              <TableCell className="text-right p-1">
+                                {isEditing ? (
+                                  <Input type="number" className="h-9 w-[90px] text-right text-sm ml-auto"
+                                    value={sr.row?.blown_units ?? ""} placeholder="—"
+                                    onBlur={(e) => {
+                                      if (!sr.row?.id) return;
+                                      const v = e.target.value === "" ? null : Number(e.target.value);
+                                      onSaveWorksheetCell(sr.row.id, "blown_units", v);
+                                    }}
+                                    onChange={(e) => {
+                                      if (!sr.row?.id) return;
+                                      const v = e.target.value === "" ? null : Number(e.target.value);
+                                      onSetSessionInventory(prev => prev.map(r => r.id === sr.row!.id ? { ...r, blown_units: v } : r));
+                                    }} />
+                                ) : (
+                                  <span className="text-sm">{sr.row?.blown_units || "—"}</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
