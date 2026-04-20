@@ -30,6 +30,7 @@ interface SessionsTabProps {
   onRemoveProduct: (idx: number) => void;
   onAddProductToSession: (sessionId: string) => void;
   onAddMiscProduct: (sessionId: string) => void;
+  onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
   onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
   onTotalUsedChanged: (totalUsed: number) => void;
@@ -39,7 +40,7 @@ export default function SessionsTab({
   sessions, productLines, sessionInventory, semenLines, billingProducts, readOnly,
   onSaveSession, onSaveProduct, onSwapProduct, onToggleProductInvoiced,
   onAddBreedingSession, onCreateCustomerPickup, onRemoveSession,
-  onRemoveProduct, onAddProductToSession, onAddMiscProduct,
+  onRemoveProduct, onAddProductToSession, onAddMiscProduct, onSaveSemen,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
 }: SessionsTabProps) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
@@ -273,6 +274,7 @@ export default function SessionsTab({
             productLines={productLines} sessionInventory={sessionInventory}
             semenLines={semenLines} billingProducts={billingProducts} readOnly={readOnly}
             onSaveSession={onSaveSession} onSaveProduct={onSaveProduct}
+            onSaveSemen={onSaveSemen}
             onSwapProduct={onSwapProduct} onRemoveProduct={onRemoveProduct}
             onAddProductToSession={onAddProductToSession}
             onAddBreedingSession={onAddBreedingSession} onRemoveSession={onRemoveSession}

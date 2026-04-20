@@ -783,6 +783,7 @@ const ProjectBilling = () => {
               onRemoveProduct={removeProductLine}
               onAddProductToSession={addProductToSession}
               onAddMiscProduct={addMiscProduct}
+              onSaveSemen={saveSemenLine}
               onSaveWorksheetCell={saveWorksheetCell}
               onSetSessionInventory={setSessionInventory}
               onTotalUsedChanged={handleTotalUsedChanged}

@@ -22,6 +22,7 @@ interface BreedingSectionProps {
   readOnly: boolean;
   onSaveSession: (idx: number, updates: Partial<SessionLine>) => void;
   onSaveProduct: (idx: number, updates: Partial<ProductLine>) => void;
+  onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
   onSwapProduct: (idx: number, newProductId: string) => void;
   onRemoveProduct: (idx: number) => void;
   onAddProductToSession: (sessionId: string) => void;
@@ -34,7 +35,7 @@ interface BreedingSectionProps {
 
 export default function BreedingSection({
   sessions, allSessions, productLines, sessionInventory, semenLines, billingProducts, readOnly,
-  onSaveSession, onSaveProduct, onSwapProduct, onRemoveProduct,
+  onSaveSession, onSaveProduct, onSaveSemen, onSwapProduct, onRemoveProduct,
   onAddProductToSession, onAddBreedingSession, onRemoveSession,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
 }: BreedingSectionProps) {
@@ -46,12 +47,10 @@ export default function BreedingSection({
   const toggleEdit = (id: string) =>
     setEditingSessions(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // Sort breeding sessions chronologically
   const sorted = useMemo(() =>
     [...sessions].sort((a, b) => a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0)),
     [sessions]);
 
-  // Group inventory by bull/canister combo, then by session (in order)
   const bullCombos = useMemo(() => {
     const map = new Map<string, { bull_name: string; bull_code: string | null; bull_catalog_id: string | null; canister: string }>();
     for (const inv of sessionInventory) {
@@ -61,7 +60,6 @@ export default function BreedingSection({
     return Array.from(map.values()).sort((a, b) => a.bull_name.localeCompare(b.bull_name) || a.canister.localeCompare(b.canister, undefined, { numeric: true }));
   }, [sessionInventory]);
 
-  // Build lookup: comboKey → sessionId → inventory row
   const invLookup = useMemo(() => {
     const m = new Map<string, Map<string, SessionInventoryLine>>();
     for (const inv of sessionInventory) {
@@ -72,14 +70,12 @@ export default function BreedingSection({
     return m;
   }, [sessionInventory]);
 
-  // For auto-fill: get effective start for a session (previous session's end, or the stored start)
   const getEffectiveStart = (comboKey: string, sessionIdx: number): number | null => {
     const sessMap = invLookup.get(comboKey);
     if (!sessMap) return null;
     const sess = sorted[sessionIdx];
     const row = sessMap.get(sess?.id || "");
     if (row?.start_units != null) return row.start_units;
-    // Auto-fill from previous session's end
     if (sessionIdx > 0) {
       const prevSess = sorted[sessionIdx - 1];
       const prevRow = sessMap.get(prevSess?.id || "");
@@ -88,12 +84,10 @@ export default function BreedingSection({
     return null;
   };
 
-  // Calculate total used per bull and grand total
   const { bullTotals, grandTotalUsed } = useMemo(() => {
     const bt = new Map<string, { packed: number; used: number }>();
     for (const sl of semenLines) {
-      const key = sl.bull_catalog_id || sl.bull_name;
-      bt.set(key, { packed: sl.units_packed ?? 0, used: 0 });
+      bt.set(sl.bull_catalog_id || sl.bull_name, { packed: sl.units_packed ?? 0, used: 0 });
     }
     for (let si = 0; si < sorted.length; si++) {
       for (const combo of bullCombos) {
@@ -103,10 +97,10 @@ export default function BreedingSection({
         const row = sessMap?.get(sorted[si]?.id || "");
         const end = row?.end_units;
         if (start != null && end != null && start > end) {
-          const bullKey = combo.bull_catalog_id || combo.bull_name;
-          const existing = bt.get(bullKey) || { packed: 0, used: 0 };
+          const bk = combo.bull_catalog_id || combo.bull_name;
+          const existing = bt.get(bk) || { packed: 0, used: 0 };
           existing.used += (start - end);
-          bt.set(bullKey, existing);
+          bt.set(bk, existing);
         }
       }
     }
@@ -115,19 +109,11 @@ export default function BreedingSection({
     return { bullTotals: bt, grandTotalUsed: grand };
   }, [sorted, bullCombos, invLookup, semenLines]);
 
-  // Auto-update AI Service quantity
-  useEffect(() => {
-    onTotalUsedChanged(grandTotalUsed);
-  }, [grandTotalUsed]);
+  useEffect(() => { onTotalUsedChanged(grandTotalUsed); }, [grandTotalUsed]);
 
-  // Products grouped by session
   const productsBySession = useMemo(() => {
     const m = new Map<string, ProductLine[]>();
-    for (const p of productLines) {
-      if (!p.session_id) continue;
-      if (!m.has(p.session_id)) m.set(p.session_id, []);
-      m.get(p.session_id)!.push(p);
-    }
+    for (const p of productLines) { if (p.session_id) { if (!m.has(p.session_id)) m.set(p.session_id, []); m.get(p.session_id)!.push(p); } }
     return m;
   }, [productLines]);
 
@@ -135,7 +121,7 @@ export default function BreedingSection({
     return (
       <Card>
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          No breeding sessions yet. Add one to start tracking semen usage.
+          No breeding sessions yet.
           {!readOnly && (
             <div className="mt-3">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onAddBreedingSession}>
@@ -150,7 +136,7 @@ export default function BreedingSection({
 
   return (
     <div className="space-y-3">
-      {/* ── Semen Summary ── */}
+      {/* ── Semen Summary with Blown ── */}
       <Card>
         <CardContent className="py-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Semen summary</p>
@@ -160,15 +146,17 @@ export default function BreedingSection({
                 <TableHead>Bull</TableHead>
                 <TableHead className="w-[70px] text-right">Packed</TableHead>
                 <TableHead className="w-[70px] text-right">Used</TableHead>
+                <TableHead className="w-[80px] text-right">Blown</TableHead>
                 <TableHead className="w-[80px] text-right">Remaining</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {semenLines.map(sl => {
+              {semenLines.map((sl, slIdx) => {
                 const key = sl.bull_catalog_id || sl.bull_name;
                 const bt = bullTotals.get(key);
                 const packed = bt?.packed ?? (sl.units_packed ?? 0);
                 const used = bt?.used ?? 0;
+                const blown = sl.units_blown ?? 0;
                 return (
                   <TableRow key={sl.id}>
                     <TableCell className="text-sm">
@@ -177,7 +165,16 @@ export default function BreedingSection({
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">{packed}</TableCell>
                     <TableCell className="text-right text-sm font-medium">{used || "—"}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{packed - used}</TableCell>
+                    <TableCell className="text-right">
+                      {readOnly ? (
+                        <span className="text-sm">{blown || "—"}</span>
+                      ) : (
+                        <Input type="number" className="h-8 w-[60px] text-right text-sm ml-auto"
+                          value={blown || ""} placeholder="—"
+                          onChange={(e) => onSaveSemen(slIdx, { units_blown: Number(e.target.value) || 0 })} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium">{packed - used - blown}</TableCell>
                   </TableRow>
                 );
               })}
@@ -200,7 +197,6 @@ export default function BreedingSection({
         const isEditing = editingSessions.has(sessionId);
         const prods = productsBySession.get(sessionId) || [];
 
-        // Build semen grid for this session
         const semenRows = bullCombos.map(combo => {
           const ck = `${combo.bull_catalog_id || combo.bull_name}|${combo.canister}`;
           const sessMap = invLookup.get(ck);
@@ -218,15 +214,13 @@ export default function BreedingSection({
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors">
               {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">{format(parseISO(s.session_date), "MMM d, yyyy")}</span>
-                  <span className="text-sm text-muted-foreground">·</span>
-                  <span className="text-sm">{s.session_label || "Breeding"}</span>
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary">
-                    Breeding {si + 1}
-                  </Badge>
-                </div>
+              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">{format(parseISO(s.session_date), "MMM d, yyyy")}</span>
+                <span className="text-sm text-muted-foreground">·</span>
+                <span className="text-sm">{s.session_label || "Breeding"}</span>
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary">
+                  Breeding {si + 1}
+                </Badge>
               </div>
               <div className="text-sm font-semibold tabular-nums shrink-0">
                 {sessionUsed > 0 ? `${sessionUsed} hd` : "—"}
@@ -243,29 +237,13 @@ export default function BreedingSection({
                   </div>
                 )}
 
-                {/* Session details */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <label className="text-muted-foreground">Head count</label>
-                    {isEditing ? (
-                      <Input type="number" className="h-8 text-xs mt-1 w-[80px]" value={s.head_count ?? ""} placeholder="—"
-                        onChange={(e) => onSaveSession(sessionIdx, { head_count: e.target.value ? Number(e.target.value) : null })} />
-                    ) : <p className="mt-1 font-medium">{s.head_count ?? "—"}</p>}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground">Crew</label>
-                    {isEditing ? (
-                      <Input className="h-8 text-xs mt-1" value={s.crew || ""} placeholder="—"
-                        onChange={(e) => onSaveSession(sessionIdx, { crew: e.target.value })} />
-                    ) : <p className="mt-1 font-medium">{s.crew || "—"}</p>}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground">Notes</label>
-                    {isEditing ? (
-                      <Input className="h-8 text-xs mt-1" value={s.notes || ""} placeholder="—"
-                        onChange={(e) => onSaveSession(sessionIdx, { notes: e.target.value })} />
-                    ) : <p className="mt-1 font-medium">{s.notes || "—"}</p>}
-                  </div>
+                {/* Notes only — no head count or crew for breeding */}
+                <div className="text-xs">
+                  <label className="text-muted-foreground">Notes</label>
+                  {isEditing ? (
+                    <Input className="h-8 text-xs mt-1" value={s.notes || ""} placeholder="—"
+                      onChange={(e) => onSaveSession(sessionIdx, { notes: e.target.value })} />
+                  ) : <p className="mt-1 font-medium">{s.notes || "—"}</p>}
                 </div>
 
                 {/* Products (GnRH etc) */}
@@ -320,7 +298,7 @@ export default function BreedingSection({
                   </div>
                 )}
 
-                {/* Semen grid */}
+                {/* Semen grid — wider fields */}
                 {semenRows.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Semen counts</p>
@@ -330,22 +308,22 @@ export default function BreedingSection({
                           <TableRow>
                             <TableHead>Bull</TableHead>
                             <TableHead className="w-[50px] text-center">Can.</TableHead>
-                            <TableHead className="w-[80px] text-right">Start</TableHead>
-                            <TableHead className="w-[80px] text-right">End</TableHead>
-                            <TableHead className="w-[60px] text-right">Used</TableHead>
+                            <TableHead className="w-[100px] text-right">Start</TableHead>
+                            <TableHead className="w-[100px] text-right">End</TableHead>
+                            <TableHead className="w-[70px] text-right">Used</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {semenRows.map(sr => (
                             <TableRow key={sr.comboKey}>
-                              <TableCell className="text-xs">
+                              <TableCell className="text-sm">
                                 {sr.bull_name}
-                                {sr.bull_code && <span className="ml-1 text-muted-foreground">· {sr.bull_code}</span>}
+                                {sr.bull_code && <span className="ml-1 text-muted-foreground text-xs">· {sr.bull_code}</span>}
                               </TableCell>
                               <TableCell className="text-center text-xs font-mono">{sr.canister}</TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right p-1">
                                 {isEditing && si === 0 ? (
-                                  <Input type="number" className="h-8 w-full text-right text-xs"
+                                  <Input type="number" className="h-9 w-[90px] text-right text-sm ml-auto"
                                     value={sr.effectiveStart ?? ""} placeholder="—"
                                     onBlur={(e) => {
                                       if (!sr.row?.id) return;
@@ -358,12 +336,12 @@ export default function BreedingSection({
                                       onSetSessionInventory(prev => prev.map(r => r.id === sr.row!.id ? { ...r, start_units: v } : r));
                                     }} />
                                 ) : (
-                                  <span className="text-xs">{sr.effectiveStart ?? "—"}</span>
+                                  <span className="text-sm">{sr.effectiveStart ?? "—"}</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right p-1">
                                 {isEditing ? (
-                                  <Input type="number" className="h-8 w-full text-right text-xs"
+                                  <Input type="number" className="h-9 w-[90px] text-right text-sm ml-auto"
                                     value={sr.row?.end_units ?? ""} placeholder="—"
                                     onBlur={(e) => {
                                       if (!sr.row?.id) return;
@@ -376,10 +354,10 @@ export default function BreedingSection({
                                       onSetSessionInventory(prev => prev.map(r => r.id === sr.row!.id ? { ...r, end_units: v } : r));
                                     }} />
                                 ) : (
-                                  <span className="text-xs">{sr.row?.end_units ?? "—"}</span>
+                                  <span className="text-sm">{sr.row?.end_units ?? "—"}</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right text-xs font-medium">
+                              <TableCell className="text-right text-sm font-medium">
                                 {sr.used != null && sr.used > 0 ? sr.used : "—"}
                               </TableCell>
                             </TableRow>
