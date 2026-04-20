@@ -450,17 +450,50 @@ const ProjectBilling = () => {
 
   /* ── Add / remove helpers ── */
 
-  async function addSession(sessionType: string = "field_session") {
+  async function addBreedingSession() {
     if (!billingId) return;
-    const label = sessionType === "customer_pickup" ? "Customer Pickup" : "Additional Visit";
-    const newLine: Omit<SessionLine, "id"> = {
+    const { data } = await supabase.from("project_billing_sessions").insert({
       billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
-      session_label: label, session_type: sessionType,
+      session_label: "Timed Breeding", session_type: "field_session",
       time_of_day: null, head_count: null, crew: null, notes: null,
       sort_order: sessions.length,
-    };
-    const { data } = await supabase.from("project_billing_sessions").insert(newLine as any).select().single();
+    } as any).select().single();
     if (data) setSessions(prev => [...prev, data as SessionLine]);
+  }
+
+  async function createCustomerPickup() {
+    if (!billingId) return;
+    // Create the pickup session
+    const { data: sess, error: sessErr } = await supabase.from("project_billing_sessions").insert({
+      billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
+      session_label: "Customer Pickup", session_type: "customer_pickup",
+      time_of_day: null, head_count: null, crew: null, notes: null,
+      sort_order: -1,
+    } as any).select().single();
+    if (sessErr || !sess) { toast({ title: "Error", description: sessErr?.message, variant: "destructive" }); return; }
+    setSessions(prev => [...prev, sess as SessionLine]);
+
+    // Pre-fill with protocol products (unique by billing_product_id, qty blank)
+    const seen = new Set<string>();
+    const pickupProducts: any[] = [];
+    for (const p of productLines) {
+      const key = p.billing_product_id || p.product_name;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pickupProducts.push({
+        billing_id: billingId, session_id: (sess as any).id,
+        billing_product_id: p.billing_product_id, product_name: p.product_name,
+        product_category: p.product_category, protocol_event_label: null, event_date: null,
+        doses: 0, doses_per_unit: p.doses_per_unit, unit_label: p.unit_label,
+        units_calculated: 0, units_billed: 0, units_returned: 0,
+        unit_price: p.unit_price, line_total: 0,
+        sort_order: pickupProducts.length,
+      });
+    }
+    if (pickupProducts.length > 0) {
+      const { data: inserted } = await supabase.from("project_billing_products").insert(pickupProducts).select();
+      if (inserted) setProductLines(prev => [...prev, ...(inserted as ProductLine[])]);
+    }
   }
 
   async function removeSession(idx: number) {
@@ -484,6 +517,21 @@ const ProjectBilling = () => {
       units_calculated: 0, units_billed: 0, units_returned: 0,
       unit_price: defaultProd?.default_price || 0, line_total: 0,
       sort_order: productLines.length,
+    };
+    const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+
+  async function addMiscProduct(sessionId: string) {
+    if (!billingId) return;
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: null, product_name: "Miscellaneous",
+      product_category: null, protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: null, unit_label: null,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: 0, line_total: 0, sort_order: productLines.length,
     };
     const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
     if (data) setProductLines(prev => [...prev, data as ProductLine]);
@@ -715,9 +763,12 @@ const ProjectBilling = () => {
               readOnly={readOnly}
               onSaveSession={saveSessionLine} onSaveProduct={saveProductLine}
               onSwapProduct={swapProduct} onToggleProductInvoiced={toggleProductInvoiced}
-              onAddSession={addSession} onRemoveSession={removeSession}
+              onAddBreedingSession={addBreedingSession}
+              onCreateCustomerPickup={createCustomerPickup}
+              onRemoveSession={removeSession}
               onRemoveProduct={removeProductLine}
               onAddProductToSession={addProductToSession}
+              onAddMiscProduct={addMiscProduct}
               onSaveWorksheetCell={saveWorksheetCell}
               onSetSessionInventory={setSessionInventory}
             />
