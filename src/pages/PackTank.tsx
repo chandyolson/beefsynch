@@ -29,7 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Command, CommandInput, CommandList, CommandEmpty, CommandItem,
+  Command, CommandInput, CommandList, CommandEmpty, CommandItem, CommandGroup,
 } from "@/components/ui/command";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -780,7 +780,8 @@ const PackTank = () => {
                         <CommandInput placeholder="Search tanks…" />
                         <CommandList>
                           <CommandEmpty>No tanks found.</CommandEmpty>
-                          {fieldTankOptions.map((t: any) => {
+                          <CommandGroup heading="Your tanks">
+                          {fieldTankOptions.filter((t: any) => t.tank_type !== "customer_tank").map((t: any) => {
                             const label = t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number;
                             return (
                               <CommandItem
@@ -796,6 +797,25 @@ const PackTank = () => {
                               </CommandItem>
                             );
                           })}
+                          </CommandGroup>
+                          {fieldTankOptions.some((t: any) => t.tank_type === "customer_tank") && (
+                            <CommandGroup heading="Customer tanks">
+                            {fieldTankOptions.filter((t: any) => t.tank_type === "customer_tank").map((t: any) => {
+                              const label = t.tank_name ? `${t.tank_name} (#${t.tank_number})` : t.tank_number;
+                              return (
+                                <CommandItem
+                                  key={t.id}
+                                  value={`${t.tank_name || ""} ${t.tank_number}`}
+                                  onSelect={() => { setSelectedTankId(t.id); setFieldTankOpen(false); }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", selectedTankId === t.id ? "opacity-100" : "opacity-0")} />
+                                  {label}
+                                  <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Customer</Badge>
+                                </CommandItem>
+                              );
+                            })}
+                            </CommandGroup>
+                          )}
                         </CommandList>
                       </Command>
                     </PopoverContent>

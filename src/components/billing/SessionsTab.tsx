@@ -62,7 +62,7 @@ export default function SessionsTab({
       .sort((a, b) => a.session_date.localeCompare(b.session_date)), [sessions]);
 
   const eventSessions = useMemo(() =>
-    sessions.filter(s => s.session_type !== "customer_pickup" && s.session_type !== "customer_administered" && !isBreedingSession(s))
+    sessions.filter(s => s.session_type !== "customer_pickup" && !isBreedingSession(s))
       .sort((a, b) => { const d = a.session_date.localeCompare(b.session_date); return d !== 0 ? d : (a.sort_order ?? 0) - (b.sort_order ?? 0); }),
     [sessions]);
 
@@ -208,10 +208,11 @@ export default function SessionsTab({
         const sessionId = s.id || "";
         const isExpanded = expandedSessions.has(sessionId);
         const isEditing = editingSessions.has(sessionId);
+        const isCustAdmin = s.session_type === "customer_administered";
         const prods = productsBySession.get(sessionId) || [];
         const total = prods.reduce((sum, p) => sum + (p.line_total ?? 0), 0);
         return (
-          <Card key={sessionId} className="overflow-hidden">
+          <Card key={sessionId} className={`overflow-hidden ${isCustAdmin ? "opacity-60" : ""}`}>
             <button type="button" onClick={() => toggleExpand(sessionId)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors">
               {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -220,35 +221,58 @@ export default function SessionsTab({
                 <span className="text-sm font-medium">{format(parseISO(s.session_date), "MMM d, yyyy")}</span>
                 <span className="text-sm text-muted-foreground">·</span>
                 <span className="text-sm">{s.session_label || "Session"}</span>
+                {isCustAdmin && <Badge variant="outline" className="text-[10px] py-0 px-1.5">Customer did this</Badge>}
               </div>
-              <div className="text-sm font-semibold tabular-nums shrink-0">{total ? formatCurrency(total) : "—"}</div>
+              <div className="text-sm font-semibold tabular-nums shrink-0">
+                {isCustAdmin ? "—" : (total ? formatCurrency(total) : "—")}
+              </div>
             </button>
             {isExpanded && (
               <CardContent className="border-t pt-4 space-y-4">
-                {!readOnly && (
-                  <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  {!readOnly && (
+                    <button type="button"
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                        isCustAdmin
+                          ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                          : "text-muted-foreground border-border hover:border-amber-500/30 hover:text-amber-600"
+                      }`}
+                      onClick={() => onSaveSession(sessionIdx, {
+                        session_type: isCustAdmin ? "field_session" : "customer_administered"
+                      } as any)}>
+                      {isCustAdmin ? "✓ Customer did this" : "Customer did this"}
+                    </button>
+                  )}
+                  {!readOnly && !isCustAdmin && (
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => toggleEdit(sessionId)}>
                       {isEditing ? "Done" : <><Pencil className="h-3 w-3 mr-1" /> Edit</>}
                     </Button>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="text-muted-foreground">Crew</label>
-                    {isEditing ? <Input className="h-8 text-xs mt-1" value={s.crew || ""} placeholder="—"
-                      onChange={(e) => onSaveSession(sessionIdx, { crew: e.target.value })} />
-                      : <p className="mt-1 font-medium">{s.crew || "—"}</p>}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground">Notes</label>
-                    {isEditing ? <Input className="h-8 text-xs mt-1" value={s.notes || ""} placeholder="—"
-                      onChange={(e) => onSaveSession(sessionIdx, { notes: e.target.value })} />
-                      : <p className="mt-1 font-medium">{s.notes || "—"}</p>}
-                  </div>
+                  )}
                 </div>
-                {prods.length > 0 || isEditing ? renderProductTable(sessionId, isEditing, prods)
-                  : <p className="text-xs text-muted-foreground italic">No products on this session.</p>}
-                {isEditing && !readOnly && (
+
+                {isCustAdmin ? (
+                  <p className="text-sm text-muted-foreground italic">Customer administered — no billable products.</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="text-muted-foreground">Crew</label>
+                        {isEditing ? <Input className="h-8 text-xs mt-1" value={s.crew || ""} placeholder="—"
+                          onChange={(e) => onSaveSession(sessionIdx, { crew: e.target.value })} />
+                          : <p className="mt-1 font-medium">{s.crew || "—"}</p>}
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground">Notes</label>
+                        {isEditing ? <Input className="h-8 text-xs mt-1" value={s.notes || ""} placeholder="—"
+                          onChange={(e) => onSaveSession(sessionIdx, { notes: e.target.value })} />
+                          : <p className="mt-1 font-medium">{s.notes || "—"}</p>}
+                      </div>
+                    </div>
+                    {prods.length > 0 || isEditing ? renderProductTable(sessionId, isEditing, prods)
+                      : <p className="text-xs text-muted-foreground italic">No products on this session.</p>}
+                  </>
+                )}
+                {isEditing && !readOnly && !isCustAdmin && (
                   <div className="flex justify-end pt-2">
                     <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"
                       onClick={() => onRemoveSession(sessionIdx)}><Trash2 className="h-3 w-3 mr-1" /> Remove session</Button>
