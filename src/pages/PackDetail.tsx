@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   ArrowLeft, FileText, Tag, ClipboardList, PackageOpen, PackageCheck, Package,
-  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon, Trash2,
+  Truck, ExternalLink, Pencil, Loader2, Check, CalendarIcon, Trash2, Printer,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -39,6 +39,7 @@ import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
 import { generateSessionSheetPdf } from "@/lib/generateSessionSheetPdf";
 import { generateReturnSlipPdf } from "@/lib/generateReturnSlipPdf";
+import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
 
 const SavedBadge = ({ visible }: { visible: boolean }) => (
   <span
@@ -993,16 +994,28 @@ const PackDetail = () => {
                   <TableCell>{l.field_canister || "—"}</TableCell>
                   <TableCell className="text-right">{l.units}</TableCell>
                   <TableCell className="text-right">
-                    {isPackEditable && (
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditLineDialog(l)} title="Edit line">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setLineDeleteId(l.id)} title="Delete line">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => generateTankLabelPdf(l.bull_name, l.units)}
+                        title="Print tank label"
+                        disabled={!l.bull_name || !l.units}
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </Button>
+                      {isPackEditable && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditLineDialog(l)} title="Edit line">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setLineDeleteId(l.id)} title="Delete line">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
