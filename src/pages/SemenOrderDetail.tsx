@@ -70,6 +70,19 @@ const billingColors: Record<string, string> = {
   paid: "bg-green-500/20 text-green-300 border-green-500/30",
 };
 
+// Given an array of unpack lines for a pack, return a map of
+// "bull key" → total units_returned. Bull key is catalog_id if present,
+// otherwise bull_name (to catch custom bulls).
+function unpackReturnsByBull(unpackLines: any[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const ul of (unpackLines || [])) {
+    const key = ul.bull_catalog_id || ul.bull_name || "";
+    if (!key) continue;
+    map.set(key, (map.get(key) || 0) + (ul.units_returned || 0));
+  }
+  return map;
+}
+
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -125,8 +138,11 @@ const SemenOrderDetail = () => {
         tank_packs(
           id, status, pack_type, packed_at, field_tank_id,
           tanks!tank_packs_field_tank_id_fkey(tank_number, tank_name),
-          tank_pack_lines(bull_name, bull_code, units, source_tank_id, source_canister, field_canister,
+          tank_pack_lines(bull_name, bull_code, bull_catalog_id, units, source_tank_id, source_canister, field_canister,
             tanks!tank_pack_lines_source_tank_id_fkey(tank_number, tank_name)
+          ),
+          tank_unpack_lines(bull_name, bull_code, bull_catalog_id, units_returned, destination_canister, destination_tank_id,
+            tanks!tank_unpack_lines_destination_tank_id_fkey(tank_number, tank_name)
           )
         )
       `)
@@ -209,12 +225,16 @@ const SemenOrderDetail = () => {
       for (const link of packData) {
         const pack = link.tank_packs;
         if (!pack) continue;
+        const returnsByBull = unpackReturnsByBull(pack.tank_unpack_lines || []);
         for (const line of (pack.tank_pack_lines || [])) {
           const srcTank = line.tanks;
+          const key = line.bull_catalog_id || line.bull_name || "";
+          const returned = returnsByBull.get(key) || 0;
+          const used = Math.max(0, (line.units || 0) - returned);
           lines.push({
             bull_name: line.bull_name,
             bull_code: line.bull_code || null,
-            units: line.units,
+            units: used,
             source: srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? " — " + srcTank.tank_name : ""}` : "—",
           });
         }
@@ -520,7 +540,14 @@ const SemenOrderDetail = () => {
                 if (!pack) return null;
                 const fieldTank = pack.tanks;
                 const lines = pack.tank_pack_lines || [];
+                const unpackLines = pack.tank_unpack_lines || [];
+                const hasReturns = unpackLines.length > 0;
+                const returnsByBull = unpackReturnsByBull(unpackLines);
+
                 const totalPacked = lines.reduce((s: number, l: any) => s + (l.units || 0), 0);
+                const totalReturned = unpackLines.reduce((s: number, l: any) => s + (l.units_returned || 0), 0);
+                const totalUsed = totalPacked - totalReturned;
+
                 return (
                   <div key={pack.id} className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -534,6 +561,7 @@ const SemenOrderDetail = () => {
                         Packed {pack.packed_at ? format(new Date(pack.packed_at), "MMM d, yyyy") : ""}
                       </span>
                     </div>
+
                     <div className="rounded-lg border border-border/50 overflow-hidden">
                       <Table>
                         <TableHeader>
@@ -541,36 +569,76 @@ const SemenOrderDetail = () => {
                             <TableHead>Bull</TableHead>
                             <TableHead>Code</TableHead>
                             <TableHead>Source Tank</TableHead>
-                            <TableHead className="text-right">Units</TableHead>
+                            <TableHead className="text-right">Packed</TableHead>
+                            {hasReturns && <TableHead className="text-right">Returned</TableHead>}
+                            {hasReturns && <TableHead className="text-right">Used</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {lines.map((line: any, i: number) => {
                             const srcTank = line.tanks;
+                            const key = line.bull_catalog_id || line.bull_name || "";
+                            const returned = returnsByBull.get(key) || 0;
+                            const used = Math.max(0, (line.units || 0) - returned);
                             return (
                               <TableRow key={i}>
                                 <TableCell className="font-medium">{line.bull_name}</TableCell>
                                 <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
                                 <TableCell className="text-sm">{srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? ` — ${srcTank.tank_name}` : ""}` : "—"}</TableCell>
                                 <TableCell className="text-right">{line.units}</TableCell>
+                                {hasReturns && (
+                                  <TableCell className="text-right text-muted-foreground">{returned || "—"}</TableCell>
+                                )}
+                                {hasReturns && (
+                                  <TableCell className="text-right font-medium">{used}</TableCell>
+                                )}
                               </TableRow>
                             );
                           })}
                           <TableRow className="bg-muted/20 font-bold">
-                            <TableCell colSpan={3} className="text-right">Total Packed</TableCell>
+                            <TableCell colSpan={3} className="text-right">Totals</TableCell>
                             <TableCell className="text-right">{totalPacked}</TableCell>
+                            {hasReturns && <TableCell className="text-right">{totalReturned}</TableCell>}
+                            {hasReturns && <TableCell className="text-right">{totalUsed}</TableCell>}
                           </TableRow>
                         </TableBody>
                       </Table>
                     </div>
-                    <div className="flex gap-4 text-sm px-1">
+
+                    {hasReturns && (
+                      <details className="text-xs text-muted-foreground pl-1">
+                        <summary className="cursor-pointer hover:text-foreground">
+                          Show unpack detail ({unpackLines.length} return line{unpackLines.length === 1 ? "" : "s"})
+                        </summary>
+                        <div className="mt-1 space-y-0.5">
+                          {unpackLines.map((ul: any, i: number) => (
+                            <div key={i} className="flex gap-3">
+                              <span className="font-medium text-foreground">{ul.bull_name}</span>
+                              <span>{ul.units_returned}u returned</span>
+                              <span>→ {ul.tanks ? `${ul.tanks.tank_number}${ul.tanks.tank_name ? ` (${ul.tanks.tank_name})` : ""}` : "unknown tank"}</span>
+                              {ul.destination_canister && <span>· can. {ul.destination_canister}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 text-sm px-1">
                       <span className="text-muted-foreground">Ordered: <span className="font-medium text-foreground">{totalUnits}</span></span>
                       <span className="text-muted-foreground">Packed: <span className="font-medium text-foreground">{totalPacked}</span></span>
-                      {totalPacked >= totalUnits ? (
-                        <span className="text-emerald-500 font-medium">✓ Fully filled</span>
-                      ) : (
-                        <span className="text-amber-500 font-medium">{totalUnits - totalPacked} outstanding</span>
+                      {hasReturns && (
+                        <span className="text-muted-foreground">Returned: <span className="font-medium text-foreground">{totalReturned}</span></span>
                       )}
+                      {hasReturns && (
+                        <span className="text-muted-foreground">Used: <span className="font-medium text-foreground">{totalUsed}</span></span>
+                      )}
+                      {(() => {
+                        const delivered = hasReturns ? totalUsed : totalPacked;
+                        if (delivered >= totalUnits) {
+                          return <span className="text-emerald-500 font-medium">✓ Fully filled</span>;
+                        }
+                        return <span className="text-amber-500 font-medium">{totalUnits - delivered} outstanding</span>;
+                      })()}
                     </div>
                   </div>
                 );
