@@ -458,6 +458,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         <div className="flex border border-border rounded-md overflow-hidden">
           <button onClick={() => setViewMode("detail")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Detail</button>
           <button onClick={() => setViewMode("grouped")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Grouped</button>
+          <button onClick={() => setViewMode("map")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "map" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Map</button>
         </div>
       </div>
 
