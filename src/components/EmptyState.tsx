@@ -28,9 +28,12 @@ const EmptyState = ({ icon: Icon, title, description, action }: EmptyStateProps)
             // Render as JSX — React handles both plain function components AND
             // forwardRef objects. Never call the icon as a function directly —
             // Lucide icons are forwardRef objects and are NOT callable.
-            <Icon className="h-12 w-12 mx-auto opacity-50" />
+            (() => {
+              const IconComp = Icon as LucideIcon;
+              return <IconComp className="h-12 w-12 mx-auto opacity-50" />;
+            })()
           ) : (
-            Icon
+            (Icon as React.ReactNode)
           )}
         </div>
       )}
