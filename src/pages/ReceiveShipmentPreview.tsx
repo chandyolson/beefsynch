@@ -126,17 +126,6 @@ const ReceiveShipmentPreview = () => {
     ? memberLabelById.get(shipment.received_by) || "—"
     : "—";
 
-  // Fetch customers for owner lookup
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list-preview", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase.from("customers").select("id, name").eq("organization_id", orgId);
-      return data ?? [];
-    },
-    enabled: !!orgId,
-  });
-
   const tankName = (tankId: string) => {
     const t = tanks.find((tk) => tk.id === tankId);
     return t ? (t.tank_name || t.tank_number) : "—";
@@ -271,109 +260,22 @@ const ReceiveShipmentPreview = () => {
     setConfirming(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id ?? null;
-      const draftLines: DraftLine[] = snapshot?.draft_lines ?? [];
-      const semenOwnerId = snapshot?.semen_owner_id ?? null;
+      const { data, error } = await (supabase.rpc as any)("confirm_shipment", {
+        _input: { shipment_id: id },
+      });
 
-      let totalUnits = 0;
-
-      for (const line of draftLines) {
-        totalUnits += line.units;
-
-        const matchFilter: Record<string, string> = {
-          organization_id: orgId,
-          tank_id: line.tankId,
-          canister: line.canister,
-          item_type: line.itemType || "semen",
-        };
-
-        if (line.bullCatalogId) {
-          matchFilter.bull_catalog_id = line.bullCatalogId;
-        } else {
-          matchFilter.custom_bull_name = line.bullName;
-        }
-
-        const { data: existing } = await supabase
-          .from("tank_inventory")
-          .select("id, units")
-          .match(matchFilter)
-          .maybeSingle();
-
-        if (existing) {
-          const { error } = await supabase
-            .from("tank_inventory")
-            .update({ units: existing.units + line.units })
-            .eq("id", existing.id);
-          if (error) { toast({ title: "Error updating inventory", description: error.message, variant: "destructive" }); setConfirming(false); return; }
-        } else {
-          const ownerName = semenOwnerId ? customers.find((c) => c.id === semenOwnerId)?.name || null : null;
-          const { error } = await supabase.from("tank_inventory").insert({
-            organization_id: orgId,
-            tank_id: line.tankId,
-            canister: line.canister,
-            bull_catalog_id: line.bullCatalogId,
-            custom_bull_name: line.bullCatalogId ? null : line.bullName,
-            units: line.units,
-            storage_type: "inventory",
-            item_type: line.itemType || "semen",
-            customer_id: semenOwnerId || null,
-            owner: ownerName,
-          });
-          if (error) { toast({ title: "Error inserting inventory", description: error.message, variant: "destructive" }); setConfirming(false); return; }
-        }
-
-
+      if (error) {
+        console.error("confirm_shipment error:", error);
+        toast({ title: "Error confirming", description: error.message, variant: "destructive" });
+        setConfirming(false);
+        return;
       }
 
-      // Update order fulfillment status
-      if (shipment.semen_order_id) {
-        let newStatus = "delivered";
-        const hasShort = reconciliation.some((r) => r.status === "short");
-        const hasMissing = reconciliation.some((r) => r.status === "missing");
-        if (hasShort || hasMissing) newStatus = "partially_filled";
-
-        const { data: currentOrder } = await supabase
-          .from("semen_orders")
-          .select("fulfillment_status")
-          .eq("id", shipment.semen_order_id)
-          .single();
-
-        const statusRank: Record<string, number> = {
-          pending: 0, backordered: 1, ordered: 2, partially_filled: 3, shipped: 4, delivered: 5,
-        };
-
-        if (currentOrder && (statusRank[newStatus] ?? 0) > (statusRank[currentOrder.fulfillment_status] ?? 0)) {
-          await supabase.from("semen_orders").update({ fulfillment_status: newStatus }).eq("id", shipment.semen_order_id);
-        }
-      }
-
-      // Build confirmed snapshot
-      const confirmedSnapshot = {
-        version: 1,
-        confirmed_at: new Date().toISOString(),
-        reconciliation: reconciliation.map((r) => ({
-          bullCatalogId: r.bullCatalogId,
-          bullName: r.bullName,
-          ordered_units: r.ordered_units,
-          received_units: r.received_units,
-          delta: r.delta,
-          status: r.status,
-        })),
-        received_lines: draftLines,
-        totals,
-      };
-
-      const { error: shipErr } = await supabase.from("shipments").update({
-        status: "confirmed",
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: userId,
-        reconciliation_snapshot: confirmedSnapshot as any,
-      }).eq("id", id);
-
-      if (shipErr) { toast({ title: "Error confirming", description: shipErr.message, variant: "destructive" }); setConfirming(false); return; }
-
-      toast({ title: "Shipment confirmed", description: `${totalUnits} units added to inventory` });
+      const result = data as any;
+      toast({
+        title: "Shipment confirmed",
+        description: `${result?.total_units ?? 0} units added to inventory`,
+      });
       refetch();
     } catch (err: any) {
       console.error(err);
