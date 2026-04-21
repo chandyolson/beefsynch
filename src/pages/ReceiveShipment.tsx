@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle, Map } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
