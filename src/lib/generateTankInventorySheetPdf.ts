@@ -96,7 +96,7 @@ export function generateTankInventorySheetPdf(
     const canRows = rowsByCanister.get(key) ?? [];
 
     // Ensure ~80pt space for the heading + one row minimum
-    y = ensurePageSpace(doc, y, 80);
+    y = ensurePageSpace(doc, y, 80) as number;
 
     // Canister heading
     doc.setFont("helvetica", "bold");
