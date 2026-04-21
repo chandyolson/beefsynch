@@ -42,6 +42,7 @@ const PackDetail = lazy(() => import("./pages/PackDetail"));
 const UnpackTank = lazy(() => import("./pages/UnpackTank"));
 const ProjectBilling = lazy(() => import("./pages/ProjectBilling"));
 const ImportBulls = lazy(() => import("./pages/admin/ImportBulls"));
+const Planning = lazy(() => import("./pages/Planning"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -121,6 +122,7 @@ const App = () => (
                 <Route path="/pack/:id" element={<ProtectedRoute><PackDetail /></ProtectedRoute>} />
                 <Route path="/unpack/:packId" element={<ProtectedRoute><UnpackTank /></ProtectedRoute>} />
                 <Route path="/admin/import-bulls" element={<AdminRoute><ImportBulls /></AdminRoute>} />
+                <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
 
                 {/* Redirects */}
                 <Route path="/dashboard" element={<Navigate to="/operations?tab=projects" replace />} />
