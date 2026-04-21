@@ -463,6 +463,8 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
               onUpdateBull={updateBull}
               onUpdateUnits={updateBullUnits}
               showUnits={true}
+              showInventory={true}
+              orgId={selectedOrgId}
             />
 
             {/* Notes */}

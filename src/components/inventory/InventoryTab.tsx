@@ -468,89 +468,177 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         ) : viewMode === "map" ? (
           <TankMap orgId={orgId!} />
         ) : viewMode === "detail" ? (
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="w-[160px]"><SortHeader label="Bull Name" sortKeyVal="bull_name" /></TableHead>
-                <TableHead className="w-[90px] whitespace-nowrap">Bull Code</TableHead>
-                <TableHead className="w-[140px]"><SortHeader label="Customer" sortKeyVal="customer" /></TableHead>
-                <TableHead className="w-[120px]"><SortHeader label="Tank" sortKeyVal="tank" /></TableHead>
-                <TableHead className="w-[60px] whitespace-nowrap">Tank #</TableHead>
-                <TableHead className="w-[55px]">Can.</TableHead>
-                <TableHead className="w-[55px] whitespace-nowrap">Sub</TableHead>
-                <TableHead className="w-[55px] text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
-                <TableHead className="w-[80px] whitespace-nowrap">Storage</TableHead>
-                <TableHead className="w-[70px]">Owner</TableHead>
-                <TableHead className="w-[100px] whitespace-nowrap">Inventoried</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 && !isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={12}>
-                    <EmptyState
-                      icon={Archive}
-                      title={rows.length === 0 ? "No inventory data" : "No results"}
-                      description={rows.length === 0 ? "No semen inventory to display." : "No inventory matches your filters. Try adjusting your filters."}
-                    />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-muted/20">
-                    <TableCell className="font-medium max-w-[160px] truncate">{row.bullName}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.bullCode}</TableCell>
-                    <TableCell className="max-w-[140px] truncate">{row.customer}</TableCell>
-                    <TableCell className="max-w-[120px] truncate">{row.tankName}</TableCell>
-                    <TableCell className="whitespace-nowrap">{row.tankNumber}</TableCell>
-                    <TableCell>{row.canister}</TableCell>
-                    <TableCell>{row.subCanister}</TableCell>
-                    <TableCell className="text-right">{row.units}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>{row.storageType}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {row.owner ? <span>{row.owner}</span> : "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{row.inventoriedAt ? format(new Date(row.inventoriedAt), "MMM d, yyyy") : "—"}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              if (confirm(`Delete this inventory row for "${row.bullName}"? This cannot be undone.`)) {
-                                handleDeleteRow(row.id);
-                              }
-                            }}
-                          >
-                            {deletingId === row.id ? "Deleting…" : "Delete"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          <>
+            {/* Desktop table — md and up */}
+            <div className="hidden md:block">
+              <Table className="table-fixed w-full">
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="w-[28%]"><SortHeader label="Bull" sortKeyVal="bull_name" /></TableHead>
+                    <TableHead className="w-[22%]"><SortHeader label="Location" sortKeyVal="tank" /></TableHead>
+                    <TableHead className="w-[22%]"><SortHeader label="Owner" sortKeyVal="customer" /></TableHead>
+                    <TableHead className="w-[10%] text-right"><SortHeader label="Units" sortKeyVal="units" /></TableHead>
+                    <TableHead className="w-[12%]">Storage</TableHead>
+                    <TableHead className="w-[6%]" />
                   </TableRow>
-                ))
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 && !isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6}>
+                        <EmptyState
+                          icon={Archive}
+                          title={rows.length === 0 ? "No inventory data" : "No results"}
+                          description={rows.length === 0 ? "No semen inventory to display." : "No inventory matches your filters. Try adjusting your filters."}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((row) => {
+                      const ownerDisplay = row.owner || row.customer;
+                      const isZero = row.units === 0;
+                      const subCanSuffix = row.subCanister && row.subCanister !== "—" ? ` / ${row.subCanister}` : "";
+                      return (
+                        <TableRow key={row.id} className={cn("hover:bg-muted/20", isZero && "opacity-60")}>
+                          <TableCell className="align-top">
+                            <div className="font-medium truncate" title={row.bullName}>{row.bullName}</div>
+                            <div className="text-xs font-mono text-muted-foreground truncate" title={row.bullCode}>{row.bullCode}</div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="truncate" title={`${row.tankName} #${row.tankNumber}`}>
+                              {row.tankName} <span className="text-muted-foreground">#{row.tankNumber}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              Canister {row.canister}{subCanSuffix}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="truncate" title={ownerDisplay}>{ownerDisplay}</div>
+                          </TableCell>
+                          <TableCell className={cn("text-right align-top tabular-nums font-medium", isZero && "text-muted-foreground font-normal")}>
+                            {row.units}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>
+                              {row.storageType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    if (confirm(`Delete this inventory row for "${row.bullName}"? This cannot be undone.`)) {
+                                      handleDeleteRow(row.id);
+                                    }
+                                  }}
+                                >
+                                  {deletingId === row.id ? "Deleting…" : "Delete"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+                {filtered.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-semibold">Total</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums">{filteredTotal}</TableCell>
+                      <TableCell colSpan={2} />
+                    </TableRow>
+                  </TableFooter>
+                )}
+              </Table>
+            </div>
+
+            {/* Mobile card layout — below md */}
+            <div className="md:hidden divide-y divide-border">
+              {filtered.length === 0 && !isLoading ? (
+                <EmptyState
+                  icon={Archive}
+                  title={rows.length === 0 ? "No inventory data" : "No results"}
+                  description={rows.length === 0 ? "No semen inventory to display." : "No inventory matches your filters. Try adjusting your filters."}
+                />
+              ) : (
+                <>
+                  {filtered.map((row) => {
+                    const ownerDisplay = row.owner || row.customer;
+                    const isZero = row.units === 0;
+                    const subCanSuffix = row.subCanister && row.subCanister !== "—" ? ` / ${row.subCanister}` : "";
+                    return (
+                      <div key={row.id} className={cn("p-4 space-y-3", isZero && "opacity-60")}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{row.bullName}</div>
+                            <div className="text-xs font-mono text-muted-foreground truncate">{row.bullCode}</div>
+                          </div>
+                          <div className="flex items-start gap-2 shrink-0">
+                            <div className="text-right">
+                              <div className={cn("text-lg font-bold tabular-nums leading-none", isZero && "text-muted-foreground font-normal")}>
+                                {row.units}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">units</div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    if (confirm(`Delete this inventory row for "${row.bullName}"? This cannot be undone.`)) {
+                                      handleDeleteRow(row.id);
+                                    }
+                                  }}
+                                >
+                                  {deletingId === row.id ? "Deleting…" : "Delete"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Location</div>
+                          <div className="truncate">{row.tankName} #{row.tankNumber} · Can {row.canister}{subCanSuffix}</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Owner</div>
+                          <div className="truncate">{ownerDisplay}</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Storage</div>
+                          <div>
+                            <Badge variant="outline" className={STORAGE_BADGES[row.storageType] || "bg-muted text-muted-foreground border-border"}>
+                              {row.storageType}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filtered.length > 0 && (
+                    <div className="p-4 flex items-center justify-between bg-muted/20">
+                      <div className="text-sm font-semibold">Total</div>
+                      <div className="text-sm font-bold tabular-nums">{filteredTotal} units</div>
+                    </div>
+                  )}
+                </>
               )}
-            </TableBody>
-            {filtered.length > 0 && (
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={7} className="text-right font-semibold">Total</TableCell>
-                  <TableCell className="text-right font-bold">{filteredTotal}</TableCell>
-                  <TableCell colSpan={4} />
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
+            </div>
+          </>
         ) : (
           <Table>
             <TableHeader>
