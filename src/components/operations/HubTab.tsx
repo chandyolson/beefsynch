@@ -25,6 +25,7 @@ interface UpcomingProject {
   pack_id: string | null;
   pack_status: string | null;
   packed_units: number | null;
+  bull_names: string[];
 }
 
 interface ActionCounts {
