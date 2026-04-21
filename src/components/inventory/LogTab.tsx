@@ -105,6 +105,47 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       from += PAGE_SIZE;
     }
     setRows(all);
+
+    // Fetch context names for summaries
+    const shipmentIds = [...new Set(all.filter(r => r.shipment_id).map(r => r.shipment_id!))];
+    const packIds = [...new Set(all.filter(r => r.tank_pack_id).map(r => r.tank_pack_id!))];
+
+    const shipmentNames = new Map<string, string>();
+    const packNames = new Map<string, string>();
+
+    if (shipmentIds.length > 0) {
+      const { data: shipData } = await supabase
+        .from("shipments")
+        .select("id, semen_companies(name), customers(name)")
+        .in("id", shipmentIds);
+      if (shipData) {
+        for (const s of shipData as any[]) {
+          const co = s.semen_companies?.name || "";
+          const cust = s.customers?.name || "";
+          const parts: string[] = [];
+          if (co) parts.push(`from ${co}`);
+          if (cust) parts.push(`for ${cust}`);
+          shipmentNames.set(s.id, parts.join(" ") || "");
+        }
+      }
+    }
+
+    if (packIds.length > 0) {
+      const { data: packData } = await supabase
+        .from("tank_packs")
+        .select("id, tank_pack_projects(projects(name))")
+        .in("id", packIds);
+      if (packData) {
+        for (const p of packData as any[]) {
+          const projNames = (p.tank_pack_projects || [])
+            .map((tpp: any) => tpp.projects?.name)
+            .filter(Boolean);
+          packNames.set(p.id, projNames.length > 0 ? `for ${projNames.join(", ")}` : "");
+        }
+      }
+    }
+
+    setContextNames({ shipments: shipmentNames, packs: packNames });
     setLoading(false);
   }, [orgId]);
 
