@@ -256,6 +256,8 @@ const ReceiveShipmentPreview = () => {
   }, [shipment, snapshot, orderItems, tanks, isConfirmed]);
 
   const handleConfirm = async () => {
+    // Guard: if a previous click is still in flight, ignore this one.
+    if (confirming) return;
     if (!shipment || !orgId || !id) return;
     setConfirming(true);
 
@@ -267,6 +269,7 @@ const ReceiveShipmentPreview = () => {
       if (error) {
         console.error("confirm_shipment error:", error);
         toast({ title: "Error confirming", description: error.message, variant: "destructive" });
+        // Re-enable the button so the user can retry after fixing whatever broke.
         setConfirming(false);
         return;
       }
@@ -276,11 +279,14 @@ const ReceiveShipmentPreview = () => {
         title: "Shipment confirmed",
         description: `${result?.total_units ?? 0} units added to inventory`,
       });
+      // Note: we intentionally do NOT setConfirming(false) on success —
+      // the page is about to navigate away, and leaving it disabled prevents
+      // any straggler click from firing during the navigation transition.
       refetch();
     } catch (err: any) {
       console.error(err);
       toast({ title: "Error", description: err.message || "Failed to confirm shipment", variant: "destructive" });
-    } finally {
+      // Re-enable the button so the user can retry after fixing whatever broke.
       setConfirming(false);
     }
   };
