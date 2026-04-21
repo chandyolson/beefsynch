@@ -25,8 +25,10 @@ const EmptyState = ({ icon: Icon, title, description, action }: EmptyStateProps)
       {Icon && (
         <div className="mb-4 text-muted-foreground">
           {isIconComponent ? (
-            // Render Lucide icon component with JSX - type assertion needed for TS
-            (Icon as any)({ className: "h-12 w-12 mx-auto opacity-50" })
+            // Render as JSX — React handles both plain function components AND
+            // forwardRef objects. Never call the icon as a function directly —
+            // Lucide icons are forwardRef objects and are NOT callable.
+            <Icon className="h-12 w-12 mx-auto opacity-50" />
           ) : (
             Icon
           )}
