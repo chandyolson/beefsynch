@@ -465,6 +465,8 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       <div className="rounded-lg border border-border/50 overflow-hidden">
         {isLoading ? (
           <TableSkeleton rows={8} columns={12} />
+        ) : viewMode === "map" ? (
+          <TankMap orgId={orgId!} />
         ) : viewMode === "detail" ? (
           <Table className="table-fixed">
             <TableHeader>
