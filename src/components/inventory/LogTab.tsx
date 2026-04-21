@@ -65,12 +65,18 @@ type DateGroup = {
   totalRows: number;
 };
 
+type ContextNames = {
+  shipments: Map<string, string>;  // shipment_id → "from [Company] for [Customer]"
+  packs: Map<string, string>;      // tank_pack_id → "for [Project Name]"
+};
+
 const LogTab = ({ orgId }: { orgId: string }) => {
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [contextNames, setContextNames] = useState<ContextNames>({ shipments: new Map(), packs: new Map() });
 
   const toggleGroup = (key: string) => {
     setExpandedGroups((prev) => {
