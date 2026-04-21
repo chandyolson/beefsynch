@@ -70,6 +70,19 @@ const billingColors: Record<string, string> = {
   paid: "bg-green-500/20 text-green-300 border-green-500/30",
 };
 
+// Given an array of unpack lines for a pack, return a map of
+// "bull key" → total units_returned. Bull key is catalog_id if present,
+// otherwise bull_name (to catch custom bulls).
+function unpackReturnsByBull(unpackLines: any[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const ul of (unpackLines || [])) {
+    const key = ul.bull_catalog_id || ul.bull_name || "";
+    if (!key) continue;
+    map.set(key, (map.get(key) || 0) + (ul.units_returned || 0));
+  }
+  return map;
+}
+
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
