@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { getBullDisplayName, bullMatchesQuery } from "@/lib/bullDisplay";
 import { toast } from "sonner";
 
 // ─── Inventory Tab Constants ───
@@ -75,7 +76,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       while (true) {
         const { data, error } = await supabase
           .from("tank_inventory")
-          .select("*, customers(name), tanks(tank_name, tank_number)")
+          .select("*, customers(name), tanks(tank_name, tank_number), bulls_catalog(bull_name, naab_code)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
         if (error) throw error;
@@ -136,7 +137,8 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
-    bullName: item.custom_bull_name || item.bulls_catalog?.bull_name || "—",
+    bullName: getBullDisplayName(item),
+    _raw: item,
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
     customerId: item.customer_id,
@@ -164,10 +166,13 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     }
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter((r) =>
-        r.bullName.toLowerCase().includes(q) || r.bullCode.toLowerCase().includes(q) ||
-        r.customer.toLowerCase().includes(q) || r.tankName.toLowerCase().includes(q)
-      );
+      result = result.filter((r) => {
+        if (bullMatchesQuery(r._raw, search)) return true;
+        return (
+          r.customer.toLowerCase().includes(q) ||
+          r.tankName.toLowerCase().includes(q)
+        );
+      });
     }
     result = [...result].sort((a, b) => {
       let aVal: string | number, bVal: string | number;
