@@ -305,6 +305,72 @@ const ReceiveShipmentPreview = () => {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !shipment || !orgId) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 10MB allowed", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      // Remove old file if exists
+      if (shipment.document_path) {
+        await supabase.storage.from("shipment-documents").remove([shipment.document_path]);
+      }
+      const path = `${orgId}/${crypto.randomUUID()}/${file.name}`;
+      const { error: upErr } = await supabase.storage.from("shipment-documents").upload(path, file);
+      if (upErr) throw upErr;
+      const { error: updErr } = await supabase.from("shipments").update({ document_path: path }).eq("id", shipment.id);
+      if (updErr) throw updErr;
+      toast({ title: "Packing slip uploaded" });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be re-selected
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveFile = async () => {
+    if (!shipment?.document_path) return;
+    setUploading(true);
+    try {
+      await supabase.storage.from("shipment-documents").remove([shipment.document_path]);
+      await supabase.from("shipments").update({ document_path: null }).eq("id", shipment.id);
+      toast({ title: "Packing slip removed" });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Remove failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const isImageFile = (path: string) => {
+    const ext = path.split(".").pop()?.toLowerCase() || "";
+    return ["jpg", "jpeg", "png", "heic", "heif", "webp"].includes(ext);
+  };
+
+  // Fetch a signed URL for the private storage bucket (valid 1 hour)
+  const { data: documentUrl } = useQuery({
+    queryKey: ["shipment-doc-url", shipment?.document_path],
+    queryFn: async () => {
+      if (!shipment?.document_path) return null;
+      const { data, error } = await supabase.storage
+        .from("shipment-documents")
+        .createSignedUrl(shipment.document_path, 3600);
+      if (error) { console.error("Signed URL error:", error); return null; }
+      return data?.signedUrl || null;
+    },
+    enabled: !!shipment?.document_path,
+    staleTime: 30 * 60 * 1000, // refresh after 30 min (URL valid for 60 min)
+  });
+
   const handlePrintPdf = () => {
     if (!shipment) return;
     generateReceivingReportPdf(
