@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Printer, ArrowLeft, Pencil, Trash2, ShieldAlert, Check, AlertTriangle } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, Pencil, Trash2, ShieldAlert, Check, AlertTriangle, Upload, X, FileText, Image } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { RECONCILIATION_STATUS_COLORS } from "@/lib/constants";
@@ -58,6 +58,7 @@ const ReceiveShipmentPreview = () => {
   const { orgId, role } = useOrgRole();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch shipment
   const { data: shipment, isLoading, refetch } = useQuery({
@@ -304,6 +305,72 @@ const ReceiveShipmentPreview = () => {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !shipment || !orgId) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 10MB allowed", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      // Remove old file if exists
+      if (shipment.document_path) {
+        await supabase.storage.from("shipment-documents").remove([shipment.document_path]);
+      }
+      const path = `${orgId}/${crypto.randomUUID()}/${file.name}`;
+      const { error: upErr } = await supabase.storage.from("shipment-documents").upload(path, file);
+      if (upErr) throw upErr;
+      const { error: updErr } = await supabase.from("shipments").update({ document_path: path }).eq("id", shipment.id);
+      if (updErr) throw updErr;
+      toast({ title: "Packing slip uploaded" });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be re-selected
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveFile = async () => {
+    if (!shipment?.document_path) return;
+    setUploading(true);
+    try {
+      await supabase.storage.from("shipment-documents").remove([shipment.document_path]);
+      await supabase.from("shipments").update({ document_path: null }).eq("id", shipment.id);
+      toast({ title: "Packing slip removed" });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "Remove failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const isImageFile = (path: string) => {
+    const ext = path.split(".").pop()?.toLowerCase() || "";
+    return ["jpg", "jpeg", "png", "heic", "heif", "webp"].includes(ext);
+  };
+
+  // Fetch a signed URL for the private storage bucket (valid 1 hour)
+  const { data: documentUrl } = useQuery({
+    queryKey: ["shipment-doc-url", shipment?.document_path],
+    queryFn: async () => {
+      if (!shipment?.document_path) return null;
+      const { data, error } = await supabase.storage
+        .from("shipment-documents")
+        .createSignedUrl(shipment.document_path, 3600);
+      if (error) { console.error("Signed URL error:", error); return null; }
+      return data?.signedUrl || null;
+    },
+    enabled: !!shipment?.document_path,
+    staleTime: 30 * 60 * 1000, // refresh after 30 min (URL valid for 60 min)
+  });
+
   const handlePrintPdf = () => {
     if (!shipment) return;
     generateReceivingReportPdf(
@@ -525,6 +592,73 @@ const ReceiveShipmentPreview = () => {
                 <p className="text-lg font-bold text-destructive">{totals.lines_missing}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Packing Slip */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Packing Slip</CardTitle>
+            {shipment.document_path && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-rose-400" onClick={handleRemoveFile} disabled={uploading}>
+                <X className="h-4 w-4 mr-1" /> Remove
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {shipment.document_path ? (
+              <div className="space-y-3">
+                {isImageFile(shipment.document_path) ? (
+                  <a href={documentUrl || "#"} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={documentUrl || ""}
+                      alt="Packing slip"
+                      className="max-w-full max-h-96 rounded-lg border border-border object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={documentUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors"
+                  >
+                    <FileText className="h-8 w-8 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{shipment.document_path.split("/").pop()}</p>
+                      <p className="text-xs text-muted-foreground">Click to view</p>
+                    </div>
+                  </a>
+                )}
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Upload className="h-3 w-3" />
+                  <span>Replace file</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center gap-2 cursor-pointer p-6 border border-dashed border-border rounded-lg hover:bg-secondary/50 transition-colors">
+                <Upload className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {uploading ? "Uploading..." : "Upload packing slip photo or PDF"}
+                </span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+              </label>
+            )}
           </CardContent>
         </Card>
 
