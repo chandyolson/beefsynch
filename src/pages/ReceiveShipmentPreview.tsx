@@ -704,8 +704,14 @@ const ReceiveShipmentPreview = () => {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm} disabled={confirming}>
-                      {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Confirm
+                      {confirming ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Confirming…
+                        </>
+                      ) : (
+                        "Confirm"
+                      )}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
