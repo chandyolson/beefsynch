@@ -44,6 +44,10 @@ interface TxnRow {
   bull_catalog_id: string | null;
   bulls_catalog: { bull_name: string } | null;
   tanks: { tank_name: string | null; tank_number: string } | null;
+  shipment_id: string | null;
+  tank_pack_id: string | null;
+  order_id: string | null;
+  customer_id: string | null;
 }
 
 type TankGroup = {
