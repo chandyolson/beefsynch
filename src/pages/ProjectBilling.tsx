@@ -707,9 +707,9 @@ const ProjectBilling = () => {
     const productsTotal = productLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
     const semenTotal = semenLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
     const grandTotal = productsTotal + semenTotal;
-    generateBillingSheetPdf(project, billingRecord, productLines, semenLines, sessions, [], {
+    generateBillingSheetPdf(project, billingRecord, productLines, semenLines, {
       productsTotal, semenTotal, laborTotal: 0, grandTotal,
-    }, sessionInventory);
+    });
     toast({ title: "PDF downloaded" });
   }
 
@@ -905,7 +905,6 @@ const ProjectBilling = () => {
               onAddProductToSession={addProductToSession}
               onAddProductToSessionWithProduct={addProductToSessionWithProduct}
               onAddMiscProduct={addMiscProduct}
-              onSaveSemen={saveSemenLine}
               onSaveWorksheetCell={saveWorksheetCell}
               onSetSessionInventory={setSessionInventory}
               onTotalUsedChanged={handleTotalUsedChanged}

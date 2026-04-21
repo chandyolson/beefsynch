@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ProductLine, SessionLine, SessionInventoryLine, SemenLine, BillingProduct,
-  formatCurrency, isBreedingSession,
+  formatCurrency, isBreedingSession, toggleSetItem,
 } from "./billingTypes";
 
 interface BreedingSectionProps {
@@ -22,7 +22,6 @@ interface BreedingSectionProps {
   readOnly: boolean;
   onSaveSession: (idx: number, updates: Partial<SessionLine>) => void;
   onSaveProduct: (idx: number, updates: Partial<ProductLine>) => void;
-  onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
   onSwapProduct: (idx: number, newProductId: string) => void;
   onRemoveProduct: (idx: number) => void;
   onAddProductToSession: (sessionId: string) => void;
@@ -35,17 +34,15 @@ interface BreedingSectionProps {
 
 export default function BreedingSection({
   sessions, allSessions, productLines, sessionInventory, semenLines, billingProducts, readOnly,
-  onSaveSession, onSaveProduct, onSaveSemen, onSwapProduct, onRemoveProduct,
+  onSaveSession, onSaveProduct, onSwapProduct, onRemoveProduct,
   onAddProductToSession, onAddBreedingSession, onRemoveSession,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
 }: BreedingSectionProps) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [editingSessions, setEditingSessions] = useState<Set<string>>(new Set());
 
-  const toggleExpand = (id: string) =>
-    setExpandedSessions(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleEdit = (id: string) =>
-    setEditingSessions(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleExpand = (id: string) => setExpandedSessions(p => toggleSetItem(p, id));
+  const toggleEdit = (id: string) => setEditingSessions(p => toggleSetItem(p, id));
 
   const sorted = useMemo(() =>
     [...sessions].sort((a, b) => a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0)),
@@ -116,18 +113,12 @@ export default function BreedingSection({
     return { bullTotals: bt, grandTotalUsed: grand };
   }, [sorted, bullCombos, invLookup, semenLines]);
 
-  const grandTotalBlown = useMemo(() => {
-    let total = 0;
-    bullTotals.forEach(v => total += v.blown);
-    return total;
-  }, [bullTotals]);
-
   useEffect(() => {
     const bullUsed = new Map<string, number>();
     const bullBlown = new Map<string, number>();
     bullTotals.forEach((v, k) => { bullUsed.set(k, v.used); bullBlown.set(k, v.blown); });
     onTotalUsedChanged(grandTotalUsed, bullUsed, bullBlown);
-  }, [grandTotalUsed, grandTotalBlown]);
+  }, [bullTotals, grandTotalUsed, onTotalUsedChanged]);
 
   const productsBySession = useMemo(() => {
     const m = new Map<string, ProductLine[]>();

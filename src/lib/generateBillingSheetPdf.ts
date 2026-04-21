@@ -23,10 +23,7 @@ export function generateBillingSheetPdf(
   billing: any,
   products: any[],
   semen: any[],
-  _sessions: any[],
-  _labor: any[],
   totals: { productsTotal: number; semenTotal: number; laborTotal: number; grandTotal: number },
-  _sessionInventory: any[] = [],
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pw = doc.internal.pageSize.getWidth();

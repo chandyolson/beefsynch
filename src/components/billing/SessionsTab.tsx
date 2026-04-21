@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import BreedingSection from "./BreedingSection";
 import {
   ProductLine, SessionLine, SessionInventoryLine, SemenLine, BillingProduct,
-  formatCurrency, isBreedingSession,
+  formatCurrency, isBreedingSession, toggleSetItem,
 } from "./billingTypes";
 
 interface SessionsTabProps {
@@ -32,8 +32,7 @@ interface SessionsTabProps {
   onAddProductToSession: (sessionId: string) => void;
   onAddProductToSessionWithProduct: (sessionId: string, productId: string) => void;
   onAddMiscProduct: (sessionId: string) => void;
-  onSaveSemen: (idx: number, updates: Partial<SemenLine>) => void;
-  onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units", value: number | null) => void;
+  onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
   onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) => void;
 }
@@ -43,16 +42,14 @@ export default function SessionsTab({
   onSaveSession, onSaveProduct, onSwapProduct, onToggleProductInvoiced,
   onAddBreedingSession, onCreateCustomerPickup, onRemoveSession,
   onRemoveProduct, onAddProductToSession, onAddProductToSessionWithProduct,
-  onAddMiscProduct, onSaveSemen,
+  onAddMiscProduct,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
 }: SessionsTabProps) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [editingSessions, setEditingSessions] = useState<Set<string>>(new Set());
 
-  const toggleExpand = (id: string) =>
-    setExpandedSessions(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleEdit = (id: string) =>
-    setEditingSessions(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleExpand = (id: string) => setExpandedSessions(p => toggleSetItem(p, id));
+  const toggleEdit = (id: string) => setEditingSessions(p => toggleSetItem(p, id));
 
   const productsBySession = useMemo(() => {
     const map = new Map<string | null, ProductLine[]>();
@@ -453,7 +450,6 @@ export default function SessionsTab({
             productLines={productLines} sessionInventory={sessionInventory}
             semenLines={semenLines} billingProducts={billingProducts} readOnly={readOnly}
             onSaveSession={onSaveSession} onSaveProduct={onSaveProduct}
-            onSaveSemen={onSaveSemen}
             onSwapProduct={onSwapProduct} onRemoveProduct={onRemoveProduct}
             onAddProductToSession={onAddProductToSession}
             onAddBreedingSession={onAddBreedingSession} onRemoveSession={onRemoveSession}
