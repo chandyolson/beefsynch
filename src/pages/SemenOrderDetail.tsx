@@ -125,8 +125,11 @@ const SemenOrderDetail = () => {
         tank_packs(
           id, status, pack_type, packed_at, field_tank_id,
           tanks!tank_packs_field_tank_id_fkey(tank_number, tank_name),
-          tank_pack_lines(bull_name, bull_code, units, source_tank_id, source_canister, field_canister,
+          tank_pack_lines(bull_name, bull_code, bull_catalog_id, units, source_tank_id, source_canister, field_canister,
             tanks!tank_pack_lines_source_tank_id_fkey(tank_number, tank_name)
+          ),
+          tank_unpack_lines(bull_name, bull_code, bull_catalog_id, units_returned, destination_canister, destination_tank_id,
+            tanks!tank_unpack_lines_destination_tank_id_fkey(tank_number, tank_name)
           )
         )
       `)
