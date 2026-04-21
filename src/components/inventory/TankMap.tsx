@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   generateTankInventorySheetPdf,
+  generateBulkTankInventoryPdf,
   TankSheetRow,
+  TankWithRows,
 } from "@/lib/generateTankInventorySheetPdf";
 
 type CanisterData = {
@@ -153,6 +156,57 @@ export default function TankMap({ orgId }: { orgId: string }) {
     }, 0);
   }, [tanksWithCanisters]);
 
+  const [printingAll, setPrintingAll] = useState(false);
+
+  const handlePrintAll = async () => {
+    if (filtered.length === 0 || !data) return;
+    setPrintingAll(true);
+    try {
+      const tanksForPdf: TankWithRows[] = filtered.map((tank) => {
+        const rows: TankSheetRow[] = [];
+        for (const [canKey] of tank.canisters.entries()) {
+          // Re-look up each bull's units and code from original inventory rows
+          const origRows = data.inventory.filter(
+            (i: any) => i.tank_id === tank.id && (i.canister ?? "—") === canKey
+          );
+          for (const r of origRows) {
+            rows.push({
+              canister: canKey,
+              bullName:
+                r.bulls_catalog?.bull_name ||
+                r.custom_bull_name ||
+                r.bull_code ||
+                "Unknown",
+              bullCode: r.bull_code || "",
+              units: r.units || 0,
+            });
+          }
+        }
+        return {
+          meta: {
+            tankId: tank.id,
+            tankName: tank.name,
+            tankNumber: tank.number,
+            nitrogenStatus: tank.nitrogenStatus,
+            locationStatus: tank.locationStatus,
+            totalCanisters: tank.totalCanisters,
+            maxCanisterSeen: tank.maxCanisterSeen,
+          },
+          rows,
+        };
+      });
+      generateBulkTankInventoryPdf(tanksForPdf);
+      toast.success(
+        `Downloaded count sheets for ${filtered.length} tank${filtered.length !== 1 ? "s" : ""}`
+      );
+    } catch (err: any) {
+      console.error("Bulk print failed:", err);
+      toast.error("Could not generate bulk PDF. Try again.");
+    } finally {
+      setPrintingAll(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-12 text-center text-sm text-muted-foreground">
@@ -181,16 +235,28 @@ export default function TankMap({ orgId }: { orgId: string }) {
             {totalOpenSlots} open canister{totalOpenSlots !== 1 ? "s" : ""}
           </span>
         </div>
-        <Select value={filter} onValueChange={(v) => setFilter(v as FilterMode)}>
-          <SelectTrigger className="w-[200px] h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All inventory tanks</SelectItem>
-            <SelectItem value="wet_only">Wet tanks only</SelectItem>
-            <SelectItem value="has_open_slots">Has open canisters</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={handlePrintAll}
+            disabled={printingAll || filtered.length === 0}
+          >
+            <Printer className="h-4 w-4 mr-1.5" />
+            {printingAll ? "Generating…" : `Print all (${filtered.length})`}
+          </Button>
+          <Select value={filter} onValueChange={(v) => setFilter(v as FilterMode)}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All inventory tanks</SelectItem>
+              <SelectItem value="wet_only">Wet tanks only</SelectItem>
+              <SelectItem value="has_open_slots">Has open canisters</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Legend */}
@@ -273,7 +339,7 @@ function TankCard({
         },
         rows
       );
-      toast.success(`Inventory sheet downloaded for ${tank.name}`);
+      toast.success(`Sheet downloaded for ${tank.name}`);
     } catch (err: any) {
       console.error("Print failed:", err);
       toast.error("Could not generate sheet. Try again.");
@@ -288,10 +354,17 @@ function TankCard({
         {/* Left: tank meta */}
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-base font-semibold truncate">{tank.name}</div>
-              <div className="text-xs text-muted-foreground">#{tank.number}</div>
-            </div>
+            <Link
+              to={`/tanks/${tank.id}`}
+              className="min-w-0 group rounded-sm -m-1 p-1 hover:bg-muted/40 transition-colors"
+            >
+              <div className="text-base font-semibold truncate group-hover:text-primary transition-colors">
+                {tank.name}
+              </div>
+              <div className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">
+                #{tank.number} →
+              </div>
+            </Link>
             <Button
               variant="outline"
               size="sm"
