@@ -221,6 +221,78 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       });
   }, [filtered]);
 
+  const buildDaySummary = useCallback((dg: DateGroup): string => {
+    // Collect all rows for this date
+    const allRows = [
+      ...dg.tankGroups.flatMap(tg => tg.rows),
+      ...dg.untankedRows,
+    ];
+
+    const sentences: string[] = [];
+
+    // Group received by shipment
+    const receivedByShipment = new Map<string, { bulls: Map<string, number> }>();
+    const receivedNoShipment: Map<string, number> = new Map();
+    for (const r of allRows) {
+      if (r.transaction_type !== "received") continue;
+      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      if (r.shipment_id) {
+        if (!receivedByShipment.has(r.shipment_id)) receivedByShipment.set(r.shipment_id, { bulls: new Map() });
+        const entry = receivedByShipment.get(r.shipment_id)!;
+        entry.bulls.set(bullName, (entry.bulls.get(bullName) || 0) + r.units_change);
+      } else {
+        receivedNoShipment.set(bullName, (receivedNoShipment.get(bullName) || 0) + r.units_change);
+      }
+    }
+    for (const [shipId, entry] of receivedByShipment) {
+      const context = contextNames.shipments.get(shipId) || "";
+      const bullList = [...entry.bulls.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Received shipment ${context} (${bullList})`.trim());
+    }
+    if (receivedNoShipment.size > 0) {
+      const bullList = [...receivedNoShipment.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Received inventory (${bullList})`);
+    }
+
+    // Group packs by pack_id
+    const packsByPack = new Map<string, { bulls: Map<string, number> }>();
+    for (const r of allRows) {
+      if (r.transaction_type !== "pack_out" || !r.tank_pack_id) continue;
+      if (!packsByPack.has(r.tank_pack_id)) packsByPack.set(r.tank_pack_id, { bulls: new Map() });
+      const entry = packsByPack.get(r.tank_pack_id)!;
+      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      entry.bulls.set(bullName, (entry.bulls.get(bullName) || 0) + Math.abs(r.units_change));
+    }
+    for (const [packId, entry] of packsByPack) {
+      const context = contextNames.packs.get(packId) || "";
+      const bullList = [...entry.bulls.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Packed tank ${context} (${bullList})`.trim());
+    }
+
+    // Unpack returns
+    const unpackReturns = allRows.filter(r => r.transaction_type === "unpack_return");
+    if (unpackReturns.length > 0) {
+      const totalUnits = unpackReturns.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`Unpack returned ${totalUnits} units`);
+    }
+
+    // Manual adds (not from shipment)
+    const manualAdds = allRows.filter(r => r.transaction_type === "manual_add");
+    if (manualAdds.length > 0) {
+      const totalUnits = manualAdds.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`${manualAdds.length} manual add${manualAdds.length !== 1 ? "s" : ""} (${totalUnits} units)`);
+    }
+
+    // Adjustments
+    const adjustments = allRows.filter(r => r.transaction_type === "adjustment");
+    if (adjustments.length > 0) {
+      const net = adjustments.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`${adjustments.length} adjustment${adjustments.length !== 1 ? "s" : ""} (net ${net > 0 ? "+" : ""}${net})`);
+    }
+
+    return sentences.join(". ") + (sentences.length > 0 ? "." : "");
+  }, [contextNames]);
+
   const expandAll = () => {
     const allKeys = new Set<string>();
     for (const dg of grouped) {
