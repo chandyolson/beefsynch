@@ -58,6 +58,7 @@ const ReceiveShipmentPreview = () => {
   const { orgId, role } = useOrgRole();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch shipment
   const { data: shipment, isLoading, refetch } = useQuery({
