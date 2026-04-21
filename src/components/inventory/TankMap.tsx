@@ -116,8 +116,8 @@ export default function TankMap({ orgId }: { orgId: string }) {
         totalUnits += units;
 
         const bullName =
-          row.bulls_catalog?.bull_name ||
           row.custom_bull_name ||
+          row.bulls_catalog?.bull_name ||
           row.bull_code ||
           "Unknown";
         if (!c.bulls.includes(bullName)) c.bulls.push(bullName);
@@ -173,8 +173,8 @@ export default function TankMap({ orgId }: { orgId: string }) {
             rows.push({
               canister: canKey,
               bullName:
-                r.bulls_catalog?.bull_name ||
                 r.custom_bull_name ||
+                r.bulls_catalog?.bull_name ||
                 r.bull_code ||
                 "Unknown",
               bullCode: r.bull_code || "",
@@ -319,8 +319,8 @@ function TankCard({
       const rows: TankSheetRow[] = (data ?? []).map((r: any) => ({
         canister: r.canister ?? "—",
         bullName:
-          r.bulls_catalog?.bull_name ||
           r.custom_bull_name ||
+          r.bulls_catalog?.bull_name ||
           r.bull_code ||
           "Unknown",
         bullCode: r.bull_code || "",
