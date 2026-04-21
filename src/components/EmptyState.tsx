@@ -13,7 +13,12 @@ interface EmptyStateProps {
 }
 
 const EmptyState = ({ icon: Icon, title, description, action }: EmptyStateProps) => {
-  const isIconComponent = typeof Icon === "function";
+  // Lucide icons are created with React.forwardRef which returns an object
+  // (not a function), so we need to detect both shapes.
+  const isIconComponent =
+    Icon != null &&
+    (typeof Icon === "function" ||
+      (typeof Icon === "object" && "$$typeof" in (Icon as object)));
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
