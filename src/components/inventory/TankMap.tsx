@@ -238,13 +238,71 @@ function TankCard({
   const slotNums = Array.from({ length: totalSlots }, (_, i) => i + 1);
   const openCount = slotNums.filter((n) => !tank.canisters.has(String(n))).length;
 
+  const [isPrinting, setIsPrinting] = useState(false);
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    try {
+      const { data, error } = await supabase
+        .from("tank_inventory")
+        .select(
+          "canister, units, custom_bull_name, bull_code, bulls_catalog(bull_name)"
+        )
+        .eq("tank_id", tank.id);
+      if (error) throw error;
+
+      const rows: TankSheetRow[] = (data ?? []).map((r: any) => ({
+        canister: r.canister ?? "—",
+        bullName:
+          r.bulls_catalog?.bull_name ||
+          r.custom_bull_name ||
+          r.bull_code ||
+          "Unknown",
+        bullCode: r.bull_code || "",
+        units: r.units || 0,
+      }));
+
+      generateTankInventorySheetPdf(
+        {
+          tankId: tank.id,
+          tankName: tank.name,
+          tankNumber: tank.number,
+          nitrogenStatus: tank.nitrogenStatus,
+          locationStatus: tank.locationStatus,
+          totalCanisters: tank.totalCanisters,
+          maxCanisterSeen: tank.maxCanisterSeen,
+        },
+        rows
+      );
+      toast.success(`Inventory sheet downloaded for ${tank.name}`);
+    } catch (err: any) {
+      console.error("Print failed:", err);
+      toast.error("Could not generate sheet. Try again.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-border/60 bg-card p-4">
       <div className="grid gap-4 md:grid-cols-[200px_1fr]">
         {/* Left: tank meta */}
         <div className="space-y-1">
-          <div className="text-base font-semibold">{tank.name}</div>
-          <div className="text-xs text-muted-foreground">#{tank.number}</div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-base font-semibold truncate">{tank.name}</div>
+              <div className="text-xs text-muted-foreground">#{tank.number}</div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[11px] shrink-0"
+              onClick={handlePrint}
+              disabled={isPrinting}
+            >
+              <Printer className="h-3 w-3 mr-1" />
+              {isPrinting ? "..." : "Print"}
+            </Button>
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <Badge variant="outline" className="text-[10px] capitalize">
               {tank.nitrogenStatus}
