@@ -10,6 +10,7 @@ import {
 import StatCard from "@/components/StatCard";
 import TableSkeleton from "@/components/TableSkeleton";
 import EmptyState from "@/components/EmptyState";
+import TankMap from "@/components/inventory/TankMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
