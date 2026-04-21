@@ -173,8 +173,8 @@ export default function TankMap({ orgId }: { orgId: string }) {
             rows.push({
               canister: canKey,
               bullName:
-                r.bulls_catalog?.bull_name ||
                 r.custom_bull_name ||
+                r.bulls_catalog?.bull_name ||
                 r.bull_code ||
                 "Unknown",
               bullCode: r.bull_code || "",
