@@ -452,6 +452,8 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
               onUpdateUnits={(i, units) => updateUnits(i, units.toString())}
               showUnits={true}
               emptyMessage="No bulls added yet. Click 'Add Bull' to add semen."
+              showInventory={true}
+              orgId={orgId}
             />
           </div>
 
