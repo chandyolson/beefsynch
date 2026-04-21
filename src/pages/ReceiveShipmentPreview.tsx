@@ -126,17 +126,6 @@ const ReceiveShipmentPreview = () => {
     ? memberLabelById.get(shipment.received_by) || "—"
     : "—";
 
-  // Fetch customers for owner lookup
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers-list-preview", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase.from("customers").select("id, name").eq("organization_id", orgId);
-      return data ?? [];
-    },
-    enabled: !!orgId,
-  });
-
   const tankName = (tankId: string) => {
     const t = tanks.find((tk) => tk.id === tankId);
     return t ? (t.tank_name || t.tank_number) : "—";
