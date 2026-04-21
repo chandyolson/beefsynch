@@ -525,47 +525,49 @@ const SemenInventory = () => {
                   <TableHead>Owner</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {isLoading ? (
+              {isLoading ? (
+                <TableBody>
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                   </TableRow>
-                ) : groupedByTank.length === 0 ? (
+                </TableBody>
+              ) : groupedByTank.length === 0 ? (
+                <TableBody>
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                       {rows.length === 0 ? "No inventory data." : "No results match your filters."}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  groupedByTank.map((group) => (
-                    <tbody key={group.tankId} className="print-tank-group">
-                      {/* Tank header row */}
-                      <TableRow className="bg-muted/40 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/tanks/${group.tankId}`)}>
-                        <TableCell colSpan={3} className="font-semibold">
-                          Tank {group.tankNumber}{group.tankName !== "—" ? ` — ${group.tankName}` : ""}
+                </TableBody>
+              ) : (
+                groupedByTank.map((group) => (
+                  <TableBody key={group.tankId} className="print-tank-group">
+                    {/* Tank header row */}
+                    <TableRow className="bg-muted/40 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/tanks/${group.tankId}`)}>
+                      <TableCell colSpan={3} className="font-semibold">
+                        Tank {group.tankNumber}{group.tankName !== "—" ? ` — ${group.tankName}` : ""}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">{group.totalUnits}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                    {/* Inventory rows */}
+                    {group.rows.map((row) => (
+                      <TableRow key={row.id} className="hover:bg-muted/20">
+                        <TableCell>{row.canister}</TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {row.bullName}
+                          {row.itemType === "embryo" && (
+                            <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                          )}
                         </TableCell>
-                        <TableCell className="text-right font-bold">{group.totalUnits}</TableCell>
-                        <TableCell />
+                        <TableCell>{row.bullCode}</TableCell>
+                        <TableCell className="text-right">{row.units}</TableCell>
+                        <TableCell>{row.customer !== "Company" ? row.customer : "—"}</TableCell>
                       </TableRow>
-                      {/* Inventory rows */}
-                      {group.rows.map((row) => (
-                        <TableRow key={row.id} className="hover:bg-muted/20">
-                          <TableCell>{row.canister}</TableCell>
-                          <TableCell className="font-medium whitespace-nowrap">
-                            {row.bullName}
-                            {row.itemType === "embryo" && (
-                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{row.bullCode}</TableCell>
-                          <TableCell className="text-right">{row.units}</TableCell>
-                          <TableCell>{row.customer !== "Company" ? row.customer : "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </tbody>
-                  ))
-                )}
-              </TableBody>
+                    ))}
+                  </TableBody>
+                ))
+              )}
               {groupedByTank.length > 0 && (
                 <TableFooter>
                   <TableRow>
