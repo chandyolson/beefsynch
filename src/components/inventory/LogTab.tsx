@@ -364,12 +364,20 @@ const LogTab = ({ orgId }: { orgId: string }) => {
           <div className="divide-y divide-border/50">
             {grouped.map((dg) => (
               <div key={dg.date}>
-                {/* Date header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
-                  <h3 className="text-sm font-semibold">{dg.displayDate}</h3>
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {dg.totalRows} {dg.totalRows === 1 ? "transaction" : "transactions"}
-                  </Badge>
+                {/* Date header with activity summary */}
+                <div className="px-4 py-3 bg-muted/40">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">{dg.displayDate}</h3>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {dg.totalRows} {dg.totalRows === 1 ? "transaction" : "transactions"}
+                    </Badge>
+                  </div>
+                  {(() => {
+                    const summary = buildDaySummary(dg);
+                    return summary ? (
+                      <p className="text-xs text-muted-foreground mt-1">{summary}</p>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Tank groups within this date */}
