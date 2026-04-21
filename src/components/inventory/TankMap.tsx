@@ -10,8 +10,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { MapPin } from "lucide-react";
+import { MapPin, Printer } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+  generateTankInventorySheetPdf,
+  TankSheetRow,
+} from "@/lib/generateTankInventorySheetPdf";
 
 type CanisterData = {
   canister: string;
