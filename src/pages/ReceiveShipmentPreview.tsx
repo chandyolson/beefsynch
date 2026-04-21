@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Printer, ArrowLeft, Pencil, Trash2, ShieldAlert, Check, AlertTriangle } from "lucide-react";
+import { Loader2, Printer, ArrowLeft, Pencil, Trash2, ShieldAlert, Check, AlertTriangle, Upload, X, FileText, Image } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { RECONCILIATION_STATUS_COLORS } from "@/lib/constants";
