@@ -595,6 +595,73 @@ const ReceiveShipmentPreview = () => {
           </CardContent>
         </Card>
 
+        {/* Packing Slip */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Packing Slip</CardTitle>
+            {shipment.document_path && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-rose-400" onClick={handleRemoveFile} disabled={uploading}>
+                <X className="h-4 w-4 mr-1" /> Remove
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {shipment.document_path ? (
+              <div className="space-y-3">
+                {isImageFile(shipment.document_path) ? (
+                  <a href={documentUrl || "#"} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={documentUrl || ""}
+                      alt="Packing slip"
+                      className="max-w-full max-h-96 rounded-lg border border-border object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={documentUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors"
+                  >
+                    <FileText className="h-8 w-8 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{shipment.document_path.split("/").pop()}</p>
+                      <p className="text-xs text-muted-foreground">Click to view</p>
+                    </div>
+                  </a>
+                )}
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Upload className="h-3 w-3" />
+                  <span>Replace file</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center gap-2 cursor-pointer p-6 border border-dashed border-border rounded-lg hover:bg-secondary/50 transition-colors">
+                <Upload className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {uploading ? "Uploading..." : "Upload packing slip photo or PDF"}
+                </span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+              </label>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Notes */}
         {shipment.notes && (
           <Card>
