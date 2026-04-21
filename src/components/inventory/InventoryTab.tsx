@@ -10,6 +10,7 @@ import {
 import StatCard from "@/components/StatCard";
 import TableSkeleton from "@/components/TableSkeleton";
 import EmptyState from "@/components/EmptyState";
+import TankMap from "@/components/inventory/TankMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +59,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   }, [initialOwnerFilter]);
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [viewMode, setViewMode] = useState<"detail" | "grouped">("detail");
+  const [viewMode, setViewMode] = useState<"detail" | "grouped" | "map">("detail");
   const [editRow, setEditRow] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [savingEdit, setSavingEdit] = useState(false);
@@ -457,12 +458,15 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         <div className="flex border border-border rounded-md overflow-hidden">
           <button onClick={() => setViewMode("detail")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Detail</button>
           <button onClick={() => setViewMode("grouped")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "grouped" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Grouped</button>
+          <button onClick={() => setViewMode("map")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "map" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Map</button>
         </div>
       </div>
 
       <div className="rounded-lg border border-border/50 overflow-hidden">
         {isLoading ? (
           <TableSkeleton rows={8} columns={12} />
+        ) : viewMode === "map" ? (
+          <TankMap orgId={orgId!} />
         ) : viewMode === "detail" ? (
           <Table className="table-fixed">
             <TableHeader>
