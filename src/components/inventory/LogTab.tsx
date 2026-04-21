@@ -44,6 +44,10 @@ interface TxnRow {
   bull_catalog_id: string | null;
   bulls_catalog: { bull_name: string } | null;
   tanks: { tank_name: string | null; tank_number: string } | null;
+  shipment_id: string | null;
+  tank_pack_id: string | null;
+  order_id: string | null;
+  customer_id: string | null;
 }
 
 type TankGroup = {
@@ -61,12 +65,18 @@ type DateGroup = {
   totalRows: number;
 };
 
+type ContextNames = {
+  shipments: Map<string, string>;  // shipment_id → "from [Company] for [Customer]"
+  packs: Map<string, string>;      // tank_pack_id → "for [Project Name]"
+};
+
 const LogTab = ({ orgId }: { orgId: string }) => {
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [contextNames, setContextNames] = useState<ContextNames>({ shipments: new Map(), packs: new Map() });
 
   const toggleGroup = (key: string) => {
     setExpandedGroups((prev) => {
@@ -95,6 +105,47 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       from += PAGE_SIZE;
     }
     setRows(all);
+
+    // Fetch context names for summaries
+    const shipmentIds = [...new Set(all.filter(r => r.shipment_id).map(r => r.shipment_id!))];
+    const packIds = [...new Set(all.filter(r => r.tank_pack_id).map(r => r.tank_pack_id!))];
+
+    const shipmentNames = new Map<string, string>();
+    const packNames = new Map<string, string>();
+
+    if (shipmentIds.length > 0) {
+      const { data: shipData } = await supabase
+        .from("shipments")
+        .select("id, semen_companies(name), customers(name)")
+        .in("id", shipmentIds);
+      if (shipData) {
+        for (const s of shipData as any[]) {
+          const co = s.semen_companies?.name || "";
+          const cust = s.customers?.name || "";
+          const parts: string[] = [];
+          if (co) parts.push(`from ${co}`);
+          if (cust) parts.push(`for ${cust}`);
+          shipmentNames.set(s.id, parts.join(" ") || "");
+        }
+      }
+    }
+
+    if (packIds.length > 0) {
+      const { data: packData } = await supabase
+        .from("tank_packs")
+        .select("id, tank_pack_projects(projects(name))")
+        .in("id", packIds);
+      if (packData) {
+        for (const p of packData as any[]) {
+          const projNames = (p.tank_pack_projects || [])
+            .map((tpp: any) => tpp.projects?.name)
+            .filter(Boolean);
+          packNames.set(p.id, projNames.length > 0 ? `for ${projNames.join(", ")}` : "");
+        }
+      }
+    }
+
+    setContextNames({ shipments: shipmentNames, packs: packNames });
     setLoading(false);
   }, [orgId]);
 
@@ -170,6 +221,78 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       });
   }, [filtered]);
 
+  const buildDaySummary = useCallback((dg: DateGroup): string => {
+    // Collect all rows for this date
+    const allRows = [
+      ...dg.tankGroups.flatMap(tg => tg.rows),
+      ...dg.untankedRows,
+    ];
+
+    const sentences: string[] = [];
+
+    // Group received by shipment
+    const receivedByShipment = new Map<string, { bulls: Map<string, number> }>();
+    const receivedNoShipment: Map<string, number> = new Map();
+    for (const r of allRows) {
+      if (r.transaction_type !== "received") continue;
+      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      if (r.shipment_id) {
+        if (!receivedByShipment.has(r.shipment_id)) receivedByShipment.set(r.shipment_id, { bulls: new Map() });
+        const entry = receivedByShipment.get(r.shipment_id)!;
+        entry.bulls.set(bullName, (entry.bulls.get(bullName) || 0) + r.units_change);
+      } else {
+        receivedNoShipment.set(bullName, (receivedNoShipment.get(bullName) || 0) + r.units_change);
+      }
+    }
+    for (const [shipId, entry] of receivedByShipment) {
+      const context = contextNames.shipments.get(shipId) || "";
+      const bullList = [...entry.bulls.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Received shipment ${context} (${bullList})`.trim());
+    }
+    if (receivedNoShipment.size > 0) {
+      const bullList = [...receivedNoShipment.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Received inventory (${bullList})`);
+    }
+
+    // Group packs by pack_id
+    const packsByPack = new Map<string, { bulls: Map<string, number> }>();
+    for (const r of allRows) {
+      if (r.transaction_type !== "pack_out" || !r.tank_pack_id) continue;
+      if (!packsByPack.has(r.tank_pack_id)) packsByPack.set(r.tank_pack_id, { bulls: new Map() });
+      const entry = packsByPack.get(r.tank_pack_id)!;
+      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      entry.bulls.set(bullName, (entry.bulls.get(bullName) || 0) + Math.abs(r.units_change));
+    }
+    for (const [packId, entry] of packsByPack) {
+      const context = contextNames.packs.get(packId) || "";
+      const bullList = [...entry.bulls.entries()].map(([b, u]) => `${b} ${u}`).join(", ");
+      sentences.push(`Packed tank ${context} (${bullList})`.trim());
+    }
+
+    // Unpack returns
+    const unpackReturns = allRows.filter(r => r.transaction_type === "unpack_return");
+    if (unpackReturns.length > 0) {
+      const totalUnits = unpackReturns.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`Unpack returned ${totalUnits} units`);
+    }
+
+    // Manual adds (not from shipment)
+    const manualAdds = allRows.filter(r => r.transaction_type === "manual_add");
+    if (manualAdds.length > 0) {
+      const totalUnits = manualAdds.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`${manualAdds.length} manual add${manualAdds.length !== 1 ? "s" : ""} (${totalUnits} units)`);
+    }
+
+    // Adjustments
+    const adjustments = allRows.filter(r => r.transaction_type === "adjustment");
+    if (adjustments.length > 0) {
+      const net = adjustments.reduce((s, r) => s + r.units_change, 0);
+      sentences.push(`${adjustments.length} adjustment${adjustments.length !== 1 ? "s" : ""} (net ${net > 0 ? "+" : ""}${net})`);
+    }
+
+    return sentences.join(". ") + (sentences.length > 0 ? "." : "");
+  }, [contextNames]);
+
   const expandAll = () => {
     const allKeys = new Set<string>();
     for (const dg of grouped) {
@@ -241,12 +364,20 @@ const LogTab = ({ orgId }: { orgId: string }) => {
           <div className="divide-y divide-border/50">
             {grouped.map((dg) => (
               <div key={dg.date}>
-                {/* Date header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
-                  <h3 className="text-sm font-semibold">{dg.displayDate}</h3>
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {dg.totalRows} {dg.totalRows === 1 ? "transaction" : "transactions"}
-                  </Badge>
+                {/* Date header with activity summary */}
+                <div className="px-4 py-3 bg-muted/40">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">{dg.displayDate}</h3>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {dg.totalRows} {dg.totalRows === 1 ? "transaction" : "transactions"}
+                    </Badge>
+                  </div>
+                  {(() => {
+                    const summary = buildDaySummary(dg);
+                    return summary ? (
+                      <p className="text-xs text-muted-foreground mt-1">{summary}</p>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Tank groups within this date */}
