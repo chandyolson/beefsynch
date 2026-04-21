@@ -563,35 +563,36 @@ const ReceiveShipmentPreview = () => {
 
         {/* Totals */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-sm text-center">
+          <CardContent className="pt-6 space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-sm text-center">
               <div>
-                <p className="text-muted-foreground">Ordered</p>
+                <p className="text-muted-foreground">Units Ordered</p>
                 <p className="text-lg font-bold">{totals.total_ordered}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Received</p>
+                <p className="text-muted-foreground">Units Received</p>
                 <p className="text-lg font-bold">{totals.total_received}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Net</p>
+                <p className="text-muted-foreground">Net Units</p>
                 <p className={cn("text-lg font-bold", (totals.total_received - totals.total_ordered) < 0 ? "text-destructive" : "text-primary")}>
                   {totals.total_received - totals.total_ordered >= 0 ? "+" : ""}{totals.total_received - totals.total_ordered}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Short</p>
-                <p className="text-lg font-bold text-destructive">{totals.lines_short}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Added</p>
-                <p className="text-lg font-bold">{totals.lines_added}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Missing</p>
-                <p className="text-lg font-bold text-destructive">{totals.lines_missing}</p>
-              </div>
             </div>
+            {(totals.lines_short > 0 || totals.lines_missing > 0 || totals.lines_added > 0) && (
+              <div className="flex items-center justify-center gap-4 text-xs border-t border-border/50 pt-3">
+                {totals.lines_short > 0 && (
+                  <span className="text-destructive font-medium">{totals.lines_short} bull{totals.lines_short !== 1 ? "s" : ""} short</span>
+                )}
+                {totals.lines_missing > 0 && (
+                  <span className="text-destructive font-medium">{totals.lines_missing} bull{totals.lines_missing !== 1 ? "s" : ""} missing</span>
+                )}
+                {totals.lines_added > 0 && (
+                  <span className="text-muted-foreground font-medium">{totals.lines_added} bull{totals.lines_added !== 1 ? "s" : ""} added (not on order)</span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

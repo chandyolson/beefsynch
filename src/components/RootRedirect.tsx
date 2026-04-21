@@ -25,7 +25,7 @@ const RootRedirect = () => {
   }
 
   if (session && !session.user.is_anonymous) {
-    return <Navigate to="/operations?tab=projects" replace />;
+    return <Navigate to="/operations?tab=hub" replace />;
   }
 
   return <LandingPage />;

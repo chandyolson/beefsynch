@@ -25,6 +25,7 @@ interface UpcomingProject {
   pack_id: string | null;
   pack_status: string | null;
   packed_units: number | null;
+  bull_names: string[];
 }
 
 interface ActionCounts {
@@ -86,6 +87,23 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           }
         }
 
+        // Fetch bull names for all upcoming projects
+        const bullNameMap = new Map<string, string[]>();
+        if (projIds.length > 0) {
+          const { data: projBullsData } = await supabase
+            .from("project_bulls")
+            .select("project_id, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)")
+            .in("project_id", projIds);
+          if (projBullsData) {
+            for (const pb of projBullsData as any[]) {
+              const name = pb.bulls_catalog?.bull_name || pb.custom_bull_name || "Unknown";
+              const existing = bullNameMap.get(pb.project_id) || [];
+              if (!existing.includes(name)) existing.push(name);
+              bullNameMap.set(pb.project_id, existing);
+            }
+          }
+        }
+
         for (const p of projData as any[]) {
           const pack = packMap.get(p.id);
           projectsWithPacks.push({
@@ -93,6 +111,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             pack_id: pack?.pack_id || null,
             pack_status: pack?.pack_status || null,
             packed_units: pack?.packed_units ?? null,
+            bull_names: bullNameMap.get(p.id) || [],
           });
         }
       }
@@ -336,6 +355,11 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                         <span>·</span>
                         <span>{p.head_count} hd</span>
                       </div>
+                      {p.bull_names.length > 0 && (
+                        <p className="mt-0.5 text-xs text-primary/80 truncate">
+                          {p.bull_names.join(", ")}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <PackStatus project={p} />
@@ -392,6 +416,9 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                       <span className="font-medium truncate">{p.name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
+                      {p.bull_names.length > 0 && (
+                        <span className="text-primary/80 truncate max-w-[150px]">{p.bull_names.join(", ")}</span>
+                      )}
                       <span>{p.head_count} hd</span>
                       <span>·</span>
                       <span>{p.cattle_type}</span>
