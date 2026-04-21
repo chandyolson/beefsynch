@@ -355,6 +355,11 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                         <span>·</span>
                         <span>{p.head_count} hd</span>
                       </div>
+                      {p.bull_names.length > 0 && (
+                        <p className="mt-0.5 text-xs text-primary/80 truncate">
+                          {p.bull_names.join(", ")}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <PackStatus project={p} />
