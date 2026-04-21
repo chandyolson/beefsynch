@@ -416,6 +416,9 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                       <span className="font-medium truncate">{p.name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
+                      {p.bull_names.length > 0 && (
+                        <span className="text-primary/80 truncate max-w-[150px]">{p.bull_names.join(", ")}</span>
+                      )}
                       <span>{p.head_count} hd</span>
                       <span>·</span>
                       <span>{p.cattle_type}</span>
