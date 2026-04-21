@@ -225,12 +225,16 @@ const SemenOrderDetail = () => {
       for (const link of packData) {
         const pack = link.tank_packs;
         if (!pack) continue;
+        const returnsByBull = unpackReturnsByBull(pack.tank_unpack_lines || []);
         for (const line of (pack.tank_pack_lines || [])) {
           const srcTank = line.tanks;
+          const key = line.bull_catalog_id || line.bull_name || "";
+          const returned = returnsByBull.get(key) || 0;
+          const used = Math.max(0, (line.units || 0) - returned);
           lines.push({
             bull_name: line.bull_name,
             bull_code: line.bull_code || null,
-            units: line.units,
+            units: used,
             source: srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? " — " + srcTank.tank_name : ""}` : "—",
           });
         }
