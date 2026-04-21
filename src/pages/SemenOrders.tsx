@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
-import { MoreHorizontal, Plus, CalendarIcon, Search, Package, DollarSign, Clock, ShoppingCart } from "lucide-react";
+import { MoreHorizontal, Plus, CalendarIcon, Search, Package, DollarSign, Clock, ShoppingCart, ClipboardList } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import Navbar from "@/components/Navbar";
@@ -137,9 +137,14 @@ const SemenOrders = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Semen Orders</h2>
-          <Button className="gap-2" onClick={openCreate}>
-            <Plus className="h-4 w-4" /> New Order
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
+              <ClipboardList className="h-4 w-4" /> Planning
+            </Button>
+            <Button className="gap-2" onClick={openCreate}>
+              <Plus className="h-4 w-4" /> New Order
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}

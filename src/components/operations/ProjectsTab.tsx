@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { Beef, Calendar, Plus, FileSpreadsheet } from "lucide-react";
+import { Beef, Calendar, Plus, FileSpreadsheet, ClipboardList } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import StatCard from "@/components/StatCard";
 import ProjectsTable from "@/components/ProjectsTable";
@@ -26,6 +27,7 @@ interface DbProject {
 }
 
 const ProjectsTab = ({ orgId }: { orgId: string }) => {
+  const navigate = useNavigate();
   const { userId, role: myRole } = useOrgRole();
   const [projects, setProjects] = useState<BreedingProject[]>([]);
   const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
@@ -189,7 +191,10 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold font-display">Projects</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
+            <ClipboardList className="h-4 w-4" /> Planning
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCsv}>
             <FileSpreadsheet className="h-4 w-4" /> Export CSV
           </Button>

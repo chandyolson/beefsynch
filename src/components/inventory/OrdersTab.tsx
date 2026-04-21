@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
-  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart,
+  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart, ClipboardList,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -76,7 +76,12 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold font-display tracking-tight">Semen Orders</h3>
-        <Button className="gap-2" onClick={() => { setEditOrder(null); setDialogOpen(true); }}><Plus className="h-4 w-4" /> New Order</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
+            <ClipboardList className="h-4 w-4" /> Planning
+          </Button>
+          <Button className="gap-2" onClick={() => { setEditOrder(null); setDialogOpen(true); }}><Plus className="h-4 w-4" /> New Order</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
