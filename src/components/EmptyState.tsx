@@ -25,8 +25,8 @@ const EmptyState = ({ icon: Icon, title, description, action }: EmptyStateProps)
       {Icon && (
         <div className="mb-4 text-muted-foreground">
           {isIconComponent ? (
-            // Type assertion needed because TypeScript doesn't narrow ReactNode correctly
-            (Icon as LucideIcon)({ className: "h-12 w-12 mx-auto opacity-50" })
+            // Render Lucide icon component with JSX - type assertion needed for TS
+            (Icon as any)({ className: "h-12 w-12 mx-auto opacity-50" })
           ) : (
             Icon
           )}
