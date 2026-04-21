@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle, Map as MapIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -773,13 +773,23 @@ const ReceiveShipment = () => {
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-4xl">
         <BackButton />
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {editId ? "Edit Draft Shipment" : "Receive Shipment"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {editId ? "Update this draft and preview the reconciliation report" : "Log incoming semen and preview before confirming"}
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {editId ? "Edit Draft Shipment" : "Receive Shipment"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {editId ? "Update this draft and preview the reconciliation report" : "Log incoming semen and preview before confirming"}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open("/operations?tab=inventory", "_blank")}
+            title="Open the Tank Map in a new tab to see where tanks have open canisters"
+          >
+            <MapIcon className="h-3.5 w-3.5 mr-1.5" /> Tank map
+          </Button>
         </div>
 
         {/* Shipment Details */}
