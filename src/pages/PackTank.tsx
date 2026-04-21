@@ -724,7 +724,17 @@ const PackTank = () => {
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         <BackButton />
-        <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-2xl font-bold font-display tracking-tight">Pack Tank</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open("/operations?tab=inventory", "_blank")}
+            title="Open the Tank Map in a new tab to see where each bull is currently stored"
+          >
+            <MapIcon className="h-3.5 w-3.5 mr-1.5" /> Tank map
+          </Button>
+        </div>
 
         {/* Pack Type Toggle */}
         <div className="inline-flex rounded-lg border border-border/50 overflow-hidden flex-wrap">
