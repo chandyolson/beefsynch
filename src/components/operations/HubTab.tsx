@@ -87,6 +87,23 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           }
         }
 
+        // Fetch bull names for all upcoming projects
+        const bullNameMap = new Map<string, string[]>();
+        if (projIds.length > 0) {
+          const { data: projBullsData } = await supabase
+            .from("project_bulls")
+            .select("project_id, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)")
+            .in("project_id", projIds);
+          if (projBullsData) {
+            for (const pb of projBullsData as any[]) {
+              const name = pb.bulls_catalog?.bull_name || pb.custom_bull_name || "Unknown";
+              const existing = bullNameMap.get(pb.project_id) || [];
+              if (!existing.includes(name)) existing.push(name);
+              bullNameMap.set(pb.project_id, existing);
+            }
+          }
+        }
+
         for (const p of projData as any[]) {
           const pack = packMap.get(p.id);
           projectsWithPacks.push({
@@ -94,6 +111,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             pack_id: pack?.pack_id || null,
             pack_status: pack?.pack_status || null,
             packed_units: pack?.packed_units ?? null,
+            bull_names: bullNameMap.get(p.id) || [],
           });
         }
       }
