@@ -40,7 +40,7 @@ export function generateTankInventorySheetPdf(
   const margin = PDF_LAYOUT.margin;
 
   // ── HEADER ────────────────────────────────────────
-  let y = margin;
+  let y: number = margin;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(PDF_FONTS.sizeLargeMedium);
   doc.setTextColor(PDF_COLORS.textNormal);
