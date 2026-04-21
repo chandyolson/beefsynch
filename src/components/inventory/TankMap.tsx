@@ -116,8 +116,8 @@ export default function TankMap({ orgId }: { orgId: string }) {
         totalUnits += units;
 
         const bullName =
-          row.bulls_catalog?.bull_name ||
           row.custom_bull_name ||
+          row.bulls_catalog?.bull_name ||
           row.bull_code ||
           "Unknown";
         if (!c.bulls.includes(bullName)) c.bulls.push(bullName);
