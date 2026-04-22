@@ -504,6 +504,12 @@ const LogTab = ({ orgId }: { orgId: string }) => {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {subTab === "summary" && (
+        <WeeklySummary orgId={orgId} onNavigateToTimeline={() => setSubTab("timeline")} />
+      )}
     </div>
   );
 };
