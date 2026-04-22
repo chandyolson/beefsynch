@@ -75,6 +75,9 @@ const ReceiveShipment = () => {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [shipmentType, setShipmentType] = useState<"customer" | "inventory">("customer");
+  const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
+  const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState<string>("");
   const [semenCompanyId, setSemenCompanyId] = useState<string | null>(null);
   const [receivedById, setReceivedById] = useState<string | null>(null);
   const [receivedDate, setReceivedDate] = useState<Date>(new Date());
@@ -113,7 +116,7 @@ const ReceiveShipment = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, order_type, placed_by, customers(name)")
+        .select("id, order_date, fulfillment_status, customer_id, order_type, placed_by, inventory_owner, semen_company_id, customers(name)")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
@@ -285,6 +288,16 @@ const ReceiveShipment = () => {
       // Populate form from draft
       setCustomerId(shipment.customer_id ?? null);
       setSemenCompanyId(shipment.semen_company_id ?? null);
+      // Restore shipment type + owner info from the snapshot
+      const snap = (shipment.reconciliation_snapshot as any) || {};
+      if (snap.inventory_owner) {
+        setShipmentType("inventory");
+        setInventoryOwner(snap.inventory_owner as "Select" | "CATL");
+      } else {
+        setShipmentType("customer");
+        setInventoryOwner(null);
+      }
+      setSupplierInvoiceNumber(snap.supplier_invoice_number || "");
       setReceivedById(shipment.received_by ?? null);
       setReceivedDate(new Date(shipment.received_date + "T00:00:00"));
       setNotes(shipment.notes || "");
@@ -364,6 +377,31 @@ const ReceiveShipment = () => {
       setSelectedOrderId(val);
     }
   };
+
+  // When a linked order is selected, auto-fill fields from the order
+  useEffect(() => {
+    if (!selectedOrderId) return;
+    const order = orders?.find((o: any) => o.id === selectedOrderId);
+    if (!order) return;
+
+    // Set shipment type from the order
+    setShipmentType((order as any).order_type === "inventory" ? "inventory" : "customer");
+
+    // Auto-fill semen company (will be shown as locked in the UI)
+    if ((order as any).semen_company_id) setSemenCompanyId((order as any).semen_company_id);
+
+    if ((order as any).order_type === "inventory") {
+      // Inventory order: set inventory owner from the order, clear customer-related fields
+      setInventoryOwner(((order as any).inventory_owner as "Select" | "CATL" | null) ?? null);
+      setCustomerId(null);
+      setSemenOwnerId(null);
+    } else {
+      // Customer order: auto-fill customer, set semen owner to customer (they own it), clear inventory owner
+      setCustomerId((order as any).customer_id);
+      setSemenOwnerId((order as any).customer_id);
+      setInventoryOwner(null);
+    }
+  }, [selectedOrderId, orders]);
 
   // File handling
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -453,7 +491,10 @@ const ReceiveShipment = () => {
   // Validation
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!customerId) errs.customerId = "Required";
+    // Customer is required ONLY for customer-type shipments
+    if (shipmentType === "customer" && !customerId) errs.customerId = "Required";
+    // Inventory owner (Select/CATL) is required for inventory-type shipments
+    if (shipmentType === "inventory" && !inventoryOwner) errs.inventoryOwner = "Required";
     if (!semenCompanyId) errs.semenCompanyId = "Required";
     if (!receivedById) errs.receivedById = "Required";
     if (lines.length === 0) errs.lines = "At least one line item required";
@@ -500,13 +541,19 @@ const ReceiveShipment = () => {
       const snapshot = {
         version: 1,
         draft_lines: draftLines,
-        semen_owner_id: semenOwnerId,
+        // Customer path: set semen_owner_id (a customer UUID)
+        semen_owner_id: shipmentType === "customer" ? semenOwnerId : null,
+        // Inventory path: set inventory_owner ('Select' or 'CATL')
+        inventory_owner: shipmentType === "inventory" ? inventoryOwner : null,
+        // Supplier invoice number (captured on receive, saved to order in confirm_shipment RPC)
+        supplier_invoice_number: supplierInvoiceNumber.trim() || null,
       };
 
       const shipmentData: any = {
         organization_id: orgId,
         semen_order_id: selectedOrderId || null,
-        customer_id: customerId,
+        // Customer_id only set for customer-type shipments
+        customer_id: shipmentType === "customer" ? customerId : null,
         semen_company_id: semenCompanyId,
         received_date: format(receivedDate, "yyyy-MM-dd"),
         document_path: documentPath,
@@ -824,18 +871,52 @@ const ReceiveShipment = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
-              <Label className="text-right">Customer</Label>
-              <div>
-                <CustomerPicker
-                  value={customerId}
-                  onChange={setCustomerId}
-                  orgId={orgId!}
-                  className={cn(errors.customerId && "border-destructive")}
-                />
-                {errors.customerId && <p className="mt-1 text-xs text-destructive">{errors.customerId}</p>}
+            {!selectedOrderId && (
+              <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+                <Label className="text-right">Type</Label>
+                <div className="flex rounded-md overflow-hidden border border-border">
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                      shipmentType === "customer"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                    )}
+                    onClick={() => { setShipmentType("customer"); setInventoryOwner(null); }}
+                  >
+                    Customer Shipment
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                      shipmentType === "inventory"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                    )}
+                    onClick={() => { setShipmentType("inventory"); setCustomerId(null); setSemenOwnerId(null); }}
+                  >
+                    Inventory Shipment
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {shipmentType === "customer" && (
+              <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+                <Label className="text-right">Customer</Label>
+                <div>
+                  <CustomerPicker
+                    value={customerId}
+                    onChange={setCustomerId}
+                    orgId={orgId!}
+                    className={cn(errors.customerId && "border-destructive")}
+                  />
+                  {errors.customerId && <p className="mt-1 text-xs text-destructive">{errors.customerId}</p>}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
               <Label className="text-right">Semen Company</Label>
@@ -863,22 +944,60 @@ const ReceiveShipment = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
-              <Label className="text-right">Semen Owner</Label>
-              <div>
-                <Select value={semenOwnerId || "__none"} onValueChange={(v) => setSemenOwnerId(v === "__none" ? null : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No owner (company inventory)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">No owner (company inventory)</SelectItem>
-                    {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {shipmentType === "inventory" ? (
+              <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+                <Label className="text-right">Owner</Label>
+                <div>
+                  <div className={cn(
+                    "flex rounded-md overflow-hidden border",
+                    errors.inventoryOwner ? "border-destructive" : "border-border"
+                  )}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                        inventoryOwner === "Select"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      )}
+                      onClick={() => setInventoryOwner("Select")}
+                    >
+                      Select Sires
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                        inventoryOwner === "CATL"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      )}
+                      onClick={() => setInventoryOwner("CATL")}
+                    >
+                      CATL Resources
+                    </button>
+                  </div>
+                  {errors.inventoryOwner && <p className="mt-1 text-xs text-destructive">Pick Select Sires or CATL Resources</p>}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+                <Label className="text-right">Semen Owner</Label>
+                <div>
+                  <Select value={semenOwnerId || "__none"} onValueChange={(v) => setSemenOwnerId(v === "__none" ? null : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No owner (customer-supplied)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">No owner (customer-supplied)</SelectItem>
+                      {customers.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
               <Label className="text-right">Received Date</Label>
@@ -940,6 +1059,20 @@ const ReceiveShipment = () => {
                 )}
               </div>
             </div>
+
+            {selectedOrderId && (
+              <div className="grid grid-cols-[140px_1fr] gap-3 items-center">
+                <Label className="text-right">Supplier Invoice #</Label>
+                <div>
+                  <Input
+                    value={supplierInvoiceNumber}
+                    onChange={(e) => setSupplierInvoiceNumber(e.target.value)}
+                    placeholder="Invoice # from Select Sires / supplier"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">Optional. The invoice the supplier sent with this shipment.</p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-[140px_1fr] gap-3 items-start">
               <Label className="pt-2 text-right">Notes</Label>
