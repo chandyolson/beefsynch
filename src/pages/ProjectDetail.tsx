@@ -99,12 +99,6 @@ interface BullRow {
   bulls_catalog: { bull_name: string; company: string; registration_number: string; breed: string } | null;
 }
 
-const statusColor: Record<string, string> = {
-  Tentative: "bg-warning/20 text-warning",
-  Confirmed: "bg-primary/20 text-primary",
-  Complete: "bg-emerald-500 text-white",
-};
-
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
   const { role: orgRole, userId, orgId } = useOrgRole();
@@ -369,19 +363,6 @@ const ProjectDetail = () => {
       </div>
     );
   }
-
-  const isNoTimeEvent = (name: string) => {
-    const exact = ["Return Heat", "Estimated Calving"];
-    const contains = ["CIDR Insert", "GnRH"];
-    return exact.includes(name) || contains.some((k) => name.includes(k));
-  };
-
-  const formatTime12 = (time: string) => {
-    const [h, m] = time.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
 
   const breedingDisplay = project.breeding_date
     ? format(parseISO(project.breeding_date), "MMMM d, yyyy")
@@ -714,7 +695,7 @@ const ProjectDetail = () => {
             </Badge>
             <Badge
               className={
-                statusColor[project.status] ??
+                projectStatusColor[project.status] ??
                 "bg-muted text-muted-foreground"
               }
             >
