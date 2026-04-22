@@ -114,13 +114,13 @@ const ReceiveShipment = () => {
     queryKey: ["semen-orders-list", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("semen_orders")
         .select("id, order_date, fulfillment_status, customer_id, order_type, placed_by, inventory_owner, semen_company_id, customers(name)")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
-      return data ?? [];
+      return (data ?? []) as any[];
     },
     enabled: !!orgId,
   });
