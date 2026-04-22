@@ -404,6 +404,14 @@ const ReceiveShipment = () => {
     }
   }, [selectedOrderId, orders]);
 
+  // Auto-default semen owner to the selected customer on ad-hoc customer receives.
+  // (When linked to a customer order, the order-fill effect already set semenOwnerId.)
+  useEffect(() => {
+    if (shipmentType === "customer" && customerId && !semenOwnerId) {
+      setSemenOwnerId(customerId);
+    }
+  }, [customerId, shipmentType]);
+
   // File handling
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
