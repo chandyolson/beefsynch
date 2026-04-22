@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
@@ -36,6 +36,16 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const [billingFilter, setBillingFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [subTab, setSubTab] = useState<"customer" | "inventory">("customer");
+  const [newOrderDefaultType, setNewOrderDefaultType] = useState<"customer" | "inventory">("customer");
+
+  useEffect(() => {
+    setSearch("");
+    setFulfillmentFilter("all");
+    setBillingFilter("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  }, [subTab]);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["semen_orders", orgId],
@@ -51,20 +61,31 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     },
   });
 
-  const filtered = useMemo(() => orders.filter((o: any) => {
+  const customerOrders = useMemo(
+    () => orders.filter((o: any) => o.order_type === "customer"),
+    [orders]
+  );
+  const inventoryOrders = useMemo(
+    () => orders.filter((o: any) => o.order_type === "inventory"),
+    [orders]
+  );
+
+  const scopedOrders = subTab === "customer" ? customerOrders : inventoryOrders;
+
+  const filtered = useMemo(() => scopedOrders.filter((o: any) => {
     if (search && !(o.customers?.name || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (fulfillmentFilter !== "all" && o.fulfillment_status !== fulfillmentFilter) return false;
     if (billingFilter !== "all" && o.billing_status !== billingFilter) return false;
     if (dateFrom && isBefore(parseISO(o.order_date), dateFrom)) return false;
     if (dateTo && isAfter(parseISO(o.order_date), dateTo)) return false;
     return true;
-  }), [orders, search, fulfillmentFilter, billingFilter, dateFrom, dateTo]);
+  }), [scopedOrders, search, fulfillmentFilter, billingFilter, dateFrom, dateTo]);
 
-  const totalOrders = orders.length;
-  const totalUnits = useMemo(() => orders.reduce((sum: number, o: any) =>
-    sum + (o.semen_order_items?.reduce((s: number, i: any) => s + (i.units || 0), 0) ?? 0), 0), [orders]);
-  const pendingCount = orders.filter((o: any) => o.fulfillment_status !== "delivered").length;
-  const unbilledCount = orders.filter((o: any) => o.billing_status === "unbilled").length;
+  const totalOrders = scopedOrders.length;
+  const totalUnits = useMemo(() => scopedOrders.reduce((sum: number, o: any) =>
+    sum + (o.semen_order_items?.reduce((s: number, i: any) => s + (i.units || 0), 0) ?? 0), 0), [scopedOrders]);
+  const pendingCount = scopedOrders.filter((o: any) => o.fulfillment_status !== "delivered").length;
+  const unbilledCount = scopedOrders.filter((o: any) => o.billing_status === "unbilled").length;
 
   const getBullNames = (items: any[]) => {
     if (!items || items.length === 0) return "—";
@@ -80,8 +101,39 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
             <ClipboardList className="h-4 w-4" /> Planning
           </Button>
-          <Button className="gap-2" onClick={() => { setEditOrder(null); setDialogOpen(true); }}><Plus className="h-4 w-4" /> New Order</Button>
+          <Button className="gap-2" onClick={() => {
+            setEditOrder(null);
+            setNewOrderDefaultType(subTab);
+            setDialogOpen(true);
+          }}><Plus className="h-4 w-4" /> New Order</Button>
         </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSubTab("customer")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subTab === "customer"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Customer Orders
+          <Badge variant="secondary" className="h-5 px-2 text-xs">{customerOrders.length}</Badge>
+        </button>
+        <button
+          onClick={() => setSubTab("inventory")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subTab === "inventory"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Inventory Orders
+          <Badge variant="secondary" className="h-5 px-2 text-xs">{inventoryOrders.length}</Badge>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -153,9 +205,27 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                 <TableCell colSpan={7}>
                   <EmptyState
                     icon={ShoppingCart}
-                    title={orders.length === 0 ? "No semen orders" : "No results"}
-                    description={orders.length === 0 ? "No orders to display yet." : "No orders match your filters. Try adjusting your filters."}
-                    action={orders.length === 0 ? { label: "Create Order", onClick: () => { setEditOrder(null); setDialogOpen(true); } } : undefined}
+                    title={
+                      scopedOrders.length === 0
+                        ? subTab === "customer" ? "No customer orders" : "No inventory orders"
+                        : "No results"
+                    }
+                    description={
+                      scopedOrders.length === 0
+                        ? subTab === "customer"
+                          ? "No customer orders to display yet."
+                          : "No inventory orders to display yet."
+                        : "No orders match your filters. Try adjusting your filters."
+                    }
+                    action={
+                      scopedOrders.length === 0
+                        ? { label: "Create Order", onClick: () => {
+                            setEditOrder(null);
+                            setNewOrderDefaultType(subTab);
+                            setDialogOpen(true);
+                          } }
+                        : undefined
+                    }
                   />
                 </TableCell>
               </TableRow>
@@ -175,7 +245,12 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           </TableBody>
         </Table>
       </div>
-      <NewOrderDialog open={dialogOpen} onOpenChange={setDialogOpen} editData={editOrder} />
+      <NewOrderDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editData={editOrder}
+        initialOrderType={newOrderDefaultType}
+      />
     </div>
   );
 };
