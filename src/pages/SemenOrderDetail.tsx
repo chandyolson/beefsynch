@@ -154,6 +154,66 @@ const SemenOrderDetail = () => {
     load();
   }, [id]);
 
+  // Fetch availability-in-inventory for each bull on the order
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+    setAvailabilityLoading(true);
+    (async () => {
+      try {
+        const catalogIds = items.filter((i) => i.bull_catalog_id).map((i) => i.bull_catalog_id as string);
+        const customNames = items
+          .filter((i) => !i.bull_catalog_id && i.custom_bull_name)
+          .map((i) => i.custom_bull_name as string);
+
+        const orFilters: string[] = [];
+        if (catalogIds.length > 0) orFilters.push(`bull_catalog_id.in.(${catalogIds.join(",")})`);
+        if (customNames.length > 0) {
+          const safeNames = customNames.map((n) => `"${n.replace(/"/g, "")}"`).join(",");
+          orFilters.push(`custom_bull_name.in.(${safeNames})`);
+        }
+        if (orFilters.length === 0) {
+          setAvailability({});
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("tank_inventory")
+          .select("bull_catalog_id, custom_bull_name, canister, units, owner, storage_type, tanks(tank_name, tank_number)")
+          .eq("storage_type", "inventory")
+          .in("owner", ["Select", "CATL"])
+          .gt("units", 0)
+          .or(orFilters.join(","));
+
+        if (error) throw error;
+
+        const mapByKey: Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }> = {};
+        for (const row of (data || []) as any[]) {
+          const key = row.bull_catalog_id || `custom:${row.custom_bull_name}`;
+          if (!mapByKey[key]) mapByKey[key] = { total: 0, locations: [] };
+          mapByKey[key].total += row.units;
+          mapByKey[key].locations.push({
+            tank: row.tanks?.tank_name || row.tanks?.tank_number || "—",
+            canister: row.canister || "?",
+            units: row.units,
+            owner: row.owner,
+          });
+        }
+
+        const byItemId: Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }> = {};
+        for (const item of items) {
+          const key = item.bull_catalog_id || `custom:${item.custom_bull_name}`;
+          byItemId[item.id] = mapByKey[key] || { total: 0, locations: [] };
+        }
+        setAvailability(byItemId);
+      } catch (err) {
+        console.error("Failed to load inventory availability", err);
+        setAvailability({});
+      } finally {
+        setAvailabilityLoading(false);
+      }
+    })();
+  }, [items]);
+
   const openEdit = () => {
     if (!order) return;
     setEditOpen(true);
