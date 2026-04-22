@@ -940,6 +940,39 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Merge collision confirmation */}
+      <AlertDialog open={!!mergeTarget} onOpenChange={(open) => { if (!open) handleCancelMerge(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Merge into existing location?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Canister <strong>{mergeTarget?.targetCanister}</strong>
+                  {mergeTarget?.targetSubCanister ? ` / ${mergeTarget.targetSubCanister}` : ""}
+                  {" "}already has <strong>{mergeTarget?.targetUnits} units</strong> of{" "}
+                  <strong>{mergeTarget?.bullLabel}</strong>.
+                </p>
+                <p>
+                  Merging will add the <strong>{pendingUpdates?.units} units</strong> from the row you're editing into that existing row (new total:{" "}
+                  <strong>{(mergeTarget?.targetUnits || 0) + (pendingUpdates?.units || 0)} units</strong>).
+                  The row you were editing will be deleted.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Cancel to go back and change the destination instead.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={merging} onClick={handleCancelMerge}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmMerge} disabled={merging}>
+              {merging ? "Merging..." : `Merge into canister ${mergeTarget?.targetCanister}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
