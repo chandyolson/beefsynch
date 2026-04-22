@@ -67,6 +67,65 @@ const emptyLine = (): LineItem => ({
   itemType: "semen",
 });
 
+// -----------------------------------------------------------------------------
+// localStorage autosave for draft protection
+// Key is scoped per-user per-shipment (new vs. edit). We don't share drafts
+// across different shipments, different users, or different browsers.
+// -----------------------------------------------------------------------------
+const DRAFT_STORAGE_VERSION = 1;
+const getDraftStorageKey = (userId: string | null, editId: string | undefined): string => {
+  const suffix = editId || "new";
+  const uid = userId || "anon";
+  return `beefsynch:receive-shipment-draft:${uid}:${suffix}`;
+};
+
+interface PersistedDraft {
+  version: number;
+  savedAt: string; // ISO datetime
+  selectedOrderId: string;
+  customerId: string | null;
+  shipmentType: "customer" | "inventory";
+  inventoryOwner: "Select" | "CATL" | null;
+  supplierInvoiceNumber: string;
+  semenCompanyId: string | null;
+  receivedById: string | null;
+  receivedDate: string; // ISO
+  notes: string;
+  lines: LineItem[];
+  semenOwnerId: string | null;
+  hadFile: boolean;
+}
+
+const readPersistedDraft = (key: string): PersistedDraft | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedDraft;
+    if (parsed.version !== DRAFT_STORAGE_VERSION) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
+const formatTimeAgo = (iso: string): string => {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const mins = Math.floor((now - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 minute ago";
+  if (mins < 60) return `${mins} minutes ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours === 1) return "1 hour ago";
+  if (hours < 24) return `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+};
+
 const ReceiveShipment = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -93,6 +152,26 @@ const ReceiveShipment = () => {
   const [semenOwnerId, setSemenOwnerId] = useState<string | null>(null);
   const [existingDocPath, setExistingDocPath] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
+
+  // Autosave / restore state
+  const [userId, setUserId] = useState<string | null>(null);
+  const [autosaveReady, setAutosaveReady] = useState(false);
+  const [restorablePending, setRestorablePending] = useState<PersistedDraft | null>(null);
+
+  // Track auth user id for autosave keying
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (mounted) setUserId(user?.id ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (mounted) setUserId(session?.user?.id ?? null);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   // Derive groups from lines
   const groups: BullGroup[] = useMemo(() => {
@@ -323,6 +402,146 @@ const ReceiveShipment = () => {
       setDraftLoaded(true);
     })();
   }, [editId, orgId, draftLoaded, navigate]);
+
+  // -------------------- Autosave: check localStorage on mount --------------------
+  useEffect(() => {
+    if (!userId) return;
+    if (editId && !draftLoaded) return;
+
+    const key = getDraftStorageKey(userId, editId);
+    const stashed = readPersistedDraft(key);
+
+    if (!stashed) {
+      setAutosaveReady(true);
+      return;
+    }
+
+    if (editId) {
+      setSelectedOrderId(stashed.selectedOrderId);
+      setCustomerId(stashed.customerId);
+      setShipmentType(stashed.shipmentType);
+      setInventoryOwner(stashed.inventoryOwner);
+      setSupplierInvoiceNumber(stashed.supplierInvoiceNumber);
+      setSemenCompanyId(stashed.semenCompanyId);
+      setReceivedById(stashed.receivedById);
+      setReceivedDate(new Date(stashed.receivedDate));
+      setNotes(stashed.notes);
+      setLines(stashed.lines);
+      setSemenOwnerId(stashed.semenOwnerId);
+      setAutosaveReady(true);
+      return;
+    }
+
+    setRestorablePending(stashed);
+    setAutosaveReady(true);
+  }, [userId, editId, draftLoaded]);
+
+  // -------------------- Autosave: persist state changes --------------------
+  useEffect(() => {
+    if (!autosaveReady || !userId) return;
+
+    const key = getDraftStorageKey(userId, editId);
+    const snap: PersistedDraft = {
+      version: DRAFT_STORAGE_VERSION,
+      savedAt: new Date().toISOString(),
+      selectedOrderId,
+      customerId,
+      shipmentType,
+      inventoryOwner,
+      supplierInvoiceNumber,
+      semenCompanyId,
+      receivedById,
+      receivedDate: receivedDate.toISOString(),
+      notes,
+      lines,
+      semenOwnerId,
+      hadFile: !!file,
+    };
+
+    const isPristine =
+      !editId &&
+      !selectedOrderId &&
+      !customerId &&
+      !notes.trim() &&
+      !supplierInvoiceNumber.trim() &&
+      lines.length === 1 &&
+      !lines[0].bullName &&
+      !lines[0].tankId;
+
+    if (isPristine) {
+      localStorage.removeItem(key);
+      return;
+    }
+
+    try {
+      localStorage.setItem(key, JSON.stringify(snap));
+    } catch {
+      // Storage full or disabled — fail silently
+    }
+  }, [
+    autosaveReady,
+    userId,
+    editId,
+    selectedOrderId,
+    customerId,
+    shipmentType,
+    inventoryOwner,
+    supplierInvoiceNumber,
+    semenCompanyId,
+    receivedById,
+    receivedDate,
+    notes,
+    lines,
+    semenOwnerId,
+    file,
+  ]);
+
+  // -------------------- Autosave: warn on browser close/refresh --------------------
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!userId) return;
+      const key = getDraftStorageKey(userId, editId);
+      if (!localStorage.getItem(key)) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [userId, editId]);
+
+  // -------------------- Restore banner handlers --------------------
+  const handleRestoreDraft = () => {
+    if (!restorablePending) return;
+    const d = restorablePending;
+    setSelectedOrderId(d.selectedOrderId);
+    setCustomerId(d.customerId);
+    setShipmentType(d.shipmentType);
+    setInventoryOwner(d.inventoryOwner);
+    setSupplierInvoiceNumber(d.supplierInvoiceNumber);
+    setSemenCompanyId(d.semenCompanyId);
+    setReceivedById(d.receivedById);
+    setReceivedDate(new Date(d.receivedDate));
+    setNotes(d.notes);
+    setLines(d.lines);
+    setSemenOwnerId(d.semenOwnerId);
+    if (d.hadFile) {
+      toast({
+        title: "Draft restored",
+        description: "You had uploaded a file in the original draft — please re-attach it if needed.",
+      });
+    } else {
+      toast({ title: "Draft restored", description: "Your unsaved changes are back." });
+    }
+    setRestorablePending(null);
+  };
+
+  const handleDiscardDraft = () => {
+    if (!userId) return;
+    const key = getDraftStorageKey(userId, editId);
+    localStorage.removeItem(key);
+    setRestorablePending(null);
+    toast({ title: "Draft discarded" });
+  };
 
   // Pre-select order from query param (only for new shipments)
   useEffect(() => {
@@ -599,6 +818,10 @@ const ReceiveShipment = () => {
         if (shipErr) throw shipErr;
       }
 
+      // Clear the localStorage autosave now that the draft is safely in the DB
+      if (userId) {
+        localStorage.removeItem(getDraftStorageKey(userId, editId));
+      }
       toast({ title: "Draft saved", description: "Redirecting to preview..." });
       navigate(`/receive-shipment/preview/${shipmentId}`);
     } catch (err: any) {
@@ -854,6 +1077,29 @@ const ReceiveShipment = () => {
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-4xl">
         <BackButton />
+        {restorablePending && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg p-4 flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                  Unsaved receive from {formatTimeAgo(restorablePending.savedAt)}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  You have draft data saved in this browser. Restore it to pick up where you left off, or discard it to start over.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={handleDiscardDraft}>
+                Discard
+              </Button>
+              <Button size="sm" onClick={handleRestoreDraft}>
+                Restore
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
