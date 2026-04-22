@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Plus, Trash2, Package, CalendarDays, Loader2, X, Search,
-  Truck, ClipboardList, Printer, Check, ChevronsUpDown, Map as MapIcon,
+  Truck, ClipboardList, Printer, Check, ChevronsUpDown, Map as MapIcon, AlertTriangle,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -460,6 +460,53 @@ const PackTank = () => {
     }
   }, [preselectedOrderId, orgId, packType]);
 
+  // Look up the best CATL/Select inventory source location for a bull.
+  // Returns the single location with the most units, or null if none.
+  const findInventorySourceForBull = async (params: {
+    bullCatalogId: string | null;
+    bullCode: string | null;
+    customBullName: string | null;
+  }) => {
+    if (!orgId) return null;
+
+    let query = supabase
+      .from("tank_inventory")
+      .select("tank_id, canister, units, owner, tanks(tank_name, tank_number)")
+      .eq("organization_id", orgId)
+      .eq("storage_type", "inventory")
+      .in("owner", ["Select", "CATL"])
+      .gt("units", 0)
+      .order("units", { ascending: false });
+
+    if (params.bullCatalogId) {
+      query = query.eq("bull_catalog_id", params.bullCatalogId);
+    } else if (params.customBullName) {
+      query = query.is("bull_catalog_id", null).eq("custom_bull_name", params.customBullName);
+    } else if (params.bullCode) {
+      query = query.eq("bull_code", params.bullCode);
+    } else {
+      return null;
+    }
+
+    const { data } = await query;
+    if (!data || data.length === 0) return null;
+
+    return {
+      best: {
+        tank_id: data[0].tank_id,
+        canister: data[0].canister,
+        units: data[0].units,
+      },
+      allLocations: (data as any[]).map((r) => ({
+        tank_id: r.tank_id,
+        tank_name: r.tanks?.tank_name || r.tanks?.tank_number || "—",
+        canister: r.canister,
+        units: r.units,
+        owner: r.owner,
+      })),
+    };
+  };
+
   // Pre-fill pack lines from selected orders
   useEffect(() => {
     if (packType !== "order" || selectedOrders.length === 0) return;
@@ -488,17 +535,33 @@ const PackTank = () => {
         }
       }
 
-      const newLines: PackLine[] = Array.from(bullMap.values()).map((b) => ({
-        key: crypto.randomUUID(),
-        sourceTankId: "",
-        bullName: b.orderCount > 1 ? `${b.bullName} (from ${b.orderCount} orders)` : b.bullName,
-        bullCatalogId: b.bullCatalogId,
-        bullCode: b.bullCode,
-        sourceCanister: "",
-        fieldCanister: "",
-        units: "",
-        availableUnits: null,
-      }));
+      // For each unique bull on the order, look up where it currently lives in
+      // CATL/Select inventory (largest-units location wins).
+      const bullsArray = Array.from(bullMap.values());
+      const sourceLookups = await Promise.all(
+        bullsArray.map((b) =>
+          findInventorySourceForBull({
+            bullCatalogId: b.bullCatalogId,
+            bullCode: b.bullCode,
+            customBullName: b.bullCatalogId ? null : b.bullName,
+          })
+        )
+      );
+
+      const newLines: PackLine[] = bullsArray.map((b, idx) => {
+        const lookup = sourceLookups[idx];
+        return {
+          key: crypto.randomUUID(),
+          sourceTankId: lookup?.best.tank_id ?? "",
+          bullName: b.orderCount > 1 ? `${b.bullName} (from ${b.orderCount} orders)` : b.bullName,
+          bullCatalogId: b.bullCatalogId,
+          bullCode: b.bullCode,
+          sourceCanister: lookup?.best.canister ?? "",
+          fieldCanister: "",
+          units: "",
+          availableUnits: lookup?.best.units ?? null,
+        };
+      });
 
       setLines(newLines.length > 0 ? newLines : [emptyLine()]);
     })();
@@ -1335,6 +1398,21 @@ const PackTank = () => {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
+            {packType === "order" && lines.some((l) => !l.sourceTankId && l.bullName) && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg p-3 mb-2 flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-900 dark:text-amber-100 space-y-0.5">
+                  <p className="font-medium">Some bulls are not currently in CATL inventory.</p>
+                  <p>
+                    {lines
+                      .filter((l) => !l.sourceTankId && l.bullName)
+                      .map((l) => l.bullName)
+                      .join(", ")}
+                    {" "}— source tank/canister is blank on these lines. Either order from the stud, pull from a customer's own storage (manual), or skip these lines.
+                  </p>
+                </div>
+              </div>
+            )}
             {lines.map((line, i) => (
               <div key={line.key} className={cn("rounded-lg border border-border/50 p-2 space-y-2")}>
                 <div className={cn("grid gap-2 items-end", isMobile ? "grid-cols-1" : "grid-cols-[2fr_70px_2.5fr_70px_80px_36px_36px]")}>
