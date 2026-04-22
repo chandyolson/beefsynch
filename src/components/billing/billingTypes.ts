@@ -1,5 +1,8 @@
 /* ── Billing shared types, constants, and helpers ── */
 
+import { formatTime12 } from "@/lib/formatUtils";
+export { formatTime12 };
+
 export interface BillingProduct {
   id: string;
   product_name: string;
@@ -107,14 +110,6 @@ export function calcUnits(doses: number, dpu: number | null) {
 export function formatCurrency(v: number | null) {
   if (v == null) return "$0.00";
   return `$${v.toFixed(2)}`;
-}
-
-export function formatTime12(t: string | null) {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 export function isBreedingSession(s: SessionLine) {
