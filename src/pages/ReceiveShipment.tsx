@@ -153,6 +153,26 @@ const ReceiveShipment = () => {
   const [existingDocPath, setExistingDocPath] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
+  // Autosave / restore state
+  const [userId, setUserId] = useState<string | null>(null);
+  const [autosaveReady, setAutosaveReady] = useState(false);
+  const [restorablePending, setRestorablePending] = useState<PersistedDraft | null>(null);
+
+  // Track auth user id for autosave keying
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (mounted) setUserId(user?.id ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (mounted) setUserId(session?.user?.id ?? null);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   // Derive groups from lines
   const groups: BullGroup[] = useMemo(() => {
     const map = new Map<string, LineItem[]>();
