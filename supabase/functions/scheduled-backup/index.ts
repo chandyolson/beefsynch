@@ -1,4 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * scheduled-backup Edge Function
+ *
+ * Nightly cron entry point (see pg_cron job "beefsynch-nightly-backup").
+ * Delegates the actual export to full-export so there is ONE source of
+ * truth for what gets backed up, then emails the resulting ZIP as an
+ * attachment via Resend.
+ *
+ * Auth: service-role key only (passed in Authorization header).
+ */
 
 Deno.serve(async (req) => {
   try {
@@ -11,87 +20,28 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY")!;
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+    // Delegate to full-export to build the comprehensive ZIP.
+    const exportRes = await fetch(`${supabaseUrl}/functions/v1/full-export`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceRoleKey}` },
     });
-
-    // Fetch all organizations
-    const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("*");
-    if (orgsErr) throw new Error(`Failed to fetch organizations: ${orgsErr.message}`);
-
-    const enrichedOrgs = [];
-    for (const org of orgs || []) {
-      const [membersRes, projectsRes, invitesRes] = await Promise.all([
-        supabase.from("organization_members").select("*").eq("organization_id", org.id),
-        supabase.from("projects").select("*").eq("organization_id", org.id),
-        supabase.from("pending_invites").select("*").eq("organization_id", org.id),
-      ]);
-
-      if (membersRes.error) throw new Error(`Failed to fetch members for org ${org.id}: ${membersRes.error.message}`);
-      if (projectsRes.error) throw new Error(`Failed to fetch projects for org ${org.id}: ${projectsRes.error.message}`);
-      if (invitesRes.error) throw new Error(`Failed to fetch invites for org ${org.id}: ${invitesRes.error.message}`);
-
-      const projectIds = (projectsRes.data || []).map((p) => p.id);
-
-      let bullsData: any[] = [];
-      let eventsData: any[] = [];
-
-      if (projectIds.length > 0) {
-        const [bullsRes, eventsRes] = await Promise.all([
-          supabase
-            .from("project_bulls")
-            .select("*, bulls_catalog(bull_name, company, registration_number)")
-            .in("project_id", projectIds),
-          supabase.from("protocol_events").select("*").in("project_id", projectIds),
-        ]);
-        if (bullsRes.error) throw new Error(`Failed to fetch project bulls: ${bullsRes.error.message}`);
-        if (eventsRes.error) throw new Error(`Failed to fetch protocol events: ${eventsRes.error.message}`);
-        bullsData = bullsRes.data || [];
-        eventsData = eventsRes.data || [];
-      }
-
-      const bullsByProject = new Map<string, any[]>();
-      for (const b of bullsData) {
-        const arr = bullsByProject.get(b.project_id) || [];
-        arr.push(b);
-        bullsByProject.set(b.project_id, arr);
-      }
-
-      const eventsByProject = new Map<string, any[]>();
-      for (const e of eventsData) {
-        const arr = eventsByProject.get(e.project_id) || [];
-        arr.push(e);
-        eventsByProject.set(e.project_id, arr);
-      }
-
-      const enrichedProjects = (projectsRes.data || []).map((p) => ({
-        ...p,
-        bulls: bullsByProject.get(p.id) || [],
-        events: eventsByProject.get(p.id) || [],
-      }));
-
-      enrichedOrgs.push({
-        ...org,
-        members: membersRes.data || [],
-        projects: enrichedProjects,
-        pending_invites: invitesRes.data || [],
-      });
+    if (!exportRes.ok) {
+      const errBody = await exportRes.text();
+      throw new Error(`full-export failed (${exportRes.status}): ${errBody}`);
     }
+    const zipBytes = new Uint8Array(await exportRes.arrayBuffer());
 
-    // Bulls catalog (global)
-    const { data: bullsCatalog, error: catErr } = await supabase.from("bulls_catalog").select("*");
-    if (catErr) throw new Error(`Failed to fetch bulls catalog: ${catErr.message}`);
+    // Base64-encode the ZIP for the Resend attachment field.
+    // Chunked to avoid stack overflows on large buffers.
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < zipBytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...zipBytes.subarray(i, i + CHUNK));
+    }
+    const base64Content = btoa(binary);
 
-    const exportData = {
-      exported_at: new Date().toISOString(),
-      organizations: enrichedOrgs,
-      bulls_catalog: bullsCatalog || [],
-    };
-
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
     const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `BeefSynch_Backup_${dateStr}.json`;
+    const filename = `BeefSynch_Backup_${dateStr}.zip`;
 
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -103,13 +53,11 @@ Deno.serve(async (req) => {
         from: "BeefSynch <backups@mail.beefsynch.com>",
         to: ["office@catlresources.com"],
         subject: `BeefSynch Daily Backup - ${dateStr}`,
-        html: `<p>Attached is your daily BeefSynch data backup generated on ${dateStr}.</p><p>This file contains all organizations, projects, breeding schedules, bull assignments, and team member data.</p><p><em>BeefSynch by Chuteside Resources</em></p>`,
-        attachments: [
-          {
-            filename,
-            content: base64Content,
-          },
-        ],
+        html:
+          `<p>Attached is your daily BeefSynch data backup generated on ${dateStr}.</p>` +
+          `<p>This ZIP contains JSONL dumps of every public-schema table, the auth.users / auth.identities rows, and storage bucket metadata for <code>shipment-documents</code>, <code>email-assets</code>, and <code>documents</code>.</p>` +
+          `<p><em>BeefSynch by Chuteside Resources</em></p>`,
+        attachments: [{ filename, content: base64Content }],
       }),
     });
 
@@ -121,15 +69,15 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        exported_at: exportData.exported_at,
-        org_count: enrichedOrgs.length,
+        size_bytes: zipBytes.length,
+        emailed_at: new Date().toISOString(),
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: (err as Error).message ?? String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 });

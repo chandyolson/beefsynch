@@ -18,7 +18,10 @@ const TABLES_IN_ORDER: string[] = [
   "organization_members",
   "pending_invites",
   "profiles",
+  "naab_controllers",
+  "stud_code_registry",
   "bulls_catalog",
+  "bull_naab_codes",
   "bull_favorites",
   "customers",
   "semen_companies",
@@ -32,12 +35,14 @@ const TABLES_IN_ORDER: string[] = [
   "project_billing_products",
   "project_billing_semen",
   "project_billing_sessions",
+  "project_billing_session_inventory",
   "billing_products",
   "tank_inventory",
   "tank_fills",
   "tank_movements",
   "semen_orders",
   "semen_order_items",
+  "order_supply_items",
   "shipments",
   "inventory_transactions",
   "tank_packs",
@@ -195,7 +200,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Export storage metadata --------------------------------------------------
-    const buckets = ["shipment-documents", "email-assets"];
+    const buckets = ["shipment-documents", "email-assets", "documents"];
     for (const bucket of buckets) {
       try {
         const allFiles: Record<string, unknown>[] = [];
