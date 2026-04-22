@@ -403,6 +403,146 @@ const ReceiveShipment = () => {
     })();
   }, [editId, orgId, draftLoaded, navigate]);
 
+  // -------------------- Autosave: check localStorage on mount --------------------
+  useEffect(() => {
+    if (!userId) return;
+    if (editId && !draftLoaded) return;
+
+    const key = getDraftStorageKey(userId, editId);
+    const stashed = readPersistedDraft(key);
+
+    if (!stashed) {
+      setAutosaveReady(true);
+      return;
+    }
+
+    if (editId) {
+      setSelectedOrderId(stashed.selectedOrderId);
+      setCustomerId(stashed.customerId);
+      setShipmentType(stashed.shipmentType);
+      setInventoryOwner(stashed.inventoryOwner);
+      setSupplierInvoiceNumber(stashed.supplierInvoiceNumber);
+      setSemenCompanyId(stashed.semenCompanyId);
+      setReceivedById(stashed.receivedById);
+      setReceivedDate(new Date(stashed.receivedDate));
+      setNotes(stashed.notes);
+      setLines(stashed.lines);
+      setSemenOwnerId(stashed.semenOwnerId);
+      setAutosaveReady(true);
+      return;
+    }
+
+    setRestorablePending(stashed);
+    setAutosaveReady(true);
+  }, [userId, editId, draftLoaded]);
+
+  // -------------------- Autosave: persist state changes --------------------
+  useEffect(() => {
+    if (!autosaveReady || !userId) return;
+
+    const key = getDraftStorageKey(userId, editId);
+    const snap: PersistedDraft = {
+      version: DRAFT_STORAGE_VERSION,
+      savedAt: new Date().toISOString(),
+      selectedOrderId,
+      customerId,
+      shipmentType,
+      inventoryOwner,
+      supplierInvoiceNumber,
+      semenCompanyId,
+      receivedById,
+      receivedDate: receivedDate.toISOString(),
+      notes,
+      lines,
+      semenOwnerId,
+      hadFile: !!file,
+    };
+
+    const isPristine =
+      !editId &&
+      !selectedOrderId &&
+      !customerId &&
+      !notes.trim() &&
+      !supplierInvoiceNumber.trim() &&
+      lines.length === 1 &&
+      !lines[0].bullName &&
+      !lines[0].tankId;
+
+    if (isPristine) {
+      localStorage.removeItem(key);
+      return;
+    }
+
+    try {
+      localStorage.setItem(key, JSON.stringify(snap));
+    } catch {
+      // Storage full or disabled — fail silently
+    }
+  }, [
+    autosaveReady,
+    userId,
+    editId,
+    selectedOrderId,
+    customerId,
+    shipmentType,
+    inventoryOwner,
+    supplierInvoiceNumber,
+    semenCompanyId,
+    receivedById,
+    receivedDate,
+    notes,
+    lines,
+    semenOwnerId,
+    file,
+  ]);
+
+  // -------------------- Autosave: warn on browser close/refresh --------------------
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!userId) return;
+      const key = getDraftStorageKey(userId, editId);
+      if (!localStorage.getItem(key)) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [userId, editId]);
+
+  // -------------------- Restore banner handlers --------------------
+  const handleRestoreDraft = () => {
+    if (!restorablePending) return;
+    const d = restorablePending;
+    setSelectedOrderId(d.selectedOrderId);
+    setCustomerId(d.customerId);
+    setShipmentType(d.shipmentType);
+    setInventoryOwner(d.inventoryOwner);
+    setSupplierInvoiceNumber(d.supplierInvoiceNumber);
+    setSemenCompanyId(d.semenCompanyId);
+    setReceivedById(d.receivedById);
+    setReceivedDate(new Date(d.receivedDate));
+    setNotes(d.notes);
+    setLines(d.lines);
+    setSemenOwnerId(d.semenOwnerId);
+    if (d.hadFile) {
+      toast({
+        title: "Draft restored",
+        description: "You had uploaded a file in the original draft — please re-attach it if needed.",
+      });
+    } else {
+      toast({ title: "Draft restored", description: "Your unsaved changes are back." });
+    }
+    setRestorablePending(null);
+  };
+
+  const handleDiscardDraft = () => {
+    if (!userId) return;
+    const key = getDraftStorageKey(userId, editId);
+    localStorage.removeItem(key);
+    setRestorablePending(null);
+    toast({ title: "Draft discarded" });
+  };
+
   // Pre-select order from query param (only for new shipments)
   useEffect(() => {
     if (editId) return;
