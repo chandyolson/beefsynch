@@ -67,7 +67,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
-  const [orderType, setOrderType] = useState<"customer" | "inventory">("customer");
+  const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
 
