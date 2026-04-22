@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
+import WeeklySummary from "./WeeklySummary";
 
 const PAGE_SIZE = 1000;
 
