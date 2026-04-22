@@ -74,6 +74,15 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const [editRow, setEditRow] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<{
+    targetId: string;
+    targetUnits: number;
+    targetCanister: string;
+    targetSubCanister: string | null;
+    bullLabel: string;
+  } | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
