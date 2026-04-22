@@ -9,15 +9,17 @@ export function generateTankLabelPdf(bullName: string, units: number) {
 
   const labelW = 248;
   const labelH = 40;
-  // Symmetric inner margins — pulled in on both sides to clear the DYMO tab tang
-  // and give the centered text room to breathe.
-  const sideMargin = 18;
+  // Left margin clears the DYMO tab tang. Right side reserves ~10 characters of
+  // whitespace so the label can be folded over onto itself (file-folder style).
+  const leftMargin = 14;
+  // ~10 characters of whitespace at ~6pt per char of bold helvetica at this size
+  const rightFoldReserve = 60;
 
   // Font sizes — sized so typical bull names fit without truncation
   const BULL_FONT = 14;
   const UNITS_FONT = 16;
 
-  // Build a single combined string and center it horizontally + vertically.
+  // Build a single combined string and center it within the printable (non-fold) area.
   const unitsText = `${units}`;
   const gap = 10; // gap between bull name and units count
 
@@ -27,9 +29,12 @@ export function generateTankLabelPdf(bullName: string, units: number) {
   doc.setFontSize(UNITS_FONT);
   const unitsWidth = doc.getTextWidth(unitsText);
 
-  // Truncate bull name to fit available width (label minus margins minus units minus gap)
+  // Printable area = label width minus left margin minus right fold reserve
+  const printableWidth = labelW - leftMargin - rightFoldReserve;
+
+  // Truncate bull name to fit available width (printable minus units minus gap)
   doc.setFontSize(BULL_FONT);
-  const maxNameWidth = labelW - sideMargin * 2 - unitsWidth - gap;
+  const maxNameWidth = printableWidth - unitsWidth - gap;
   let name = bullName || "";
   if (doc.getTextWidth(name) > maxNameWidth) {
     while (name.length > 3 && doc.getTextWidth(name + "…") > maxNameWidth) {
@@ -39,9 +44,9 @@ export function generateTankLabelPdf(bullName: string, units: number) {
   }
   const nameWidth = doc.getTextWidth(name);
 
-  // Center the combined block (name + gap + units) horizontally
+  // Center the combined block (name + gap + units) within the printable area
   const totalWidth = nameWidth + gap + unitsWidth;
-  const startX = (labelW - totalWidth) / 2;
+  const startX = leftMargin + (printableWidth - totalWidth) / 2;
 
   // Vertically center — baseline roughly at labelH/2 + font/3 for optical centering
   const baselineY = labelH / 2 + UNITS_FONT / 3;
