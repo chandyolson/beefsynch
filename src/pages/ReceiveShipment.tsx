@@ -67,6 +67,65 @@ const emptyLine = (): LineItem => ({
   itemType: "semen",
 });
 
+// -----------------------------------------------------------------------------
+// localStorage autosave for draft protection
+// Key is scoped per-user per-shipment (new vs. edit). We don't share drafts
+// across different shipments, different users, or different browsers.
+// -----------------------------------------------------------------------------
+const DRAFT_STORAGE_VERSION = 1;
+const getDraftStorageKey = (userId: string | null, editId: string | undefined): string => {
+  const suffix = editId || "new";
+  const uid = userId || "anon";
+  return `beefsynch:receive-shipment-draft:${uid}:${suffix}`;
+};
+
+interface PersistedDraft {
+  version: number;
+  savedAt: string; // ISO datetime
+  selectedOrderId: string;
+  customerId: string | null;
+  shipmentType: "customer" | "inventory";
+  inventoryOwner: "Select" | "CATL" | null;
+  supplierInvoiceNumber: string;
+  semenCompanyId: string | null;
+  receivedById: string | null;
+  receivedDate: string; // ISO
+  notes: string;
+  lines: LineItem[];
+  semenOwnerId: string | null;
+  hadFile: boolean;
+}
+
+const readPersistedDraft = (key: string): PersistedDraft | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedDraft;
+    if (parsed.version !== DRAFT_STORAGE_VERSION) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
+const formatTimeAgo = (iso: string): string => {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const mins = Math.floor((now - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 minute ago";
+  if (mins < 60) return `${mins} minutes ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours === 1) return "1 hour ago";
+  if (hours < 24) return `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+};
+
 const ReceiveShipment = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
