@@ -91,18 +91,33 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
 
   const handleDelete = async () => {
     setBusy(true);
-    const failed: string[] = [];
-    for (const p of selectedProjects) {
-      await supabase.from("google_calendar_events").delete().eq("project_id", p.id);
-      await supabase.from("protocol_events").delete().eq("project_id", p.id);
-      await supabase.from("project_bulls").delete().eq("project_id", p.id);
-      const { error } = await supabase.from("projects").delete().eq("id", p.id);
-      if (error) failed.push(p.name);
+    try {
+      // Atomic multi-table delete via bulk_delete_projects RPC.
+      // FK CASCADE rules handle: project_billing (and its 5 children), project_bulls,
+      // project_contacts, protocol_events, tank_pack_projects, google_calendar_events.
+      // Nullable FKs (inventory_transactions, semen_orders, tank_movements) set to NULL.
+      // See Supabase migration create_bulk_delete_projects_rpc (April 22).
+      const ids = selectedProjects.map((p) => p.id);
+      const { data, error } = await (supabase as any).rpc("bulk_delete_projects", {
+        _project_ids: ids,
+      });
+      if (error) throw error;
+      const deleted = (data as { deleted_count?: number } | null)?.deleted_count ?? ids.length;
+      toast({
+        title: "Projects deleted",
+        description: `${deleted} project${deleted === 1 ? "" : "s"} deleted successfully.`,
+      });
+      onComplete();
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message ?? "Could not delete selected projects.",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+      setDeleteDialogOpen(false);
     }
-    setBusy(false);
-    setDeleteDialogOpen(false);
-    showResult("Projects deleted", failed);
-    onComplete();
   };
 
   const showResult = (action: string, failed: string[]) => {
