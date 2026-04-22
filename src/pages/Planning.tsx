@@ -23,8 +23,16 @@ import {
   ChevronDown,
   ChevronRight,
   CalendarClock,
+  Download,
 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
+import { exportToCsv, type ExportColumn } from "@/lib/exports";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PlanningRow {
   bull_catalog_id: string;
@@ -121,6 +129,44 @@ export default function Planning() {
   const okRows = [...filtered.filter((r) => r.status === "ok")].sort(
     (a, b) => a.net_position - b.net_position,
   );
+
+  /**
+   * Build a CSV of every SHORT bull so Chandy can send order lists to vendors.
+   * Respects the current filters (search, company, shorts-only toggle).
+   * Sort order: Company → Needed By (soonest first, nulls last) → Bull Name.
+   * Units Needed = absolute value of net_position (negative for shorts).
+   */
+  function handleExportShortCsv() {
+    const exportRows = [...shortRows].sort((a, b) => {
+      const ca = a.company ?? "";
+      const cb = b.company ?? "";
+      if (ca !== cb) return ca.localeCompare(cb);
+      if (a.needed_by === null && b.needed_by !== null) return 1;
+      if (a.needed_by !== null && b.needed_by === null) return -1;
+      if (a.needed_by !== null && b.needed_by !== null) {
+        const d = a.needed_by.localeCompare(b.needed_by);
+        if (d !== 0) return d;
+      }
+      return (a.bull_name ?? "").localeCompare(b.bull_name ?? "");
+    });
+
+    const columns: ExportColumn<PlanningRow>[] = [
+      { label: "Company", value: (r) => r.company ?? "" },
+      { label: "NAAB Code", value: (r) => r.naab_code ?? "" },
+      { label: "Bull Name", value: (r) => r.bull_name ?? "" },
+      { label: "Units Needed", value: (r) => Math.abs(r.net_position) },
+      { label: "Needed By", value: (r) => (r.needed_by ? r.needed_by : "") },
+    ];
+
+    exportToCsv(
+      {
+        title: "Bull Order List",
+        filenameBase: "beefsynch_order_list",
+        columns,
+      },
+      exportRows,
+    );
+  }
 
   function actionText(r: PlanningRow): string {
     const totalDemand = r.customer_orders + r.project_needs;
@@ -307,11 +353,36 @@ export default function Planning() {
           Back
         </Button>
 
-        <div>
-          <h1 className="text-2xl font-bold font-display text-foreground">Planning</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Bulls with active demand and incoming supply.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold font-display text-foreground">Planning</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Bulls with active demand and incoming supply.
+            </p>
+          </div>
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportShortCsv}
+                    disabled={shortRows.length === 0}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export order list (CSV)
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {shortRows.length === 0
+                  ? "No short bulls to export"
+                  : `Export ${shortRows.length} short bull${shortRows.length === 1 ? "" : "s"} to CSV`}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Summary metric cards */}
