@@ -189,9 +189,9 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
           ))}
         </div>
       )}
-      {open && results.length === 0 && sourceTankId && !loading && query.length >= 1 && (
+      {open && results.length === 0 && sourceTankId && !loading && (
         <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg px-3 py-2 text-sm text-muted-foreground">
-          No inventory found in this tank
+          {query.length >= 1 ? "No matching bulls in this tank" : "No inventory in this tank"}
         </div>
       )}
     </div>
