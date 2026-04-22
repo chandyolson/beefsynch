@@ -1,5 +1,8 @@
 /* ── Billing shared types, constants, and helpers ── */
 
+import { formatTime12 } from "@/lib/formatUtils";
+export { formatTime12 };
+
 export interface BillingProduct {
   id: string;
   product_name: string;
