@@ -122,6 +122,8 @@ interface OrderItemJoin {
 const BullReport = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const bullIdFromUrl = searchParams.get("bull");
 
   // Filters
   const [fromDate, setFromDate] = useState(DEFAULT_FROM);
