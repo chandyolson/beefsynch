@@ -183,6 +183,7 @@ const SemenOrderDetail = () => {
       notes: order.notes,
       placed_by: order.placed_by,
       order_type: order.order_type,
+      inventory_owner: (order as any).inventory_owner ?? null,
       bulls: items.map((i) => ({
         name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
         catalogId: i.bull_catalog_id,
