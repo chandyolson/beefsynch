@@ -1,5 +1,5 @@
-import { useState, useMemo, Fragment } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, Fragment, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -122,6 +122,8 @@ interface OrderItemJoin {
 const BullReport = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const bullIdFromUrl = searchParams.get("bull");
 
   // Filters
   const [fromDate, setFromDate] = useState(DEFAULT_FROM);
@@ -147,6 +149,28 @@ const BullReport = () => {
   // Sorting
   const [sortKey, setSortKey] = useState<SortKey>("totalUnits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // Auto-load the bull and run the report when navigated with ?bull=<uuid>
+  // e.g. from the Planning page. If the param is absent, this effect no-ops
+  // and the manual flow (pick bull -> click Generate Report) works as before.
+  useEffect(() => {
+    if (bullIdFromUrl) {
+      // Fetch the bull name and filter to just that bull
+      supabase
+        .from("bulls_catalog")
+        .select("bull_name")
+        .eq("id", bullIdFromUrl)
+        .single()
+        .then(({ data }) => {
+          if (data?.bull_name) {
+            setSearch(data.bull_name);
+            setAppliedSearch(data.bull_name);
+            setHasRun(true);
+          }
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bullIdFromUrl]);
 
   // Expanded bull rows
   const [expandedBulls, setExpandedBulls] = useState<Set<number>>(new Set());
