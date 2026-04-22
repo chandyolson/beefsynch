@@ -26,9 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle, Map as MapIcon } from "lucide-react";
+import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle, Map as MapIcon, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
 
 interface OrderItem {
   bull_catalog_id: string | null;
@@ -446,6 +447,12 @@ const ReceiveShipment = () => {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
   };
 
+  const getLineUnits = (u: number | string): number => {
+    if (typeof u === "number") return u;
+    const parsed = parseInt(String(u));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
   const removeGroup = (group: BullGroup) => {
     if (groups.length <= 1) return;
     const keys = new Set(group.items.map((i) => i.key));
@@ -740,6 +747,16 @@ const ReceiveShipment = () => {
             const idx = getLineIndex(line.key);
             return isMobile ? (
               <div key={line.key} className="p-3 space-y-3 relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-9 h-7 w-7"
+                  disabled={!group.bullName || !getLineUnits(line.units)}
+                  onClick={() => generateTankLabelPdf(group.bullName, getLineUnits(line.units))}
+                  title="Print label"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
                 {group.items.length > 1 && (
                   <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => removeLine(line.key)}>
                     <Trash2 className="h-4 w-4" />
@@ -794,6 +811,16 @@ const ReceiveShipment = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={!group.bullName || !getLineUnits(line.units)}
+                  onClick={() => generateTankLabelPdf(group.bullName, getLineUnits(line.units))}
+                  title="Print label"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
                 {group.items.length > 1 && (
                   <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 shrink-0" onClick={() => removeLine(line.key)}>
                     <Trash2 className="h-4 w-4" />
