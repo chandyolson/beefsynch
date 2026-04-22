@@ -82,6 +82,10 @@ const SemenOrderDetail = () => {
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
+  const [availability, setAvailability] = useState<
+    Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }>
+  >({});
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   const load = async () => {
     if (!id) return;
