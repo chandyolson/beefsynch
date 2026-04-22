@@ -50,9 +50,10 @@ interface NewOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editData?: EditOrderData | null;
+  initialOrderType?: "customer" | "inventory";
 }
 
-const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) => {
+const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewOrderDialogProps) => {
   const { orgId } = useOrgRole();
   const queryClient = useQueryClient();
   const isEditing = !!editData;
@@ -66,7 +67,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [projectId, setProjectId] = useState<string>("none");
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
-  const [orderType, setOrderType] = useState<"customer" | "inventory">("customer");
+  const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -149,7 +150,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       setSemenCompanyId("none");
       setNotes("");
       setPlacedBy("");
-      setOrderType("customer");
+      setOrderType(initialOrderType ?? "customer");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
       setSupplyLines([]);
       setAddingCompany(false);
