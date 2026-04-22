@@ -23,6 +23,16 @@ import {
 } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +74,15 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const [editRow, setEditRow] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState<{
+    targetId: string;
+    targetUnits: number;
+    targetCanister: string;
+    targetSubCanister: string | null;
+    bullLabel: string;
+  } | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
@@ -260,6 +279,64 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         owner: editForm.owner?.trim() || null,
         notes: editForm.notes?.trim() || null,
       };
+
+      // Collision check: is there already a row with the same bull in the same
+      // (tank, canister, sub_canister)? If so, we cannot just UPDATE — the unique
+      // constraint will reject it. Offer to merge instead.
+      const raw = editRow._raw;
+      const bullCatalogId = raw?.bull_catalog_id ?? null;
+      const customBullName = updates.custom_bull_name;
+
+      let collisionQuery = supabase
+        .from("tank_inventory")
+        .select("id, units, canister, sub_canister, custom_bull_name, bulls_catalog(bull_name)")
+        .eq("tank_id", updates.tank_id)
+        .eq("canister", updates.canister)
+        .neq("id", editRow.id);
+
+      if (updates.sub_canister === null) {
+        collisionQuery = collisionQuery.is("sub_canister", null);
+      } else {
+        collisionQuery = collisionQuery.eq("sub_canister", updates.sub_canister);
+      }
+
+      if (bullCatalogId) {
+        collisionQuery = collisionQuery.eq("bull_catalog_id", bullCatalogId);
+      } else if (customBullName) {
+        collisionQuery = collisionQuery.is("bull_catalog_id", null).eq("custom_bull_name", customBullName);
+      } else {
+        // No bull identity to collide on — proceed with normal update
+        const { error } = await supabase.from("tank_inventory").update(updates).eq("id", editRow.id);
+        if (error) throw error;
+        toast.success("Inventory row updated");
+        queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+        setEditRow(null);
+        return;
+      }
+
+      const { data: collisions, error: checkErr } = await collisionQuery.limit(1);
+      if (checkErr) throw checkErr;
+
+      if (collisions && collisions.length > 0) {
+        const target = collisions[0] as any;
+        const bullLabel =
+          target.bulls_catalog?.bull_name ||
+          target.custom_bull_name ||
+          editRow.bullName ||
+          "this bull";
+        setMergeTarget({
+          targetId: target.id,
+          targetUnits: target.units || 0,
+          targetCanister: target.canister,
+          targetSubCanister: target.sub_canister,
+          bullLabel,
+        });
+        setPendingUpdates(updates);
+        // Leave edit dialog open behind the merge dialog; don't proceed with update
+        return;
+      }
+
+      // No collision — proceed normally
       const { error } = await supabase
         .from("tank_inventory")
         .update(updates)
@@ -273,6 +350,43 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     } finally {
       setSavingEdit(false);
     }
+  };
+
+  // Execute the merge: add editRow's units into the target row, then delete editRow
+  const handleConfirmMerge = async () => {
+    if (!mergeTarget || !editRow || !pendingUpdates) return;
+    setMerging(true);
+    try {
+      const newTotal = (mergeTarget.targetUnits || 0) + (pendingUpdates.units || 0);
+
+      const { error: updErr } = await supabase
+        .from("tank_inventory")
+        .update({ units: newTotal })
+        .eq("id", mergeTarget.targetId);
+      if (updErr) throw updErr;
+
+      const { error: delErr } = await supabase
+        .from("tank_inventory")
+        .delete()
+        .eq("id", editRow.id);
+      if (delErr) throw delErr;
+
+      toast.success(`Merged into canister ${mergeTarget.targetCanister} (${newTotal} units total)`);
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      setMergeTarget(null);
+      setPendingUpdates(null);
+      setEditRow(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleCancelMerge = () => {
+    setMergeTarget(null);
+    setPendingUpdates(null);
+    // editRow stays open so user can adjust
   };
 
   const handleDeleteRow = async (id: string) => {
@@ -826,6 +940,39 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Merge collision confirmation */}
+      <AlertDialog open={!!mergeTarget} onOpenChange={(open) => { if (!open) handleCancelMerge(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Merge into existing location?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Canister <strong>{mergeTarget?.targetCanister}</strong>
+                  {mergeTarget?.targetSubCanister ? ` / ${mergeTarget.targetSubCanister}` : ""}
+                  {" "}already has <strong>{mergeTarget?.targetUnits} units</strong> of{" "}
+                  <strong>{mergeTarget?.bullLabel}</strong>.
+                </p>
+                <p>
+                  Merging will add the <strong>{pendingUpdates?.units} units</strong> from the row you're editing into that existing row (new total:{" "}
+                  <strong>{(mergeTarget?.targetUnits || 0) + (pendingUpdates?.units || 0)} units</strong>).
+                  The row you were editing will be deleted.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Cancel to go back and change the destination instead.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={merging} onClick={handleCancelMerge}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmMerge} disabled={merging}>
+              {merging ? "Merging..." : `Merge into canister ${mergeTarget?.targetCanister}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
