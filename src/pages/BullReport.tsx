@@ -150,6 +150,28 @@ const BullReport = () => {
   const [sortKey, setSortKey] = useState<SortKey>("totalUnits");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  // Auto-load the bull and run the report when navigated with ?bull=<uuid>
+  // e.g. from the Planning page. If the param is absent, this effect no-ops
+  // and the manual flow (pick bull -> click Generate Report) works as before.
+  useEffect(() => {
+    if (bullIdFromUrl) {
+      // Fetch the bull name and filter to just that bull
+      supabase
+        .from("bulls_catalog")
+        .select("bull_name")
+        .eq("id", bullIdFromUrl)
+        .single()
+        .then(({ data }) => {
+          if (data?.bull_name) {
+            setSearch(data.bull_name);
+            setAppliedSearch(data.bull_name);
+            setHasRun(true);
+          }
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bullIdFromUrl]);
+
   // Expanded bull rows
   const [expandedBulls, setExpandedBulls] = useState<Set<number>>(new Set());
   const toggleExpand = (idx: number) => {
