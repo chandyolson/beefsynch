@@ -78,6 +78,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [contextNames, setContextNames] = useState<ContextNames>({ shipments: new Map(), packs: new Map() });
+  const [subTab, setSubTab] = useState<"timeline" | "summary">("timeline");
 
   const toggleGroup = (key: string) => {
     setExpandedGroups((prev) => {
