@@ -112,14 +112,6 @@ export function formatCurrency(v: number | null) {
   return `$${v.toFixed(2)}`;
 }
 
-export function formatTime12(t: string | null) {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
-}
-
 export function isBreedingSession(s: SessionLine) {
   const label = (s.session_label || "").toLowerCase();
   return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
