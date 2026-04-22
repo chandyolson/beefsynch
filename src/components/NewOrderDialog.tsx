@@ -150,7 +150,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setSemenCompanyId("none");
       setNotes("");
       setPlacedBy("");
-      setOrderType("customer");
+      setOrderType(initialOrderType ?? "customer");
       setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
       setSupplyLines([]);
       setAddingCompany(false);
