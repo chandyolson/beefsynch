@@ -492,39 +492,71 @@ const SemenOrderDetail = () => {
                     <TableHead>Bull Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Reg #</TableHead>
+                    <TableHead>In Inventory</TableHead>
                     <TableHead className="text-right">Units</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No bulls added to this order.
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">
-                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
-                          </TableCell>
-                          <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
-                          <TableCell>
-                            {item.bulls_catalog?.registration_number ? (
-                              <ClickableRegNumber
-                                registrationNumber={item.bulls_catalog.registration_number}
-                                breed={item.bulls_catalog.breed}
-                              />
-                            ) : (
-                              "—"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">{item.units}</TableCell>
-                        </TableRow>
-                      ))}
+                      {items.map((item) => {
+                        const avail = availability[item.id];
+                        const availTotal = avail?.total ?? 0;
+                        const ordered = item.units ?? 0;
+                        const hasEnough = availTotal >= ordered;
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">
+                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
+                            </TableCell>
+                            <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
+                            <TableCell>
+                              {item.bulls_catalog?.registration_number ? (
+                                <ClickableRegNumber
+                                  registrationNumber={item.bulls_catalog.registration_number}
+                                  breed={item.bulls_catalog.breed}
+                                />
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {availabilityLoading ? (
+                                <span className="text-xs text-muted-foreground">Loading...</span>
+                              ) : availTotal === 0 ? (
+                                <span className="text-xs font-medium text-destructive">0u — order from stud</span>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div
+                                    className={cn(
+                                      "text-xs font-semibold",
+                                      hasEnough ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
+                                    )}
+                                  >
+                                    {availTotal}u available{!hasEnough && ` (need ${ordered - availTotal} more)`}
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {avail!.locations.map((loc, idx) => (
+                                      <div key={idx} className="text-[11px] text-muted-foreground">
+                                        {loc.tank} / can {loc.canister} — {loc.units}u ({loc.owner})
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">{item.units}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                       <TableRow className="bg-muted/20 font-bold">
-                        <TableCell colSpan={3} className="text-right">Total</TableCell>
+                        <TableCell colSpan={4} className="text-right">Total</TableCell>
                         <TableCell className="text-right">{totalUnits}</TableCell>
                       </TableRow>
                     </>
