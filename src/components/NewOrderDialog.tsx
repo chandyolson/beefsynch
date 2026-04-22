@@ -50,9 +50,10 @@ interface NewOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editData?: EditOrderData | null;
+  initialOrderType?: "customer" | "inventory";
 }
 
-const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) => {
+const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewOrderDialogProps) => {
   const { orgId } = useOrgRole();
   const queryClient = useQueryClient();
   const isEditing = !!editData;
