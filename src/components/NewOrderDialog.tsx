@@ -44,6 +44,7 @@ export interface EditOrderData {
   placed_by: string | null;
   order_type: string;
   inventory_owner: string | null;
+  needed_by: string | null;
   bulls: BullRow[];
 }
 
@@ -63,6 +64,8 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
   // Form state
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [orderDate, setOrderDate] = useState<Date>(new Date());
+  const [neededBy, setNeededBy] = useState<Date | null>(null);
+  const [neededByOpen, setNeededByOpen] = useState(false);
   const [fulfillmentStatus, setFulfillmentStatus] = useState("pending");
   const [billingStatus, setBillingStatus] = useState("unbilled");
   const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
@@ -106,6 +109,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
     if (editData) {
       setCustomerId(editData.customer_id ?? null);
       setOrderDate(new Date(editData.order_date + "T12:00:00"));
+      setNeededBy((editData as any).needed_by ? new Date((editData as any).needed_by + "T12:00:00") : null);
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
       setInventoryOwner((editData.inventory_owner as "Select" | "CATL" | null) ?? null);
@@ -136,6 +140,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
     } else {
       setCustomerId(null);
       setOrderDate(new Date());
+      setNeededBy(null);
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
       setInventoryOwner(null);
@@ -178,6 +183,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
         organization_id: orgId,
         customer_id: customerId || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
+        needed_by: neededBy ? format(neededBy, "yyyy-MM-dd") : null,
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
         project_id: null,
@@ -389,6 +395,40 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* Needed By (optional) */}
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Needed By</Label>
+            <div className="flex gap-2">
+              <Popover open={neededByOpen} onOpenChange={setNeededByOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("flex-1 justify-start text-left font-normal", !neededBy && "text-muted-foreground")}>
+                    {neededBy ? format(neededBy, "PPP") : "No date set"}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={neededBy ?? undefined}
+                    onSelect={(d) => { setNeededBy(d ?? null); setNeededByOpen(false); }}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              {neededBy && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setNeededBy(null)}
+                  className="text-xs text-muted-foreground"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Placed By */}
