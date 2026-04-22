@@ -307,6 +307,36 @@ const LogTab = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="space-y-8">
+      {/* Sub-toggle: Timeline | Summary */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSubTab("timeline")}
+          className={cn(
+            "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subTab === "timeline"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Timeline
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("summary")}
+          className={cn(
+            "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subTab === "summary"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Summary
+        </button>
+      </div>
+
+      {subTab === "timeline" && (
+        <>
       <div>
         <h2 className="text-2xl font-bold font-display tracking-tight">Inventory Transaction Log</h2>
         <p className="text-sm text-muted-foreground mt-1">Audit trail for every semen movement</p>
