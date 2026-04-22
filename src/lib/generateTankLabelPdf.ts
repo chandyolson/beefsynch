@@ -11,12 +11,12 @@ export function generateTankLabelPdf(bullName: string, units: number) {
   const leftMargin = 4;
   const rightMargin = 14; // pulled inward so units don't clip on the tab tang
 
-  // Font sizes — much bigger than pre-v21 (9pt / 10pt) while still fitting
-  const BULL_FONT = 20;   // was 22 in first pass
-  const UNITS_FONT = 22;  // was 26 in first pass — trimmed so "100u" clears the right edge
+  // Font sizes — sized so typical bull names fit without truncation
+  const BULL_FONT = 14;
+  const UNITS_FONT = 16;
 
   // Reserve horizontal space on the right for the units text (measured, not fixed)
-  const unitsText = `${units}u`;
+  const unitsText = `${units}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(UNITS_FONT);
   const unitsWidth = doc.getTextWidth(unitsText);
