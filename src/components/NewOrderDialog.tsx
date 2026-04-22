@@ -43,6 +43,7 @@ export interface EditOrderData {
   notes: string | null;
   placed_by: string | null;
   order_type: string;
+  inventory_owner: string | null;
   bulls: BullRow[];
 }
 
@@ -64,7 +65,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
   const [orderDate, setOrderDate] = useState<Date>(new Date());
   const [fulfillmentStatus, setFulfillmentStatus] = useState("pending");
   const [billingStatus, setBillingStatus] = useState("unbilled");
-  const [projectId, setProjectId] = useState<string>("none");
+  const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
   const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
@@ -81,17 +82,8 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
   const [addingCompany, setAddingCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
 
-  // Org projects for linking
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-
   useEffect(() => {
     if (!open || !orgId) return;
-    supabase
-      .from("projects")
-      .select("id, name")
-      .eq("organization_id", orgId)
-      .order("name")
-      .then(({ data }) => setProjects(data ?? []));
     supabase
       .from("semen_companies")
       .select("id, name")
@@ -116,7 +108,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setOrderDate(new Date(editData.order_date + "T12:00:00"));
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
-      setProjectId(editData.project_id ?? "none");
+      setInventoryOwner((editData.inventory_owner as "Select" | "CATL" | null) ?? null);
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
       setPlacedBy(editData.placed_by ?? "");
@@ -146,7 +138,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setOrderDate(new Date());
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
-      setProjectId("none");
+      setInventoryOwner(null);
       setSemenCompanyId("none");
       setNotes("");
       setPlacedBy("");
@@ -171,6 +163,15 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       return;
     }
 
+    if (orderType === "inventory" && !inventoryOwner) {
+      toast({
+        title: "Inventory owner required",
+        description: "Select 'Select Sires' or 'CATL Resources' for inventory orders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const orderPayload: any = {
@@ -179,7 +180,8 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
         order_date: format(orderDate, "yyyy-MM-dd"),
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
-        project_id: projectId === "none" ? null : projectId,
+        project_id: null,
+        inventory_owner: orderType === "inventory" ? inventoryOwner : null,
         semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
         placed_by: placedBy.trim() || null,
@@ -422,19 +424,38 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
             </Select>
           </div>
 
-          {/* Link to Project */}
-          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
-            <Label className="text-right text-sm">Project</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Inventory Owner toggle — only for inventory-type orders */}
+          {orderType === "inventory" && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Owner</Label>
+              <div className="flex rounded-md overflow-hidden border border-border">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                    inventoryOwner === "Select"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  )}
+                  onClick={() => setInventoryOwner("Select")}
+                >
+                  Select Sires
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                    inventoryOwner === "CATL"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  )}
+                  onClick={() => setInventoryOwner("CATL")}
+                >
+                  CATL Resources
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Bulls */}
           <div className="grid grid-cols-[100px_1fr] items-start gap-x-4">
