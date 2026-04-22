@@ -818,6 +818,10 @@ const ReceiveShipment = () => {
         if (shipErr) throw shipErr;
       }
 
+      // Clear the localStorage autosave now that the draft is safely in the DB
+      if (userId) {
+        localStorage.removeItem(getDraftStorageKey(userId, editId));
+      }
       toast({ title: "Draft saved", description: "Redirecting to preview..." });
       navigate(`/receive-shipment/preview/${shipmentId}`);
     } catch (err: any) {
