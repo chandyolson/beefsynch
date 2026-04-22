@@ -82,6 +82,10 @@ const SemenOrderDetail = () => {
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
+  const [availability, setAvailability] = useState<
+    Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }>
+  >({});
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -149,6 +153,66 @@ const SemenOrderDetail = () => {
   useEffect(() => {
     load();
   }, [id]);
+
+  // Fetch availability-in-inventory for each bull on the order
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+    setAvailabilityLoading(true);
+    (async () => {
+      try {
+        const catalogIds = items.filter((i) => i.bull_catalog_id).map((i) => i.bull_catalog_id as string);
+        const customNames = items
+          .filter((i) => !i.bull_catalog_id && i.custom_bull_name)
+          .map((i) => i.custom_bull_name as string);
+
+        const orFilters: string[] = [];
+        if (catalogIds.length > 0) orFilters.push(`bull_catalog_id.in.(${catalogIds.join(",")})`);
+        if (customNames.length > 0) {
+          const safeNames = customNames.map((n) => `"${n.replace(/"/g, "")}"`).join(",");
+          orFilters.push(`custom_bull_name.in.(${safeNames})`);
+        }
+        if (orFilters.length === 0) {
+          setAvailability({});
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("tank_inventory")
+          .select("bull_catalog_id, custom_bull_name, canister, units, owner, storage_type, tanks(tank_name, tank_number)")
+          .eq("storage_type", "inventory")
+          .in("owner", ["Select", "CATL"])
+          .gt("units", 0)
+          .or(orFilters.join(","));
+
+        if (error) throw error;
+
+        const mapByKey: Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }> = {};
+        for (const row of (data || []) as any[]) {
+          const key = row.bull_catalog_id || `custom:${row.custom_bull_name}`;
+          if (!mapByKey[key]) mapByKey[key] = { total: 0, locations: [] };
+          mapByKey[key].total += row.units;
+          mapByKey[key].locations.push({
+            tank: row.tanks?.tank_name || row.tanks?.tank_number || "—",
+            canister: row.canister || "?",
+            units: row.units,
+            owner: row.owner,
+          });
+        }
+
+        const byItemId: Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }> = {};
+        for (const item of items) {
+          const key = item.bull_catalog_id || `custom:${item.custom_bull_name}`;
+          byItemId[item.id] = mapByKey[key] || { total: 0, locations: [] };
+        }
+        setAvailability(byItemId);
+      } catch (err) {
+        console.error("Failed to load inventory availability", err);
+        setAvailability({});
+      } finally {
+        setAvailabilityLoading(false);
+      }
+    })();
+  }, [items]);
 
   const openEdit = () => {
     if (!order) return;
@@ -428,39 +492,71 @@ const SemenOrderDetail = () => {
                     <TableHead>Bull Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Reg #</TableHead>
+                    <TableHead>In Inventory</TableHead>
                     <TableHead className="text-right">Units</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No bulls added to this order.
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">
-                            {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
-                          </TableCell>
-                          <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
-                          <TableCell>
-                            {item.bulls_catalog?.registration_number ? (
-                              <ClickableRegNumber
-                                registrationNumber={item.bulls_catalog.registration_number}
-                                breed={item.bulls_catalog.breed}
-                              />
-                            ) : (
-                              "—"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">{item.units}</TableCell>
-                        </TableRow>
-                      ))}
+                      {items.map((item) => {
+                        const avail = availability[item.id];
+                        const availTotal = avail?.total ?? 0;
+                        const ordered = item.units ?? 0;
+                        const hasEnough = availTotal >= ordered;
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">
+                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
+                            </TableCell>
+                            <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
+                            <TableCell>
+                              {item.bulls_catalog?.registration_number ? (
+                                <ClickableRegNumber
+                                  registrationNumber={item.bulls_catalog.registration_number}
+                                  breed={item.bulls_catalog.breed}
+                                />
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {availabilityLoading ? (
+                                <span className="text-xs text-muted-foreground">Loading...</span>
+                              ) : availTotal === 0 ? (
+                                <span className="text-xs font-medium text-destructive">0u — order from stud</span>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div
+                                    className={cn(
+                                      "text-xs font-semibold",
+                                      hasEnough ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
+                                    )}
+                                  >
+                                    {availTotal}u available{!hasEnough && ` (need ${ordered - availTotal} more)`}
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {avail!.locations.map((loc, idx) => (
+                                      <div key={idx} className="text-[11px] text-muted-foreground">
+                                        {loc.tank} / can {loc.canister} — {loc.units}u ({loc.owner})
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">{item.units}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                       <TableRow className="bg-muted/20 font-bold">
-                        <TableCell colSpan={3} className="text-right">Total</TableCell>
+                        <TableCell colSpan={4} className="text-right">Total</TableCell>
                         <TableCell className="text-right">{totalUnits}</TableCell>
                       </TableRow>
                     </>
