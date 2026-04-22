@@ -65,27 +65,12 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
   };
 
   useEffect(() => {
-    if (!sourceTankId || !organizationId) { setResults([]); return; }
-    if (!query || query.length < 1) {
-      const timeout = setTimeout(async () => {
-        setLoading(true);
-        let q = supabase
-          .from("tank_inventory")
-          .select("id, custom_bull_name, bull_catalog_id, bull_code, canister, units, bulls_catalog(bull_name)")
-          .eq("tank_id", sourceTankId)
-          .eq("organization_id", organizationId)
-          .eq("item_type", "semen")
-          .gt("units", 0);
-        if (customerId) q = q.eq("customer_id", customerId);
-        const { data } = await q
-          .order("custom_bull_name", { ascending: true })
-          .limit(50);
-        setResults(formatRows(data));
-        setLoading(false);
-      }, 100);
-      return () => clearTimeout(timeout);
+    if (!sourceTankId || !organizationId) {
+      setAllInventory([]);
+      return;
     }
-    const timeout = setTimeout(async () => {
+    let cancelled = false;
+    (async () => {
       setLoading(true);
       let q = supabase
         .from("tank_inventory")
@@ -95,15 +80,43 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
         .eq("item_type", "semen")
         .gt("units", 0);
       if (customerId) q = q.eq("customer_id", customerId);
-      const { data } = await q
-        .or(`custom_bull_name.ilike.%${query}%,bull_code.ilike.%${query}%`)
-        .order("custom_bull_name", { ascending: true })
-        .limit(30);
-      setResults(formatRows(data));
-      setLoading(false);
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [query, sourceTankId, organizationId, customerId]);
+      const { data } = await q.limit(200);
+      if (!cancelled) {
+        setAllInventory(formatRows(data));
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sourceTankId, organizationId, customerId]);
+
+  const results = useMemo(() => {
+    if (!allInventory.length) return [];
+
+    const withDisplay = allInventory.map((row) => ({
+      ...row,
+      _display: (row.catalog_bull_name || row.custom_bull_name || "Unknown").toLowerCase(),
+    }));
+
+    let filtered = withDisplay;
+    if (query && query.length >= 1) {
+      const lower = query.toLowerCase();
+      filtered = withDisplay.filter(
+        (row) =>
+          row._display.includes(lower) ||
+          (row.bull_code && row.bull_code.toLowerCase().includes(lower))
+      );
+    }
+
+    filtered.sort((a, b) => {
+      const nameCompare = a._display.localeCompare(b._display);
+      if (nameCompare !== 0) return nameCompare;
+      const aCan = parseInt(a.canister || "0") || 0;
+      const bCan = parseInt(b.canister || "0") || 0;
+      return aCan - bCan;
+    });
+
+    return filtered;
+  }, [allInventory, query]);
 
   const displayName = (row: InventoryRow): string => {
     return row.catalog_bull_name || row.custom_bull_name || "Unknown";
