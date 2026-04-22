@@ -9,7 +9,7 @@ import BulkActionToolbar from "@/components/BulkActionToolbar";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import BullsSummaryDialog from "@/components/BullsSummaryDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { BreedingProject } from "@/data/mockData";
+import { BreedingProject } from "@/types/project";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
 

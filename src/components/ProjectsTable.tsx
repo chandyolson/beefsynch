@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { BreedingProject } from "@/data/mockData";
+import { BreedingProject } from "@/types/project";
 import { ArrowUpDown, Search, Filter, CalendarCheck } from "lucide-react";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { format, parseISO } from "date-fns";
