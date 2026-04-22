@@ -61,7 +61,7 @@ import { cn } from "@/lib/utils";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { formatTime12, isNoTimeEvent } from "@/lib/formatUtils";
-import { projectStatusColor } from "@/lib/badgeStyles";
+import { statusColor } from "@/lib/badgeStyles";
 
 interface ProjectRow {
   id: string;
@@ -695,7 +695,7 @@ const ProjectDetail = () => {
             </Badge>
             <Badge
               className={
-                projectStatusColor[project.status] ??
+                statusColor[project.status] ??
                 "bg-muted text-muted-foreground"
               }
             >
