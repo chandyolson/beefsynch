@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CustomerPicker from "@/components/CustomerPicker";
+import BullCombobox from "@/components/BullCombobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -211,12 +212,15 @@ const TankDetail = () => {
   // Manual add dialog
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualBullName, setManualBullName] = useState("");
+  const [manualBullCatalogId, setManualBullCatalogId] = useState<string | null>(null);
   const [manualBullCode, setManualBullCode] = useState("");
   const [manualUnits, setManualUnits] = useState<number>(0);
   const [manualCanister, setManualCanister] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualCustomerId, setManualCustomerId] = useState<string | null>(null);
+  const [manualOwner, setManualOwner] = useState<"Select" | "CATL" | "">("");
+  const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
 
   // Fetch tank
@@ -502,39 +506,72 @@ const TankDetail = () => {
 
   // Manual add handler
   const handleManualAdd = async () => {
-    if (!manualBullName.trim() || manualUnits <= 0 || !orgId || !tank) return;
+    if (!orgId || !tank) return;
+
+    // Validate inline, not after the DB rejects us
+    const errs: Record<string, string> = {};
+    if (!manualBullName.trim()) errs.bullName = "Required";
+    if (!manualBullCode.trim()) errs.bullCode = "Required (NAAB or your own code)";
+    if (manualUnits <= 0) errs.units = "Must be > 0";
+
+    // Determine effective customer_id and storage_type
+    const effectiveCustomerId = manualCustomerId || tank.customer_id || null;
+    const storageType: "customer" | "communal" | "inventory" = effectiveCustomerId
+      ? (tank.customer_id ? "customer" : "communal")
+      : "inventory";
+
+    // Owner is required when we're writing company inventory (no customer attribution)
+    if (storageType === "inventory" && !manualOwner) {
+      errs.owner = "Required — Select or CATL";
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setManualErrors(errs);
+      return;
+    }
+    setManualErrors({});
+
     setManualSubmitting(true);
     try {
-      // Use the selected customer from the picker. If none, fall back to the tank's customer.
-      // On a communal/inventory tank with no picked customer, leave null (company inventory).
-      const effectiveCustomerId = manualCustomerId || tank.customer_id || null;
-      const storageType = effectiveCustomerId
-        ? (tank.customer_id ? "customer" : "communal")
-        : "inventory";
+      const isCatalogBull = !!manualBullCatalogId;
+
+      const insertRow: any = {
+        tank_id: tank.id,
+        customer_id: effectiveCustomerId,
+        bull_catalog_id: isCatalogBull ? manualBullCatalogId : null,
+        custom_bull_name: isCatalogBull ? null : manualBullName.trim(),
+        bull_code: manualBullCode.trim(),
+        units: manualUnits,
+        canister: manualCanister.trim() || "1",
+        organization_id: orgId,
+        storage_type: storageType,
+        owner: storageType === "inventory" ? manualOwner : null,
+        source_type: "unknown",
+        notes: manualNotes.trim() || null,
+      };
 
       const { error: invErr } = await supabase
         .from("tank_inventory")
-        .insert({
-          tank_id: tank.id,
-          customer_id: effectiveCustomerId,
-          custom_bull_name: manualBullName.trim(),
-          bull_code: manualBullCode.trim() || null,
-          units: manualUnits,
-          canister: manualCanister.trim() || "1",
-          organization_id: orgId,
-          storage_type: storageType,
-        })
+        .insert(insertRow)
         .select()
         .single();
       if (invErr) throw invErr;
 
-
       toast({ title: "Bull added to inventory" });
       setShowManualAdd(false);
-      setManualBullName(""); setManualBullCode(""); setManualUnits(0); setManualCanister(""); setManualNotes(""); setManualCustomerId(null);
+      setManualBullName("");
+      setManualBullCatalogId(null);
+      setManualBullCode("");
+      setManualUnits(0);
+      setManualCanister("");
+      setManualNotes("");
+      setManualCustomerId(null);
+      setManualOwner("");
+      setManualErrors({});
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
     } catch (err: any) {
+      setManualErrors({ submit: err.message || "Failed to add bull" });
       toast({ title: "Failed to add bull", description: err.message, variant: "destructive" });
     } finally {
       setManualSubmitting(false);
@@ -1049,13 +1086,14 @@ const TankDetail = () => {
       </Dialog>
 
       {/* Manual Add Dialog */}
-      <Dialog open={showManualAdd} onOpenChange={setShowManualAdd}>
+      <Dialog open={showManualAdd} onOpenChange={(o) => { setShowManualAdd(o); if (!o) setManualErrors({}); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Bull to {tankLabel}</DialogTitle>
             <DialogDescription>Manually add semen that's already in this tank but not in the system.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {/* Customer — leave the picker in place for customer tanks or communal attribution */}
             <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
               <Label className="text-right">Customer</Label>
               {orgId ? (
@@ -1064,30 +1102,96 @@ const TankDetail = () => {
                 <span className="text-sm text-muted-foreground">Loading...</span>
               )}
             </div>
-            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
-              <Label className="text-right">Bull Name *</Label>
-              <Input value={manualBullName} onChange={(e) => setManualBullName(e.target.value)} />
+
+            {/* Owner toggle — only visible when this will become a company inventory row */}
+            {!tank?.customer_id && !manualCustomerId && (
+              <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+                <Label className="text-right pt-2">Owner *</Label>
+                <div>
+                  <Select value={manualOwner} onValueChange={(v) => setManualOwner(v as "Select" | "CATL")}>
+                    <SelectTrigger className={cn(manualErrors.owner && "border-destructive")}>
+                      <SelectValue placeholder="Select or CATL" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Select">Select</SelectItem>
+                      <SelectItem value="CATL">CATL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {manualErrors.owner && <p className="text-xs text-destructive mt-1">{manualErrors.owner}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Bull picker (searchable catalog with NAAB auto-fill) */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Bull *</Label>
+              <div>
+                <BullCombobox
+                  value={manualBullName}
+                  catalogId={manualBullCatalogId}
+                  onChange={(name, catId, naab) => {
+                    setManualBullName(name);
+                    setManualBullCatalogId(catId);
+                    if (catId && naab) {
+                      setManualBullCode(naab);
+                    }
+                  }}
+                />
+                {manualErrors.bullName && <p className="text-xs text-destructive mt-1">{manualErrors.bullName}</p>}
+              </div>
             </div>
-            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
-              <Label className="text-right">Bull Code</Label>
-              <Input value={manualBullCode} onChange={(e) => setManualBullCode(e.target.value)} placeholder="optional" />
+
+            {/* Bull code — required, auto-fills from picker when catalog bull chosen */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Bull Code *</Label>
+              <div>
+                <Input
+                  value={manualBullCode}
+                  onChange={(e) => setManualBullCode(e.target.value)}
+                  placeholder="NAAB or custom code"
+                  className={cn(manualErrors.bullCode && "border-destructive")}
+                />
+                {manualErrors.bullCode && <p className="text-xs text-destructive mt-1">{manualErrors.bullCode}</p>}
+              </div>
             </div>
-            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
-              <Label className="text-right">Units *</Label>
-              <Input type="number" min={1} value={manualUnits || ""} onChange={(e) => setManualUnits(parseInt(e.target.value) || 0)} />
+
+            {/* Units */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Units *</Label>
+              <div>
+                <Input
+                  type="number"
+                  min={1}
+                  value={manualUnits || ""}
+                  onChange={(e) => setManualUnits(parseInt(e.target.value) || 0)}
+                  className={cn(manualErrors.units && "border-destructive")}
+                />
+                {manualErrors.units && <p className="text-xs text-destructive mt-1">{manualErrors.units}</p>}
+              </div>
             </div>
+
+            {/* Canister */}
             <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
               <Label className="text-right">Canister</Label>
               <Input value={manualCanister} onChange={(e) => setManualCanister(e.target.value)} placeholder="optional (defaults to 1)" />
             </div>
+
+            {/* Notes */}
             <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
               <Label className="text-right pt-2">Notes</Label>
               <Textarea value={manualNotes} onChange={(e) => setManualNotes(e.target.value)} rows={2} />
             </div>
+
+            {/* Submit-level error from the DB or elsewhere */}
+            {manualErrors.submit && (
+              <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded p-2">
+                {manualErrors.submit}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowManualAdd(false)}>Cancel</Button>
-            <Button onClick={handleManualAdd} disabled={manualSubmitting || !manualBullName.trim() || manualUnits <= 0}>
+            <Button variant="outline" onClick={() => { setShowManualAdd(false); setManualErrors({}); }}>Cancel</Button>
+            <Button onClick={handleManualAdd} disabled={manualSubmitting}>
               {manualSubmitting ? "Adding..." : "Add to Inventory"}
             </Button>
           </DialogFooter>
