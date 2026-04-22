@@ -70,6 +70,29 @@ export const BADGE_STYLES = {
 
 export type BadgeCategory = keyof typeof BADGE_STYLES;
 
+// Standalone color maps consumed directly via lookup at call sites.
+// Mirrors entries in BADGE_STYLES; exported here for legacy import patterns.
+export const statusColor: Record<string, string> = {
+  Tentative: "bg-warning/20 text-warning",
+  Confirmed: "bg-primary/20 text-primary",
+  Complete: "bg-emerald-500 text-white",
+};
+
+export const fulfillmentColors: Record<string, string> = {
+  pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  backordered: "bg-red-500/20 text-red-300 border-red-500/30",
+  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
+};
+
+export const billingColors: Record<string, string> = {
+  unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  invoiced: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  paid: "bg-green-500/20 text-green-300 border-green-500/30",
+};
+
 export function getBadgeClass(category: BadgeCategory, value: string): string {
   const styles = BADGE_STYLES[category] as Record<string, string>;
   return styles[value] ?? "bg-muted text-muted-foreground";

@@ -21,6 +21,7 @@ import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmentReconciliation";
+import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
 
 interface OrderRow {
   id: string;
