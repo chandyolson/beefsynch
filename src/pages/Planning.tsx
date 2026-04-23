@@ -282,59 +282,32 @@ export default function Planning() {
   }
 
   function BullRow({ r }: { r: PlanningRow }) {
-    return (
-      <div
-        className="cursor-pointer rounded-lg border border-border/40 bg-card/40 hover:bg-card/70 transition-colors"
-        onClick={() => navigate(`/bull-report?bull=${r.bull_catalog_id}`)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") navigate(`/bull-report?bull=${r.bull_catalog_id}`);
-        }}
-      >
-        {/* Desktop layout */}
-        <div className="hidden md:grid grid-cols-[2fr_repeat(4,_minmax(0,_1fr))_1.6fr_1.2fr] gap-3 items-center px-4 py-3 text-sm">
-          <div className="min-w-0">
-            <div className="font-medium text-foreground truncate">{r.bull_name}</div>
-            <div className="text-xs text-muted-foreground truncate">
-              {r.naab_code ?? "—"}
-              {r.company ? ` • ${r.company}` : ""}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-foreground font-medium">{r.on_hand}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">on hand</div>
-          </div>
-          <div className="text-center">
-            <div className="text-foreground font-medium">{r.incoming}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">incoming</div>
-          </div>
-          <div className="text-center">
-            <div className="text-foreground font-medium">{r.customer_orders}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">cust</div>
-          </div>
-          <div className="text-center">
-            <div className="text-foreground font-medium">{r.project_needs}</div>
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">proj</div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {r.needed_by ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-foreground">
-                  {format(parseISO(r.needed_by), "MMM d, yyyy")}
-                </span>
-                {daysBadge(r.needed_by)}
-              </div>
-            ) : (
-              "—"
-            )}
-          </div>
-          <div className={`text-right ${statusActionClass(r.status)}`}>{actionText(r)}</div>
-        </div>
+    const isExpanded = expandedBull === r.bull_catalog_id;
 
-        {/* Mobile layout */}
-        <div className="md:hidden p-4 space-y-3">
-          <div className="flex items-start justify-between gap-3">
+    const handleToggle = () => {
+      if (isExpanded) {
+        setExpandedBull(null);
+        setDetailData(null);
+      } else {
+        setExpandedBull(r.bull_catalog_id);
+        loadBullDetail(r.bull_catalog_id);
+      }
+    };
+
+    return (
+      <div className="rounded-lg border border-border/40 bg-card/40 transition-colors">
+        {/* Clickable header */}
+        <div
+          className="cursor-pointer hover:bg-card/70 rounded-lg"
+          onClick={handleToggle}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleToggle();
+          }}
+        >
+          {/* Desktop layout */}
+          <div className="hidden md:grid grid-cols-[2fr_repeat(4,_minmax(0,_1fr))_1.6fr_1.2fr] gap-3 items-center px-4 py-3 text-sm">
             <div className="min-w-0">
               <div className="font-medium text-foreground truncate">{r.bull_name}</div>
               <div className="text-xs text-muted-foreground truncate">
@@ -342,36 +315,203 @@ export default function Planning() {
                 {r.company ? ` • ${r.company}` : ""}
               </div>
             </div>
-            <div className={`text-sm ${statusActionClass(r.status)}`}>{actionText(r)}</div>
+            <div className="text-center">
+              <div className="text-foreground font-medium">{r.on_hand}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">on hand</div>
+            </div>
+            <div className="text-center">
+              <div className="text-foreground font-medium">{r.incoming}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">incoming</div>
+            </div>
+            <div className="text-center">
+              <div className="text-foreground font-medium">{r.customer_orders}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">cust</div>
+            </div>
+            <div className="text-center">
+              <div className="text-foreground font-medium">{r.project_needs}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">proj</div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {r.needed_by ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-foreground">
+                    {format(parseISO(r.needed_by), "MMM d, yyyy")}
+                  </span>
+                  {daysBadge(r.needed_by)}
+                </div>
+              ) : (
+                "—"
+              )}
+            </div>
+            <div className={`text-right ${statusActionClass(r.status)}`}>{actionText(r)}</div>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="text-muted-foreground">On hand: </span>
-              <span className="text-foreground font-medium">{r.on_hand}</span>
+
+          {/* Mobile layout */}
+          <div className="md:hidden p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-foreground truncate">{r.bull_name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.naab_code ?? "—"}
+                  {r.company ? ` • ${r.company}` : ""}
+                </div>
+              </div>
+              <div className={`text-sm ${statusActionClass(r.status)}`}>{actionText(r)}</div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Incoming: </span>
-              <span className="text-foreground font-medium">{r.incoming}</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-muted-foreground">On hand: </span>
+                <span className="text-foreground font-medium">{r.on_hand}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Incoming: </span>
+                <span className="text-foreground font-medium">{r.incoming}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Customer: </span>
+                <span className="text-foreground font-medium">{r.customer_orders}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Projects: </span>
+                <span className="text-foreground font-medium">{r.project_needs}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Customer: </span>
-              <span className="text-foreground font-medium">{r.customer_orders}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Projects: </span>
-              <span className="text-foreground font-medium">{r.project_needs}</span>
-            </div>
+            {r.needed_by && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5" />
+                <span className="text-foreground">
+                  {format(parseISO(r.needed_by), "MMM d, yyyy")}
+                </span>
+                {daysBadge(r.needed_by)}
+              </div>
+            )}
           </div>
-          {r.needed_by && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CalendarClock className="h-3.5 w-3.5" />
-              <span className="text-foreground">
-                {format(parseISO(r.needed_by), "MMM d, yyyy")}
-              </span>
-              {daysBadge(r.needed_by)}
-            </div>
-          )}
         </div>
+
+        {/* Expanded detail panel */}
+        {isExpanded && (
+          <div className="border-t border-border/40 px-4 py-4 space-y-4 bg-background/40">
+            {detailLoading ? (
+              <div className="text-sm text-muted-foreground">Loading details…</div>
+            ) : detailData ? (
+              <>
+                {/* Projects */}
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Projects ({detailData.projects.length})
+                  </div>
+                  {detailData.projects.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic">No active projects need this bull</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {detailData.projects.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between gap-3 text-sm rounded-md border border-border/30 bg-card/40 px-3 py-2 cursor-pointer hover:bg-card/70 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/project/${p.id}`);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-foreground truncate">{p.name}</span>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {p.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-xs">
+                            <span className="text-foreground font-medium tabular-nums">{p.units}u</span>
+                            {p.breedingDate && (
+                              <span className="text-muted-foreground">
+                                breed {format(parseISO(p.breedingDate), "MMM d")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Customer Orders */}
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Customer Orders ({detailData.customerOrders.length})
+                  </div>
+                  {detailData.customerOrders.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic">No open customer orders for this bull</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {detailData.customerOrders.map((o) => (
+                        <div
+                          key={o.orderId}
+                          className="flex items-center justify-between gap-3 text-sm rounded-md border border-border/30 bg-card/40 px-3 py-2 cursor-pointer hover:bg-card/70 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/semen-order/${o.orderId}`);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-foreground truncate">{o.customerName}</span>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {o.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-xs">
+                            <span className="text-foreground font-medium tabular-nums">{o.units}u</span>
+                            {o.orderDate && (
+                              <span className="text-muted-foreground">
+                                ordered {format(parseISO(o.orderDate), "MMM d")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Inventory Orders Placed */}
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    Orders Placed ({detailData.inventoryOrders.length})
+                  </div>
+                  {detailData.inventoryOrders.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic">No inventory orders placed for this bull</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {detailData.inventoryOrders.map((o) => (
+                        <div
+                          key={o.orderId}
+                          className="flex items-center justify-between gap-3 text-sm rounded-md border border-border/30 bg-card/40 px-3 py-2 cursor-pointer hover:bg-card/70 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/semen-order/${o.orderId}`);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-foreground">Inventory order</span>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {o.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-xs">
+                            <span className="text-foreground font-medium tabular-nums">{o.units}u</span>
+                            {o.orderDate && (
+                              <span className="text-muted-foreground">
+                                ordered {format(parseISO(o.orderDate), "MMM d")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
     );
   }
