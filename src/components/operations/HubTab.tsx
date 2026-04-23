@@ -434,6 +434,56 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         )}
       </section>
 
+      {/* SYNCHRONIZATIONS — protocol events (not breeding dates) */}
+      {weekEvents.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold font-display">Synchronizations</h2>
+            <span className="text-xs text-muted-foreground">
+              {weekEvents.reduce((s, d) => s + d.events.length, 0)} events this week
+            </span>
+          </div>
+
+          <Card>
+            <CardContent className="p-0 divide-y divide-border">
+              {weekEvents.map((day) => (
+                <div key={day.date} className="px-4 py-3">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                    {format(parseISO(day.date), "EEEE, MMM d")}
+                  </div>
+                  <div className="space-y-1.5">
+                    {day.events.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="flex items-center justify-between gap-3 text-sm cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate(`/project/${ev.projectId}`)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] shrink-0 whitespace-nowrap"
+                          >
+                            {ev.eventName}
+                          </Badge>
+                          <span className="truncate text-foreground">{ev.projectName}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{ev.headCount} hd</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {ev.eventTime
+                            ? format(new Date(`2000-01-01T${ev.eventTime}`), "h:mm a")
+                            : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* COMING UP */}
       {nextWeek.length > 0 && (
         <section className="space-y-3">
