@@ -206,7 +206,7 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
       </div>
 
       {/* ── Desktop table ── */}
-      <div className="hidden lg:block overflow-x-auto">
+      <div className="hidden xl:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
