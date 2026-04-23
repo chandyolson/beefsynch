@@ -354,6 +354,158 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
   return (
     <div className="space-y-8">
+      {/* ACTION ITEMS */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold font-display">Action Items</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {actions.pendingCustomerOrders > 0 && (
+            <Card
+              className="cursor-pointer border-destructive/40 bg-destructive/5 transition-colors hover:bg-destructive/10"
+              onClick={() => onSwitchTab("orders")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Package className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm">
+                      {actions.pendingCustomerOrders} customer order{actions.pendingCustomerOrders !== 1 ? "s" : ""} to fill
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {actions.pendingCustomerUnits.toLocaleString()} units to pack
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {actions.inventoryShortages.length > 0 && (
+            actions.inventoryShortages.map((shortage) => (
+              <Card
+                key={shortage.projectId}
+                className="cursor-pointer border-destructive/40 bg-destructive/5 transition-colors hover:bg-destructive/10"
+                onClick={() => navigate(`/project/${shortage.projectId}/billing`)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-sm">
+                        {shortage.projectName} — semen short
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {shortage.bulls.map(b =>
+                          `${b.bullName}: need ${b.needed}, have ${b.available}`
+                        ).join("; ")}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+
+          {actions.tanksOut > 0 && (
+            <Card
+              className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
+              onClick={() => onSwitchTab("packing")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Truck className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm">
+                      {actions.tanksOut} tank{actions.tanksOut !== 1 ? "s" : ""} still out
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {actions.tankNames.join(", ")}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {actions.unbilledProjects > 0 && (
+            <Card
+              className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
+              onClick={() => onSwitchTab("projects")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <DollarSign className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm">
+                      {actions.unbilledProjects} project{actions.unbilledProjects !== 1 ? "s" : ""} need billing
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {actions.unbilledNames.join(", ")}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {actions.pendingInventoryOrders > 0 && (
+            <Card
+              className="cursor-pointer border-blue-500/40 bg-blue-500/5 transition-colors hover:bg-blue-500/10"
+              onClick={() => onSwitchTab("receiving")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Truck className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm">
+                      {actions.pendingInventoryOrders} order{actions.pendingInventoryOrders !== 1 ? "s" : ""} awaiting shipment
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Company semen on the way
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card
+            className="cursor-pointer transition-colors hover:bg-secondary/40"
+            onClick={() => onSwitchTab("tanks")}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Droplets className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm">
+                    {actions.tanksDueForFill} tank{actions.tanksDueForFill !== 1 ? "s" : ""} on site
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Check fills tab for overdue
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {actions.pendingCustomerOrders === 0 && actions.tanksOut === 0 && actions.unbilledProjects === 0 && actions.pendingInventoryOrders === 0 && actions.inventoryShortages.length === 0 && (
+            <Card className="border-emerald-500/40 bg-emerald-500/5 sm:col-span-2">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <p className="font-semibold text-sm">All caught up!</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
       {/* THIS WEEK */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
