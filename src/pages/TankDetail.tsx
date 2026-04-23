@@ -251,6 +251,17 @@ const TankDetail = () => {
     },
   });
 
+  const lastInventoried = useMemo(() => {
+    if (!inventory || inventory.length === 0) return null;
+    let latest: string | null = null;
+    for (const row of inventory as any[]) {
+      if (row.inventoried_at && (!latest || row.inventoried_at > latest)) {
+        latest = row.inventoried_at;
+      }
+    }
+    return latest;
+  }, [inventory]);
+
   // Fills
   const { data: fills = [] } = useQuery({
     queryKey: ["tank_detail_fills", id],
