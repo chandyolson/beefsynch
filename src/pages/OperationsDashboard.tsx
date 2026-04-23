@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Package, Truck, PackagePlus, ShoppingCart,
   Layers, ScrollText, List, Users, LayoutDashboard,
@@ -13,27 +13,35 @@ import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
 import PackingTab from "@/components/inventory/PackingTab";
-import TanksTabContent, { CustomersTab } from "@/components/inventory/TanksTabContent";
+import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 import ReceivingTab from "@/components/inventory/ReceivingTab";
 import { useOrgRole } from "@/hooks/useOrgRole";
 
-const TABS = [
+interface TabDef {
+  key: string;
+  label: string;
+  icon: any;
+  href?: string;
+}
+
+const TABS: TabDef[] = [
   { key: "hub", label: "Hub", icon: LayoutDashboard },
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
   { key: "receiving", label: "Receiving", icon: Truck },
   { key: "packing", label: "Packing", icon: PackagePlus },
-  { key: "customers", label: "Customers", icon: Users },
+  { key: "customers", label: "Customers", icon: Users, href: "/customers" },
   { key: "tanks", label: "Tanks", icon: Package },
   { key: "log", label: "Log", icon: ScrollText },
-] as const;
+];
 
-type TabKey = typeof TABS[number]["key"];
+type TabKey = string;
 
 const OperationsDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { orgId, orgName, userId } = useOrgRole();
   const [dialogOpen, setDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "hub";
@@ -56,7 +64,13 @@ const OperationsDashboard = () => {
           {TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setTab(tab.key)}
+              onClick={() => {
+                if (tab.href) {
+                  navigate(tab.href);
+                } else {
+                  setTab(tab.key);
+                }
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key
                   ? "bg-primary text-primary-foreground"
@@ -88,9 +102,6 @@ const OperationsDashboard = () => {
           )}
           {activeTab === "packing" && orgId && (
             <PackingTab orgId={orgId} />
-          )}
-          {activeTab === "customers" && orgId && (
-            <CustomersTab orgId={orgId} />
           )}
           {activeTab === "tanks" && orgId && (
             <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
