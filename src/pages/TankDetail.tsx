@@ -630,7 +630,7 @@ const TankDetail = () => {
               </div>
               {tank.nitrogen_status === "dry" && (
                 <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
-                  This tank is currently dry — fill and inventory actions are disabled
+                  This tank is currently dry — record a fill to mark it wet
                 </div>
               )}
             </div>
