@@ -668,7 +668,9 @@ const TankDetail = () => {
               </AlertDialogContent>
             </AlertDialog>
             {tank.nitrogen_status === "dry" ? (
-              <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
+              <Button size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5">
+                <Droplets className="h-4 w-4" /> Record Fill
+              </Button>
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => handleDryToggle()} className="gap-1.5"><Sun className="h-4 w-4" /> Dry Off</Button>
