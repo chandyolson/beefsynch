@@ -296,55 +296,72 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
         </table>
       </div>
 
-      {/* ── Mobile card view ── */}
-      <div className="lg:hidden divide-y divide-border">
-        {filtered.map((project) => (
-          <div
-            key={project.id}
-            onClick={() => navigate(`/project/${project.id}`)}
-            className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70 space-y-2"
-          >
-            <div className="flex items-center gap-3">
-              <div onClick={(e) => e.stopPropagation()}>
-                {canSelectProject(project) ? (
-                  <Checkbox
-                    checked={selectedIds.has(project.id)}
-                    onCheckedChange={() => toggleOne(project.id)}
-                    aria-label={`Select ${project.name}`}
-                  />
-                ) : <div className="w-4" />}
+      {/* ── Card view (primary) ── */}
+      <div className="xl:hidden divide-y divide-border">
+        {filtered.map((project) => {
+          const bulls = bullsByProject[project.id] || [];
+          return (
+            <div
+              key={project.id}
+              onClick={() => navigate(`/project/${project.id}`)}
+              className="p-4 space-y-3 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70"
+            >
+              {/* Row 1: Checkbox + Name + Head Count */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+                    {canSelectProject(project) ? (
+                      <Checkbox
+                        checked={selectedIds.has(project.id)}
+                        onCheckedChange={() => toggleOne(project.id)}
+                        aria-label={`Select ${project.name}`}
+                      />
+                    ) : <div className="w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-foreground truncate inline-flex items-center gap-1.5">
+                      {project.name}
+                      {syncedProjectIds.has(project.id) && (
+                        <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectType', project.animalType)}`}>
+                        {project.animalType}
+                      </span>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', project.status)}`}>
+                        {project.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-lg font-bold tabular-nums leading-none">{project.headCount}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">head</div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate pr-2 inline-flex items-center gap-1.5">
-                  {project.name}
-                  {syncedProjectIds.has(project.id) && (
-                    <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-                  )}
-                </h3>
 
-                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectType', project.animalType)}`}>
-                    {project.animalType}
-                  </span>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', project.status)}`}>
-                    {project.status}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{project.protocol}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                  <span className="font-medium text-foreground">{project.headCount} head</span>
-                  <span>Breed: {project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-                  <span>Last Contact: {project.lastContactedDate ? format(parseISO(project.lastContactedDate), "MMM d") : "—"}</span>
-                </div>
-
-                <div className="mt-1">{renderBulls(project.id)}</div>
+              {/* Row 2: Key details */}
+              <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm pl-7">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Protocol</div>
+                <div className="truncate">{project.protocol}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Breed</div>
+                <div>{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Start</div>
+                <div>{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Contact</div>
+                <div>{project.lastContactedDate ? format(parseISO(project.lastContactedDate), "MMM d") : "—"}</div>
               </div>
+
+              {/* Row 3: Bulls */}
+              {bulls.length > 0 && (
+                <div className="pl-7">
+                  {renderBulls(project.id)}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && (
           <div className="px-4 py-8 text-center text-muted-foreground text-sm">
             No projects found.
