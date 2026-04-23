@@ -59,6 +59,67 @@ export default function Planning() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [shortsOnly, setShortsOnly] = useState(false);
   const [okExpanded, setOkExpanded] = useState(false);
+  const [expandedBull, setExpandedBull] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailData, setDetailData] = useState<{
+    projects: { id: string; name: string; breedingDate: string | null; status: string; units: number }[];
+    customerOrders: { orderId: string; customerName: string; units: number; orderDate: string | null; status: string }[];
+    inventoryOrders: { orderId: string; units: number; orderDate: string | null; status: string }[];
+  } | null>(null);
+
+  async function loadBullDetail(bullCatalogId: string) {
+    setDetailLoading(true);
+    setDetailData(null);
+
+    const { data: projBulls } = await supabase
+      .from("project_bulls")
+      .select("units, project_id, projects(id, name, breeding_date, status)")
+      .eq("bull_catalog_id", bullCatalogId);
+
+    const projects = (projBulls ?? [])
+      .filter((pb: any) => pb.projects && ["Confirmed", "Tentative"].includes(pb.projects.status))
+      .map((pb: any) => ({
+        id: pb.projects.id,
+        name: pb.projects.name,
+        breedingDate: pb.projects.breeding_date,
+        status: pb.projects.status,
+        units: pb.units,
+      }))
+      .sort((a: any, b: any) => (a.breedingDate ?? "").localeCompare(b.breedingDate ?? ""));
+
+    const { data: custItems } = await supabase
+      .from("semen_order_items")
+      .select("units, semen_order_id, semen_orders(id, order_type, fulfillment_status, order_date, customer_id, customers(name))")
+      .eq("bull_catalog_id", bullCatalogId);
+
+    const customerOrders = (custItems ?? [])
+      .filter((item: any) =>
+        item.semen_orders?.order_type === "customer" &&
+        ["pending", "partially_filled"].includes(item.semen_orders?.fulfillment_status)
+      )
+      .map((item: any) => ({
+        orderId: item.semen_orders.id,
+        customerName: item.semen_orders.customers?.name ?? "Unknown",
+        units: item.units,
+        orderDate: item.semen_orders.order_date,
+        status: item.semen_orders.fulfillment_status,
+      }));
+
+    const inventoryOrders = (custItems ?? [])
+      .filter((item: any) =>
+        item.semen_orders?.order_type === "inventory" &&
+        ["pending", "partially_filled"].includes(item.semen_orders?.fulfillment_status)
+      )
+      .map((item: any) => ({
+        orderId: item.semen_orders.id,
+        units: item.units,
+        orderDate: item.semen_orders.order_date,
+        status: item.semen_orders.fulfillment_status,
+      }));
+
+    setDetailData({ projects, customerOrders, inventoryOrders });
+    setDetailLoading(false);
+  }
 
   useEffect(() => {
     async function load() {
