@@ -51,6 +51,10 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     tanksDueForFill: 0, shippedNotReceived: 0,
     inventoryShortages: [],
   });
+  const [weekEvents, setWeekEvents] = useState<{
+    date: string;
+    events: { id: string; eventName: string; eventTime: string | null; projectName: string; projectId: string; headCount: number }[];
+  }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
