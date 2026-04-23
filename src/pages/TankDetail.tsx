@@ -251,6 +251,17 @@ const TankDetail = () => {
     },
   });
 
+  const lastInventoried = useMemo(() => {
+    if (!inventory || inventory.length === 0) return null;
+    let latest: string | null = null;
+    for (const row of inventory as any[]) {
+      if (row.inventoried_at && (!latest || row.inventoried_at > latest)) {
+        latest = row.inventoried_at;
+      }
+    }
+    return latest;
+  }, [inventory]);
+
   // Fills
   const { data: fills = [] } = useQuery({
     queryKey: ["tank_detail_fills", id],
@@ -627,6 +638,12 @@ const TankDetail = () => {
                 {tank.model && <span>Model: {tank.model}</span>}
                 {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                 {tank.eid && <span>EID: {tank.eid}</span>}
+                {lastInventoried && (
+                  <span>Last Inventoried: {format(parseISO(lastInventoried), "MMM d, yyyy")}</span>
+                )}
+                {!lastInventoried && inventory.length > 0 && (
+                  <span className="text-amber-400">Never inventoried</span>
+                )}
               </div>
               {tank.nitrogen_status === "dry" && (
                 <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
