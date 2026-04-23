@@ -64,7 +64,13 @@ const OperationsDashboard = () => {
           {TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setTab(tab.key)}
+              onClick={() => {
+                if (tab.href) {
+                  navigate(tab.href);
+                } else {
+                  setTab(tab.key);
+                }
+              }}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key
                   ? "bg-primary text-primary-foreground"
@@ -96,9 +102,6 @@ const OperationsDashboard = () => {
           )}
           {activeTab === "packing" && orgId && (
             <PackingTab orgId={orgId} />
-          )}
-          {activeTab === "customers" && orgId && (
-            <CustomersTab orgId={orgId} />
           )}
           {activeTab === "tanks" && orgId && (
             <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
