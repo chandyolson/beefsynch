@@ -186,7 +186,8 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         )}
       </div>
 
-      <div className="rounded-lg border border-border/50 overflow-hidden">
+      {/* Desktop table — xl and up */}
+      <div className="hidden xl:block rounded-lg border border-border/50 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
@@ -244,6 +245,78 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Card view — below xl */}
+      <div className="xl:hidden rounded-lg border border-border/50 overflow-hidden divide-y divide-border">
+        {filtered.length === 0 && !isLoading ? (
+          <EmptyState
+            icon={ShoppingCart}
+            title={scopedOrders.length === 0
+              ? subTab === "customer" ? "No customer orders" : "No inventory orders"
+              : "No results"}
+            description={scopedOrders.length === 0
+              ? subTab === "customer"
+                ? "No customer orders to display yet."
+                : "No inventory orders to display yet."
+              : "No orders match your filters. Try adjusting your filters."}
+            action={scopedOrders.length === 0
+              ? { label: "Create Order", onClick: () => {
+                  setEditOrder(null);
+                  setNewOrderDefaultType(subTab);
+                  setDialogOpen(true);
+                } }
+              : undefined}
+          />
+        ) : (
+          filtered.map((order: any) => {
+            const customerName = order.customers?.name
+              || (order.order_type === "inventory"
+                ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order")
+                : "—");
+            const bullNames = getBullNames(order.semen_order_items);
+            const totalUnits = getOrderUnits(order.semen_order_items);
+
+            return (
+              <div
+                key={order.id}
+                onClick={() => navigate(`/semen-orders/${order.id}`)}
+                className="p-4 space-y-3 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-foreground truncate">{customerName}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderFulfillment', order.fulfillment_status))}>
+                        {order.fulfillment_status}
+                      </Badge>
+                      <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderBilling', order.billing_status))}>
+                        {order.billing_status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-bold tabular-nums leading-none">{totalUnits}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">units</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm">
+                  {order.semen_companies?.name && (
+                    <>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Company</div>
+                      <div className="truncate">{order.semen_companies.name}</div>
+                    </>
+                  )}
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Date</div>
+                  <div>{format(parseISO(order.order_date), "MMM d, yyyy")}</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide">Bulls</div>
+                  <div className="text-foreground">{bullNames}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
       <NewOrderDialog
         open={dialogOpen}

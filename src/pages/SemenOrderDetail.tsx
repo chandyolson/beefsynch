@@ -89,65 +89,78 @@ const SemenOrderDetail = () => {
 
   const load = async () => {
     if (!id) return;
-    const [oRes, iRes] = await Promise.all([
-      supabase.from("semen_orders").select("*, customers(name, phone, email)").eq("id", id).single(),
-      supabase
-        .from("semen_order_items")
-        .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
-        .eq("semen_order_id", id),
-    ]);
+    setLoading(true);
+    try {
+      const [oRes, iRes] = await Promise.all([
+        supabase.from("semen_orders").select("*, customers(name, phone, email)").eq("id", id).single(),
+        supabase
+          .from("semen_order_items")
+          .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
+          .eq("semen_order_id", id),
+      ]);
 
-    if (oRes.data) {
-      setOrder(oRes.data as OrderRow);
-      if (oRes.data.project_id) {
-        const { data: pData } = await supabase
-          .from("projects")
-          .select("id, name")
-          .eq("id", oRes.data.project_id)
-          .single();
-        if (pData) setProject(pData as ProjectRef);
+      if (oRes.error) {
+        console.error("Order load error:", oRes.error);
+        toast({ title: "Error loading order", description: oRes.error.message, variant: "destructive" });
+        setLoading(false);
+        return;
       }
-      if (oRes.data.semen_company_id) {
-        const { data: cData } = await supabase
-          .from("semen_companies")
-          .select("name")
-          .eq("id", oRes.data.semen_company_id)
-          .single();
-        if (cData) setCompanyName(cData.name);
-      } else {
-        setCompanyName(null);
-      }
-    }
-    if (iRes.data) setItems(iRes.data as ItemRow[]);
 
-    // Fetch linked packs (for customer orders filled from inventory)
-    const { data: packLinks } = await supabase
-      .from("tank_pack_orders")
-      .select(`
-        tank_pack_id,
-        tank_packs(
-          id, status, pack_type, packed_at, field_tank_id,
-          tanks!tank_packs_field_tank_id_fkey(tank_number, tank_name),
-          tank_pack_lines(bull_name, bull_code, bull_catalog_id, units, source_tank_id, source_canister, field_canister,
-            tanks!tank_pack_lines_source_tank_id_fkey(tank_number, tank_name)
-          ),
-          tank_unpack_lines(bull_name, bull_code, bull_catalog_id, units_returned, destination_canister, destination_tank_id,
-            tanks!tank_unpack_lines_destination_tank_id_fkey(tank_number, tank_name)
+      if (oRes.data) {
+        setOrder(oRes.data as OrderRow);
+        if (oRes.data.project_id) {
+          const { data: pData } = await supabase
+            .from("projects")
+            .select("id, name")
+            .eq("id", oRes.data.project_id)
+            .single();
+          if (pData) setProject(pData as ProjectRef);
+        }
+        if (oRes.data.semen_company_id) {
+          const { data: cData } = await supabase
+            .from("semen_companies")
+            .select("name")
+            .eq("id", oRes.data.semen_company_id)
+            .single();
+          if (cData) setCompanyName(cData.name);
+        } else {
+          setCompanyName(null);
+        }
+      }
+      if (iRes.data) setItems(iRes.data as ItemRow[]);
+
+      // Fetch linked packs (for customer orders filled from inventory)
+      const { data: packLinks } = await supabase
+        .from("tank_pack_orders")
+        .select(`
+          tank_pack_id,
+          tank_packs(
+            id, status, pack_type, packed_at, field_tank_id,
+            tanks!tank_packs_field_tank_id_fkey(tank_number, tank_name),
+            tank_pack_lines(bull_name, bull_code, bull_catalog_id, units, source_tank_id, source_canister, field_canister,
+              tanks!tank_pack_lines_source_tank_id_fkey(tank_number, tank_name)
+            ),
+            tank_unpack_lines(bull_name, bull_code, bull_catalog_id, units_returned, destination_canister, destination_tank_id,
+              tanks!tank_unpack_lines_destination_tank_id_fkey(tank_number, tank_name)
+            )
           )
-        )
-      `)
-      .eq("semen_order_id", id);
-    setPackData(packLinks || []);
+        `)
+        .eq("semen_order_id", id);
+      setPackData(packLinks || []);
 
-    // Fetch supply items for this order
-    const { data: supplyData } = await (supabase as any)
-      .from("order_supply_items")
-      .select("*")
-      .eq("semen_order_id", id)
-      .order("created_at");
-    setSupplyItems(supplyData ?? []);
-
-    setLoading(false);
+      // Fetch supply items for this order
+      const { data: supplyData } = await (supabase as any)
+        .from("order_supply_items")
+        .select("*")
+        .eq("semen_order_id", id)
+        .order("created_at");
+      setSupplyItems(supplyData ?? []);
+    } catch (err: any) {
+      console.error("Order detail load failed:", err);
+      toast({ title: "Error loading order", description: err?.message || "Please try again", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
