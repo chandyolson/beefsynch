@@ -441,10 +441,6 @@ const TankDetail = () => {
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
-    if (tank?.nitrogen_status === "dry") {
-      toast({ title: "Cannot fill a dry tank", variant: "destructive" });
-      return;
-    }
     setFillSaving(true);
     const { error } = await supabase.from("tank_fills").insert({
       organization_id: orgId,
@@ -634,7 +630,7 @@ const TankDetail = () => {
               </div>
               {tank.nitrogen_status === "dry" && (
                 <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
-                  This tank is currently dry — fill and inventory actions are disabled
+                  This tank is currently dry — record a fill to mark it wet
                 </div>
               )}
             </div>
@@ -672,7 +668,9 @@ const TankDetail = () => {
               </AlertDialogContent>
             </AlertDialog>
             {tank.nitrogen_status === "dry" ? (
-              <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
+              <Button size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5">
+                <Droplets className="h-4 w-4" /> Record Fill
+              </Button>
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => handleDryToggle()} className="gap-1.5"><Sun className="h-4 w-4" /> Dry Off</Button>
