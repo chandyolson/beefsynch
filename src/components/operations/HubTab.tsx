@@ -254,6 +254,46 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         inventoryShortages: shortages,
       });
 
+      // Protocol events for this week (excludes Return Heat and Estimated Calving — not actionable)
+      const { data: eventData } = await supabase
+        .from("protocol_events")
+        .select("id, event_name, event_date, event_time, project_id, projects(id, name, head_count, status)")
+        .gte("event_date", today)
+        .lte("event_date", format(addDays(new Date(), 6), "yyyy-MM-dd"))
+        .order("event_date")
+        .order("event_time", { ascending: true, nullsFirst: false });
+
+      if (eventData) {
+        const excludeEvents = ["Return Heat", "Estimated Calving", "Timed Breeding", "Bulls In"];
+        const filtered = (eventData as any[]).filter(
+          (e) =>
+            e.projects &&
+            ["Confirmed", "Tentative"].includes(e.projects.status) &&
+            !excludeEvents.includes(e.event_name)
+        );
+
+        const grouped = new Map<string, typeof filtered>();
+        for (const e of filtered) {
+          const key = e.event_date;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key)!.push(e);
+        }
+
+        const result = Array.from(grouped.entries()).map(([date, events]) => ({
+          date,
+          events: events.map((e: any) => ({
+            id: e.id,
+            eventName: e.event_name,
+            eventTime: e.event_time,
+            projectName: e.projects.name,
+            projectId: e.projects.id,
+            headCount: e.projects.head_count,
+          })),
+        }));
+
+        setWeekEvents(result);
+      }
+
       setLoading(false);
     };
 
