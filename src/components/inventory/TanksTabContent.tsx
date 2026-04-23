@@ -540,7 +540,8 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
         </div>
       </div>
 
-      <div className="rounded-lg border border-border/50 overflow-hidden">
+      {/* Desktop table — xl and up */}
+      <div className="hidden xl:block rounded-lg border border-border/50 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
@@ -597,6 +598,69 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Card view — below xl */}
+      <div className="xl:hidden rounded-lg border border-border/50 overflow-hidden divide-y divide-border">
+        {isLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            {tanks.length === 0 ? "No tanks yet." : "No tanks match your filters."}
+          </div>
+        ) : (
+          filtered.map((tank: any) => (
+            <div
+              key={tank.id}
+              onClick={() => handleRowClick(tank)}
+              className="p-4 space-y-3 hover:bg-secondary/50 transition-colors cursor-pointer active:bg-secondary/70"
+            >
+              {/* Row 1: Tank name/number + Total Units */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-foreground truncate">
+                    {tank.tank_name ? (
+                      <>{tank.tank_name} <span className="text-muted-foreground font-normal">#{tank.tank_number}</span></>
+                    ) : (
+                      <>Tank #{tank.tank_number}</>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <Badge variant="outline" className={getBadgeClass('tankStatus', tank.nitrogen_status || 'unknown')}>
+                      {tank.nitrogen_status || 'unknown'}
+                    </Badge>
+                    <Badge variant="outline" className={
+                      tank.location_status === 'here'
+                        ? 'bg-green-600/20 text-green-400 border-green-600/30'
+                        : 'bg-blue-600/20 text-blue-400 border-blue-600/30'
+                    }>
+                      {tank.location_status === 'here' ? 'in shop' : 'out'}
+                    </Badge>
+                    <Badge variant="outline" className={getBadgeClass('tankType', tank.tank_type)}>
+                      {TYPE_LABELS[tank.tank_type] || tank.tank_type}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-lg font-bold tabular-nums leading-none">{tank.totalUnits}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">units</div>
+                </div>
+              </div>
+
+              {/* Row 2: Key details */}
+              <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Customer</div>
+                <div className="truncate">{tank.customerName || orgName || 'Company Owned'}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Model</div>
+                <div className="truncate">{tank.model || '—'}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Last Fill</div>
+                <div className={cn(getFillColor(tank.lastFill))}>
+                  {tank.lastFill ? format(parseISO(tank.lastFill), 'MMM d, yyyy') : '—'}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
