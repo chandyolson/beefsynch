@@ -441,10 +441,6 @@ const TankDetail = () => {
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
-    if (tank?.nitrogen_status === "dry") {
-      toast({ title: "Cannot fill a dry tank", variant: "destructive" });
-      return;
-    }
     setFillSaving(true);
     const { error } = await supabase.from("tank_fills").insert({
       organization_id: orgId,
