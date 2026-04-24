@@ -427,6 +427,52 @@ const SemenOrderDetail = () => {
               {order.billing_status}
             </Badge>
           </div>
+          {order.order_type === "customer"
+            && order.billing_status === "unbilled"
+            && (order.fulfillment_status === "partially_filled" || order.fulfillment_status === "delivered") && (
+            <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex items-center justify-between gap-3">
+              <div className="text-sm">
+                <p className="font-medium text-yellow-200">
+                  {order.fulfillment_status === "delivered" ? "Order fully packed" : "Order partially packed"} — ready to invoice?
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Mark this order invoiced once you have sent it to billing.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="default">Mark as Invoiced</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Mark order as invoiced?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This sets billing status to "invoiced" and stamps today's date. You can undo by editing the order.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from("semen_orders")
+                          .update({ billing_status: "invoiced", invoiced_at: new Date().toISOString() })
+                          .eq("id", order.id);
+                        if (error) {
+                          toast({ title: "Could not mark invoiced", description: error.message, variant: "destructive" });
+                          return;
+                        }
+                        toast({ title: "Marked as invoiced" });
+                        window.location.reload();
+                      }}
+                    >
+                      Mark Invoiced
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </div>
 
         {/* Details card */}
