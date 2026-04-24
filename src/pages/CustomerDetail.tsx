@@ -264,11 +264,10 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name), customers(id, name)")
+        .select("*, semen_companies(name), customers(id, name), semen_order_items(units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId!)
         .eq("customer_id", customer!.id)
-        .order("order_date", { ascending: false })
-        .limit(10);
+        .order("order_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -284,8 +283,24 @@ const CustomerDetail = () => {
         .select("*, semen_companies(name)")
         .eq("organization_id", orgId!)
         .eq("customer_id", id!)
-        .order("received_date", { ascending: false })
-        .limit(10);
+        .order("received_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch customer pickups
+  const { data: customerPickups = [] } = useQuery({
+    queryKey: ["customer_pickups", customer?.id, orgId],
+    enabled: !!customer?.id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select("id, pack_type, status, packed_at, tank_pack_lines(bull_name, bull_code, units)")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", customer!.id)
+        .in("pack_type", ["pickup", "order"])
+        .order("packed_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
