@@ -712,6 +712,7 @@ const SemenOrderDetail = () => {
                             <TableHead>Bull</TableHead>
                             <TableHead>Code</TableHead>
                             <TableHead>Source Tank</TableHead>
+                            <TableHead>Field Can</TableHead>
                             <TableHead className="text-right">Packed</TableHead>
                             {hasReturns && <TableHead className="text-right">Returned</TableHead>}
                             {hasReturns && <TableHead className="text-right">Used</TableHead>}
