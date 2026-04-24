@@ -241,7 +241,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number), customers(name)")
+        .select("*, bulls_catalog(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", id!)
         .order("canister", { ascending: true })
         .order("sub_canister", { ascending: true })
