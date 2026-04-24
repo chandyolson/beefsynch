@@ -199,61 +199,83 @@ const ReInventory = () => {
     setSaving(true);
 
     try {
-      const now = new Date().toISOString();
+      // Build the changes array — only include rows that actually changed
+      const changes: any[] = [];
 
-      // Update existing rows with changes
       for (const row of rows) {
-        const diff = row.actual - row.previous;
-        if (diff === 0) {
-          // Still update inventoried_at
-          await supabase
-            .from("tank_inventory")
-            .update({ inventoried_at: now, inventoried_by: userId } as any)
-            .eq("id", row.id);
-          continue;
-        }
-
-        // Update inventory
-        await supabase
-          .from("tank_inventory")
-          .update({ units: row.actual, inventoried_at: now, inventoried_by: userId } as any)
-          .eq("id", row.id);
-
+        if (row.actual === row.previous) continue; // skip no-ops
+        // Note: new_units=0 goes through as update; the RPC will DELETE server-side
+        changes.push({
+          action: "update",
+          inventory_id: row.id,
+          expected_previous_units: row.previous,
+          new_units: row.actual,
+        });
       }
 
-      // Insert new rows
       for (const nr of newRows) {
         if (!nr.canister.trim()) continue;
         const units = parseInt(nr.units) || 0;
-
         const nrCustomerId = nr.customer_id || customerId || null;
-        const nrOwnerName = nrCustomerId ? orgCustomers.find(c => c.id === nrCustomerId)?.name || null : null;
-        await supabase
-          .from("tank_inventory")
-          .insert({
-            organization_id: orgId,
-            tank_id: tankId,
-            customer_id: nrCustomerId,
-            owner: nrOwnerName,
-            canister: nr.canister.trim(),
-            sub_canister: nr.sub_canister.trim() || null,
-            bull_catalog_id: nr.bull_catalog_id || null,
-            custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
-            bull_code: nr.bull_code.trim() || null,
-            units,
-            inventoried_at: now,
-            inventoried_by: userId,
-            storage_type: nrCustomerId ? "customer" : "communal",
-            item_type: nr.item_type,
-          } as any)
-          .select("id")
-          .single();
-
+        changes.push({
+          action: "insert",
+          canister: nr.canister.trim(),
+          sub_canister: nr.sub_canister.trim() || null,
+          bull_catalog_id: nr.bull_catalog_id || null,
+          custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
+          bull_code: nr.bull_code.trim() || "Unknown",
+          new_units: units,
+          item_type: nr.item_type,
+          customer_id: nrCustomerId,
+          owner_type: nrCustomerId ? "customer" : null,
+          owner_customer_id: nrCustomerId,
+          owner_company_id: null,
+        });
       }
 
+      if (changes.length === 0) {
+        toast({ title: "No changes to save" });
+        setSaving(false);
+        return;
+      }
+
+      const payload = {
+        organization_id: orgId,
+        tank_id: tankId,
+        notes: notes.trim() || undefined,
+        changes,
+      };
+
+      const { error } = await (supabase as any).rpc("save_reinventory", { _input: payload });
+
+      if (error) {
+        const msg = error.message || "";
+        if (msg.startsWith("STALE:") || msg.startsWith("MISSING:")) {
+          toast({
+            title: "Inventory changed",
+            description: "Inventory changed since you opened this page. Reload and try again.",
+            variant: "destructive",
+          });
+          // Reset so a fresh fetch repopulates state
+          setInitialized(false);
+          await queryClient.invalidateQueries({ queryKey: ["reinventory_items", tankId, customerId] });
+        } else if (msg.startsWith("DUPLICATE:")) {
+          toast({
+            title: "Duplicate row",
+            description: "That bull is already on this canister — edit the existing row instead.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Error", description: msg || "Could not save.", variant: "destructive" });
+        }
+        setSaving(false);
+        return;
+      }
+
+      // Success — refetch from server (source of truth) before navigating away
+      await queryClient.invalidateQueries({ queryKey: ["reinventory_items", tankId, customerId] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["reinventory_items"] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       toast({ title: "Inventory saved" });
       navigate(-1);
