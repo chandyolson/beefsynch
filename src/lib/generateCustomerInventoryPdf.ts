@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
 import { getStandardHeadStylesDark, PDF_FONTS } from "./pdfUtils";
+import { getBullDisplayName } from "./bullDisplay";
 
 interface TankData {
   id: string;
@@ -193,7 +194,7 @@ export function generateCustomerInventoryPdf(
       const tableBody = items.map((item) => [
         item.canister,
         item.sub_canister || "",
-        item.bulls_catalog?.bull_name || item.custom_bull_name || "",
+        (() => { const n = getBullDisplayName(item); return n === "Unknown" ? "" : n; })(),
         item.bull_code || "",
         item.bulls_catalog?.company || "",
         String(item.units),
@@ -229,7 +230,7 @@ export function generateCustomerInventoryPdf(
     const orderBody = orders.map((o) => {
       const bulls = (o.semen_order_items || [])
         .map((i) => {
-          const name = i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown";
+          const name = getBullDisplayName(i);
           return `${name} (${i.units})`;
         })
         .join(", ");

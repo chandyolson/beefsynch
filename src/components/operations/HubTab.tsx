@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { format, parseISO, addDays, startOfDay } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +101,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .in("project_id", projIds);
           if (projBullsData) {
             for (const pb of projBullsData as any[]) {
-              const name = pb.bulls_catalog?.bull_name || pb.custom_bull_name || "Unknown";
+              const name = getBullDisplayName(pb);
               const existing = bullNameMap.get(pb.project_id) || [];
               if (!existing.includes(name)) existing.push(name);
               bullNameMap.set(pb.project_id, existing);

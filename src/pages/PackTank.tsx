@@ -12,6 +12,7 @@ import AppFooter from "@/components/AppFooter";
 import BackButton from "@/components/BackButton";
 import InventoryBullPicker from "@/components/InventoryBullPicker";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
@@ -306,8 +307,7 @@ const PackTank = () => {
     const summary: Record<string, { bullName: string; locations: { tankName: string; canister: string; units: number }[] }> = {};
 
     for (const pb of projBulls) {
-      const catalog = (pb as any).bulls_catalog as any;
-      const bullName = catalog?.bull_name || (pb as any).custom_bull_name || "Unknown";
+      const bullName = getBullDisplayName(pb as any);
       const bullKey = (pb as any).bull_catalog_id || bullName;
 
       let invRows: any[] = [];
@@ -345,7 +345,7 @@ const PackTank = () => {
     setInventorySummary(summary);
 
     const bullUnitsList = (projBulls ?? []).map((b: any) => ({
-      bullName: b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown",
+      bullName: getBullDisplayName(b),
       units: b.units ?? 0,
     }));
     setProjectBullUnits(bullUnitsList);
@@ -369,7 +369,7 @@ const PackTank = () => {
 
     for (const pb of projBulls) {
       const catalog = pb.bulls_catalog as any;
-      const bullName = catalog?.bull_name || pb.custom_bull_name || "Unknown";
+      const bullName = getBullDisplayName(pb as any);
       const bullCode = catalog?.naab_code || null;
       const bullCatalogId = pb.bull_catalog_id;
 

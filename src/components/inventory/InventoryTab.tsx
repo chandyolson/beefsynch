@@ -319,11 +319,11 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
 
       if (collisions && collisions.length > 0) {
         const target = collisions[0] as any;
+        const targetName = getBullDisplayName(target);
         const bullLabel =
-          target.bulls_catalog?.bull_name ||
-          target.custom_bull_name ||
-          editRow.bullName ||
-          "this bull";
+          targetName !== "Unknown"
+            ? targetName
+            : (editRow.bullName || "this bull");
         setMergeTarget({
           targetId: target.id,
           targetUnits: target.units || 0,

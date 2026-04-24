@@ -24,6 +24,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 const OrdersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   const getBullNames = (items: any[]) => {
     if (!items || items.length === 0) return "—";
-    return items.map((i: any) => i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown").join(", ");
+    return items.map((i: any) => getBullDisplayName(i)).join(", ");
   };
   const getOrderUnits = (items: any[]) => items ? items.reduce((s: number, i: any) => s + (i.units || 0), 0) : 0;
 

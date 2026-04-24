@@ -42,6 +42,7 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { CalendarIcon } from "lucide-react";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -756,7 +757,7 @@ const TankDetail = () => {
                   columns: [
                     { label: "Canister", value: (r: any) => r.canister },
                     { label: "Sub-can", value: (r: any) => r.sub_canister || "" },
-                    { label: "Bull", value: (r: any) => r.bulls_catalog?.bull_name || r.custom_bull_name || "" },
+                    { label: "Bull", value: (r: any) => { const n = getBullDisplayName(r); return n === "Unknown" ? "" : n; } },
                     { label: "Bull Code", value: (r: any) => r.bull_code || "" },
                     { label: "Company", value: (r: any) => r.bulls_catalog?.company || "" },
                     { label: "Owner", value: (r: any) => r.owner || r.customers?.name || "" },
@@ -784,7 +785,7 @@ const TankDetail = () => {
                           <TableCell>{inv.canister}</TableCell>
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
                           <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                            {getBullDisplayName(inv)}
                             {inv.item_type === "embryo" && (
                               <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                             )}
@@ -816,7 +817,7 @@ const TankDetail = () => {
                             <TableCell>{inv.canister}</TableCell>
                             <TableCell>{inv.sub_canister || "—"}</TableCell>
                             <TableCell>
-                              {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                              {getBullDisplayName(inv)}
                               {inv.item_type === "embryo" && (
                                 <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                               )}
@@ -854,7 +855,7 @@ const TankDetail = () => {
                               <TableCell>{inv.canister}</TableCell>
                               <TableCell>{inv.sub_canister || "—"}</TableCell>
                               <TableCell>
-                                {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                                {getBullDisplayName(inv)}
                                 {inv.item_type === "embryo" && (
                                   <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                                 )}
@@ -948,7 +949,7 @@ const TankDetail = () => {
                 {transactions.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions recorded</TableCell></TableRow>
                 ) : transactions.map((t: any) => {
-                  const bullName = t.bulls_catalog?.bull_name || t.custom_bull_name || "—";
+                  const bullName = getBullDisplayName(t);
                   const projOrder = t.projects?.name || t.semen_orders?.customers?.name || "—";
                   return (
                     <TableRow key={t.id}>

@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -127,7 +128,7 @@ const ReInventory = () => {
           id: inv.id,
           canister: inv.canister,
           sub_canister: inv.sub_canister,
-          bull_name: inv.bulls_catalog?.bull_name || inv.custom_bull_name || "",
+          bull_name: (() => { const n = getBullDisplayName(inv); return n === "Unknown" ? "" : n; })(),
           bull_code: inv.bull_code,
           bull_catalog_id: inv.bull_catalog_id,
           custom_bull_name: inv.custom_bull_name,

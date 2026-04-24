@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { generateSemenInventoryPdf } from "@/lib/generateSemenInventoryPdf";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 const STORAGE_BADGES: Record<string, string> = {
   customer: "bg-teal-500/15 text-teal-400 border-teal-500/30",
@@ -61,7 +62,7 @@ const SemenInventory = () => {
   const rows = useMemo(() => {
     return inventory.map((item: any) => ({
       id: item.id,
-      bullName: item.custom_bull_name || item.bulls_catalog?.bull_name || "—",
+      bullName: getBullDisplayName(item),
       bullCode: item.bull_code || "—",
       customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
       customerId: item.customer_id,

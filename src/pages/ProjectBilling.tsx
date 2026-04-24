@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import SessionsTab from "@/components/billing/SessionsTab";
 import BillingTab from "@/components/billing/BillingTab";
 import {
@@ -384,7 +385,7 @@ const ProjectBilling = () => {
       }
     }
     const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
-      const bullName = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
+      const bullName = getBullDisplayName(b);
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
       const packed = packedByBull[catalogId || bullName] || 0;

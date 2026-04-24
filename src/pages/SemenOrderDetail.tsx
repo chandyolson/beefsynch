@@ -22,6 +22,7 @@ import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmentReconciliation";
 import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 interface OrderRow {
   id: string;
@@ -263,7 +264,7 @@ const SemenOrderDetail = () => {
       inventory_owner: (order as any).inventory_owner ?? null,
       needed_by: (order as any).needed_by ?? null,
       bulls: items.map((i) => ({
-        name: i.bulls_catalog?.bull_name || i.custom_bull_name || "",
+        name: (() => { const n = getBullDisplayName(i); return n === "Unknown" ? "" : n; })(),
         catalogId: i.bull_catalog_id,
         naabCode: i.bulls_catalog?.naab_code ?? null,
         units: i.units,
@@ -526,7 +527,7 @@ const SemenOrderDetail = () => {
                         return (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
+                              {getBullDisplayName(item)}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
                             </TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell>

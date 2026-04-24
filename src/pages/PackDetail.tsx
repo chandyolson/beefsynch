@@ -10,6 +10,7 @@ import {
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName, bullMatchesQuery } from "@/lib/bullDisplay";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1313,15 +1314,9 @@ const PackDetail = () => {
                         </div>
                       ) : (
                         sourceTankInventory
-                          .filter((inv: any) => {
-                            const q = lineBullSearch.toLowerCase();
-                            if (!q) return true;
-                            const name = (inv.bulls_catalog?.bull_name || inv.custom_bull_name || "").toLowerCase();
-                            const code = (inv.bull_code || "").toLowerCase();
-                            return name.includes(q) || code.includes(q);
-                          })
+                          .filter((inv: any) => bullMatchesQuery(inv, lineBullSearch))
                           .map((inv: any) => {
-                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            const displayName = getBullDisplayName(inv);
                             return (
                               <button
                                 key={inv.id}
@@ -1357,10 +1352,7 @@ const PackDetail = () => {
                 <Label htmlFor="line-units">Units</Label>
                 <Input id="line-units" type="number" min="1" value={lineUnits} onChange={(e) => setLineUnits(e.target.value)} placeholder="e.g. 5" />
                 {lineSourceTankId && lineBullName && (() => {
-                  const matched = sourceTankInventory.find((inv: any) => {
-                    const n = inv.bulls_catalog?.bull_name || inv.custom_bull_name;
-                    return n === lineBullName;
-                  });
+                  const matched = sourceTankInventory.find((inv: any) => getBullDisplayName(inv) === lineBullName);
                   return matched ? <p className="text-xs text-muted-foreground">Available in source: {matched.units} units</p> : null;
                 })()}
               </div>

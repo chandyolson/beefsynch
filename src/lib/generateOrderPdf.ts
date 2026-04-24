@@ -12,6 +12,7 @@ import {
   PDF_FONTS,
 } from "./pdfUtils";
 import { sanitizeFilename } from "./pdfUtils";
+import { getBullDisplayName } from "./bullDisplay";
 
 interface OrderData {
   customer_name: string;
@@ -100,7 +101,7 @@ export function generateOrderPdf(
     y += 8;
 
     const tableBody = items.map((item) => [
-      item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown",
+      getBullDisplayName(item),
       item.bulls_catalog?.company || "—",
       item.bulls_catalog?.registration_number || "—",
       String(item.units),

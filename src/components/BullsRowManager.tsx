@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import BullCombobox from "@/components/BullCombobox";
 
 export interface BullRow {
@@ -67,9 +68,8 @@ const BullsRowManager = ({
         if (r.bull_catalog_id) {
           byCatalogId.set(r.bull_catalog_id, (byCatalogId.get(r.bull_catalog_id) || 0) + units);
         }
-        const name =
-          r.bulls_catalog?.bull_name || r.custom_bull_name || r.bull_code || "";
-        if (name) {
+        const name = getBullDisplayName(r);
+        if (name && name !== "Unknown") {
           const k = name.toLowerCase().trim();
           byName.set(k, (byName.get(k) || 0) + units);
         }
