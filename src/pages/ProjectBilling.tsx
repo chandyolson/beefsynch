@@ -137,11 +137,6 @@ const ProjectBilling = () => {
   }
 
   async function autoGenerateSessionInventory(bId: string, packs: any[]) {
-    // Only run if we have no inventory rows yet
-    const { data: existingInv } = await (supabase.from as any)("project_billing_session_inventory")
-      .select("id").eq("billing_id", bId).limit(1);
-    if (existingInv && existingInv.length > 0) return;
-
     // Get breeding sessions
     const { data: allSessions } = await supabase
       .from("project_billing_sessions").select("*").eq("billing_id", bId);
@@ -151,14 +146,14 @@ const ProjectBilling = () => {
     });
     if (breedingSessions.length === 0) return;
 
-    // Get pack lines to find bull/canister combos
+    // Get ALL pack lines across all packs for this project
     const packIds = packs.map((p: any) => p.id);
     const { data: packLines } = await supabase
       .from("tank_pack_lines").select("bull_catalog_id, bull_name, bull_code, field_canister, units")
       .in("tank_pack_id", packIds);
     if (!packLines || packLines.length === 0) return;
 
-    // Build bull×canister combos with packed units
+    // Build bull×canister combos with total packed units
     const comboMap = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string; packed_units: number }>();
     for (const pl of packLines) {
       const canister = pl.field_canister || "1";
@@ -182,30 +177,73 @@ const ProjectBilling = () => {
     const sorted = [...breedingSessions].sort((a: any, b: any) =>
       a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-    // Create inventory rows: each combo × each breeding session
-    const newRows: any[] = [];
-    let sortIdx = 0;
+    // Fetch existing session inventory rows
+    const { data: existingRows } = await (supabase.from as any)("project_billing_session_inventory")
+      .select("*").eq("billing_id", bId);
+    const existingMap = new Map<string, any>();
+    for (const row of (existingRows ?? [])) {
+      // Key: bull identifier + canister + session_id
+      const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
+      const key = `${bullKey}|${row.canister}|${row.session_id}`;
+      existingMap.set(key, row);
+    }
+
+    // Find missing combos and update changed start_units
+    const toInsert: any[] = [];
+    const maxSort = (existingRows ?? []).reduce((m: number, r: any) => Math.max(m, r.sort_order ?? 0), 0);
+    let sortIdx = maxSort + 1;
+
     for (const combo of combos) {
+      const bullKey = combo.bull_catalog_id || `name:${combo.bull_name}`;
       let sessIdx = 0;
+
       for (const sess of sorted) {
-        newRows.push({
-          billing_id: bId, session_id: (sess as any).id,
-          bull_catalog_id: combo.bull_catalog_id, bull_name: combo.bull_name,
-          bull_code: combo.bull_code, canister: combo.canister,
-          start_units: sessIdx === 0 ? combo.packed_units : null,
-          end_units: null, sort_order: sortIdx++,
-        });
+        const key = `${bullKey}|${combo.canister}|${(sess as any).id}`;
+        const existing = existingMap.get(key);
+
+        if (existing) {
+          // Row exists — update start_units if packed total changed (only for first session)
+          if (sessIdx === 0 && existing.start_units !== combo.packed_units) {
+            await (supabase.from as any)("project_billing_session_inventory")
+              .update({ start_units: combo.packed_units })
+              .eq("id", existing.id);
+          }
+        } else {
+          // Missing row — add it
+          toInsert.push({
+            billing_id: bId,
+            session_id: (sess as any).id,
+            bull_catalog_id: combo.bull_catalog_id,
+            bull_name: combo.bull_name,
+            bull_code: combo.bull_code,
+            canister: combo.canister,
+            start_units: sessIdx === 0 ? combo.packed_units : null,
+            end_units: null,
+            sort_order: sortIdx++,
+          });
+        }
         sessIdx++;
       }
     }
 
-    if (newRows.length > 0) {
-      const { data: inserted } = await (supabase.from as any)("project_billing_session_inventory")
-        .insert(newRows).select();
-      setSessionInventory((inserted ?? []) as SessionInventoryLine[]);
+    // Insert any new rows
+    if (toInsert.length > 0) {
+      await (supabase.from as any)("project_billing_session_inventory")
+        .insert(toInsert);
     }
 
-    // Also sync units_packed on semen lines from pack data
+    // Reload session inventory into state if anything changed
+    if (toInsert.length > 0 || existingRows?.some((r: any) => {
+      const bullKey = r.bull_catalog_id || `name:${r.bull_name}`;
+      const combo = combos.find(c => (c.bull_catalog_id || `name:${c.bull_name}`) === bullKey && c.canister === r.canister);
+      return combo && r.start_units !== combo.packed_units;
+    })) {
+      const { data: refreshed } = await (supabase.from as any)("project_billing_session_inventory")
+        .select("*").eq("billing_id", bId).order("sort_order");
+      setSessionInventory((refreshed ?? []) as SessionInventoryLine[]);
+    }
+
+    // Sync units_packed on semen lines from pack data
     const packedByBull = new Map<string, number>();
     for (const combo of combos) {
       const key = combo.bull_catalog_id || combo.bull_name;
@@ -221,7 +259,6 @@ const ProjectBilling = () => {
     });
     if (JSON.stringify(updatedSemen) !== JSON.stringify(semenLines)) {
       setSemenLines(updatedSemen);
-      // Persist packed updates
       for (const sl of updatedSemen) {
         const key = sl.bull_catalog_id || sl.bull_name;
         const packed = packedByBull.get(key);
