@@ -95,7 +95,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       while (true) {
         const { data, error } = await supabase
           .from("tank_inventory")
-          .select("*, customers(name), tanks(tank_name, tank_number), bulls_catalog(bull_name, naab_code)")
+          .select("*, customers!tank_inventory_customer_id_fkey(name), tanks(tank_name, tank_number), bulls_catalog(bull_name, naab_code)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
         if (error) throw error;
