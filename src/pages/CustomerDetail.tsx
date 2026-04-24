@@ -217,7 +217,7 @@ const CustomerDetail = () => {
         .from("tank_inventory")
         .select("*, bulls_catalog(bull_name, company, registration_number)")
         .in("tank_id", allTankIds)
-        .eq("owner_customer_id", id)
+        .eq("owner_customer_id" as any, id)
         .limit(10000);
       if (error) throw error;
       return (data ?? []) as any[];
