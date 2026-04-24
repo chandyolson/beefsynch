@@ -684,7 +684,10 @@ const CustomerDetail = () => {
                 customer,
                 allTanks,
                 inventoryByTank,
-                allTanks.map((t: any) => t.id)
+                allTanks.map((t: any) => t.id),
+                customerOrders,
+                customerShipments,
+                customerPickups
               );
               toast({ title: "PDF downloaded" });
             }} className="gap-2">
