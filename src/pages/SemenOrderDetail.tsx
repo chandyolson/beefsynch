@@ -741,7 +741,7 @@ const SemenOrderDetail = () => {
                             );
                           })}
                           <TableRow className="bg-muted/20 font-bold">
-                            <TableCell colSpan={3} className="text-right">Totals</TableCell>
+                            <TableCell colSpan={4} className="text-right">Totals</TableCell>
                             <TableCell className="text-right">{totalPacked}</TableCell>
                             {hasReturns && <TableCell className="text-right">{totalReturned}</TableCell>}
                             {hasReturns && <TableCell className="text-right">{totalUsed}</TableCell>}
