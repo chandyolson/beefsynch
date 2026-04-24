@@ -454,7 +454,7 @@ const SemenOrderDetail = () => {
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={async () => {
-                        const { error } = await supabase
+                        const { error } = await (supabase as any)
                           .from("semen_orders")
                           .update({ billing_status: "invoiced", invoiced_at: new Date().toISOString() })
                           .eq("id", order.id);
