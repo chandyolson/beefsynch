@@ -729,6 +729,7 @@ const SemenOrderDetail = () => {
                                 <TableCell className="font-medium">{line.bull_name}</TableCell>
                                 <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
                                 <TableCell className="text-sm">{srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? ` — ${srcTank.tank_name}` : ""}` : "—"}</TableCell>
+                                <TableCell className="text-sm">{line.field_canister || "—"}</TableCell>
                                 <TableCell className="text-right">{line.units}</TableCell>
                                 {hasReturns && (
                                   <TableCell className="text-right text-muted-foreground">{returned || "—"}</TableCell>
