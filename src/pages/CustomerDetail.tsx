@@ -213,12 +213,12 @@ const CustomerDetail = () => {
     queryKey: ["tank_inventory_all", allTankIds, id],
     enabled: allTankIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("tank_inventory")
         .select("*, bulls_catalog(bull_name, company, registration_number)")
         .in("tank_id", allTankIds)
         .eq("owner_customer_id" as any, id)
-        .limit(10000);
+        .limit(10000) as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
