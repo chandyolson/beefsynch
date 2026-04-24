@@ -243,7 +243,7 @@ const ReInventory = () => {
             units,
             inventoried_at: now,
             inventoried_by: userId,
-            storage_type: "customer",
+            storage_type: nrCustomerId ? "customer" : "communal",
             item_type: nr.item_type,
           } as any)
           .select("id")
