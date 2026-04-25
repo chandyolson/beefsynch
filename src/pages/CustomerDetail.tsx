@@ -485,6 +485,18 @@ const CustomerDetail = () => {
       toast({ title: "Error", description: "Units must be a number greater than 0", variant: "destructive" });
       return;
     }
+    // Block save if the bull isn't linked to the catalog. The database now
+    // requires every tank_inventory row to have a real bull_catalog_id.
+    if (!semenBullCatalogId) {
+      toast({
+        title: "Bull not in catalog",
+        description: semenBullName?.trim()
+          ? `"${semenBullName.trim()}" isn't linked to your catalog. Click the Bull field, then either pick from the dropdown or use "Add custom bull" to create it. If you don't know what's in this canister, pick "Miscellaneous (placeholder)".`
+          : `Click the Bull field and pick from the dropdown, or use "Add custom bull" to create it. If you don't know what's in this canister, pick "Miscellaneous (placeholder)".`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSemenSaving(true);
     const { error } = await supabase
       .from("tank_inventory")
