@@ -733,7 +733,14 @@ const ReceiveShipment = () => {
     if (!receivedById) errs.receivedById = "Required";
     if (lines.length === 0) errs.lines = "At least one line item required";
     lines.forEach((l, i) => {
-      if (!l.bullName) errs[`line_${i}_bull`] = "Required";
+      if (!l.bullName) {
+        errs[`line_${i}_bull`] = "Required";
+      } else if (!l.bullCatalogId) {
+        // Bull text was typed but not linked to the catalog. The database now
+        // requires every tank_inventory row written by confirm_shipment to have
+        // a real bull_catalog_id, so we catch it here.
+        errs[`line_${i}_bull`] = "Pick from dropdown or use 'Add custom bull'";
+      }
       if (!l.units || (typeof l.units === "number" ? l.units : parseInt(String(l.units)) || 0) < 1) errs[`line_${i}_units`] = "Min 1";
       if (!l.tankId) errs[`line_${i}_tank`] = "Required";
       if (!l.canister.trim()) errs[`line_${i}_canister`] = "Required";
