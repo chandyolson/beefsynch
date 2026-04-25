@@ -146,14 +146,10 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   };
 
   const columns: { key: SortKey; label: string }[] = [
-    { key: "name", label: "Project Name" },
-    { key: "animalType", label: "Type" },
-    { key: "protocol", label: "Protocol" },
-    { key: "headCount", label: "Head" },
-    { key: "startDate", label: "Start Date" },
-    { key: "breedDate", label: "Breed Date" },
+    { key: "name", label: "Project" },
+    { key: "animalType", label: "Animal" },
+    { key: "breedDate", label: "Schedule" },
     { key: "status", label: "Status" },
-    { key: "lastContactedDate", label: "Last Contact" },
   ];
 
   return (
@@ -241,7 +237,8 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                 onClick={() => navigate(`/project/${project.id}`)}
                 className="border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                {/* Checkbox */}
+                <td className="px-4 py-3 align-top" onClick={(e) => e.stopPropagation()}>
                   {canSelectProject(project) ? (
                     <Checkbox
                       checked={selectedIds.has(project.id)}
@@ -250,44 +247,59 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                     />
                   ) : <div className="w-4" />}
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1.5">
+                {/* Project — name (bold) + protocol (muted) */}
+                <td className="px-4 py-3 align-top">
+                  <div className="font-medium text-foreground inline-flex items-center gap-1.5">
                     {project.name}
                     {syncedProjectIds.has(project.id) && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <CalendarCheck className="h-3.5 w-3.5 text-primary" />
+                            <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                           </TooltipTrigger>
                           <TooltipContent>Synced to Google Calendar</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                  </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate" title={project.protocol}>
+                    {project.protocol}
+                  </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                {/* Animal — type badge + head count */}
+                <td className="px-4 py-3 align-top">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectType', project.animalType)}`}>
                     {project.animalType}
                   </span>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {project.headCount} head
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.protocol}</td>
-                <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">{project.headCount}</td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.startDate ? format(parseISO(project.startDate), "MMM d, yyyy") : "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}</td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                {/* Schedule — breed date (bold) + start date (muted) */}
+                <td className="px-4 py-3 align-top">
+                  <div className="text-foreground whitespace-nowrap">
+                    {project.breedDate ? format(parseISO(project.breedDate), "MMM d, yyyy") : "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    Start: {project.startDate ? format(parseISO(project.startDate), "MMM d") : "—"}
+                  </div>
+                </td>
+                {/* Status — badge + last contact (muted) */}
+                <td className="px-4 py-3 align-top">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', project.status)}`}>
                     {project.status}
                   </span>
+                  <div className="text-xs text-muted-foreground mt-1 whitespace-nowrap">
+                    {project.lastContactedDate ? `Contacted ${format(parseISO(project.lastContactedDate), "MMM d")}` : "Not contacted"}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                  {project.lastContactedDate ? format(parseISO(project.lastContactedDate), "MMM d") : <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">{renderBulls(project.id)}</td>
+                {/* Bulls & Units — unchanged */}
+                <td className="px-4 py-3 align-top">{renderBulls(project.id)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No projects found.
                 </td>
               </tr>
