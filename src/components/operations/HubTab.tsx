@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, addDays, startOfDay } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import {
   CalendarDays, Package, AlertTriangle, DollarSign,
   Droplets, Truck, ChevronRight, Clock, CheckCircle2, XCircle,
@@ -55,6 +57,15 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     date: string;
     events: { id: string; eventName: string; eventTime: string | null; projectName: string; projectId: string; headCount: number }[];
   }[]>([]);
+  const [readyToInvoice, setReadyToInvoice] = useState<Array<{
+    id: string;
+    customerName: string;
+    orderDate: string;
+    bullSummary: string;
+    fulfillmentStatus: string;
+    unitsOrdered: number;
+    unitsFilled: number;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -132,6 +143,45 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const pendingCustCount = custOrders?.length || 0;
       const pendingCustUnits = (custOrders || []).reduce((s: number, o: any) =>
         s + (o.semen_order_items || []).reduce((s2: number, i: any) => s2 + (i.units || 0), 0), 0);
+
+      // Ready to invoice: customer orders, unbilled, fulfilled or partially_fulfilled
+      const { data: invoiceableOrders } = await supabase
+        .from("semen_orders")
+        .select(`
+          id,
+          order_date,
+          fulfillment_status,
+          customers(name),
+          semen_order_items(units, custom_bull_name, bulls_catalog(bull_name)),
+          tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units)))
+        `)
+        .eq("organization_id", orgId)
+        .eq("order_type", "customer")
+        .eq("billing_status", "unbilled")
+        .in("fulfillment_status", ["partially_fulfilled", "fulfilled", "partially_filled", "delivered"])
+        .order("order_date", { ascending: true });
+
+      const invoiceList = (invoiceableOrders || []).map((o: any) => {
+        const items = o.semen_order_items || [];
+        const ordered = items.reduce((s: number, i: any) => s + (i.units || 0), 0);
+        const filled = (o.tank_pack_orders || []).reduce((s: number, tpo: any) => {
+          const lines = tpo.tank_packs?.tank_pack_lines || [];
+          return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+        }, 0);
+        const bullSummary = items
+          .map((i: any) => `${i.units} ${i.bulls_catalog?.bull_name || i.custom_bull_name || "?"}`)
+          .join(" + ");
+        return {
+          id: o.id,
+          customerName: o.customers?.name || "Unknown",
+          orderDate: o.order_date,
+          bullSummary,
+          fulfillmentStatus: o.fulfillment_status,
+          unitsOrdered: ordered,
+          unitsFilled: filled,
+        };
+      });
+      setReadyToInvoice(invoiceList);
 
       const { data: invOrders } = await supabase
         .from("semen_orders")
@@ -505,6 +555,56 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           )}
         </div>
       </section>
+
+      {/* READY TO INVOICE */}
+      {readyToInvoice.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-lg font-semibold font-display">Ready to invoice</h2>
+            <span className="text-sm text-muted-foreground">
+              {readyToInvoice.length} order{readyToInvoice.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {readyToInvoice.map((o) => (
+                  <div
+                    key={o.id}
+                    className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_auto] gap-3 p-4 items-center"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/semen-orders/${o.id}`}
+                        className="font-medium text-sm hover:text-primary block truncate"
+                      >
+                        {o.customerName}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        Order · {format(parseISO(o.orderDate), "MMM d")}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{o.bullSummary}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered}
+                      </p>
+                    </div>
+                    <InvoiceOrderModal
+                      orderId={o.id}
+                      customerName={o.customerName}
+                      trigger={<Button size="sm">Invoice</Button>}
+                      onSuccess={() =>
+                        setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* THIS WEEK */}
       <section className="space-y-3">
