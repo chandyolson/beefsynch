@@ -505,11 +505,16 @@ const SemenOrderDetail = () => {
             </div>
             <div>
               <span className="text-muted-foreground">Fulfillment Status</span>
-              <p className="font-medium capitalize">{order.fulfillment_status}</p>
+              <p className="font-medium capitalize">{order.fulfillment_status.replace(/_/g, " ")}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Billing Status</span>
               <p className="font-medium capitalize">{order.billing_status}</p>
+              {order.invoice_number && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Invoice #{order.invoice_number}
+                </p>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground">Semen Company</span>
