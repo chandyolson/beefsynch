@@ -133,7 +133,7 @@ const Tanks = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("*, customers(name)")
+        .select("*, customers!tanks_customer_id_fkey(name)")
         .eq("organization_id", orgId!)
         .order("tank_number", { ascending: true });
       if (error) throw error;

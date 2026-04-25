@@ -77,7 +77,7 @@ const ReInventory = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("*, customers(id, name)")
+        .select("*, customers!tanks_customer_id_fkey(id, name)")
         .eq("id", tankId!)
         .single();
       if (error) throw error;

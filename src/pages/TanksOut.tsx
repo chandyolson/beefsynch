@@ -65,7 +65,7 @@ const TanksOut = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("tanks")
-        .select("*, customers(name)")
+        .select("*, customers!tanks_customer_id_fkey(name)")
         .eq("organization_id", orgId!)
         .eq("location_status", "out")
         .order("tank_number");

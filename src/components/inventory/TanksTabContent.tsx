@@ -367,7 +367,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
     queryKey: ["all_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks").select("*, customers(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
+      const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -751,7 +751,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
     queryKey: ["all_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks").select("*, customers(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
+      const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -1011,7 +1011,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryKey: ["tanks_out", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("tanks").select("*, customers(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
+      const { data, error } = await (supabase as any).from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
       if (error) throw error;
       return (data ?? []) as any[];
     },
