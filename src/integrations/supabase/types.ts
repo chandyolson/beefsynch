@@ -1760,6 +1760,8 @@ export type Database = {
           semen_order_id: string | null
           shipment_type: string
           status: string
+          supplier_invoice_number: string | null
+          tracking_number: string | null
           updated_at: string
         }
         Insert: {
@@ -1779,6 +1781,8 @@ export type Database = {
           semen_order_id?: string | null
           shipment_type?: string
           status?: string
+          supplier_invoice_number?: string | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -1798,6 +1802,8 @@ export type Database = {
           semen_order_id?: string | null
           shipment_type?: string
           status?: string
+          supplier_invoice_number?: string | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2661,6 +2667,7 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      receive_shipment_v2: { Args: { _input: Json }; Returns: Json }
       save_reinventory: { Args: { _input: Json }; Returns: Json }
       set_transaction_context: {
         Args: {
