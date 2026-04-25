@@ -556,6 +556,56 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         </div>
       </section>
 
+      {/* READY TO INVOICE */}
+      {readyToInvoice.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-lg font-semibold font-display">Ready to invoice</h2>
+            <span className="text-sm text-muted-foreground">
+              {readyToInvoice.length} order{readyToInvoice.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {readyToInvoice.map((o) => (
+                  <div
+                    key={o.id}
+                    className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_auto] gap-3 p-4 items-center"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/orders/${o.id}`}
+                        className="font-medium text-sm hover:text-primary block truncate"
+                      >
+                        {o.customerName}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        Order · {format(parseISO(o.orderDate), "MMM d")}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{o.bullSummary}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered}
+                      </p>
+                    </div>
+                    <InvoiceOrderModal
+                      orderId={o.id}
+                      customerName={o.customerName}
+                      trigger={<Button size="sm">Invoice</Button>}
+                      onSuccess={() =>
+                        setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* THIS WEEK */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
