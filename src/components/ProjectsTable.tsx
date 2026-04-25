@@ -146,14 +146,10 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
   };
 
   const columns: { key: SortKey; label: string }[] = [
-    { key: "name", label: "Project Name" },
-    { key: "animalType", label: "Type" },
-    { key: "protocol", label: "Protocol" },
-    { key: "headCount", label: "Head" },
-    { key: "startDate", label: "Start Date" },
-    { key: "breedDate", label: "Breed Date" },
+    { key: "name", label: "Project" },
+    { key: "animalType", label: "Animal" },
+    { key: "breedDate", label: "Schedule" },
     { key: "status", label: "Status" },
-    { key: "lastContactedDate", label: "Last Contact" },
   ];
 
   return (
