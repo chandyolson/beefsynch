@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, addDays, startOfDay } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import {
   CalendarDays, Package, AlertTriangle, DollarSign,
   Droplets, Truck, ChevronRight, Clock, CheckCircle2, XCircle,
@@ -55,6 +57,15 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     date: string;
     events: { id: string; eventName: string; eventTime: string | null; projectName: string; projectId: string; headCount: number }[];
   }[]>([]);
+  const [readyToInvoice, setReadyToInvoice] = useState<Array<{
+    id: string;
+    customerName: string;
+    orderDate: string;
+    bullSummary: string;
+    fulfillmentStatus: string;
+    unitsOrdered: number;
+    unitsFilled: number;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
