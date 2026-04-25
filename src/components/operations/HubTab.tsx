@@ -144,6 +144,45 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const pendingCustUnits = (custOrders || []).reduce((s: number, o: any) =>
         s + (o.semen_order_items || []).reduce((s2: number, i: any) => s2 + (i.units || 0), 0), 0);
 
+      // Ready to invoice: customer orders, unbilled, fulfilled or partially_fulfilled
+      const { data: invoiceableOrders } = await supabase
+        .from("semen_orders")
+        .select(`
+          id,
+          order_date,
+          fulfillment_status,
+          customers(name),
+          semen_order_items(units, custom_bull_name, bulls_catalog(bull_name)),
+          tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units)))
+        `)
+        .eq("organization_id", orgId)
+        .eq("order_type", "customer")
+        .eq("billing_status", "unbilled")
+        .in("fulfillment_status", ["partially_fulfilled", "fulfilled", "partially_filled", "delivered"])
+        .order("order_date", { ascending: true });
+
+      const invoiceList = (invoiceableOrders || []).map((o: any) => {
+        const items = o.semen_order_items || [];
+        const ordered = items.reduce((s: number, i: any) => s + (i.units || 0), 0);
+        const filled = (o.tank_pack_orders || []).reduce((s: number, tpo: any) => {
+          const lines = tpo.tank_packs?.tank_pack_lines || [];
+          return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+        }, 0);
+        const bullSummary = items
+          .map((i: any) => `${i.units} ${i.bulls_catalog?.bull_name || i.custom_bull_name || "?"}`)
+          .join(" + ");
+        return {
+          id: o.id,
+          customerName: o.customers?.name || "Unknown",
+          orderDate: o.order_date,
+          bullSummary,
+          fulfillmentStatus: o.fulfillment_status,
+          unitsOrdered: ordered,
+          unitsFilled: filled,
+        };
+      });
+      setReadyToInvoice(invoiceList);
+
       const { data: invOrders } = await supabase
         .from("semen_orders")
         .select("id")
