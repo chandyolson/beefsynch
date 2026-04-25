@@ -152,7 +152,7 @@ const ReceiveShipmentPreview = () => {
     enabled: !!shipment?.semen_order_id && isDraft,
   });
 
-  const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
+  const alreadyReceivedStatuses = ["fulfilled", "partially_fulfilled", "substituted", "over", "short"];
   const showDuplicateWarning = isDraft && linkedOrder && alreadyReceivedStatuses.includes((linkedOrder as any).fulfillment_status);
 
   // Build reconciliation

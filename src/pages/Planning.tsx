@@ -95,7 +95,7 @@ export default function Planning() {
     const customerOrders = (custItems ?? [])
       .filter((item: any) =>
         item.semen_orders?.order_type === "customer" &&
-        ["pending", "partially_filled"].includes(item.semen_orders?.fulfillment_status)
+        ["pending", "partially_fulfilled"].includes(item.semen_orders?.fulfillment_status)
       )
       .map((item: any) => ({
         orderId: item.semen_orders.id,
@@ -108,7 +108,7 @@ export default function Planning() {
     const inventoryOrders = (custItems ?? [])
       .filter((item: any) =>
         item.semen_orders?.order_type === "inventory" &&
-        ["pending", "partially_filled"].includes(item.semen_orders?.fulfillment_status)
+        ["pending", "partially_fulfilled"].includes(item.semen_orders?.fulfillment_status)
       )
       .map((item: any) => ({
         orderId: item.semen_orders.id,

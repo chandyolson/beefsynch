@@ -207,7 +207,7 @@ const ReceiveShipment = () => {
 
   // Check if selected order already received
   const selectedOrder = orders.find((o) => o.id === selectedOrderId);
-  const alreadyReceivedStatuses = ["delivered", "partially_filled", "substituted", "over", "short"];
+  const alreadyReceivedStatuses = ["fulfilled", "partially_fulfilled", "substituted", "over", "short"];
   const selectedOrderAlreadyReceived = selectedOrder && alreadyReceivedStatuses.includes(selectedOrder.fulfillment_status);
 
   // Fetch existing shipments for the selected order (for linking)

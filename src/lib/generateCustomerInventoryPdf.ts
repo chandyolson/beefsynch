@@ -129,7 +129,7 @@ export function generateCustomerInventoryPdf(
     const items = inventoryByTank.get(tid) || [];
     return sum + items.reduce((s, i) => s + (i.units || 0), 0);
   }, 0);
-  const openOrders = orders.filter((o) => ["pending", "partially_filled"].includes(o.fulfillment_status));
+  const openOrders = orders.filter((o) => ["pending", "partially_fulfilled"].includes(o.fulfillment_status));
   const unitsOnOrder = openOrders.reduce((sum, o) =>
     sum + (o.semen_order_items || []).reduce((s, i) => s + (i.units || 0), 0), 0);
 

@@ -138,7 +138,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .select("id, semen_order_items(units)")
         .eq("organization_id", orgId)
         .eq("order_type", "customer")
-        .not("fulfillment_status", "in", '("delivered","cancelled")');
+        .not("fulfillment_status", "in", '("fulfilled","cancelled")');
 
       const pendingCustCount = custOrders?.length || 0;
       const pendingCustUnits = (custOrders || []).reduce((s: number, o: any) =>
@@ -158,7 +158,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .eq("organization_id", orgId)
         .eq("order_type", "customer")
         .eq("billing_status", "unbilled")
-        .in("fulfillment_status", ["partially_fulfilled", "fulfilled", "partially_filled", "delivered"])
+        .in("fulfillment_status", ["partially_fulfilled", "fulfilled"])
         .order("order_date", { ascending: true });
 
       const invoiceList = (invoiceableOrders || []).map((o: any) => {
@@ -188,7 +188,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .select("id")
         .eq("organization_id", orgId)
         .eq("order_type", "inventory")
-        .not("fulfillment_status", "in", '("delivered","cancelled")');
+        .not("fulfillment_status", "in", '("fulfilled","cancelled")');
 
       const { data: tanksOutData } = await supabase
         .from("tank_packs")

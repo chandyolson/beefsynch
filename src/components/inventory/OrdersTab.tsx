@@ -84,7 +84,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const totalOrders = scopedOrders.length;
   const totalUnits = useMemo(() => scopedOrders.reduce((sum: number, o: any) =>
     sum + (o.semen_order_items?.reduce((s: number, i: any) => s + (i.units || 0), 0) ?? 0), 0), [scopedOrders]);
-  const pendingCount = scopedOrders.filter((o: any) => o.fulfillment_status !== "delivered").length;
+  const pendingCount = scopedOrders.filter((o: any) => o.fulfillment_status !== "fulfilled").length;
   const unbilledCount = scopedOrders.filter((o: any) => o.billing_status === "unbilled").length;
 
   const getBullNames = (items: any[]) => {
@@ -166,10 +166,10 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             <SelectItem value="all">All Fulfillment</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="backordered">Backordered</SelectItem>
-            <SelectItem value="partially filled">Partially Filled</SelectItem>
+            <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
             <SelectItem value="ordered">Ordered</SelectItem>
             <SelectItem value="shipped">Shipped</SelectItem>
-            <SelectItem value="delivered">Delivered</SelectItem>
+            <SelectItem value="fulfilled">Fulfilled</SelectItem>
           </SelectContent>
         </Select>
         <Select value={billingFilter} onValueChange={setBillingFilter}>

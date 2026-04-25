@@ -442,8 +442,7 @@ const SemenOrderDetail = () => {
 
           {order.order_type === "customer" && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {(order.fulfillment_status === "partially_fulfilled" ||
-                order.fulfillment_status === "partially_filled") && (
+              {order.fulfillment_status === "partially_fulfilled" && (
                 <MarkFulfilledModal
                   orderId={order.id}
                   customerName={customerName}
@@ -457,7 +456,7 @@ const SemenOrderDetail = () => {
                 />
               )}
               {order.billing_status === "unbilled" &&
-                ["partially_fulfilled", "fulfilled", "partially_filled", "delivered"].includes(
+                ["partially_fulfilled", "fulfilled"].includes(
                   order.fulfillment_status,
                 ) && (
                   <InvoiceOrderModal

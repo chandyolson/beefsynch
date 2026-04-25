@@ -12,10 +12,10 @@ export const BADGE_STYLES = {
   orderFulfillment: {
     pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
     backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-    "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    partially_fulfilled: "bg-orange-500/20 text-orange-300 border-orange-500/30",
     ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
     shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    delivered: "bg-green-500/20 text-green-300 border-green-500/30",
+    fulfilled: "bg-green-500/20 text-green-300 border-green-500/30",
   },
   orderBilling: {
     unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
@@ -81,10 +81,10 @@ export const statusColor: Record<string, string> = {
 export const fulfillmentColors: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
   backordered: "bg-red-500/20 text-red-300 border-red-500/30",
-  "partially filled": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  partially_fulfilled: "bg-orange-500/20 text-orange-300 border-orange-500/30",
   ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  delivered: "bg-green-500/20 text-green-300 border-green-500/30",
+  fulfilled: "bg-green-500/20 text-green-300 border-green-500/30",
 };
 
 export const billingColors: Record<string, string> = {

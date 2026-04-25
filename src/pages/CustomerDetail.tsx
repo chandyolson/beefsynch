@@ -46,9 +46,9 @@ const STATUS_COLORS: Record<string, string> = {
 const FULFILLMENT_COLORS: Record<string, string> = {
   pending: "bg-muted text-muted-foreground",
   ordered: "bg-blue-600/20 text-blue-400",
-  partially_filled: "bg-yellow-600/20 text-yellow-400",
+  partially_fulfilled: "bg-yellow-600/20 text-yellow-400",
   shipped: "bg-purple-600/20 text-purple-400",
-  delivered: "bg-green-600/20 text-green-400",
+  fulfilled: "bg-green-600/20 text-green-400",
 };
 
 const BILLING_COLORS: Record<string, string> = {

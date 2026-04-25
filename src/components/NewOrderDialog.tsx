@@ -445,10 +445,10 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
               <SelectContent>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="backordered">Backordered</SelectItem>
-                <SelectItem value="partially filled">Partially Filled</SelectItem>
+                <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
                 <SelectItem value="ordered">Ordered</SelectItem>
                 <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="fulfilled">Fulfilled</SelectItem>
               </SelectContent>
             </Select>
           </div>
