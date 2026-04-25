@@ -114,7 +114,7 @@ const SemenOrderDetail = () => {
       }
 
       if (oRes.data) {
-        setOrder(oRes.data as OrderRow);
+        setOrder(oRes.data as unknown as OrderRow);
         if (oRes.data.project_id) {
           const { data: pData } = await supabase
             .from("projects")
