@@ -22,6 +22,8 @@ import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmentReconciliation";
 import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
+import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
+import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
 
 interface OrderRow {
   id: string;
@@ -34,6 +36,11 @@ interface OrderRow {
   notes: string | null;
   placed_by: string | null;
   order_type: string;
+  invoice_number: string | null;
+  invoiced_at: string | null;
+  manually_closed_at: string | null;
+  manually_closed_by: string | null;
+  manually_closed_reason: string | null;
   customers: { name: string; phone: string | null; email: string | null } | null;
 }
 
