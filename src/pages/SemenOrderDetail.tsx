@@ -426,58 +426,47 @@ const SemenOrderDetail = () => {
           <p className="text-muted-foreground text-sm mt-1">
             Order Date: {format(parseISO(order.order_date), "MMMM d, yyyy")}
           </p>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>
-              {order.fulfillment_status}
+              {order.fulfillment_status.replace(/_/g, " ")}
             </Badge>
             <Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>
               {order.billing_status}
             </Badge>
+            {order.invoice_number && (
+              <Badge variant="outline" className="text-xs">
+                #{order.invoice_number}
+              </Badge>
+            )}
           </div>
-          {order.order_type === "customer"
-            && order.billing_status === "unbilled"
-            && (order.fulfillment_status === "partially_filled" || order.fulfillment_status === "delivered") && (
-            <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex items-center justify-between gap-3">
-              <div className="text-sm">
-                <p className="font-medium text-yellow-200">
-                  {order.fulfillment_status === "delivered" ? "Order fully packed" : "Order partially packed"} — ready to invoice?
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Mark this order invoiced once you have sent it to billing.
-                </p>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="default">Mark as Invoiced</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Mark order as invoiced?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This sets billing status to "invoiced" and stamps today's date. You can undo by editing the order.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={async () => {
-                        const { error } = await (supabase as any)
-                          .from("semen_orders")
-                          .update({ billing_status: "invoiced", invoiced_at: new Date().toISOString() })
-                          .eq("id", order.id);
-                        if (error) {
-                          toast({ title: "Could not mark invoiced", description: error.message, variant: "destructive" });
-                          return;
-                        }
-                        toast({ title: "Marked as invoiced" });
-                        window.location.reload();
-                      }}
-                    >
-                      Mark Invoiced
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+
+          {order.order_type === "customer" && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {(order.fulfillment_status === "partially_fulfilled" ||
+                order.fulfillment_status === "partially_filled") && (
+                <MarkFulfilledModal
+                  orderId={order.id}
+                  customerName={customerName}
+                  unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
+                  unitsFilled={packData.reduce((s: number, link: any) => {
+                    const lines = link.tank_packs?.tank_pack_lines || [];
+                    return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+                  }, 0)}
+                  trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
+                  onSuccess={() => load()}
+                />
+              )}
+              {order.billing_status === "unbilled" &&
+                ["partially_fulfilled", "fulfilled", "partially_filled", "delivered"].includes(
+                  order.fulfillment_status,
+                ) && (
+                  <InvoiceOrderModal
+                    orderId={order.id}
+                    customerName={customerName}
+                    trigger={<Button size="sm">Invoice</Button>}
+                    onSuccess={() => load()}
+                  />
+                )}
             </div>
           )}
         </div>
