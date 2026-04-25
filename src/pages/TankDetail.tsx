@@ -517,7 +517,13 @@ const TankDetail = () => {
 
     // Validate inline, not after the DB rejects us
     const errs: Record<string, string> = {};
-    if (!manualBullName.trim()) errs.bullName = "Required";
+    if (!manualBullName.trim()) {
+      errs.bullName = "Required";
+    } else if (!manualBullCatalogId) {
+      // Bull text was typed but not linked to the catalog. The database now
+      // requires every tank_inventory row to have a real bull_catalog_id.
+      errs.bullName = "Pick from dropdown or use 'Add custom bull'";
+    }
     if (!manualBullCode.trim()) errs.bullCode = "Required (NAAB or your own code)";
     if (manualUnits <= 0) errs.units = "Must be > 0";
 
