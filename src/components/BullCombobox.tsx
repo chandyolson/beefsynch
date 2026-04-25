@@ -171,11 +171,21 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
           aria-autocomplete="list"
           className="h-9 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
-        {catalogId && (
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded">
+        {catalogId ? (
+          <span
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded"
+            title="This bull is linked to your catalog."
+          >
             Catalog
           </span>
-        )}
+        ) : query.trim().length > 0 ? (
+          <span
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded"
+            title="This bull isn't in your catalog yet. Pick one from the dropdown or use 'Add custom bull' to save it."
+          >
+            Not linked
+          </span>
+        ) : null}
         {open && (results.length > 0 || query.trim().length > 0) && (
           <div
             className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto"
