@@ -196,6 +196,29 @@ const ReInventory = () => {
   // Save
   const handleSave = async () => {
     if (!tankId || !orgId) return;
+
+    // Block save if any new row has a canister but no bull catalog link.
+    // The database now requires every tank_inventory row to have a real
+    // bull_catalog_id. Existing rows being adjusted are already linked.
+    const unlinkedNewRows = newRows.filter(
+      (nr) => nr.canister.trim().length > 0 && !nr.bull_catalog_id
+    );
+    if (unlinkedNewRows.length > 0) {
+      const desc = unlinkedNewRows
+        .map((nr) =>
+          nr.bull_name?.trim()
+            ? `Canister ${nr.canister}: "${nr.bull_name.trim()}"`
+            : `Canister ${nr.canister}: (no bull)`
+        )
+        .join("; ");
+      toast({
+        title: "Bull not in catalog",
+        description: `${unlinkedNewRows.length} new row${unlinkedNewRows.length === 1 ? "" : "s"} need a bull from the catalog: ${desc}. Click the Bull field on each row and pick from the dropdown, use "Add custom bull", or pick "Miscellaneous (placeholder)" if unknown.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
 
     try {
