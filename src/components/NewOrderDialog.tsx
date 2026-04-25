@@ -177,6 +177,25 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       return;
     }
 
+    // Block save if any bull row has typed text but isn't linked to the catalog.
+    // The database now requires every order line to have a real bull_catalog_id,
+    // so we catch this here with a clear message instead of letting it fail at the DB.
+    const unlinkedBulls = bulls.filter(
+      (b) => b.name?.trim().length > 0 && !b.catalogId
+    );
+    if (unlinkedBulls.length > 0) {
+      const names = unlinkedBulls.map((b) => `"${b.name.trim()}"`).join(", ");
+      toast({
+        title: "Bull not in catalog",
+        description:
+          unlinkedBulls.length === 1
+            ? `${names} isn't linked to your catalog. Click that bull row, then either pick from the dropdown or use "Add custom bull" to create it.`
+            : `${unlinkedBulls.length} bull rows aren't linked: ${names}. Click each one and either pick from the dropdown or use "Add custom bull" to create it.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const orderPayload: any = {
