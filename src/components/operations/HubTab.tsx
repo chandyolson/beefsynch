@@ -575,7 +575,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                   >
                     <div className="min-w-0">
                       <Link
-                        to={`/orders/${o.id}`}
+                        to={`/semen-orders/${o.id}`}
                         className="font-medium text-sm hover:text-primary block truncate"
                       >
                         {o.customerName}
