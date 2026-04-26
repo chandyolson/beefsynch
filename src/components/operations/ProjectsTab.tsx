@@ -41,13 +41,13 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
   const fetchProjects = useCallback(async () => {
     const { data } = await supabase
       .from("projects")
-      .select("*")
+      .select("*, customers(name)")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 
     if (data) {
       setDbProjects(data as DbProject[]);
-      const mapped: BreedingProject[] = data.map((p) => ({
+      const mapped: BreedingProject[] = (data as any[]).map((p) => ({
         id: p.id,
         name: p.name,
         animalType: p.cattle_type === "Cows" ? "Cow" : "Heifer",
@@ -59,6 +59,8 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
         location: "",
         userId: p.user_id,
         lastContactedDate: p.last_contacted_date ?? null,
+        customerId: p.customer_id ?? null,
+        customerName: p.customers?.name ?? null,
       }));
       setProjects(mapped);
 

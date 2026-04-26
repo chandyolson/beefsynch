@@ -13,4 +13,6 @@ export interface BreedingProject {
   location: string;
   userId?: string | null;
   lastContactedDate?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
 }

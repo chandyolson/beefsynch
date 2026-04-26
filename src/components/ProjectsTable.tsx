@@ -262,8 +262,8 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
                       </TooltipProvider>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground truncate" title={project.protocol}>
-                    {project.protocol}
+                  <div className="text-xs text-muted-foreground truncate" title={project.customerName || ""}>
+                    {project.customerName || "—"}
                   </div>
                 </td>
                 {/* Animal — type badge + head count */}
@@ -355,6 +355,8 @@ const ProjectsTable = ({ projects, selectedIds, onSelectionChange, bullsByProjec
 
               {/* Row 2: Key details */}
               <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm pl-7">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Customer</div>
+                <div className="truncate">{project.customerName || "—"}</div>
                 <div className="text-xs text-muted-foreground uppercase tracking-wide">Protocol</div>
                 <div className="truncate">{project.protocol}</div>
                 <div className="text-xs text-muted-foreground uppercase tracking-wide">Breed</div>
