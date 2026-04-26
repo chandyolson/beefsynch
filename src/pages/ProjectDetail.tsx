@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Tr
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import CustomerPicker from "@/components/CustomerPicker";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
@@ -66,6 +67,8 @@ import { statusColor } from "@/lib/badgeStyles";
 interface ProjectRow {
   id: string;
   name: string;
+  customer_id: string;
+  customers: { name: string } | null;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -129,6 +132,7 @@ const ProjectDetail = () => {
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
   const [googleCalendarConfigured, setGoogleCalendarConfigured] = useState(isGoogleCalendarConfigured());
+  const [customerEditOpen, setCustomerEditOpen] = useState(false);
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -268,7 +272,7 @@ const ProjectDetail = () => {
     if (!id) return;
     try {
       const [pRes, eRes, bRes] = await Promise.all([
-        supabase.from("projects").select("*").eq("id", id).single(),
+        supabase.from("projects").select("*, customers(name)").eq("id", id).single(),
         supabase
           .from("protocol_events")
           .select("*")
