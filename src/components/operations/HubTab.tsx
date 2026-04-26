@@ -212,13 +212,13 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         return !billing?.billing_completed_at;
       });
 
-      // Tanks on site (status not 'shipped_out' / 'picked_up' style)
+      // Tanks on site (location_status = 'here', not out with customer)
       const { data: fillData } = await supabase
         .from("tanks")
-        .select("id, status")
+        .select("id, location_status")
         .eq("organization_id", orgId);
       const wetHere = (fillData || []).filter((t: any) =>
-        !["shipped_out", "picked_up", "out", "with_customer"].includes(t.status)
+        t.location_status === "here"
       ).length;
 
       // 3. Inventory shortage check for upcoming unpacked projects
