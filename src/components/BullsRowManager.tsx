@@ -52,6 +52,7 @@ const BullsRowManager = ({
           .from("tank_inventory")
           .select("bull_catalog_id, bull_code, custom_bull_name, units, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)")
           .eq("organization_id", orgId!)
+          .is("customer_id", null)
           .range(from, from + PAGE - 1);
         if (error) throw error;
         const batch = data ?? [];

@@ -64,6 +64,17 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const [search, setSearch] = useState("");
   const [storageFilter, setStorageFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState<string>(initialOwnerFilter);
+  // "available" = company-owned, sellable; "all" = every shelf row including customer-owned.
+  // Default to "available" so the dashboard shows what's actually for sale by default.
+  const [shelfMode, setShelfMode] = useState<"available" | "all">("available");
+
+  // When the toggle is "available", picking "Customer" in ownerFilter would always be empty
+  // (company-only AND customer-only). Force it back to "company" instead — option (a).
+  useEffect(() => {
+    if (shelfMode === "available" && ownerFilter === "customer") {
+      setOwnerFilter("company");
+    }
+  }, [shelfMode, ownerFilter]);
 
   useEffect(() => {
     setOwnerFilter(initialOwnerFilter);
@@ -86,18 +97,21 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
-    queryKey: ["semen-inventory", orgId],
+    queryKey: ["semen-inventory", orgId, shelfMode],
     enabled: !!orgId,
     queryFn: async () => {
       const PAGE = 1000;
       const allRows: any[] = [];
       let from = 0;
       while (true) {
-        const { data, error } = await supabase
+        let query = supabase
           .from("tank_inventory")
           .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, naab_code)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
+        // "available" = sellable company stock only; customer-owned rows are excluded
+        if (shelfMode === "available") query = query.is("customer_id", null);
+        const { data, error } = await query;
         if (error) throw error;
         const rows = data ?? [];
         allRows.push(...rows);
@@ -536,7 +550,13 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         <div className={cn("transition-all", ownerFilter === "all" ? "ring-2 ring-primary rounded-xl" : "")}>
           <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} onClick={() => { setOwnerFilter("all"); onFilterReset?.(); }} />
         </div>
-        <div className={cn("transition-all", ownerFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "")}>
+        <div className={cn(
+          "transition-all",
+          ownerFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "",
+          // When showing only available stock, customer rows are filtered out at the query
+          // level — this card would always read 0. Grey it out and disable the click.
+          shelfMode === "available" && "opacity-40 pointer-events-none",
+        )}>
           <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} onClick={() => { setOwnerFilter("customer"); onFilterReset?.(); }} />
         </div>
         <div className={cn("transition-all", ownerFilter === "company" ? "ring-2 ring-primary rounded-xl" : "")}>
@@ -564,7 +584,9 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
             <SelectContent>
               <SelectItem value="all">All Owners</SelectItem>
               <SelectItem value="company">Company Only</SelectItem>
-              <SelectItem value="customer">Customer Only</SelectItem>
+              {/* "Customer Only" is meaningless when showing available stock (which filters
+                  customer-owned out at the query). Hide it in that mode. */}
+              {shelfMode === "all" && <SelectItem value="customer">Customer Only</SelectItem>}
               <SelectItem value="CATL">CATL</SelectItem>
               <SelectItem value="Select">Select</SelectItem>
             </SelectContent>
@@ -573,6 +595,10 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search bull, customer, tank…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <div className="flex border border-border rounded-md overflow-hidden">
+          <button onClick={() => setShelfMode("available")} className={cn("px-3 py-1.5 text-sm transition-colors whitespace-nowrap", shelfMode === "available" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Available stock only</button>
+          <button onClick={() => setShelfMode("all")} className={cn("px-3 py-1.5 text-sm transition-colors whitespace-nowrap", shelfMode === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>All shelf contents</button>
         </div>
         <div className="flex border border-border rounded-md overflow-hidden">
           <button onClick={() => setViewMode("detail")} className={cn("px-3 py-1.5 text-sm transition-colors", viewMode === "detail" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>Detail</button>
