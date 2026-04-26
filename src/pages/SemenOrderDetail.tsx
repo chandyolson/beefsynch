@@ -792,7 +792,10 @@ const SemenOrderDetail = () => {
           </Card>
         )}
 
-        {id && <OrderShipmentReconciliation orderId={id} />}
+        {/* Reconciliation card only applies to inventory orders (POs from semen companies).
+            Customer orders are filled by packing from existing tank inventory, which is
+            already shown in the "Packed for this Order" card above. */}
+        {id && order?.order_type === "inventory" && <OrderShipmentReconciliation orderId={id} />}
       </div>
 
       <NewOrderDialog
