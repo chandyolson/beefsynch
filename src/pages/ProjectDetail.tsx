@@ -703,6 +703,32 @@ const ProjectDetail = () => {
           <h1 className="text-3xl font-bold font-display text-foreground">
             {project.name}
           </h1>
+          {/* Customer line with edit pencil */}
+          <div className="flex items-center gap-2 text-lg text-muted-foreground">
+            <span>
+              {(Array.isArray(project.customers)
+                ? project.customers[0]?.name
+                : project.customers?.name) || "—"}
+            </span>
+            <Popover open={customerEditOpen} onOpenChange={setCustomerEditOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change customer">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3" align="start">
+                <div className="text-sm font-medium mb-2">Change Customer</div>
+                <CustomerPicker
+                  value={project.customer_id || null}
+                  onChange={(newId) => {
+                    handleChangeCustomer(newId);
+                    setCustomerEditOpen(false);
+                  }}
+                  orgId={orgId || ""}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/20 text-primary border-primary/30">
               {project.protocol}
