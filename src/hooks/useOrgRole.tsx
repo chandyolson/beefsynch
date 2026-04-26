@@ -69,7 +69,7 @@ export function OrgRoleProvider({ children }: { children: ReactNode }) {
     setUserId(user.id);
     const { data, error } = await supabase
       .from("organization_members")
-      .select("role, organization_id, organizations(name)")
+      .select("role, organization_id, organizations!organization_members_organization_id_fkey(name)")
       .eq("user_id", user.id)
       .eq("accepted", true);
 

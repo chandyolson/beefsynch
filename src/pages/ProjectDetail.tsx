@@ -272,7 +272,7 @@ const ProjectDetail = () => {
     if (!id) return;
     try {
       const [pRes, eRes, bRes] = await Promise.all([
-        supabase.from("projects").select("*, customers(name)").eq("id", id).single(),
+        supabase.from("projects").select("*, customers!projects_customer_id_fkey(name)").eq("id", id).single(),
         supabase
           .from("protocol_events")
           .select("*")
@@ -323,7 +323,7 @@ const ProjectDetail = () => {
     }
     const { data } = await supabase
       .from("projects")
-      .select("*, customers(name)")
+      .select("*, customers!projects_customer_id_fkey(name)")
       .eq("id", project.id)
       .single();
     if (data) setProject(data as unknown as ProjectRow);

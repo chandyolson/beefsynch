@@ -100,7 +100,7 @@ const MasterCalendar = () => {
 
       const { data, error } = await supabase
         .from("protocol_events")
-        .select("id, event_name, event_date, event_time, project_id, projects(id, name, protocol, cattle_type, head_count, breeding_date, breeding_time, status)")
+        .select("id, event_name, event_date, event_time, project_id, projects!protocol_events_project_id_fkey(id, name, protocol, cattle_type, head_count, breeding_date, breeding_time, status)")
         .gte("event_date", start)
         .lte("event_date", end)
         .order("event_date", { ascending: true });

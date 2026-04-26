@@ -118,7 +118,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
     if (shipmentIds.length > 0) {
       const { data: shipData } = await supabase
         .from("shipments")
-        .select("id, semen_companies(name), customers(name)")
+        .select("id, semen_companies!shipments_semen_company_id_fkey(name), customers!shipments_customer_id_fkey(name)")
         .in("id", shipmentIds);
       if (shipData) {
         for (const s of shipData as any[]) {

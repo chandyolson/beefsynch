@@ -53,7 +53,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, customers(id, name), semen_companies(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
+        .select("*, customers!semen_orders_customer_id_fkey(id, name), semen_companies!semen_orders_semen_company_id_fkey(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false });
       if (error) throw error;

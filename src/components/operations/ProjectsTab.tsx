@@ -41,7 +41,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
   const fetchProjects = useCallback(async () => {
     const { data } = await supabase
       .from("projects")
-      .select("*, customers(name)")
+      .select("*, customers!projects_customer_id_fkey(name)")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 

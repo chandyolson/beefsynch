@@ -166,7 +166,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
       const { data, error } = await (supabase as any)
         .from("semen_orders")
         .select(
-          "id, invoiced_at, order_type, placed_by, customers(name), semen_companies(name)",
+          "id, invoiced_at, order_type, placed_by, customers!semen_orders_customer_id_fkey(name), semen_companies!semen_orders_semen_company_id_fkey(name)",
         )
         .eq("organization_id", orgId)
         .gte("invoiced_at", startIso)
@@ -218,7 +218,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
       const { data, error } = await (supabase as any)
         .from("semen_orders")
         .select(
-          "id, order_type, needed_by, created_at, customers(name), semen_companies(name), semen_order_items(units)",
+          "id, order_type, needed_by, created_at, customers!semen_orders_customer_id_fkey(name), semen_companies!semen_orders_semen_company_id_fkey(name), semen_order_items(units)",
         )
         .eq("organization_id", orgId)
         .gte("created_at", startIso)
@@ -296,9 +296,9 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .from("shipments")
         .select(
           `id, received_date, received_by, notes,
-           semen_companies(name),
-           customers(name),
-           semen_orders!shipments_semen_order_id_fkey(id, customers(name))`,
+           semen_companies!shipments_semen_company_id_fkey(name),
+           customers!shipments_customer_id_fkey(name),
+           semen_orders!shipments_semen_order_id_fkey(id, customers!semen_orders_customer_id_fkey(name))`,
         )
         .eq("organization_id", orgId)
         .eq("status", "confirmed")

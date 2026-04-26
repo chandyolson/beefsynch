@@ -89,7 +89,7 @@ export default function Planning() {
 
     const { data: custItems } = await supabase
       .from("semen_order_items")
-      .select("units, semen_order_id, semen_orders(id, order_type, fulfillment_status, order_date, customer_id, customers(name))")
+      .select("units, semen_order_id, semen_orders(id, order_type, fulfillment_status, order_date, customer_id, customers!semen_orders_customer_id_fkey(name))")
       .eq("bull_catalog_id", bullCatalogId);
 
     const customerOrders = (custItems ?? [])

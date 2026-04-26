@@ -163,7 +163,7 @@ const PackDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("*, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), customers(name)")
+        .select("*, tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), customers!tank_packs_customer_id_fkey(name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -207,7 +207,7 @@ const PackDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_pack_orders")
-        .select("semen_order_id, semen_orders(id, order_date, fulfillment_status, customers(name))")
+        .select("semen_order_id, semen_orders(id, order_date, fulfillment_status, customers!semen_orders_customer_id_fkey(name))")
         .eq("tank_pack_id", id!);
       if (error) throw error;
       return (data ?? []) as any[];
@@ -281,7 +281,7 @@ const PackDetail = () => {
       if (!lineSourceTankId || !pack?.organization_id) return [];
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("id, units, canister, bull_catalog_id, bull_code, custom_bull_name, bulls_catalog(bull_name, registration_number)")
+        .select("id, units, canister, bull_catalog_id, bull_code, custom_bull_name, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, registration_number)")
         .eq("tank_id", lineSourceTankId)
         .eq("organization_id", pack.organization_id)
         .gt("units", 0)

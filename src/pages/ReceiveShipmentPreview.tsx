@@ -67,7 +67,7 @@ const ReceiveShipmentPreview = () => {
       if (!id) return null;
       const { data, error } = await supabase
         .from("shipments")
-        .select("*, semen_companies(name), customers(name)")
+        .select("*, semen_companies!shipments_semen_company_id_fkey(name), customers!shipments_customer_id_fkey(name)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -144,7 +144,7 @@ const ReceiveShipmentPreview = () => {
       if (!shipment?.semen_order_id) return null;
       const { data } = await supabase
         .from("semen_orders")
-        .select("fulfillment_status, customer_id, customers(name)")
+        .select("fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name)")
         .eq("id", shipment.semen_order_id)
         .single();
       return data;

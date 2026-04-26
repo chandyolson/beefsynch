@@ -32,7 +32,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, received_date, semen_order_id, semen_company_id, semen_companies(name), status, confirmed_at, confirmed_by, reconciliation_snapshot, created_at, semen_orders!shipments_semen_order_id_fkey(id, customers(name))")
+        .select("id, received_date, semen_order_id, semen_company_id, semen_companies!shipments_semen_company_id_fkey(name), status, confirmed_at, confirmed_by, reconciliation_snapshot, created_at, semen_orders!shipments_semen_order_id_fkey(id, customers!semen_orders_customer_id_fkey(name))")
         .eq("organization_id", orgId)
         .eq("status", "confirmed")
         .order("received_date", { ascending: false })
@@ -50,7 +50,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("shipments")
-        .select("id, received_date, semen_order_id, semen_company_id, semen_companies(name), status, reconciliation_snapshot, created_at, updated_at, semen_orders!shipments_semen_order_id_fkey(id, customers(name))")
+        .select("id, received_date, semen_order_id, semen_company_id, semen_companies!shipments_semen_company_id_fkey(name), status, reconciliation_snapshot, created_at, updated_at, semen_orders!shipments_semen_order_id_fkey(id, customers!semen_orders_customer_id_fkey(name))")
         .eq("organization_id", orgId)
         .eq("status", "draft")
         .order("created_at", { ascending: false })

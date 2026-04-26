@@ -99,7 +99,7 @@ const SemenOrderDetail = () => {
     setLoading(true);
     try {
       const [oRes, iRes] = await Promise.all([
-        supabase.from("semen_orders").select("*, customers(name, phone, email)").eq("id", id).single(),
+        supabase.from("semen_orders").select("*, customers!semen_orders_customer_id_fkey(name, phone, email)").eq("id", id).single(),
         supabase
           .from("semen_order_items")
           .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
@@ -198,7 +198,7 @@ const SemenOrderDetail = () => {
 
         const { data, error } = await supabase
           .from("tank_inventory")
-          .select("bull_catalog_id, custom_bull_name, canister, units, owner, storage_type, tanks(tank_name, tank_number)")
+          .select("bull_catalog_id, custom_bull_name, canister, units, owner, storage_type, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
           .eq("storage_type", "inventory")
           .in("owner", ["Select", "CATL"])
           .gt("units", 0)

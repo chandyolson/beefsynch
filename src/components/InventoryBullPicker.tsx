@@ -74,7 +74,7 @@ const InventoryBullPicker = ({ sourceTankId, organizationId, value, onChange, cu
       setLoading(true);
       let q = supabase
         .from("tank_inventory")
-        .select("id, custom_bull_name, bull_catalog_id, bull_code, canister, units, bulls_catalog(bull_name)")
+        .select("id, custom_bull_name, bull_catalog_id, bull_code, canister, units, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)")
         .eq("tank_id", sourceTankId)
         .eq("organization_id", organizationId)
         .eq("item_type", "semen")

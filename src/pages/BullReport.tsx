@@ -250,7 +250,7 @@ const BullReport = () => {
           bull_catalog_id,
           semen_order_id,
           bulls_catalog (bull_name, company, registration_number, breed),
-          semen_orders!inner (id, order_date, order_type, customers(name))
+          semen_orders!inner (id, order_date, order_type, customers!semen_orders_customer_id_fkey(name))
         `)
         .eq("semen_orders.order_type", "customer");
 

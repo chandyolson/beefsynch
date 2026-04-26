@@ -166,7 +166,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number)")
         .eq("organization_id", orgId!)
         .eq("customer_id", id!)
         .limit(10000);
@@ -215,7 +215,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number)")
         .in("tank_id", allTankIds)
         .eq("owner_customer_id", id)
         .limit(10000);
@@ -264,7 +264,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name), customers(id, name), semen_order_items(units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
+        .select("*, semen_companies!semen_orders_semen_company_id_fkey(name), customers!semen_orders_customer_id_fkey(id, name), semen_order_items(units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId!)
         .eq("customer_id", customer!.id)
         .order("order_date", { ascending: false });
@@ -280,7 +280,7 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shipments")
-        .select("*, semen_companies(name)")
+        .select("*, semen_companies!shipments_semen_company_id_fkey(name)")
         .eq("organization_id", orgId!)
         .eq("customer_id", id!)
         .order("received_date", { ascending: false });

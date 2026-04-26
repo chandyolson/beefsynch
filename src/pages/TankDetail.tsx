@@ -241,7 +241,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", id!)
         .order("canister", { ascending: true })
         .order("sub_canister", { ascending: true })
@@ -299,7 +299,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_transactions")
-        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(id, customers(name))")
+        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(id, customers!semen_orders_customer_id_fkey(name))")
         .eq("tank_id", id!)
         .order("created_at", { ascending: false })
         .limit(10000);

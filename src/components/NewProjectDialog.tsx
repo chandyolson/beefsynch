@@ -122,7 +122,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
       }
       const { data } = await supabase
         .from("organization_members")
-        .select("organization_id, organizations(id, name)")
+        .select("organization_id, organizations!organization_members_organization_id_fkey(id, name)")
         .eq("user_id", user.id)
         .eq("accepted", true);
       if (data && data.length > 0) {

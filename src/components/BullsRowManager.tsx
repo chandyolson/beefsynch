@@ -50,7 +50,7 @@ const BullsRowManager = ({
       while (true) {
         const { data, error } = await supabase
           .from("tank_inventory")
-          .select("bull_catalog_id, bull_code, custom_bull_name, units, bulls_catalog(bull_name)")
+          .select("bull_catalog_id, bull_code, custom_bull_name, units, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
         if (error) throw error;

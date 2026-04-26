@@ -95,7 +95,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       while (true) {
         const { data, error } = await supabase
           .from("tank_inventory")
-          .select("*, customers!tank_inventory_customer_id_fkey(name), tanks(tank_name, tank_number), bulls_catalog(bull_name, naab_code)")
+          .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, naab_code)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
         if (error) throw error;
@@ -115,7 +115,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_packs")
-        .select("id, packed_at, status, packed_by, pack_type, destination_name, customer_id, customers(name), tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_orders(semen_order_id, semen_orders(id, customers(name))), tank_pack_lines(bull_name, units, field_canister)")
+        .select("id, packed_at, status, packed_by, pack_type, destination_name, customer_id, customers!tank_packs_customer_id_fkey(name), tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_orders(semen_order_id, semen_orders(id, customers!semen_orders_customer_id_fkey(name))), tank_pack_lines(bull_name, units, field_canister)")
         .eq("organization_id", orgId)
         .in("status", ["packed", "in_field"])
         .order("packed_at", { ascending: false });
@@ -289,7 +289,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
 
       let collisionQuery = supabase
         .from("tank_inventory")
-        .select("id, units, canister, sub_canister, custom_bull_name, bulls_catalog(bull_name)")
+        .select("id, units, canister, sub_canister, custom_bull_name, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)")
         .eq("tank_id", updates.tank_id)
         .eq("canister", updates.canister)
         .neq("id", editRow.id);

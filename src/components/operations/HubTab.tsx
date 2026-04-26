@@ -151,7 +151,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           id,
           order_date,
           fulfillment_status,
-          customers(name),
+          customers!semen_orders_customer_id_fkey(name),
           semen_order_items(units, custom_bull_name, bulls_catalog(bull_name)),
           tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units)))
         `)
@@ -307,7 +307,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       // Protocol events for this week (excludes Return Heat and Estimated Calving — not actionable)
       const { data: eventData } = await supabase
         .from("protocol_events")
-        .select("id, event_name, event_date, event_time, project_id, projects(id, name, head_count, status)")
+        .select("id, event_name, event_date, event_time, project_id, projects!protocol_events_project_id_fkey(id, name, head_count, status)")
         .gte("event_date", today)
         .lte("event_date", format(addDays(new Date(), 6), "yyyy-MM-dd"))
         .order("event_date")

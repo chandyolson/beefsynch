@@ -206,7 +206,7 @@ const PackTank = () => {
       if (!orgId || !pickupCustomerId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, customers(name), semen_order_items(id, units)")
+        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name), semen_order_items(id, units)")
         .eq("organization_id", orgId)
         .eq("customer_id", pickupCustomerId)
         .not("fulfillment_status", "in", "(delivered,cancelled)")
@@ -239,7 +239,7 @@ const PackTank = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, customers(name)")
+        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name)")
         .eq("organization_id", orgId)
         .not("fulfillment_status", "in", "(delivered,cancelled)")
         .order("order_date", { ascending: false })
@@ -471,7 +471,7 @@ const PackTank = () => {
 
     let query = supabase
       .from("tank_inventory")
-      .select("tank_id, canister, units, owner, tanks(tank_name, tank_number)")
+      .select("tank_id, canister, units, owner, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
       .eq("organization_id", orgId)
       .eq("storage_type", "inventory")
       .in("owner", ["Select", "CATL"])

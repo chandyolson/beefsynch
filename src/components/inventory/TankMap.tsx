@@ -74,7 +74,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
         const { data: inv, error: iErr } = await supabase
           .from("tank_inventory")
           .select(
-            "tank_id, canister, units, custom_bull_name, bull_code, bulls_catalog(bull_name)"
+            "tank_id, canister, units, custom_bull_name, bull_code, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)"
           )
           .eq("organization_id", orgId)
           .range(from, from + PAGE - 1);
@@ -311,7 +311,7 @@ function TankCard({
       const { data, error } = await supabase
         .from("tank_inventory")
         .select(
-          "canister, units, custom_bull_name, bull_code, bulls_catalog(bull_name)"
+          "canister, units, custom_bull_name, bull_code, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name)"
         )
         .eq("tank_id", tank.id);
       if (error) throw error;
