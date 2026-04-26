@@ -1056,14 +1056,9 @@ const PackDetail = () => {
             </Button>
           )}
           {pack.tank_return_expected !== false && pack.status !== "unpacked" && pack.status !== "tank_returned" && pack.status !== "cancelled" && (
-            <>
-              <Button variant="secondary" onClick={() => navigate(`/unpack/${pack.id}`)} className="gap-2">
-                <PackageOpen className="h-4 w-4" /> Unpack Tank
-              </Button>
-              <Button variant="outline" onClick={() => setCloseOutOpen(true)} className="gap-2">
-                <PackageCheck className="h-4 w-4" /> Close Out
-              </Button>
-            </>
+            <Button variant="outline" onClick={() => setCloseOutOpen(true)} className="gap-2">
+              <PackageCheck className="h-4 w-4" /> Close Out
+            </Button>
           )}
         </div>
 
