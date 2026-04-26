@@ -169,9 +169,6 @@ const PacksList = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" onClick={handleExportCsv} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
-          <Button onClick={() => navigate("/pack-tank")} className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4 mr-2" /> Pack Tank
-          </Button>
         </div>
       </div>
 
