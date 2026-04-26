@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calculateProtocolEvents } from "@/lib/protocolEvents";
+import CustomerPicker from "@/components/CustomerPicker";
 import BullCombobox from "@/components/BullCombobox";
 import BullsRowManager from "@/components/BullsRowManager";
 
@@ -59,6 +60,7 @@ const heiferProtocols = [
 
 const formSchema = z.object({
   name: z.string().trim().min(1, "Project name is required").max(200),
+  customer_id: z.string().uuid({ message: "Customer is required" }),
   cattle_type: z.enum(["Heifers", "Cows"]),
   protocol: z.string().min(1, "Protocol is required"),
   head_count: z.coerce.number().int().min(1, "Must be at least 1"),
@@ -79,6 +81,7 @@ interface BullRow {
 interface EditProjectData {
   id: string;
   name: string;
+  customer_id: string;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -140,6 +143,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      customer_id: undefined as unknown as string,
       cattle_type: "Heifers",
       protocol: "",
       head_count: undefined as unknown as number,
@@ -154,6 +158,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     if (editData && open) {
       form.reset({
         name: editData.name,
+        customer_id: editData.customer_id,
         cattle_type: editData.cattle_type as "Heifers" | "Cows",
         protocol: editData.protocol,
         head_count: editData.head_count,
@@ -217,6 +222,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
 
       const projectPayload: Record<string, any> = {
         name: values.name,
+        customer_id: values.customer_id,
         cattle_type: values.cattle_type,
         protocol: values.protocol,
         head_count: values.head_count,
@@ -329,6 +335,21 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
                 </Select>
               </div>
             )}
+
+            {/* Customer (required) */}
+            <FormField control={form.control} name="customer_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Customer <span className="text-destructive">*</span></FormLabel>
+                <FormControl>
+                  <CustomerPicker
+                    value={field.value || null}
+                    onChange={(customerId) => field.onChange(customerId)}
+                    orgId={selectedOrgId || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             {/* Project Name */}
             <FormField control={form.control} name="name" render={({ field }) => (

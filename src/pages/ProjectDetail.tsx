@@ -1070,6 +1070,7 @@ const ProjectDetail = () => {
         editData={project ? {
           id: project.id,
           name: project.name,
+          customer_id: (project as any).customer_id,
           cattle_type: project.cattle_type,
           protocol: project.protocol,
           head_count: project.head_count,
