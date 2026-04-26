@@ -225,9 +225,23 @@ Migration risk is concentrated in Section 1.A (4 sites, all `tank_inventory` rea
 
 ---
 
-## Stop-and-ask items for Chandy before Phase B
+## Stop-and-ask items — RESOLVED 2026-04-26
 
-1. **SemenOrderDetail.tsx:286 — order PDF totalOrdered**: is `generateOrderPdf` the customer's invoice document, or an internal order summary? If invoice → migrate to RPC; if summary → keep ordered.
-2. **generateCustomerInventoryPdf.ts:230-236**: should the customer-facing PDF show ordered units (today) or billed units (after Workstream 2)?
-3. **InventoryTab toggle interaction with ownerFilter**: prefer option (a) disable conflicting choice, or (b) let it produce empty results?
-4. **InvoiceOrderModal billable preview** and **Hub billable column** are flagged as natural new-feature follow-ons — in scope for this workstream, or separate?
+1. **SemenOrderDetail.tsx:286 — order PDF totalOrdered**: ✅ **Summary, not invoice.** Invoices are entered in a separate system. → **KEEP `semen_order_items.units`** (no migration at this site).
+2. **generateCustomerInventoryPdf.ts:230-236**: ✅ **Show what they got billed for.** → **MIGRATE to `get_billable_units_for_order`**. Per-order rows in the customer-facing PDF source from the RPC instead of the order-items embed.
+3. **InventoryTab toggle interaction with ownerFilter**: ✅ **Option (a)** — prevent the contradiction. When toggle = "Available stock only", disable the "Customer" choice in the owner dropdown and grey out the "Customer Units" StatCard.
+4. **InvoiceOrderModal billable preview + Hub billable column**: ✅ **In scope — build them now.** Phase B will:
+   - Add a billable-preview panel to `InvoiceOrderModal` calling `get_billable_units_for_order(orderId)` and rendering the per-bull breakdown before the "Mark Invoiced" action.
+   - Add a "Billable" column to the Hub Ready-to-Invoice list alongside the existing "Ordered" / "Filled" columns, sourced from the same RPC.
+
+## Updated Phase B scope summary
+
+**Migration work (3 sites):**
+- 4 `tank_inventory` filter additions (Section 1.A)
+- 1 RPC migration: `HubTab.tsx:166` (Ready-to-Invoice list rows → `get_billable_units_for_order`)
+- 1 RPC migration: `generateCustomerInventoryPdf.ts:230-236` (customer PDF order rows → `get_billable_units_for_order`)
+
+**New feature work:**
+- Inventory tab "Available stock only / All shelf contents" toggle + ownerFilter conflict prevention (option a) + Customer Units StatCard greyout
+- `InvoiceOrderModal` billable-preview panel
+- Hub Ready-to-Invoice "Billable" column
