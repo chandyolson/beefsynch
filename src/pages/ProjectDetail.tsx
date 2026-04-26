@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Tr
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import CustomerPicker from "@/components/CustomerPicker";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
@@ -66,6 +67,8 @@ import { statusColor } from "@/lib/badgeStyles";
 interface ProjectRow {
   id: string;
   name: string;
+  customer_id: string | null;
+  customers: { name: string } | { name: string }[] | null;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -129,6 +132,7 @@ const ProjectDetail = () => {
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
   const [googleCalendarConfigured, setGoogleCalendarConfigured] = useState(isGoogleCalendarConfigured());
+  const [customerEditOpen, setCustomerEditOpen] = useState(false);
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -268,7 +272,7 @@ const ProjectDetail = () => {
     if (!id) return;
     try {
       const [pRes, eRes, bRes] = await Promise.all([
-        supabase.from("projects").select("*").eq("id", id).single(),
+        supabase.from("projects").select("*, customers(name)").eq("id", id).single(),
         supabase
           .from("protocol_events")
           .select("*")
@@ -280,7 +284,7 @@ const ProjectDetail = () => {
           .eq("project_id", id),
       ]);
 
-      if (pRes.data) setProject(pRes.data as ProjectRow);
+      if (pRes.data) setProject(pRes.data as unknown as ProjectRow);
       if (eRes.data) setEvents(eRes.data as EventRow[]);
       if (bRes.data) setBulls(bRes.data as BullRow[]);
     } catch (err) {
@@ -306,6 +310,25 @@ const ProjectDetail = () => {
       setLastSyncedAt(null);
     }
   }, [id, userId]);
+
+  const handleChangeCustomer = async (newCustomerId: string | null) => {
+    if (!newCustomerId || !project) return;
+    const { error } = await supabase
+      .from("projects")
+      .update({ customer_id: newCustomerId } as any)
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data } = await supabase
+      .from("projects")
+      .select("*, customers(name)")
+      .eq("id", project.id)
+      .single();
+    if (data) setProject(data as unknown as ProjectRow);
+    toast({ title: "Customer updated" });
+  };
 
   const handleDelete = async () => {
     if (!id) return;
@@ -680,6 +703,32 @@ const ProjectDetail = () => {
           <h1 className="text-3xl font-bold font-display text-foreground">
             {project.name}
           </h1>
+          {/* Customer line with edit pencil */}
+          <div className="flex items-center gap-2 text-lg text-muted-foreground">
+            <span>
+              {(Array.isArray(project.customers)
+                ? project.customers[0]?.name
+                : project.customers?.name) || "—"}
+            </span>
+            <Popover open={customerEditOpen} onOpenChange={setCustomerEditOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change customer">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3" align="start">
+                <div className="text-sm font-medium mb-2">Change Customer</div>
+                <CustomerPicker
+                  value={project.customer_id || null}
+                  onChange={(newId) => {
+                    handleChangeCustomer(newId);
+                    setCustomerEditOpen(false);
+                  }}
+                  orgId={orgId || ""}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/20 text-primary border-primary/30">
               {project.protocol}
