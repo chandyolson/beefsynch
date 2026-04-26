@@ -67,8 +67,8 @@ import { statusColor } from "@/lib/badgeStyles";
 interface ProjectRow {
   id: string;
   name: string;
-  customer_id: string;
-  customers: { name: string } | null;
+  customer_id: string | null;
+  customers: { name: string } | { name: string }[] | null;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -284,7 +284,7 @@ const ProjectDetail = () => {
           .eq("project_id", id),
       ]);
 
-      if (pRes.data) setProject(pRes.data as ProjectRow);
+      if (pRes.data) setProject(pRes.data as unknown as ProjectRow);
       if (eRes.data) setEvents(eRes.data as EventRow[]);
       if (bRes.data) setBulls(bRes.data as BullRow[]);
     } catch (err) {
