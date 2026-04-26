@@ -298,7 +298,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
           `id, received_date, received_by, notes,
            semen_companies(name),
            customers(name),
-           semen_orders(id, customers(name))`,
+           semen_orders!shipments_semen_order_id_fkey(id, customers(name))`,
         )
         .eq("organization_id", orgId)
         .eq("status", "confirmed")
