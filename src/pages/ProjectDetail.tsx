@@ -311,6 +311,25 @@ const ProjectDetail = () => {
     }
   }, [id, userId]);
 
+  const handleChangeCustomer = async (newCustomerId: string | null) => {
+    if (!newCustomerId || !project) return;
+    const { error } = await supabase
+      .from("projects")
+      .update({ customer_id: newCustomerId } as any)
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data } = await supabase
+      .from("projects")
+      .select("*, customers(name)")
+      .eq("id", project.id)
+      .single();
+    if (data) setProject(data as unknown as ProjectRow);
+    toast({ title: "Customer updated" });
+  };
+
   const handleDelete = async () => {
     if (!id) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
