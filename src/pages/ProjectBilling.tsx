@@ -763,9 +763,17 @@ const ProjectBilling = () => {
       p.product_category === "service" || (p.product_name || "").toLowerCase().includes("service")
     );
     if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
-      // For Arm Service (doses_per_unit = 1), units_billed must track doses
-      // because head count IS the billable quantity.
-      saveProductLine(serviceIdx, { doses: totalUsed, units_billed: totalUsed });
+      // Always update doses (the session head count).
+      // Only update units_billed if the user hasn't manually overridden it —
+      // i.e., current units_billed still matches the old calculated value.
+      const svc = productLines[serviceIdx];
+      const wasManual = svc.units_billed != null && svc.units_calculated != null
+        && Math.abs(svc.units_billed - svc.units_calculated) > 0.001;
+      const updates: Partial<ProductLine> = { doses: totalUsed };
+      if (!wasManual) {
+        updates.units_billed = totalUsed;
+      }
+      saveProductLine(serviceIdx, updates);
     }
     // Update semen lines with per-bull used + blown values for billing tab
     let changed = false;

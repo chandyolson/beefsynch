@@ -232,7 +232,7 @@ export default function SessionsTab({
                         ) : <span className="text-sm">{line.doses || "—"}</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isEditing && isPickup ? (
+                        {isEditing ? (
                           <div className="flex items-center justify-end gap-1">
                             <Input
                               type="number"
