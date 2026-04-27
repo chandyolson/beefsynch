@@ -33,8 +33,8 @@ import { toast } from "@/hooks/use-toast";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { format } from "date-fns";
+import AddEditBullDialog, { BullFormData, OfferingDraft } from "@/components/bulls/AddEditBullDialog";
 
-const COMPANIES_LIST = ["Select Sires", "ABS", "Universal", "Genex", "Other/Custom"] as const;
 const FILTER_COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
 const COMPANY_COLORS: Record<string, string> = {
@@ -105,7 +105,8 @@ const BullList = () => {
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingBull, setEditingBull] = useState<CatalogBull | null>(null);
-  const [formData, setFormData] = useState({ bull_name: "", company: "Select Sires", naab_code: "", registration_number: "", breed: "", notes: "" });
+  const [formData, setFormData] = useState<BullFormData>({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "", offerings: [] });
+  const [allCompanies, setAllCompanies] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -238,23 +239,46 @@ const BullList = () => {
     return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
   };
 
-  // ===== Form handlers =====
+  // Load active companies for the dialog
+  useEffect(() => {
+    if (!orgId) return;
+    (supabase as any)
+      .from("semen_companies")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .eq("active", true)
+      .order("name")
+      .then(({ data }: any) => setAllCompanies((data ?? []) as any));
+  }, [orgId]);
+
   const openAddBull = () => {
     setEditingBull(null);
-    setFormData({ bull_name: "", company: "Select Sires", naab_code: "", registration_number: "", breed: "", notes: "" });
+    setFormData({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "", offerings: [] });
     setShowFormModal(true);
   };
 
-  const openEditBull = (bull: CatalogBull) => {
+  const openEditBull = async (bull: CatalogBull) => {
     setEditingBull(bull);
-    const companyVal = COMPANIES_LIST.includes(bull.company as any) ? bull.company : "Other/Custom";
+    const { data: offerings } = await (supabase as any)
+      .from("bull_company_offerings")
+      .select("company_id, company_naab_code, is_primary, semen_companies!inner(name)")
+      .eq("bull_id", bull.id)
+      .order("is_primary", { ascending: false });
+
+    const drafts: OfferingDraft[] = (offerings ?? []).map((o: any) => ({
+      company_id: o.company_id,
+      company_name: o.semen_companies?.name ?? "",
+      company_naab_code: o.company_naab_code ?? "",
+      is_primary: !!o.is_primary,
+    }));
+
     setFormData({
       bull_name: bull.bull_name,
-      company: companyVal,
       naab_code: bull.naab_code || "",
       registration_number: bull.registration_number || "",
-      breed: bull.breed || "",
+      breed: bull.breed || "Unknown",
       notes: (bull as any).notes || "",
+      offerings: drafts,
     });
     setShowFormModal(true);
   };
@@ -268,11 +292,19 @@ const BullList = () => {
       toast({ title: "You must be logged in to an organization", variant: "destructive" });
       return;
     }
+    const offerings = formData.offerings || [];
+    if (offerings.length > 1 && !offerings.some((o) => o.is_primary)) {
+      toast({ title: "Pick a primary company before saving", variant: "destructive" });
+      return;
+    }
     setSaving(true);
-    const isCustom = formData.company === "Other/Custom";
-    const companyValue = isCustom ? "Custom" : formData.company;
+
+    const isCustom = offerings.length === 0;
+    const primary = offerings.find((o) => o.is_primary) || offerings[0];
+    const companyValue = isCustom ? "Custom" : (primary?.company_name || "Custom");
 
     try {
+      let bullId: string;
       if (editingBull) {
         const { error } = await supabase
           .from("bulls_catalog")
@@ -287,8 +319,7 @@ const BullList = () => {
           } as any)
           .eq("id", editingBull.id);
         if (error) throw error;
-        toast({ title: "Bull updated" });
-        // Update detail dialog if open
+        bullId = editingBull.id;
         if (detailBull?.id === editingBull.id) {
           setDetailBull({
             ...editingBull,
@@ -302,7 +333,7 @@ const BullList = () => {
           });
         }
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("bulls_catalog")
           .insert({
             bull_name: formData.bull_name.trim(),
@@ -314,10 +345,72 @@ const BullList = () => {
             created_by: userId,
             organization_id: orgId,
             notes: formData.notes.trim() || null,
-          } as any);
+          } as any)
+          .select("id")
+          .single();
         if (error) throw error;
-        toast({ title: "Bull added" });
+        bullId = (inserted as any).id;
       }
+
+      // Sync bull_company_offerings
+      // 1. Load existing offerings for this bull
+      const { data: existingRaw, error: exErr } = await (supabase as any)
+        .from("bull_company_offerings")
+        .select("id, company_id")
+        .eq("bull_id", bullId);
+      if (exErr) throw exErr;
+      const existing = (existingRaw ?? []) as { id: string; company_id: string }[];
+      const desiredIds = new Set(offerings.map((o) => o.company_id));
+
+      // 2. Delete offerings for unchecked companies
+      const toDelete = existing.filter((e) => !desiredIds.has(e.company_id)).map((e) => e.id);
+      if (toDelete.length > 0) {
+        const { error: delErr } = await (supabase as any)
+          .from("bull_company_offerings")
+          .delete()
+          .in("id", toDelete);
+        if (delErr) throw delErr;
+      }
+
+      // 3. Clear is_primary on ALL remaining offerings to avoid partial-unique-index conflict
+      if (offerings.length > 0) {
+        const { error: clrErr } = await (supabase as any)
+          .from("bull_company_offerings")
+          .update({ is_primary: false })
+          .eq("bull_id", bullId);
+        if (clrErr) throw clrErr;
+      }
+
+      // 4. Upsert each desired offering
+      for (const o of offerings) {
+        const existingRow = existing.find((e) => e.company_id === o.company_id);
+        if (existingRow) {
+          const { error: upErr } = await (supabase as any)
+            .from("bull_company_offerings")
+            .update({
+              company_naab_code: o.company_naab_code.trim() || null,
+              is_primary: o.is_primary,
+              active: true,
+            })
+            .eq("id", existingRow.id);
+          if (upErr) throw upErr;
+        } else {
+          const { error: insErr } = await (supabase as any)
+            .from("bull_company_offerings")
+            .insert({
+              organization_id: orgId,
+              bull_id: bullId,
+              company_id: o.company_id,
+              company_naab_code: o.company_naab_code.trim() || null,
+              is_primary: o.is_primary,
+              active: true,
+              created_by: userId,
+            });
+          if (insErr) throw insErr;
+        }
+      }
+
+      toast({ title: editingBull ? "Bull updated" : "Bull added" });
       setShowFormModal(false);
       queryClient.invalidateQueries({ queryKey: ["bulls_catalog"] });
     } catch (err: any) {
@@ -686,73 +779,16 @@ const BullList = () => {
       </main>
 
       {/* ===== Add/Edit Bull Modal ===== */}
-      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingBull ? "Edit Bull" : "Add Bull"}</DialogTitle>
-            <DialogDescription>
-              {editingBull ? "Update bull details below." : "Enter bull details below."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
-              <Label className="text-right">Bull Name *</Label>
-              <Input
-                value={formData.bull_name}
-                onChange={(e) => setFormData((p) => ({ ...p, bull_name: e.target.value }))}
-                placeholder="Bull name"
-              />
-
-              <Label className="text-right">Company</Label>
-              <Select value={formData.company} onValueChange={(v) => setFormData((p) => ({ ...p, company: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANIES_LIST.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Label className="text-right">NAAB Code</Label>
-              <Input
-                value={formData.naab_code}
-                onChange={(e) => setFormData((p) => ({ ...p, naab_code: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right">Reg. Number</Label>
-              <Input
-                value={formData.registration_number}
-                onChange={(e) => setFormData((p) => ({ ...p, registration_number: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right">Breed</Label>
-              <Input
-                value={formData.breed}
-                onChange={(e) => setFormData((p) => ({ ...p, breed: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right self-start pt-2">Notes</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
-                placeholder="Optional"
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFormModal(false)}>Cancel</Button>
-            <Button onClick={handleSaveBull} disabled={saving}>
-              {saving ? "Saving…" : editingBull ? "Save Changes" : "Add Bull"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddEditBullDialog
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        mode={editingBull ? "edit" : "add"}
+        formData={formData}
+        onFormChange={(patch) => setFormData((p) => ({ ...p, ...patch }))}
+        onSave={handleSaveBull}
+        saving={saving}
+        allCompanies={allCompanies}
+      />
 
       {/* ===== Bull Detail Dialog ===== */}
       <Dialog open={!!detailBull} onOpenChange={(open) => { if (!open) setDetailBull(null); }}>

@@ -2,13 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -18,36 +12,36 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const COMPANIES_LIST = ["Select Sires", "ABS", "Universal", "Genex", "Other/Custom"] as const;
+export interface CompanyOption {
+  id: string;
+  name: string;
+}
 
-interface FormData {
+export interface OfferingDraft {
+  company_id: string;
+  company_name: string;
+  company_naab_code: string;
+  is_primary: boolean;
+}
+
+export interface BullFormData {
   bull_name: string;
-  company: string;
   naab_code: string;
   registration_number: string;
   breed: string;
   notes: string;
-}
-
-interface Bull {
-  id: string;
-  bull_name: string;
-  company: string;
-  registration_number: string;
-  breed: string;
-  naab_code: string | null;
-  active: boolean;
-  notes?: string | null;
+  offerings: OfferingDraft[];
 }
 
 interface AddEditBullDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "add" | "edit";
-  formData: FormData;
-  onFormChange: (data: Partial<FormData>) => void;
+  formData: BullFormData;
+  onFormChange: (data: Partial<BullFormData>) => void;
   onSave: () => Promise<void>;
   saving: boolean;
+  allCompanies: CompanyOption[];
 }
 
 export default function AddEditBullDialog({
@@ -58,10 +52,59 @@ export default function AddEditBullDialog({
   onFormChange,
   onSave,
   saving,
+  allCompanies,
 }: AddEditBullDialogProps) {
+  const offerings = formData.offerings || [];
+
+  const findOffering = (companyId: string) =>
+    offerings.find((o) => o.company_id === companyId);
+
+  const toggleCompany = (company: CompanyOption, checked: boolean) => {
+    let next: OfferingDraft[];
+    if (checked) {
+      if (findOffering(company.id)) return;
+      next = [
+        ...offerings,
+        {
+          company_id: company.id,
+          company_name: company.name,
+          company_naab_code: formData.naab_code || "",
+          is_primary: false,
+        },
+      ];
+    } else {
+      next = offerings.filter((o) => o.company_id !== company.id);
+    }
+    // Auto-set primary if exactly one and none yet primary
+    const hasPrimary = next.some((o) => o.is_primary);
+    if (next.length === 1 && !hasPrimary) {
+      next = next.map((o) => ({ ...o, is_primary: true }));
+    }
+    // If we removed the primary, clear all (force re-pick)
+    if (!checked && !next.some((o) => o.is_primary) && next.length > 1) {
+      next = next.map((o) => ({ ...o, is_primary: false }));
+    }
+    onFormChange({ offerings: next });
+  };
+
+  const setPrimary = (companyId: string) => {
+    const next = offerings.map((o) => ({
+      ...o,
+      is_primary: o.company_id === companyId,
+    }));
+    onFormChange({ offerings: next });
+  };
+
+  const setNaab = (companyId: string, value: string) => {
+    const next = offerings.map((o) =>
+      o.company_id === companyId ? { ...o, company_naab_code: value } : o,
+    );
+    onFormChange({ offerings: next });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit Bull" : "Add Bull"}</DialogTitle>
           <DialogDescription>
@@ -77,28 +120,11 @@ export default function AddEditBullDialog({
               placeholder="Bull name"
             />
 
-            <Label className="text-right">Company</Label>
-            <Select
-              value={formData.company}
-              onValueChange={(v) => onFormChange({ company: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPANIES_LIST.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Label className="text-right">NAAB Code</Label>
             <Input
               value={formData.naab_code}
               onChange={(e) => onFormChange({ naab_code: e.target.value })}
-              placeholder="Optional"
+              placeholder="Optional — bull's main NAAB"
             />
 
             <Label className="text-right">Reg. Number</Label>
@@ -122,6 +148,73 @@ export default function AddEditBullDialog({
               placeholder="Optional"
               rows={2}
             />
+          </div>
+
+          {/* Available From multi-select */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Available From</Label>
+              <span className="text-xs text-muted-foreground">
+                {offerings.length === 0
+                  ? "No companies — bull will be saved as Custom"
+                  : `${offerings.length} company${offerings.length !== 1 ? "ies" : ""} selected`}
+              </span>
+            </div>
+            <div className="border rounded-md max-h-[240px] overflow-y-auto divide-y">
+              {allCompanies.length === 0 && (
+                <div className="p-3 text-sm text-muted-foreground">
+                  No active companies found.
+                </div>
+              )}
+              {allCompanies.map((company) => {
+                const offering = findOffering(company.id);
+                const checked = !!offering;
+                return (
+                  <div
+                    key={company.id}
+                    className="p-2.5 flex items-center gap-3 flex-wrap"
+                  >
+                    <div className="flex items-center gap-2 min-w-[180px] flex-1">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => toggleCompany(company, !!v)}
+                        id={`co-${company.id}`}
+                      />
+                      <label
+                        htmlFor={`co-${company.id}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {company.name}
+                      </label>
+                    </div>
+                    {checked && (
+                      <>
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                          <input
+                            type="radio"
+                            name="primary-offering"
+                            checked={!!offering?.is_primary}
+                            onChange={() => setPrimary(company.id)}
+                          />
+                          Primary
+                        </label>
+                        <Input
+                          className="h-8 w-32 text-xs"
+                          placeholder="NAAB"
+                          value={offering?.company_naab_code || ""}
+                          onChange={(e) => setNaab(company.id, e.target.value)}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {offerings.length > 1 && !offerings.some((o) => o.is_primary) && (
+              <p className="text-xs text-destructive">
+                Pick a primary company before saving.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
