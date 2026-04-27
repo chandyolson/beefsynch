@@ -511,7 +511,10 @@ const ProjectBilling = () => {
     const line = { ...productLines[idx], ...updates };
     const uc = calcUnits(line.doses, line.doses_per_unit);
     line.units_calculated = uc;
-    if (updates.doses !== undefined || updates.doses_per_unit !== undefined) {
+    // Only default units_billed on brand-new lines (no id yet) OR when the
+    // caller explicitly passes units_billed.  NEVER auto-overwrite a manual
+    // value — that is the user's source of truth (customer pickups, etc.).
+    if (!line.id && line.units_billed == null) {
       line.units_billed = uc;
     }
     line.line_total = (line.units_billed ?? uc) * (line.unit_price ?? 0);
