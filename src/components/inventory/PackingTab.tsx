@@ -171,22 +171,21 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     });
   }, [packs, search]);
 
-  // Split into active (everything not in Received) and received (customer-outbound only,
-  // type-appropriate received statuses). Cancelled customer-outbound rows stay active.
-  // Project rows are NEVER moved into Received.
+  // WS11: Active = status NOT IN ('unpacked', 'tank_returned', 'cancelled').
+  // Completed bucket retains the existing "Received" definition for customer-outbound rows
+  // so the Completed view + collapsible Received section keep their meaning.
+  const COMPLETED_STATUSES = new Set(["unpacked", "tank_returned", "cancelled"]);
+  const isActiveRow = (row: any) => !COMPLETED_STATUSES.has(row.status);
+
   const { activeRows, receivedRows } = useMemo(() => {
     const active: any[] = [];
     const received: any[] = [];
     for (const row of filtered) {
-      if (isReceivedRow(row)) received.push(row);
-      else active.push(row);
+      if (isActiveRow(row)) active.push(row);
+      else received.push(row);
     }
-    // Active sort: keep original packed_at DESC from query, but push cancelled
-    // customer-outbound rows to the bottom of the active list.
+    // Active sort: most recent activity first (packed_at DESC).
     active.sort((a, b) => {
-      const aCancelled = isCustomerOutbound(a.pack_type) && a.status === "cancelled" ? 1 : 0;
-      const bCancelled = isCustomerOutbound(b.pack_type) && b.status === "cancelled" ? 1 : 0;
-      if (aCancelled !== bCancelled) return aCancelled - bCancelled;
       const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
       const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
       return bT - aT;
