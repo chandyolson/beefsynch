@@ -601,6 +601,10 @@ export type Database = {
           invoiced: boolean
           invoiced_at: string | null
           labor_dates: string | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
           sort_order: number | null
         }
         Insert: {
@@ -612,6 +616,10 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           labor_dates?: string | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
         }
         Update: {
@@ -623,6 +631,10 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           labor_dates?: string | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
         }
         Relationships: [
@@ -647,6 +659,9 @@ export type Database = {
           invoiced: boolean
           invoiced_at: string | null
           line_total: number | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_reason: string | null
           product_category: string | null
           product_name: string
           protocol_event_label: string | null
@@ -669,6 +684,9 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_reason?: string | null
           product_category?: string | null
           product_name: string
           protocol_event_label?: string | null
@@ -691,6 +709,9 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_reason?: string | null
           product_category?: string | null
           product_name?: string
           protocol_event_label?: string | null
@@ -737,6 +758,10 @@ export type Database = {
           invoiced: boolean
           invoiced_at: string | null
           line_total: number | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
           sort_order: number | null
           unit_price: number | null
           units_billable: number | null
@@ -754,6 +779,10 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
           unit_price?: number | null
           units_billable?: number | null
@@ -771,6 +800,10 @@ export type Database = {
           invoiced?: boolean
           invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
           unit_price?: number | null
           units_billable?: number | null
@@ -805,6 +838,10 @@ export type Database = {
           created_at: string
           end_units: number | null
           id: string
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
           session_id: string
           sort_order: number | null
           start_units: number | null
@@ -818,6 +855,10 @@ export type Database = {
           created_at?: string
           end_units?: number | null
           id?: string
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           session_id: string
           sort_order?: number | null
           start_units?: number | null
@@ -831,6 +872,10 @@ export type Database = {
           created_at?: string
           end_units?: number | null
           id?: string
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           session_id?: string
           sort_order?: number | null
           start_units?: number | null
@@ -1934,6 +1979,7 @@ export type Database = {
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
       export_auth_identities: { Args: never; Returns: Json[] }
       export_auth_users: { Args: never; Returns: Json[] }
+      finalize_billing_inventory: { Args: { _input: Json }; Returns: Json }
       get_org_members: {
         Args: { _organization_id: string }
         Returns: {
