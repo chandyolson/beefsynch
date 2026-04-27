@@ -239,23 +239,46 @@ const BullList = () => {
     return `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
   };
 
-  // ===== Form handlers =====
+  // Load active companies for the dialog
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("semen_companies")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .eq("active" as any, true)
+      .order("name")
+      .then(({ data }) => setAllCompanies((data ?? []) as any));
+  }, [orgId]);
+
   const openAddBull = () => {
     setEditingBull(null);
-    setFormData({ bull_name: "", company: "Select Sires", naab_code: "", registration_number: "", breed: "", notes: "" });
+    setFormData({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "", offerings: [] });
     setShowFormModal(true);
   };
 
-  const openEditBull = (bull: CatalogBull) => {
+  const openEditBull = async (bull: CatalogBull) => {
     setEditingBull(bull);
-    const companyVal = COMPANIES_LIST.includes(bull.company as any) ? bull.company : "Other/Custom";
+    const { data: offerings } = await (supabase as any)
+      .from("bull_company_offerings")
+      .select("company_id, company_naab_code, is_primary, semen_companies!inner(name)")
+      .eq("bull_id", bull.id)
+      .order("is_primary", { ascending: false });
+
+    const drafts: OfferingDraft[] = (offerings ?? []).map((o: any) => ({
+      company_id: o.company_id,
+      company_name: o.semen_companies?.name ?? "",
+      company_naab_code: o.company_naab_code ?? "",
+      is_primary: !!o.is_primary,
+    }));
+
     setFormData({
       bull_name: bull.bull_name,
-      company: companyVal,
       naab_code: bull.naab_code || "",
       registration_number: bull.registration_number || "",
-      breed: bull.breed || "",
+      breed: bull.breed || "Unknown",
       notes: (bull as any).notes || "",
+      offerings: drafts,
     });
     setShowFormModal(true);
   };
@@ -269,11 +292,19 @@ const BullList = () => {
       toast({ title: "You must be logged in to an organization", variant: "destructive" });
       return;
     }
+    const offerings = formData.offerings || [];
+    if (offerings.length > 1 && !offerings.some((o) => o.is_primary)) {
+      toast({ title: "Pick a primary company before saving", variant: "destructive" });
+      return;
+    }
     setSaving(true);
-    const isCustom = formData.company === "Other/Custom";
-    const companyValue = isCustom ? "Custom" : formData.company;
+
+    const isCustom = offerings.length === 0;
+    const primary = offerings.find((o) => o.is_primary) || offerings[0];
+    const companyValue = isCustom ? "Custom" : (primary?.company_name || "Custom");
 
     try {
+      let bullId: string;
       if (editingBull) {
         const { error } = await supabase
           .from("bulls_catalog")
@@ -288,8 +319,7 @@ const BullList = () => {
           } as any)
           .eq("id", editingBull.id);
         if (error) throw error;
-        toast({ title: "Bull updated" });
-        // Update detail dialog if open
+        bullId = editingBull.id;
         if (detailBull?.id === editingBull.id) {
           setDetailBull({
             ...editingBull,
@@ -303,7 +333,7 @@ const BullList = () => {
           });
         }
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("bulls_catalog")
           .insert({
             bull_name: formData.bull_name.trim(),
@@ -315,10 +345,72 @@ const BullList = () => {
             created_by: userId,
             organization_id: orgId,
             notes: formData.notes.trim() || null,
-          } as any);
+          } as any)
+          .select("id")
+          .single();
         if (error) throw error;
-        toast({ title: "Bull added" });
+        bullId = (inserted as any).id;
       }
+
+      // Sync bull_company_offerings
+      // 1. Load existing offerings for this bull
+      const { data: existingRaw, error: exErr } = await (supabase as any)
+        .from("bull_company_offerings")
+        .select("id, company_id")
+        .eq("bull_id", bullId);
+      if (exErr) throw exErr;
+      const existing = (existingRaw ?? []) as { id: string; company_id: string }[];
+      const desiredIds = new Set(offerings.map((o) => o.company_id));
+
+      // 2. Delete offerings for unchecked companies
+      const toDelete = existing.filter((e) => !desiredIds.has(e.company_id)).map((e) => e.id);
+      if (toDelete.length > 0) {
+        const { error: delErr } = await (supabase as any)
+          .from("bull_company_offerings")
+          .delete()
+          .in("id", toDelete);
+        if (delErr) throw delErr;
+      }
+
+      // 3. Clear is_primary on ALL remaining offerings to avoid partial-unique-index conflict
+      if (offerings.length > 0) {
+        const { error: clrErr } = await (supabase as any)
+          .from("bull_company_offerings")
+          .update({ is_primary: false })
+          .eq("bull_id", bullId);
+        if (clrErr) throw clrErr;
+      }
+
+      // 4. Upsert each desired offering
+      for (const o of offerings) {
+        const existingRow = existing.find((e) => e.company_id === o.company_id);
+        if (existingRow) {
+          const { error: upErr } = await (supabase as any)
+            .from("bull_company_offerings")
+            .update({
+              company_naab_code: o.company_naab_code.trim() || null,
+              is_primary: o.is_primary,
+              active: true,
+            })
+            .eq("id", existingRow.id);
+          if (upErr) throw upErr;
+        } else {
+          const { error: insErr } = await (supabase as any)
+            .from("bull_company_offerings")
+            .insert({
+              organization_id: orgId,
+              bull_id: bullId,
+              company_id: o.company_id,
+              company_naab_code: o.company_naab_code.trim() || null,
+              is_primary: o.is_primary,
+              active: true,
+              created_by: userId,
+            });
+          if (insErr) throw insErr;
+        }
+      }
+
+      toast({ title: editingBull ? "Bull updated" : "Bull added" });
       setShowFormModal(false);
       queryClient.invalidateQueries({ queryKey: ["bulls_catalog"] });
     } catch (err: any) {
