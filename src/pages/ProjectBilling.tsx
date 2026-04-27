@@ -539,15 +539,18 @@ const ProjectBilling = () => {
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
-    line.line_total = (line.units_billable ?? 0) * (line.unit_price ?? 0);
+    const calculatedBillable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    line.units_billable = calculatedBillable;
+    // Override (when set) drives invoicing total; otherwise calculated billable does
+    const effectiveBillable = line.override_quantity != null ? Number(line.override_quantity) : calculatedBillable;
+    line.line_total = effectiveBillable * (line.unit_price ?? 0);
     const newLines = [...semenLines];
     newLines[idx] = line;
     setSemenLines(newLines);
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`semen-${id}`, () =>
-        supabase.from("project_billing_semen").update(rest).eq("id", id));
+        (supabase.from("project_billing_semen") as any).update(rest).eq("id", id));
     }
   }
 

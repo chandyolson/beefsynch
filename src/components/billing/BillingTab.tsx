@@ -5,6 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProductLine, SemenLine, formatCurrency } from "./billingTypes";
+import OverrideButton from "./OverrideButton";
+import { supabase } from "@/integrations/supabase/client";
+
 
 interface BillingTabProps {
   productLines: ProductLine[];
@@ -31,6 +34,48 @@ export default function BillingTab({
   const semenInvoiced = semenLines.filter(l => l.invoiced).reduce((s, l) => s + (l.line_total ?? 0), 0);
   const grandTotal = productsTotal + semenTotal;
   const grandInvoiced = productsInvoiced + semenInvoiced;
+
+  // Override save helpers — capture audit fields then delegate to parent save
+  async function saveProductOverride(idx: number, value: number | null, reason: string | null) {
+    const userId = (await supabase.auth.getUser()).data.user?.id || null;
+    if (value == null) {
+      // Clear: revert units_billed to units_calculated, drop audit
+      const calc = productLines[idx].units_calculated;
+      onSaveProduct(idx, {
+        units_billed: calc,
+        override_reason: null,
+        overridden_by_user_id: null,
+        overridden_at: null,
+      });
+    } else {
+      onSaveProduct(idx, {
+        units_billed: value,
+        override_reason: reason,
+        overridden_by_user_id: userId,
+        overridden_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  async function saveSemenOverride(idx: number, value: number | null, reason: string | null) {
+    const userId = (await supabase.auth.getUser()).data.user?.id || null;
+    if (value == null) {
+      onSaveSemen(idx, {
+        override_quantity: null,
+        override_reason: null,
+        overridden_by_user_id: null,
+        overridden_at: null,
+      });
+    } else {
+      onSaveSemen(idx, {
+        override_quantity: value,
+        override_reason: reason,
+        overridden_by_user_id: userId,
+        overridden_at: new Date().toISOString(),
+      });
+    }
+  }
+
 
   return (
     <>
@@ -72,6 +117,18 @@ export default function BillingTab({
                           {line.product_name}
                           {line.protocol_event_label ? ` — ${line.protocol_event_label}` : ""}
                         </span>
+                        {!readOnly && !isInvoiced && (
+                          <OverrideButton
+                            currentValue={line.doses ?? null}
+                            calculatedValue={line.doses ?? null}
+                            hasOverride={!!line.override_reason}
+                            overrideReason={line.override_reason}
+                            overriddenAt={line.overridden_at}
+                            overriddenByUserId={line.overridden_by_user_id}
+                            unitLabel={line.product_category === "service" ? "head" : "doses"}
+                            onSave={(v, r) => saveProductOverride(idx, v, r)}
+                          />
+                        )}
                         {isInvoiced && !editing && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 whitespace-nowrap font-medium">
                             Previously invoiced
@@ -148,10 +205,24 @@ export default function BillingTab({
                       return (
                         <TableRow key={line.id || idx}>
                           <TableCell>
-                            <span className="text-sm font-medium">{line.bull_name}</span>
-                            {line.bull_code && (
-                              <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-medium">{line.bull_name}</span>
+                              {line.bull_code && (
+                                <span className="text-xs text-muted-foreground">{line.bull_code}</span>
+                              )}
+                              {!readOnly && (
+                                <OverrideButton
+                                  currentValue={line.override_quantity ?? line.units_billable ?? null}
+                                  calculatedValue={(line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0)}
+                                  hasOverride={line.override_quantity != null}
+                                  overrideReason={line.override_reason}
+                                  overriddenAt={line.overridden_at}
+                                  overriddenByUserId={line.overridden_by_user_id}
+                                  unitLabel="units"
+                                  onSave={(v, r) => saveSemenOverride(idx, v, r)}
+                                />
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">
                             {line.units_packed || "—"}
@@ -161,7 +232,7 @@ export default function BillingTab({
                             {line.units_blown ?? "—"}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.units_billable || "—"}
+                            {line.override_quantity ?? line.units_billable ?? "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {editing ? (
