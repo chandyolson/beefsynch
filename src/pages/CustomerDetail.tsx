@@ -34,6 +34,8 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { getBadgeClass } from "@/lib/badgeStyles";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
