@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, HandCoins } from "lucide-react";
+import { useOrgRole } from "@/hooks/useOrgRole";
+import { DirectSaleDialog } from "@/components/orders/DirectSaleDialog";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
@@ -79,6 +81,7 @@ function unpackReturnsByBull(unpackLines: any[]): Map<string, number> {
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { orgId } = useOrgRole();
   
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -440,34 +443,79 @@ const SemenOrderDetail = () => {
             )}
           </div>
 
-          {order.order_type === "customer" && (
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {order.fulfillment_status === "partially_fulfilled" && (
-                <MarkFulfilledModal
-                  orderId={order.id}
-                  customerName={customerName}
-                  unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
-                  unitsFilled={packData.reduce((s: number, link: any) => {
-                    const lines = link.tank_packs?.tank_pack_lines || [];
-                    return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-                  }, 0)}
-                  trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
-                  onSuccess={() => load()}
-                />
-              )}
-              {order.billing_status === "unbilled" &&
-                ["partially_fulfilled", "fulfilled"].includes(
-                  order.fulfillment_status,
-                ) && (
-                  <InvoiceOrderModal
+          {order.order_type === "customer" && (() => {
+            // Compute fulfilled units per bull line from pack data
+            const fulfilledByBull = new Map<string, number>();
+            for (const link of packData || []) {
+              const pack = link.tank_packs;
+              if (!pack) continue;
+              const returnsByBull = unpackReturnsByBull(pack.tank_unpack_lines || []);
+              for (const pl of (pack.tank_pack_lines || [])) {
+                const k = pl.bull_catalog_id || pl.bull_name || "";
+                if (!k) continue;
+                const used = Math.max(0, (pl.units || 0) - (returnsByBull.get(k) || 0));
+                fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
+              }
+            }
+            const directSaleLines = items.map((it) => {
+              const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
+              return {
+                bull_catalog_id: it.bull_catalog_id,
+                bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown bull",
+                bull_code: it.bulls_catalog?.naab_code || null,
+                ordered: it.units || 0,
+                fulfilled: fulfilledByBull.get(k) || 0,
+              };
+            });
+            const hasRemaining = directSaleLines.some((l) => l.ordered - l.fulfilled > 0);
+            const canDirectSale =
+              !["fulfilled", "cancelled"].includes(order.fulfillment_status) &&
+              hasRemaining &&
+              !!orgId;
+            return (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {order.fulfillment_status === "partially_fulfilled" && (
+                  <MarkFulfilledModal
                     orderId={order.id}
                     customerName={customerName}
-                    trigger={<Button size="sm">Invoice</Button>}
+                    unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
+                    unitsFilled={packData.reduce((s: number, link: any) => {
+                      const lines = link.tank_packs?.tank_pack_lines || [];
+                      return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+                    }, 0)}
+                    trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
                     onSuccess={() => load()}
                   />
                 )}
-            </div>
-          )}
+                {canDirectSale && (
+                  <DirectSaleDialog
+                    orderId={order.id}
+                    customerName={customerName}
+                    organizationId={orgId!}
+                    lines={directSaleLines}
+                    trigger={
+                      <Button size="sm" variant="outline">
+                        <HandCoins className="h-4 w-4 mr-2" />
+                        Record Direct Sale
+                      </Button>
+                    }
+                    onSuccess={() => load()}
+                  />
+                )}
+                {order.billing_status === "unbilled" &&
+                  ["partially_fulfilled", "fulfilled"].includes(
+                    order.fulfillment_status,
+                  ) && (
+                    <InvoiceOrderModal
+                      orderId={order.id}
+                      customerName={customerName}
+                      trigger={<Button size="sm">Invoice</Button>}
+                      onSuccess={() => load()}
+                    />
+                  )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Details card */}
