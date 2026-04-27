@@ -155,10 +155,17 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     enabled: !!orgId,
   });
 
+  const COMPLETED_STATUSES = new Set(["unpacked", "tank_returned", "cancelled"]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return packs;
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return packs.filter((row: any) => {
+      // View mode filter
+      const isCompleted = COMPLETED_STATUSES.has(row.status);
+      if (viewMode === "active" && isCompleted) return false;
+      if (viewMode === "completed" && !isCompleted) return false;
+
+      if (!q) return true;
       const fieldTank = row.tanks as any;
       const tankLabel = (fieldTank?.tank_name || fieldTank?.tank_number || "").toLowerCase();
       const dest = (row.destination_name || "").toLowerCase();
@@ -169,7 +176,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       const orderNames = orders.map((o: any) => (o.semen_orders?.customers?.name || "").toLowerCase()).join(" ");
       return tankLabel.includes(q) || dest.includes(q) || packedBy.includes(q) || projNames.includes(q) || orderNames.includes(q);
     });
-  }, [packs, search]);
+  }, [packs, search, viewMode]);
 
   // Split into active (everything not in Received) and received (customer-outbound only,
   // type-appropriate received statuses). Cancelled customer-outbound rows stay active.
