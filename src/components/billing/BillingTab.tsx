@@ -249,7 +249,17 @@ export default function BillingTab({
                             {line.units_blown ?? "—"}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.override_quantity ?? line.units_billable ?? "—"}
+                            {editing && line.override_quantity == null ? (
+                              <Input type="number" step="1" className="h-7 w-[70px] text-right text-xs ml-auto"
+                                value={line.units_billable ?? ""}
+                                placeholder={String(Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0)))}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  onSaveSemen(idx, { units_billable: v === "" ? null : Number(v) } as any);
+                                }} />
+                            ) : (
+                              line.override_quantity ?? line.units_billable ?? "—"
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             {editing ? (
