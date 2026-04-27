@@ -314,7 +314,7 @@ const CustomerDetail = () => {
     queryKey: ["customer_projects", id, orgId],
     enabled: !!id && !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("projects")
         .select("id, name, status, cattle_type, head_count, breeding_date, protocol, created_at")
         .eq("organization_id", orgId!)
