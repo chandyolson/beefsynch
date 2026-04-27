@@ -205,10 +205,24 @@ export default function BillingTab({
                       return (
                         <TableRow key={line.id || idx}>
                           <TableCell>
-                            <span className="text-sm font-medium">{line.bull_name}</span>
-                            {line.bull_code && (
-                              <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-medium">{line.bull_name}</span>
+                              {line.bull_code && (
+                                <span className="text-xs text-muted-foreground">{line.bull_code}</span>
+                              )}
+                              {!readOnly && (
+                                <OverrideButton
+                                  currentValue={line.override_quantity ?? line.units_billable ?? null}
+                                  calculatedValue={(line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0)}
+                                  hasOverride={line.override_quantity != null}
+                                  overrideReason={line.override_reason}
+                                  overriddenAt={line.overridden_at}
+                                  overriddenByUserId={line.overridden_by_user_id}
+                                  unitLabel="units"
+                                  onSave={(v, r) => saveSemenOverride(idx, v, r)}
+                                />
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">
                             {line.units_packed || "—"}
@@ -218,7 +232,7 @@ export default function BillingTab({
                             {line.units_blown ?? "—"}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.units_billable || "—"}
+                            {line.override_quantity ?? line.units_billable ?? "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             {editing ? (
