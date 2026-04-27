@@ -115,6 +115,7 @@ export default function BillingTab({
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className={`truncate ${isInvoiced ? "" : "text-foreground"}`}>
                           {line.product_name}
+                          {line.protocol_event_label ? ` — ${line.protocol_event_label}` : ""}
                         </span>
                         {!readOnly && !isInvoiced && (
                           <OverrideButton
@@ -128,7 +129,6 @@ export default function BillingTab({
                             onSave={(v, r) => saveProductOverride(idx, v, r)}
                           />
                         )}
-                        </span>
                         {isInvoiced && !editing && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 whitespace-nowrap font-medium">
                             Previously invoiced
