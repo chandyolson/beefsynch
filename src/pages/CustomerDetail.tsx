@@ -34,6 +34,8 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { getBadgeClass } from "@/lib/badgeStyles";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
@@ -113,6 +115,7 @@ const CustomerDetail = () => {
 
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
+  const [tanksOpen, setTanksOpen] = useState(false);
 
   const toggleSection = (tankId: string, section: string) => {
     setExpandedSections(prev => {
@@ -306,7 +309,23 @@ const CustomerDetail = () => {
     },
   });
 
-  // Group fills and transactions by tank
+  // Fetch customer projects
+  const { data: customerProjects = [] } = useQuery({
+    queryKey: ["customer_projects", id, orgId],
+    enabled: !!id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("projects")
+        .select("id, name, status, cattle_type, head_count, breeding_date, protocol, created_at")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+
   const fillsByTank = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const f of allFills) {
@@ -767,18 +786,30 @@ const CustomerDetail = () => {
           />
         </div>
 
-        {/* Tanks section header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Tanks</h2>
-          <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Add Tank
-          </Button>
-        </div>
-
-        {/* Tank cards */}
+        {/* Tanks section */}
         {allTanks.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No tanks for this customer.</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Tanks</h2>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-sm">No tanks currently with this customer.</p>
+          </div>
         ) : (
+          <Collapsible open={tanksOpen} onOpenChange={setTanksOpen} className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <CollapsibleTrigger className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity flex-1">
+                {tanksOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                <h2 className="text-lg font-semibold">Tanks at this customer ({allTanks.length})</h2>
+              </CollapsibleTrigger>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <CollapsibleContent className="space-y-3">
+              {
           allTanks.map((tank: any) => {
             const inv = inventoryByTank.get(tank.id) || [];
             const tankTotal = inv.reduce((s: number, i: any) => s + (i.units || 0), 0);
@@ -1003,8 +1034,53 @@ const CustomerDetail = () => {
                 </div>
               </div>
             );
-          })
+          })}
+            </CollapsibleContent>
+          </Collapsible>
         )}
+
+        {/* Projects */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Projects</h2>
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            {customerProjects.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet for this customer.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead>Project</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cattle</TableHead>
+                      <TableHead className="text-right">Head</TableHead>
+                      <TableHead>Breeding Date</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerProjects.map((p: any) => (
+                      <TableRow key={p.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/project/${p.id}`)}>
+                        <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', p.status)}`}>
+                            {p.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{p.cattle_type || "—"}</TableCell>
+                        <TableCell className="text-sm text-right">{p.head_count ?? 0}</TableCell>
+                        <TableCell className="text-sm">
+                          {p.breeding_date ? format(new Date(p.breeding_date + "T00:00:00"), "MMM d, yyyy") : "—"}
+                        </TableCell>
+                        <TableCell><span className="text-xs text-primary hover:underline">View →</span></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Orders & Shipments */}
         <div className="space-y-4">
