@@ -20,6 +20,7 @@ const BullChat = lazy(() => import("./pages/BullChat"));
 const SemenOrderDetail = lazy(() => import("./pages/SemenOrderDetail"));
 const Customers = lazy(() => import("./pages/Customers"));
 const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
+const Companies = lazy(() => import("./pages/Companies"));
 const Tanks = lazy(() => import("./pages/Tanks"));
 const ReInventory = lazy(() => import("./pages/ReInventory"));
 const TankDetail = lazy(() => import("./pages/TankDetail"));
