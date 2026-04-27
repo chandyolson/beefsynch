@@ -105,7 +105,8 @@ const BullList = () => {
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingBull, setEditingBull] = useState<CatalogBull | null>(null);
-  const [formData, setFormData] = useState({ bull_name: "", company: "Select Sires", naab_code: "", registration_number: "", breed: "", notes: "" });
+  const [formData, setFormData] = useState<BullFormData>({ bull_name: "", naab_code: "", registration_number: "", breed: "", notes: "", offerings: [] });
+  const [allCompanies, setAllCompanies] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
