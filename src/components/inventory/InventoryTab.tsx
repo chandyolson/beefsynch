@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -136,8 +136,8 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     },
   });
 
-  const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
-  const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
+
+
 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
