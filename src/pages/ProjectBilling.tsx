@@ -510,11 +510,13 @@ const ProjectBilling = () => {
   function saveProductLine(idx: number, updates: Partial<ProductLine>) {
     const line = { ...productLines[idx], ...updates };
     const uc = calcUnits(line.doses, line.doses_per_unit);
+    // units_calculated is system-owned: always keep in sync with the dose math.
     line.units_calculated = uc;
-    if (updates.doses !== undefined || updates.doses_per_unit !== undefined) {
-      line.units_billed = uc;
-    }
-    line.line_total = (line.units_billed ?? uc) * (line.unit_price ?? 0);
+    // units_billed is user-owned: NEVER overwrite it from a calculation here.
+    // It is only changed when the user explicitly types into the billed field,
+    // which arrives via `updates.units_billed`. Initial default is set on INSERT.
+    const billable = line.units_billed ?? uc;
+    line.line_total = billable * (line.unit_price ?? 0);
     const newLines = [...productLines];
     newLines[idx] = line;
     setProductLines(newLines);
