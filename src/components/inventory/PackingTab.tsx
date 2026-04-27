@@ -281,6 +281,28 @@ const PacksList = ({ orgId }: { orgId: string }) => {
         </div>
       </div>
 
+      {/* View chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {([
+          { key: "active", label: "Active" },
+          { key: "all", label: "All" },
+          { key: "completed", label: "Completed" },
+        ] as const).map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setViewMode(opt.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+              viewMode === opt.key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
