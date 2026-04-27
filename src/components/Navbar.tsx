@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers, Database } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers, Database, Building2 } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -115,6 +115,9 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
                 <List className="h-4 w-4" /> Bull Catalog
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/companies")} className="cursor-pointer gap-2">
+                <Building2 className="h-4 w-4" /> Semen Companies
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/calendar")} className="cursor-pointer gap-2">
                 <CalendarDays className="h-4 w-4" /> Calendar
