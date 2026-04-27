@@ -272,7 +272,28 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div />
+        {/* View-mode chips */}
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/30 p-1">
+          {([
+            { key: "active", label: `Active${activeRows.length ? ` (${activeRows.length})` : ""}` },
+            { key: "all", label: `All${packs.length ? ` (${packs.length})` : ""}` },
+            { key: "completed", label: `Completed${receivedRows.length ? ` (${receivedRows.length})` : ""}` },
+          ] as const).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setViewMode(opt.key)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                viewMode === opt.key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleExportCsv} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
