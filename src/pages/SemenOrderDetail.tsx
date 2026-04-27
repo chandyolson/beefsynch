@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, HandCoins } from "lucide-react";
+import { useOrgRole } from "@/hooks/useOrgRole";
+import { DirectSaleDialog } from "@/components/orders/DirectSaleDialog";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
