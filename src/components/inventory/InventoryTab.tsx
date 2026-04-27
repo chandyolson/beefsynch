@@ -96,22 +96,22 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const [pendingUpdates, setPendingUpdates] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Always fetch the full inventory so the StatCards reflect reality regardless of
+  // toggle state. The shelfMode toggle is applied client-side in `filtered` below,
+  // so it only narrows the visible table — stats stay accurate.
   const { data: inventory = [], isLoading } = useQuery({
-    queryKey: ["semen-inventory", orgId, shelfMode],
+    queryKey: ["semen-inventory", orgId],
     enabled: !!orgId,
     queryFn: async () => {
       const PAGE = 1000;
       const allRows: any[] = [];
       let from = 0;
       while (true) {
-        let query = supabase
+        const { data, error } = await supabase
           .from("tank_inventory")
           .select("*, customers!tank_inventory_customer_id_fkey(name), tanks!tank_inventory_tank_id_fkey(tank_name, tank_number), bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, naab_code)")
           .eq("organization_id", orgId!)
           .range(from, from + PAGE - 1);
-        // "available" = sellable company stock only; customer-owned rows are excluded
-        if (shelfMode === "available") query = query.is("customer_id", null);
-        const { data, error } = await query;
         if (error) throw error;
         const rows = data ?? [];
         allRows.push(...rows);
@@ -189,6 +189,9 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
 
   const filtered = useMemo(() => {
     let result = rows;
+    // Shelf-mode toggle: "available" hides customer-owned rows in the visible table only.
+    // Stats above are computed off the full `rows` set so they always reflect reality.
+    if (shelfMode === "available") result = result.filter((r) => !r.customerId);
     if (storageFilter !== "all") result = result.filter((r) => r.storageType === storageFilter);
     if (ownerFilter === "company") {
       result = result.filter((r) => !r.customerId);
@@ -221,7 +224,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       return 0;
     });
     return result;
-  }, [rows, storageFilter, ownerFilter, search, sortKey, sortDir]);
+  }, [rows, shelfMode, storageFilter, ownerFilter, search, sortKey, sortDir]);
 
   const groupedByBull = useMemo(() => {
     if (viewMode !== "grouped") return [];
@@ -550,14 +553,21 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         <div className={cn("transition-all", ownerFilter === "all" ? "ring-2 ring-primary rounded-xl" : "")}>
           <StatCard title="Total Units" value={totalUnits} delay={0} index={0} icon={Archive} onClick={() => { setOwnerFilter("all"); onFilterReset?.(); }} />
         </div>
-        <div className={cn(
-          "transition-all",
-          ownerFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "",
-          // When showing only available stock, customer rows are filtered out at the query
-          // level — this card would always read 0. Grey it out and disable the click.
-          shelfMode === "available" && "opacity-40 pointer-events-none",
-        )}>
-          <StatCard title="Customer Units" value={customerUnits} delay={100} index={1} icon={Users} onClick={() => { setOwnerFilter("customer"); onFilterReset?.(); }} />
+        <div className={cn("transition-all", ownerFilter === "customer" ? "ring-2 ring-primary rounded-xl" : "")}>
+          <StatCard
+            title="Customer Units"
+            value={customerUnits}
+            delay={100}
+            index={1}
+            icon={Users}
+            onClick={() => {
+              // Drill-through: viewing customer-owned rows requires shelfMode=all,
+              // otherwise the toggle would filter them all back out and the table goes empty.
+              setShelfMode("all");
+              setOwnerFilter("customer");
+              onFilterReset?.();
+            }}
+          />
         </div>
         <div className={cn("transition-all", ownerFilter === "company" ? "ring-2 ring-primary rounded-xl" : "")}>
           <StatCard title="Company Units" value={companyUnits} delay={200} index={2} icon={Building2} onClick={() => { setOwnerFilter("company"); onFilterReset?.(); }} />
