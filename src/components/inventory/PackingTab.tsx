@@ -17,7 +17,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Download, CalendarIcon, X, Plus, Package } from "lucide-react";
+import { Loader2, Search, Download, CalendarIcon, X, Plus, Package, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import TableSkeleton from "@/components/TableSkeleton";
 import EmptyState from "@/components/EmptyState";
