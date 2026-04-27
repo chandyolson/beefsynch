@@ -170,6 +170,37 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     });
   }, [packs, search]);
 
+  // Split into active (everything not in Received) and received (customer-outbound only,
+  // type-appropriate received statuses). Cancelled customer-outbound rows stay active.
+  // Project rows are NEVER moved into Received.
+  const { activeRows, receivedRows } = useMemo(() => {
+    const active: any[] = [];
+    const received: any[] = [];
+    for (const row of filtered) {
+      if (isReceivedRow(row)) received.push(row);
+      else active.push(row);
+    }
+    // Active sort: keep original packed_at DESC from query, but push cancelled
+    // customer-outbound rows to the bottom of the active list.
+    active.sort((a, b) => {
+      const aCancelled = isCustomerOutbound(a.pack_type) && a.status === "cancelled" ? 1 : 0;
+      const bCancelled = isCustomerOutbound(b.pack_type) && b.status === "cancelled" ? 1 : 0;
+      if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
+      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
+      return bT - aT;
+    });
+    // Received sort: most recent first (no per-status timestamps in schema, fall back to packed_at).
+    received.sort((a, b) => {
+      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
+      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
+      return bT - aT;
+    });
+    return { activeRows: active, receivedRows: received };
+  }, [filtered]);
+
+  const [showReceived, setShowReceived] = useState(false);
+
   const fieldTankLabel = (row: any) => {
     const t = row.tanks as any;
     return t?.tank_name || t?.tank_number || "—";
