@@ -359,8 +359,11 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((row: any) => {
+                  {activeRows.map((row: any) => {
                     const stats = getLineStats(row);
+                    const outbound = isCustomerOutbound(row.pack_type);
+                    const pill = getOutboundPill(row);
+                    const orderLabels = outbound ? getOrderLabels(row) : "";
                     return (
                       <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pack/${row.id}`)}>
                         <TableCell>{row.packed_at ? format(new Date(row.packed_at), "MMM d, yyyy") : "—"}</TableCell>
@@ -368,16 +371,78 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                         <TableCell>
                           <Badge variant="outline" className="text-xs capitalize">{TYPE_LABELS[row.pack_type] || row.pack_type}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">{getDestination(row)}</TableCell>
+                        <TableCell className="text-sm max-w-[240px]">
+                          {outbound ? (
+                            <div className="truncate">
+                              <div className="truncate">{getDestination(row)}</div>
+                              <div className={cn("truncate text-xs", orderLabels ? "text-muted-foreground" : "text-muted-foreground/60 italic")}>
+                                {orderLabels ? `Order${(row.tank_pack_orders || []).length > 1 ? "s" : ""}: ${orderLabels}` : "No orders linked"}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="truncate">{getDestination(row)}</div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{stats.count}</TableCell>
                         <TableCell className="text-right">{stats.units}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                          {pill ? (
+                            <Badge variant="outline" className={cn("text-xs whitespace-nowrap", pill.className)}>{pill.label}</Badge>
+                          ) : (
+                            <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
                       </TableRow>
                     );
                   })}
+                  {receivedRows.length > 0 && (
+                    <>
+                      <TableRow
+                        className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
+                        onClick={() => setShowReceived((v) => !v)}
+                      >
+                        <TableCell colSpan={8} className="py-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            {showReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            Received Packs ({receivedRows.length})
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {showReceived && receivedRows.map((row: any) => {
+                        const stats = getLineStats(row);
+                        const pill = getOutboundPill(row);
+                        const orderLabels = getOrderLabels(row);
+                        return (
+                          <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pack/${row.id}`)}>
+                            <TableCell>{row.packed_at ? format(new Date(row.packed_at), "MMM d, yyyy") : "—"}</TableCell>
+                            <TableCell className="font-medium">{fieldTankLabel(row)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs capitalize">{TYPE_LABELS[row.pack_type] || row.pack_type}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[240px]">
+                              <div className="truncate">
+                                <div className="truncate">{getDestination(row)}</div>
+                                <div className={cn("truncate text-xs", orderLabels ? "text-muted-foreground" : "text-muted-foreground/60 italic")}>
+                                  {orderLabels ? `Order${(row.tank_pack_orders || []).length > 1 ? "s" : ""}: ${orderLabels}` : "No orders linked"}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{stats.count}</TableCell>
+                            <TableCell className="text-right">{stats.units}</TableCell>
+                            <TableCell>
+                              {pill ? (
+                                <Badge variant="outline" className={cn("text-xs whitespace-nowrap", pill.className)}>{pill.label}</Badge>
+                              ) : (
+                                <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </div>
