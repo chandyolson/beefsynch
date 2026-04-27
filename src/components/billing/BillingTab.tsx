@@ -151,9 +151,22 @@ export default function BillingTab({
                             <Input type="number" className="h-7 w-[60px] text-right text-xs"
                               value={line.doses ?? ""} placeholder="—"
                               onChange={(e) => onSaveProduct(idx, { doses: Number(e.target.value) || 0 })} />
-                            <span className="text-xs text-muted-foreground w-[70px] text-right">
-                              {line.doses && line.doses_per_unit ? `${(line.doses / line.doses_per_unit).toFixed(1)} ${line.unit_label || ""}`.trim() : "—"}
-                            </span>
+                            {/* Billed quantity — user-owned, directly editable. */}
+                            <div className="flex flex-col items-end w-[80px]">
+                              <Input type="number" step="0.1" className="h-7 w-[70px] text-right text-xs"
+                                value={line.units_billed ?? ""}
+                                placeholder={line.units_calculated != null ? line.units_calculated.toFixed(1) : "—"}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  onSaveProduct(idx, { units_billed: v === "" ? null : Number(v) } as any);
+                                }} />
+                              {line.units_calculated != null && line.units_billed != null
+                                && Math.abs((line.units_billed ?? 0) - line.units_calculated) > 0.001 && (
+                                <span className="text-[10px] text-muted-foreground mt-0.5">
+                                  calc: {line.units_calculated.toFixed(1)}
+                                </span>
+                              )}
+                            </div>
                             <Input type="number" step="0.01" className="h-7 w-[70px] text-right text-xs"
                               value={line.unit_price ?? ""} placeholder="—"
                               onChange={(e) => onSaveProduct(idx, { unit_price: Number(e.target.value) || 0 })} />
@@ -161,8 +174,12 @@ export default function BillingTab({
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             {line.doses || "—"} hd
-                            {line.doses && line.doses_per_unit
-                              ? ` · ${(line.doses / line.doses_per_unit).toFixed(1)} ${line.unit_label || ""}`.trim()
+                            {(line.units_billed ?? line.units_calculated) != null
+                              ? ` · ${(line.units_billed ?? line.units_calculated)!.toFixed(1)} ${line.unit_label || ""}`.trim()
+                              : ""}
+                            {line.units_calculated != null && line.units_billed != null
+                              && Math.abs(line.units_billed - line.units_calculated) > 0.001
+                              ? ` (calc: ${line.units_calculated.toFixed(1)})`
                               : ""}
                             {" × "}{line.unit_price ? formatCurrency(line.unit_price)
                               : <span className="text-amber-500 font-medium">needs price</span>}
