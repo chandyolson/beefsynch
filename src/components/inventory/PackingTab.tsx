@@ -387,7 +387,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeRows.map((row: any) => {
+                  {renderActive && activeRows.map((row: any) => {
                     const stats = getLineStats(row);
                     const outbound = isCustomerOutbound(row.pack_type);
                     const pill = getOutboundPill(row);
@@ -424,20 +424,23 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                       </TableRow>
                     );
                   })}
-                  {receivedRows.length > 0 && (
+                  {renderReceived && receivedRows.length > 0 && (
                     <>
-                      <TableRow
-                        className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
-                        onClick={() => setShowReceived((v) => !v)}
-                      >
-                        <TableCell colSpan={8} className="py-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            {showReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            Received Packs ({receivedRows.length})
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                      {showReceived && receivedRows.map((row: any) => {
+                      {/* Header row only acts as toggle when in 'all' mode (active also visible). */}
+                      {viewMode === "all" && (
+                        <TableRow
+                          className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
+                          onClick={() => setShowReceived((v) => !v)}
+                        >
+                          <TableCell colSpan={8} className="py-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                              {expandReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              Received Packs ({receivedRows.length})
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {expandReceived && receivedRows.map((row: any) => {
                         const stats = getLineStats(row);
                         const pill = getOutboundPill(row);
                         const orderLabels = getOrderLabels(row);
