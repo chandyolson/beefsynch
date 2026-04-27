@@ -1181,20 +1181,32 @@ export type Database = {
       }
       semen_companies: {
         Row: {
+          active: boolean
+          can_own_inventory: boolean
           created_at: string
           id: string
+          is_internal: boolean
+          is_placeholder: boolean
           name: string
           organization_id: string
         }
         Insert: {
+          active?: boolean
+          can_own_inventory?: boolean
           created_at?: string
           id?: string
+          is_internal?: boolean
+          is_placeholder?: boolean
           name: string
           organization_id: string
         }
         Update: {
+          active?: boolean
+          can_own_inventory?: boolean
           created_at?: string
           id?: string
+          is_internal?: boolean
+          is_placeholder?: boolean
           name?: string
           organization_id?: string
         }
