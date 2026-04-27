@@ -35,6 +35,10 @@ export interface ProductLine {
   invoiced?: boolean;
   invoiced_at?: string | null;
   session_id?: string | null;
+  // Override audit (units_billed IS the override on products)
+  override_reason?: string | null;
+  overridden_by_user_id?: string | null;
+  overridden_at?: string | null;
 }
 
 export interface SessionLine {
@@ -82,6 +86,11 @@ export interface SemenLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  // Override fields
+  override_quantity?: number | null;
+  override_reason?: string | null;
+  overridden_by_user_id?: string | null;
+  overridden_at?: string | null;
 }
 
 /* ── Constants ── */
