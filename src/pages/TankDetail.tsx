@@ -329,9 +329,9 @@ const TankDetail = () => {
     },
   });
 
-  // Active pack query
-  const { data: activePack } = useQuery({
-    queryKey: ["tank_active_pack", id],
+  // Active packs query (a tank can have multiple active packs)
+  const { data: activePacks } = useQuery({
+    queryKey: ["tank_active_packs", id],
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -342,12 +342,12 @@ const TankDetail = () => {
         `)
         .eq("field_tank_id", id!)
         .in("status", ["packed", "in_field"])
-        .maybeSingle();
+        .order("packed_at", { ascending: false });
       if (error) {
         toast({ title: "Failed to load pack status", description: error.message, variant: "destructive" });
-        return null;
+        return [];
       }
-      return data as any;
+      return (data ?? []) as any[];
     },
   });
 
@@ -728,24 +728,28 @@ const TankDetail = () => {
           </div>
         </div>
 
-        {/* ───── Out With Banner ───── */}
-        {activePack && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Package className="h-5 w-5 text-amber-400 shrink-0" />
-              <div>
-                <p className="font-semibold text-amber-300">
-                  {activePack.pack_type === "shipment"
-                    ? `Out with ${activePack.destination_name || "shipment"}`
-                    : `Out for ${(activePack.tank_pack_projects?.[0] as any)?.projects?.name || "project"}`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Packed on {format(new Date(activePack.packed_at), "MMM d, yyyy")}
-                  {activePack.tracking_number && ` · Tracking: ${activePack.tracking_number}`}
-                </p>
+        {/* ───── Out With Banner(s) ───── */}
+        {activePacks && activePacks.length > 0 && (
+          <div className="space-y-2">
+            {activePacks.map((pack: any) => (
+              <div key={pack.id} className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-amber-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-amber-300">
+                      {pack.pack_type === "shipment"
+                        ? `Out with ${pack.destination_name || "shipment"}`
+                        : `Out for ${(pack.tank_pack_projects?.[0] as any)?.projects?.name || pack.destination_name || "project"}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="capitalize">{pack.pack_type}</span> · {pack.status === "in_field" ? "In Field" : "Packed"} · Packed on {format(new Date(pack.packed_at), "MMM d, yyyy")}
+                      {pack.tracking_number && ` · Tracking: ${pack.tracking_number}`}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/pack/${pack.id}`)}>View Pack</Button>
               </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/pack/${activePack.id}`)}>View Pack</Button>
+            ))}
           </div>
         )}
 
