@@ -779,73 +779,16 @@ const BullList = () => {
       </main>
 
       {/* ===== Add/Edit Bull Modal ===== */}
-      <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingBull ? "Edit Bull" : "Add Bull"}</DialogTitle>
-            <DialogDescription>
-              {editingBull ? "Update bull details below." : "Enter bull details below."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
-              <Label className="text-right">Bull Name *</Label>
-              <Input
-                value={formData.bull_name}
-                onChange={(e) => setFormData((p) => ({ ...p, bull_name: e.target.value }))}
-                placeholder="Bull name"
-              />
-
-              <Label className="text-right">Company</Label>
-              <Select value={formData.company} onValueChange={(v) => setFormData((p) => ({ ...p, company: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANIES_LIST.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Label className="text-right">NAAB Code</Label>
-              <Input
-                value={formData.naab_code}
-                onChange={(e) => setFormData((p) => ({ ...p, naab_code: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right">Reg. Number</Label>
-              <Input
-                value={formData.registration_number}
-                onChange={(e) => setFormData((p) => ({ ...p, registration_number: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right">Breed</Label>
-              <Input
-                value={formData.breed}
-                onChange={(e) => setFormData((p) => ({ ...p, breed: e.target.value }))}
-                placeholder="Optional"
-              />
-
-              <Label className="text-right self-start pt-2">Notes</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
-                placeholder="Optional"
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFormModal(false)}>Cancel</Button>
-            <Button onClick={handleSaveBull} disabled={saving}>
-              {saving ? "Saving…" : editingBull ? "Save Changes" : "Add Bull"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddEditBullDialog
+        open={showFormModal}
+        onOpenChange={setShowFormModal}
+        mode={editingBull ? "edit" : "add"}
+        formData={formData}
+        onFormChange={(patch) => setFormData((p) => ({ ...p, ...patch }))}
+        onSave={handleSaveBull}
+        saving={saving}
+        allCompanies={allCompanies}
+      />
 
       {/* ===== Bull Detail Dialog ===== */}
       <Dialog open={!!detailBull} onOpenChange={(open) => { if (!open) setDetailBull(null); }}>
