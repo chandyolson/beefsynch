@@ -726,7 +726,7 @@ const ProjectBilling = () => {
     if (!projectId || !billingId) return;
     setCompleting(true);
     try {
-      const { error: projErr } = await supabase.from("projects").update({ status: "Complete" }).eq("id", projectId);
+      const { error: projErr } = await supabase.from("projects").update({ status: "Work Complete" }).eq("id", projectId);
       if (projErr) throw projErr;
       const userId = (await supabase.auth.getUser()).data.user?.id || null;
       const { error: billErr } = await (supabase.from("project_billing") as any)
@@ -734,7 +734,7 @@ const ProjectBilling = () => {
         .eq("id", billingId);
       if (billErr) throw billErr;
       toast({ title: "Project completed" });
-      setProject((prev: any) => ({ ...prev, status: "Complete" }));
+      setProject((prev: any) => ({ ...prev, status: "Work Complete" }));
       setBillingRecord((prev: any) => ({ ...prev, billing_completed_at: new Date().toISOString() }));
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Could not complete project.", variant: "destructive" });
@@ -806,8 +806,7 @@ const ProjectBilling = () => {
   const hasPack = projectPacks.length > 0;
   const packStatus = projectPacks[0]?.status || null;
   const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
-  const isProjectComplete = project?.status === "Complete";
-  const readOnly = isProjectComplete || currentStatus === "work_complete" || currentStatus === "invoiced_closed";
+  const readOnly = project?.status === "Invoiced";
 
   const totalLines = productLines.length + semenLines.length + sessions.length;
   const allInvoiced = totalLines > 0 && [

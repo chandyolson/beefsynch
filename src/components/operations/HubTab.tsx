@@ -79,7 +79,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .from("projects")
         .select("id, name, breeding_date, head_count, status, cattle_type, protocol")
         .eq("organization_id", orgId)
-        .neq("status", "Complete")
+        .not("status", "in", '("Work Complete","Invoiced")')
         .gte("breeding_date", today)
         .lte("breeding_date", day14)
         .order("breeding_date");
@@ -218,7 +218,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .from("projects")
         .select("id, name, project_billing(billing_completed_at)")
         .eq("organization_id", orgId)
-        .eq("status", "Complete");
+        .in("status", ["Work Complete", "Invoiced"]);
 
       const unbilledList = (unbilled || []).filter((p: any) => {
         const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
