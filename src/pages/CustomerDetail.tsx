@@ -1034,8 +1034,53 @@ const CustomerDetail = () => {
                 </div>
               </div>
             );
-          })
+          })}
+            </CollapsibleContent>
+          </Collapsible>
         )}
+
+        {/* Projects */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Projects</h2>
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            {customerProjects.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet for this customer.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead>Project</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cattle</TableHead>
+                      <TableHead className="text-right">Head</TableHead>
+                      <TableHead>Breeding Date</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerProjects.map((p: any) => (
+                      <TableRow key={p.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/project/${p.id}`)}>
+                        <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', p.status)}`}>
+                            {p.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{p.cattle_type || "—"}</TableCell>
+                        <TableCell className="text-sm text-right">{p.head_count ?? 0}</TableCell>
+                        <TableCell className="text-sm">
+                          {p.breeding_date ? format(new Date(p.breeding_date + "T00:00:00"), "MMM d, yyyy") : "—"}
+                        </TableCell>
+                        <TableCell><span className="text-xs text-primary hover:underline">View →</span></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Orders & Shipments */}
         <div className="space-y-4">
