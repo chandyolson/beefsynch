@@ -108,22 +108,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     },
   });
 
-  // Active packs
-  const { data: activePacks = [] } = useQuery({
-    queryKey: ["active_packs", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tank_packs")
-        .select("id, packed_at, status, packed_by, pack_type, destination_name, customer_id, customers!tank_packs_customer_id_fkey(name), tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_orders(semen_order_id, semen_orders(id, customers!semen_orders_customer_id_fkey(name))), tank_pack_lines(bull_name, units, field_canister)")
-        .eq("organization_id", orgId)
-        .in("status", ["packed", "in_field"])
-        .order("packed_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
+  // (Active Packs widget removed — see Packs tab for active/in-motion packs.)
 
   const { data: tankOptions = [] } = useQuery({
     queryKey: ["tanks_for_edit", orgId],
