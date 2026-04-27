@@ -33,8 +33,8 @@ import { toast } from "@/hooks/use-toast";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { format } from "date-fns";
+import AddEditBullDialog, { BullFormData, OfferingDraft } from "@/components/bulls/AddEditBullDialog";
 
-const COMPANIES_LIST = ["Select Sires", "ABS", "Universal", "Genex", "Other/Custom"] as const;
 const FILTER_COMPANIES = ["ABS", "ST Genetics", "Select Sires", "Genex"] as const;
 
 const COMPANY_COLORS: Record<string, string> = {
