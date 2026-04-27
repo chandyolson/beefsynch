@@ -35,6 +35,48 @@ export default function BillingTab({
   const grandTotal = productsTotal + semenTotal;
   const grandInvoiced = productsInvoiced + semenInvoiced;
 
+  // Override save helpers — capture audit fields then delegate to parent save
+  async function saveProductOverride(idx: number, value: number | null, reason: string | null) {
+    const userId = (await supabase.auth.getUser()).data.user?.id || null;
+    if (value == null) {
+      // Clear: revert units_billed to units_calculated, drop audit
+      const calc = productLines[idx].units_calculated;
+      onSaveProduct(idx, {
+        units_billed: calc,
+        override_reason: null,
+        overridden_by_user_id: null,
+        overridden_at: null,
+      });
+    } else {
+      onSaveProduct(idx, {
+        units_billed: value,
+        override_reason: reason,
+        overridden_by_user_id: userId,
+        overridden_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  async function saveSemenOverride(idx: number, value: number | null, reason: string | null) {
+    const userId = (await supabase.auth.getUser()).data.user?.id || null;
+    if (value == null) {
+      onSaveSemen(idx, {
+        override_quantity: null,
+        override_reason: null,
+        overridden_by_user_id: null,
+        overridden_at: null,
+      });
+    } else {
+      onSaveSemen(idx, {
+        override_quantity: value,
+        override_reason: reason,
+        overridden_by_user_id: userId,
+        overridden_at: new Date().toISOString(),
+      });
+    }
+  }
+
+
   return (
     <>
       {/* ── Billing Summary Card ── */}
