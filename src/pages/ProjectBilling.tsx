@@ -474,18 +474,21 @@ const ProjectBilling = () => {
       packedByBull[key] = (packedByBull[key] || 0) + pl.units;
     }
 
-    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; units_billable: number; line_total: number }> = [];
+    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; line_total: number }> = [];
     const updated = semenLines.map((sl) => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const packed = packedByBull[key] ?? 0;
       if (packed > 0 && sl.units_packed !== packed && sl.id) {
-        // Preserve the "used" amount and recalculate derived values
+        // Preserve the "used" amount and recalculate returned.
+        // Do NOT touch units_billable — that's user-owned.
         const used = (sl.units_packed ?? 0) - (sl.units_returned ?? 0);
         const returned = Math.max(0, packed - used);
-        const billable = Math.max(0, used - (sl.units_blown ?? 0));
-        const line_total = billable * (sl.unit_price ?? 0);
-        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, units_billable: billable, line_total });
-        return { ...sl, units_packed: packed, units_returned: returned, units_billable: billable, line_total };
+        const effectiveBillable = sl.override_quantity != null
+          ? Number(sl.override_quantity)
+          : (sl.units_billable ?? 0);
+        const line_total = effectiveBillable * (sl.unit_price ?? 0);
+        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, line_total });
+        return { ...sl, units_packed: packed, units_returned: returned, line_total };
       }
       return sl;
     });
@@ -495,7 +498,7 @@ const ProjectBilling = () => {
     await Promise.all(dbUpdates.map((u) =>
       supabase.from("project_billing_semen").update({
         units_packed: u.units_packed, units_returned: u.units_returned,
-        units_billable: u.units_billable, line_total: u.line_total,
+        line_total: u.line_total,
       }).eq("id", u.id)
     ));
   }
