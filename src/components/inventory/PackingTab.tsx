@@ -17,7 +17,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Search, Download, CalendarIcon, X, Plus, Package } from "lucide-react";
+import { Loader2, Search, Download, CalendarIcon, X, Plus, Package, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import TableSkeleton from "@/components/TableSkeleton";
 import EmptyState from "@/components/EmptyState";
@@ -43,6 +43,76 @@ const TYPE_LABELS: Record<string, string> = {
   pickup: "Pickup",
 };
 
+/* Customer-outbound pack types — get WS7 polish (status pills, order names, Received section). */
+const CUSTOMER_OUTBOUND = new Set(["shipment", "pickup", "order"]);
+const isCustomerOutbound = (t: string) => CUSTOMER_OUTBOUND.has(t);
+
+/* Per-pack-type "received" status set. */
+const RECEIVED_BY_TYPE: Record<string, Set<string>> = {
+  shipment: new Set(["delivered", "tank_returned"]),
+  pickup: new Set(["picked_up", "tank_returned"]),
+  order: new Set(["picked_up", "tank_returned"]),
+};
+const isReceivedRow = (row: any) =>
+  isCustomerOutbound(row.pack_type) &&
+  (RECEIVED_BY_TYPE[row.pack_type]?.has(row.status) ?? false);
+
+/* Per-pack-type pill label for "packed". */
+const PACKED_LABEL_BY_TYPE: Record<string, string> = {
+  shipment: "Ready to Ship",
+  pickup: "Ready for Pickup",
+  order: "Ready for Pickup",
+};
+
+type OutboundPill = { label: string; className: string };
+const OUTBOUND_PILL_CLASSES: Record<string, string> = {
+  blue: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  amber: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  gray: "bg-muted text-muted-foreground border-border",
+  red: "bg-destructive/20 text-destructive border-destructive/30",
+};
+const getOutboundPill = (row: any): OutboundPill | null => {
+  if (!isCustomerOutbound(row.pack_type)) return null;
+  switch (row.status) {
+    case "packed":
+      return { label: PACKED_LABEL_BY_TYPE[row.pack_type] ?? "Ready", className: OUTBOUND_PILL_CLASSES.blue };
+    case "shipped":
+      return row.pack_type === "shipment"
+        ? { label: "In Transit", className: OUTBOUND_PILL_CLASSES.amber }
+        : null;
+    case "delivered":
+      return row.pack_type === "shipment"
+        ? { label: "Delivered", className: OUTBOUND_PILL_CLASSES.green }
+        : null;
+    case "picked_up":
+      return row.pack_type === "pickup" || row.pack_type === "order"
+        ? { label: "Picked Up", className: OUTBOUND_PILL_CLASSES.green }
+        : null;
+    case "tank_returned":
+      return { label: "Returned", className: OUTBOUND_PILL_CLASSES.gray };
+    case "cancelled":
+      return { label: "Cancelled", className: OUTBOUND_PILL_CLASSES.red };
+    default:
+      return null;
+  }
+};
+
+/* Build "Customer — MMM d" labels from linked semen_orders. */
+const getOrderLabels = (row: any): string => {
+  const orders = (row.tank_pack_orders as any[]) || [];
+  if (orders.length === 0) return "";
+  const labels: string[] = [];
+  for (const o of orders) {
+    const so = o?.semen_orders;
+    if (!so) continue;
+    const name = so.customers?.name || "Unknown customer";
+    const date = so.order_date ? format(new Date(so.order_date), "MMM d") : null;
+    labels.push(date ? `${name} — ${date}` : name);
+  }
+  return labels.join(", ");
+};
+
 /* ── PacksList ── */
 const PacksList = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
@@ -65,7 +135,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
           tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number),
           tank_pack_lines(id, units),
           tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)),
-          tank_pack_orders(semen_order_id, semen_orders(id, customers!semen_orders_customer_id_fkey(name))),
+          tank_pack_orders(semen_order_id, semen_orders(id, order_date, customers!semen_orders_customer_id_fkey(name))),
           customers!tank_packs_customer_id_fkey(name)
         `)
         .eq("organization_id", orgId)
@@ -99,6 +169,37 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       return tankLabel.includes(q) || dest.includes(q) || packedBy.includes(q) || projNames.includes(q) || orderNames.includes(q);
     });
   }, [packs, search]);
+
+  // Split into active (everything not in Received) and received (customer-outbound only,
+  // type-appropriate received statuses). Cancelled customer-outbound rows stay active.
+  // Project rows are NEVER moved into Received.
+  const { activeRows, receivedRows } = useMemo(() => {
+    const active: any[] = [];
+    const received: any[] = [];
+    for (const row of filtered) {
+      if (isReceivedRow(row)) received.push(row);
+      else active.push(row);
+    }
+    // Active sort: keep original packed_at DESC from query, but push cancelled
+    // customer-outbound rows to the bottom of the active list.
+    active.sort((a, b) => {
+      const aCancelled = isCustomerOutbound(a.pack_type) && a.status === "cancelled" ? 1 : 0;
+      const bCancelled = isCustomerOutbound(b.pack_type) && b.status === "cancelled" ? 1 : 0;
+      if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
+      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
+      return bT - aT;
+    });
+    // Received sort: most recent first (no per-status timestamps in schema, fall back to packed_at).
+    received.sort((a, b) => {
+      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
+      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
+      return bT - aT;
+    });
+    return { activeRows: active, receivedRows: received };
+  }, [filtered]);
+
+  const [showReceived, setShowReceived] = useState(false);
 
   const fieldTankLabel = (row: any) => {
     const t = row.tanks as any;
@@ -258,8 +359,11 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((row: any) => {
+                  {activeRows.map((row: any) => {
                     const stats = getLineStats(row);
+                    const outbound = isCustomerOutbound(row.pack_type);
+                    const pill = getOutboundPill(row);
+                    const orderLabels = outbound ? getOrderLabels(row) : "";
                     return (
                       <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pack/${row.id}`)}>
                         <TableCell>{row.packed_at ? format(new Date(row.packed_at), "MMM d, yyyy") : "—"}</TableCell>
@@ -267,16 +371,78 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                         <TableCell>
                           <Badge variant="outline" className="text-xs capitalize">{TYPE_LABELS[row.pack_type] || row.pack_type}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">{getDestination(row)}</TableCell>
+                        <TableCell className="text-sm max-w-[240px]">
+                          {outbound ? (
+                            <div className="truncate">
+                              <div className="truncate">{getDestination(row)}</div>
+                              <div className={cn("truncate text-xs", orderLabels ? "text-muted-foreground" : "text-muted-foreground/60 italic")}>
+                                {orderLabels ? `Order${(row.tank_pack_orders || []).length > 1 ? "s" : ""}: ${orderLabels}` : "No orders linked"}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="truncate">{getDestination(row)}</div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{stats.count}</TableCell>
                         <TableCell className="text-right">{stats.units}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                          {pill ? (
+                            <Badge variant="outline" className={cn("text-xs whitespace-nowrap", pill.className)}>{pill.label}</Badge>
+                          ) : (
+                            <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
                       </TableRow>
                     );
                   })}
+                  {receivedRows.length > 0 && (
+                    <>
+                      <TableRow
+                        className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
+                        onClick={() => setShowReceived((v) => !v)}
+                      >
+                        <TableCell colSpan={8} className="py-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                            {showReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            Received Packs ({receivedRows.length})
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {showReceived && receivedRows.map((row: any) => {
+                        const stats = getLineStats(row);
+                        const pill = getOutboundPill(row);
+                        const orderLabels = getOrderLabels(row);
+                        return (
+                          <TableRow key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pack/${row.id}`)}>
+                            <TableCell>{row.packed_at ? format(new Date(row.packed_at), "MMM d, yyyy") : "—"}</TableCell>
+                            <TableCell className="font-medium">{fieldTankLabel(row)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs capitalize">{TYPE_LABELS[row.pack_type] || row.pack_type}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[240px]">
+                              <div className="truncate">
+                                <div className="truncate">{getDestination(row)}</div>
+                                <div className={cn("truncate text-xs", orderLabels ? "text-muted-foreground" : "text-muted-foreground/60 italic")}>
+                                  {orderLabels ? `Order${(row.tank_pack_orders || []).length > 1 ? "s" : ""}: ${orderLabels}` : "No orders linked"}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{stats.count}</TableCell>
+                            <TableCell className="text-right">{stats.units}</TableCell>
+                            <TableCell>
+                              {pill ? (
+                                <Badge variant="outline" className={cn("text-xs whitespace-nowrap", pill.className)}>{pill.label}</Badge>
+                              ) : (
+                                <Badge variant="outline" className={cn("text-xs", getBadgeClass('packStatus', row.status))}>{STATUS_LABELS[row.status] || row.status}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{row.packed_by || "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </div>
