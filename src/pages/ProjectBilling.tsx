@@ -427,16 +427,19 @@ const ProjectBilling = () => {
       returnedByBull[key] = (returnedByBull[key] || 0) + (ul.units_returned || 0);
     }
 
-    const updates: Array<{ id: string; units_returned: number; units_billable: number; line_total: number }> = [];
+    const updates: Array<{ id: string; units_returned: number; line_total: number }> = [];
     const updated = semenLines.map((sl) => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const returned = returnedByBull[key] ?? 0;
       if (sl.units_returned !== returned) {
-        const used = (sl.units_packed ?? 0) - returned;
-        const billable = Math.max(0, used - (sl.units_blown ?? 0));
-        const line_total = billable * (sl.unit_price ?? 0);
-        if (sl.id) updates.push({ id: sl.id, units_returned: returned, units_billable: billable, line_total });
-        return { ...sl, units_returned: returned, units_billable: billable, line_total };
+        // Do NOT recompute units_billable here — that's user-owned.
+        // Just keep line_total in sync with whatever billable value is set.
+        const effectiveBillable = sl.override_quantity != null
+          ? Number(sl.override_quantity)
+          : (sl.units_billable ?? 0);
+        const line_total = effectiveBillable * (sl.unit_price ?? 0);
+        if (sl.id) updates.push({ id: sl.id, units_returned: returned, line_total });
+        return { ...sl, units_returned: returned, line_total };
       }
       return sl;
     });
@@ -445,7 +448,7 @@ const ProjectBilling = () => {
     setSemenLines(updated);
     await Promise.all(updates.map((u) =>
       supabase.from("project_billing_semen").update({
-        units_returned: u.units_returned, units_billable: u.units_billable, line_total: u.line_total,
+        units_returned: u.units_returned, line_total: u.line_total,
       }).eq("id", u.id)
     ));
   }
@@ -471,18 +474,21 @@ const ProjectBilling = () => {
       packedByBull[key] = (packedByBull[key] || 0) + pl.units;
     }
 
-    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; units_billable: number; line_total: number }> = [];
+    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; line_total: number }> = [];
     const updated = semenLines.map((sl) => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const packed = packedByBull[key] ?? 0;
       if (packed > 0 && sl.units_packed !== packed && sl.id) {
-        // Preserve the "used" amount and recalculate derived values
+        // Preserve the "used" amount and recalculate returned.
+        // Do NOT touch units_billable — that's user-owned.
         const used = (sl.units_packed ?? 0) - (sl.units_returned ?? 0);
         const returned = Math.max(0, packed - used);
-        const billable = Math.max(0, used - (sl.units_blown ?? 0));
-        const line_total = billable * (sl.unit_price ?? 0);
-        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, units_billable: billable, line_total });
-        return { ...sl, units_packed: packed, units_returned: returned, units_billable: billable, line_total };
+        const effectiveBillable = sl.override_quantity != null
+          ? Number(sl.override_quantity)
+          : (sl.units_billable ?? 0);
+        const line_total = effectiveBillable * (sl.unit_price ?? 0);
+        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, line_total });
+        return { ...sl, units_packed: packed, units_returned: returned, line_total };
       }
       return sl;
     });
@@ -492,7 +498,7 @@ const ProjectBilling = () => {
     await Promise.all(dbUpdates.map((u) =>
       supabase.from("project_billing_semen").update({
         units_packed: u.units_packed, units_returned: u.units_returned,
-        units_billable: u.units_billable, line_total: u.line_total,
+        line_total: u.line_total,
       }).eq("id", u.id)
     ));
   }
@@ -510,11 +516,13 @@ const ProjectBilling = () => {
   function saveProductLine(idx: number, updates: Partial<ProductLine>) {
     const line = { ...productLines[idx], ...updates };
     const uc = calcUnits(line.doses, line.doses_per_unit);
+    // units_calculated is system-owned: always keep in sync with the dose math.
     line.units_calculated = uc;
-    if (updates.doses !== undefined || updates.doses_per_unit !== undefined) {
-      line.units_billed = uc;
-    }
-    line.line_total = (line.units_billed ?? uc) * (line.unit_price ?? 0);
+    // units_billed is user-owned: NEVER overwrite it from a calculation here.
+    // It is only changed when the user explicitly types into the billed field,
+    // which arrives via `updates.units_billed`. Initial default is set on INSERT.
+    const billable = line.units_billed ?? uc;
+    line.line_total = billable * (line.unit_price ?? 0);
     const newLines = [...productLines];
     newLines[idx] = line;
     setProductLines(newLines);
@@ -539,10 +547,18 @@ const ProjectBilling = () => {
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    const calculatedBillable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
-    line.units_billable = calculatedBillable;
-    // Override (when set) drives invoicing total; otherwise calculated billable does
-    const effectiveBillable = line.override_quantity != null ? Number(line.override_quantity) : calculatedBillable;
+    // units_billable is user-owned (like units_billed on products). Do NOT
+    // recompute it from packed/returned/blown on every save — that stomps any
+    // manual entry. It only changes when the caller explicitly passes it in
+    // `updates`. Override (when set) takes precedence for invoicing.
+    const calculatedBillable = Math.max(
+      0,
+      (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0),
+    );
+    const effectiveBillable =
+      line.override_quantity != null
+        ? Number(line.override_quantity)
+        : (line.units_billable ?? calculatedBillable);
     line.line_total = effectiveBillable * (line.unit_price ?? 0);
     const newLines = [...semenLines];
     newLines[idx] = line;
@@ -771,19 +787,24 @@ const ProjectBilling = () => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const used = bullUsed.get(key) ?? 0;
       const blown = bullBlown.get(key) ?? 0;
-      const billable = Math.max(0, used - blown);
-      const line_total = billable * (sl.unit_price ?? 0);
-      if (sl.units_billable !== billable || sl.units_blown !== blown) {
+      const newReturned = (sl.units_packed ?? 0) - used;
+      // Do NOT recompute units_billable from used/blown — user-owned.
+      // Just keep line_total in sync with the current billable value.
+      const effectiveBillable = sl.override_quantity != null
+        ? Number(sl.override_quantity)
+        : (sl.units_billable ?? 0);
+      const line_total = effectiveBillable * (sl.unit_price ?? 0);
+      if (sl.units_returned !== newReturned || sl.units_blown !== blown) {
         changed = true;
         if (sl.id) {
           debouncedSave(`semen-used-${sl.id}`, () =>
             supabase.from("project_billing_semen").update({
-              units_returned: (sl.units_packed ?? 0) - used,
+              units_returned: newReturned,
               units_blown: blown,
-              units_billable: billable, line_total,
+              line_total,
             } as any).eq("id", sl.id));
         }
-        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_blown: blown, units_billable: billable, line_total };
+        return { ...sl, units_returned: newReturned, units_blown: blown, line_total };
       }
       return sl;
     });
