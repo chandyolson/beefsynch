@@ -95,6 +95,15 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     };
   };
 
+  const getSnapshotBulls = (snapshot: any): string => {
+    if (!snapshot) return "—";
+    const rows = snapshot.received_lines || snapshot.draft_lines || [];
+    if (rows.length === 0) return "—";
+    return rows
+      .map((r: any) => `${r.bullName || 'Unknown'} ×${r.units || 0}`)
+      .join(", ");
+  };
+
   const clearOrderFilter = () => {
     searchParams.delete("order");
     setSearchParams(searchParams);
@@ -171,7 +180,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead>Date Received</TableHead>
                         <TableHead>Company</TableHead>
                         <TableHead>Order</TableHead>
-                        <TableHead className="text-right">Lines</TableHead>
+                        <TableHead>Bulls</TableHead>
                         <TableHead className="text-right">Units</TableHead>
                         <TableHead>Confirmed</TableHead>
                       </TableRow>
@@ -190,7 +199,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell>{row.received_date ? format(new Date(row.received_date + "T00:00:00"), "MMM d, yyyy") : "—"}</TableCell>
                             <TableCell>{row.semen_companies?.name || "—"}</TableCell>
                             <TableCell>{orderName || "—"}</TableCell>
-                            <TableCell className="text-right">{stats.lines}</TableCell>
+                            <TableCell className="max-w-[300px] truncate text-sm">{getSnapshotBulls(row.reconciliation_snapshot)}</TableCell>
                             <TableCell className="text-right">{stats.units}</TableCell>
                             <TableCell className="text-sm">
                               {row.confirmed_at ? format(new Date(row.confirmed_at), "MMM d, yyyy h:mm a") : "—"}
@@ -226,7 +235,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                         <TableHead>Date Created</TableHead>
                         <TableHead>Company</TableHead>
                         <TableHead>Order</TableHead>
-                        <TableHead className="text-right">Lines</TableHead>
+                        <TableHead>Bulls</TableHead>
                         <TableHead>Last Edited</TableHead>
                         
                       </TableRow>
@@ -246,7 +255,7 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                             <TableCell>{row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "—"}</TableCell>
                             <TableCell>{row.semen_companies?.name || "—"}</TableCell>
                             <TableCell>{orderName || "—"}</TableCell>
-                            <TableCell className="text-right">{stats.lines}</TableCell>
+                            <TableCell className="max-w-[300px] truncate text-sm">{getSnapshotBulls(row.reconciliation_snapshot)}</TableCell>
                             <TableCell>{lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}</TableCell>
                           </TableRow>
                         );
