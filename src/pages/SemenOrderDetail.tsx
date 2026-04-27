@@ -81,6 +81,7 @@ function unpackReturnsByBull(unpackLines: any[]): Map<string, number> {
 const SemenOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { orgId } = useOrgRole();
   
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
