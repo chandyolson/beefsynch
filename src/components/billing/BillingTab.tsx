@@ -5,6 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProductLine, SemenLine, formatCurrency } from "./billingTypes";
+import OverrideButton from "./OverrideButton";
+import { supabase } from "@/integrations/supabase/client";
+
 
 interface BillingTabProps {
   productLines: ProductLine[];
