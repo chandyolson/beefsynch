@@ -56,7 +56,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
   const statusDisplayToDb: Record<string, string> = {
     Tentative: "Tentative",
     Confirmed: "Confirmed",
-    Complete: "Complete",
+    "Work Complete": "Work Complete",
   };
 
   const handleStatusChange = async (status: string) => {
@@ -186,7 +186,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
             <SelectValue placeholder="Change Status" />
           </SelectTrigger>
           <SelectContent>
-            {["Tentative", "Confirmed", "Complete"].map((s) => (
+            {["Tentative", "Confirmed", "Work Complete"].map((s) => (
               <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
           </SelectContent>

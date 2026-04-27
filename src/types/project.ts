@@ -1,5 +1,5 @@
 export type AnimalType = "Heifer" | "Cow";
-export type ProjectStatus = "Tentative" | "Confirmed" | "Complete";
+export type ProjectStatus = "Tentative" | "Confirmed" | "Work Complete" | "Invoiced";
 
 export interface BreedingProject {
   id: string;
