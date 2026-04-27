@@ -202,6 +202,12 @@ const PacksList = ({ orgId }: { orgId: string }) => {
 
   const [showReceived, setShowReceived] = useState(false);
 
+  // Derive what to render based on viewMode
+  const renderActive = viewMode !== "completed";
+  const renderReceived = viewMode !== "active";
+  const expandReceived = viewMode === "all" || viewMode === "completed" || showReceived;
+
+
   const fieldTankLabel = (row: any) => {
     const t = row.tanks as any;
     return t?.tank_name || t?.tank_number || "—";
