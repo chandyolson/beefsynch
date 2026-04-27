@@ -43,6 +43,76 @@ const TYPE_LABELS: Record<string, string> = {
   pickup: "Pickup",
 };
 
+/* Customer-outbound pack types — get WS7 polish (status pills, order names, Received section). */
+const CUSTOMER_OUTBOUND = new Set(["shipment", "pickup", "order"]);
+const isCustomerOutbound = (t: string) => CUSTOMER_OUTBOUND.has(t);
+
+/* Per-pack-type "received" status set. */
+const RECEIVED_BY_TYPE: Record<string, Set<string>> = {
+  shipment: new Set(["delivered", "tank_returned"]),
+  pickup: new Set(["picked_up", "tank_returned"]),
+  order: new Set(["picked_up", "tank_returned"]),
+};
+const isReceivedRow = (row: any) =>
+  isCustomerOutbound(row.pack_type) &&
+  (RECEIVED_BY_TYPE[row.pack_type]?.has(row.status) ?? false);
+
+/* Per-pack-type pill label for "packed". */
+const PACKED_LABEL_BY_TYPE: Record<string, string> = {
+  shipment: "Ready to Ship",
+  pickup: "Ready for Pickup",
+  order: "Ready for Pickup",
+};
+
+type OutboundPill = { label: string; className: string };
+const OUTBOUND_PILL_CLASSES: Record<string, string> = {
+  blue: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  amber: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  green: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  gray: "bg-muted text-muted-foreground border-border",
+  red: "bg-destructive/20 text-destructive border-destructive/30",
+};
+const getOutboundPill = (row: any): OutboundPill | null => {
+  if (!isCustomerOutbound(row.pack_type)) return null;
+  switch (row.status) {
+    case "packed":
+      return { label: PACKED_LABEL_BY_TYPE[row.pack_type] ?? "Ready", className: OUTBOUND_PILL_CLASSES.blue };
+    case "shipped":
+      return row.pack_type === "shipment"
+        ? { label: "In Transit", className: OUTBOUND_PILL_CLASSES.amber }
+        : null;
+    case "delivered":
+      return row.pack_type === "shipment"
+        ? { label: "Delivered", className: OUTBOUND_PILL_CLASSES.green }
+        : null;
+    case "picked_up":
+      return row.pack_type === "pickup" || row.pack_type === "order"
+        ? { label: "Picked Up", className: OUTBOUND_PILL_CLASSES.green }
+        : null;
+    case "tank_returned":
+      return { label: "Returned", className: OUTBOUND_PILL_CLASSES.gray };
+    case "cancelled":
+      return { label: "Cancelled", className: OUTBOUND_PILL_CLASSES.red };
+    default:
+      return null;
+  }
+};
+
+/* Build "Customer — MMM d" labels from linked semen_orders. */
+const getOrderLabels = (row: any): string => {
+  const orders = (row.tank_pack_orders as any[]) || [];
+  if (orders.length === 0) return "";
+  const labels: string[] = [];
+  for (const o of orders) {
+    const so = o?.semen_orders;
+    if (!so) continue;
+    const name = so.customers?.name || "Unknown customer";
+    const date = so.order_date ? format(new Date(so.order_date), "MMM d") : null;
+    labels.push(date ? `${name} — ${date}` : name);
+  }
+  return labels.join(", ");
+};
+
 /* ── PacksList ── */
 const PacksList = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
