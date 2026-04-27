@@ -29,3 +29,6 @@ dist-ssr
 
 # Schema snapshots (generated locally; keep .gitkeep only)
 snapshots/*.md
+
+# Claude Code session metadata + worktrees
+.claude/
