@@ -541,10 +541,18 @@ const ProjectBilling = () => {
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    const calculatedBillable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
-    line.units_billable = calculatedBillable;
-    // Override (when set) drives invoicing total; otherwise calculated billable does
-    const effectiveBillable = line.override_quantity != null ? Number(line.override_quantity) : calculatedBillable;
+    // units_billable is user-owned (like units_billed on products). Do NOT
+    // recompute it from packed/returned/blown on every save — that stomps any
+    // manual entry. It only changes when the caller explicitly passes it in
+    // `updates`. Override (when set) takes precedence for invoicing.
+    const calculatedBillable = Math.max(
+      0,
+      (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0),
+    );
+    const effectiveBillable =
+      line.override_quantity != null
+        ? Number(line.override_quantity)
+        : (line.units_billable ?? calculatedBillable);
     line.line_total = effectiveBillable * (line.unit_price ?? 0);
     const newLines = [...semenLines];
     newLines[idx] = line;
