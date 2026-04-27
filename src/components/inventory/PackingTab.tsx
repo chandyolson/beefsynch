@@ -119,6 +119,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"active" | "all" | "completed">("active");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
