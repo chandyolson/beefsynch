@@ -171,11 +171,19 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     });
   }, [packs, search]);
 
-  // WS11: Active = status NOT IN ('unpacked', 'tank_returned', 'cancelled').
-  // Completed bucket retains the existing "Received" definition for customer-outbound rows
-  // so the Completed view + collapsible Received section keep their meaning.
-  const COMPLETED_STATUSES = new Set(["unpacked", "tank_returned", "cancelled"]);
-  const isActiveRow = (row: any) => !COMPLETED_STATUSES.has(row.status);
+  // Active = anything not in a terminal/received state.
+  // Project packs: terminal = unpacked / tank_returned / cancelled.
+  // Customer-outbound packs: "Received" = the type-specific received set
+  // (delivered/picked_up/tank_returned). Cancelled customer-outbound packs
+  // stay in the Active list per WS7 v2 so they're visible with a red pill,
+  // not buried in Received (semantically they were aborted, not received).
+  const PROJECT_TERMINAL = new Set(["unpacked", "tank_returned", "cancelled"]);
+  const isActiveRow = (row: any) => {
+    if (isCustomerOutbound(row.pack_type)) {
+      return !(RECEIVED_BY_TYPE[row.pack_type]?.has(row.status) ?? false);
+    }
+    return !PROJECT_TERMINAL.has(row.status);
+  };
 
   const { activeRows, receivedRows } = useMemo(() => {
     const active: any[] = [];
@@ -184,18 +192,17 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       if (isActiveRow(row)) active.push(row);
       else received.push(row);
     }
-    // Active sort: most recent activity first (packed_at DESC).
+    // Active sort: cancelled customer-outbound packs sink to the bottom of
+    // the active list (per spec); everything else sorts by packed_at DESC.
+    const sortKey = (r: any) => (r.packed_at ? new Date(r.packed_at).getTime() : 0);
     active.sort((a, b) => {
-      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
-      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
-      return bT - aT;
+      const aCancel = a.status === "cancelled" ? 1 : 0;
+      const bCancel = b.status === "cancelled" ? 1 : 0;
+      if (aCancel !== bCancel) return aCancel - bCancel;
+      return sortKey(b) - sortKey(a);
     });
     // Received sort: most recent first (no per-status timestamps in schema, fall back to packed_at).
-    received.sort((a, b) => {
-      const aT = a.packed_at ? new Date(a.packed_at).getTime() : 0;
-      const bT = b.packed_at ? new Date(b.packed_at).getTime() : 0;
-      return bT - aT;
-    });
+    received.sort((a, b) => sortKey(b) - sortKey(a));
     return { activeRows: active, receivedRows: received };
   }, [filtered]);
 
