@@ -123,6 +123,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [viewMode, setViewMode] = useState<"active" | "all" | "completed">("active");
 
   const { data: packs = [], isLoading } = useQuery({
     queryKey: ["packs", "all", orgId, statusFilter, typeFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
