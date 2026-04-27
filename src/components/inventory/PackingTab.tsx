@@ -119,6 +119,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"active" | "all" | "completed">("active");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -154,10 +155,17 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     enabled: !!orgId,
   });
 
+  const COMPLETED_STATUSES = new Set(["unpacked", "tank_returned", "cancelled"]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return packs;
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return packs.filter((row: any) => {
+      // View mode filter
+      const isCompleted = COMPLETED_STATUSES.has(row.status);
+      if (viewMode === "active" && isCompleted) return false;
+      if (viewMode === "completed" && !isCompleted) return false;
+
+      if (!q) return true;
       const fieldTank = row.tanks as any;
       const tankLabel = (fieldTank?.tank_name || fieldTank?.tank_number || "").toLowerCase();
       const dest = (row.destination_name || "").toLowerCase();
@@ -168,7 +176,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       const orderNames = orders.map((o: any) => (o.semen_orders?.customers?.name || "").toLowerCase()).join(" ");
       return tankLabel.includes(q) || dest.includes(q) || packedBy.includes(q) || projNames.includes(q) || orderNames.includes(q);
     });
-  }, [packs, search]);
+  }, [packs, search, viewMode]);
 
   // Split into active (everything not in Received) and received (customer-outbound only,
   // type-appropriate received statuses). Cancelled customer-outbound rows stay active.
@@ -271,6 +279,28 @@ const PacksList = ({ orgId }: { orgId: string }) => {
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
         </div>
+      </div>
+
+      {/* View chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {([
+          { key: "active", label: "Active" },
+          { key: "all", label: "All" },
+          { key: "completed", label: "Completed" },
+        ] as const).map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setViewMode(opt.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+              viewMode === opt.key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
