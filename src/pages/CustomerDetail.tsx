@@ -309,7 +309,23 @@ const CustomerDetail = () => {
     },
   });
 
-  // Group fills and transactions by tank
+  // Fetch customer projects
+  const { data: customerProjects = [] } = useQuery({
+    queryKey: ["customer_projects", id, orgId],
+    enabled: !!id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name, status, cattle_type, head_count, breeding_date, protocol, created_at")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+
   const fillsByTank = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const f of allFills) {
