@@ -87,12 +87,13 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
 
   useEffect(() => {
     if (!open || !orgId) return;
-    supabase
+    (supabase as any)
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
+      .eq("active", true)
       .order("name")
-      .then(({ data }) => setCompanies(data ?? []));
+      .then(({ data }: any) => setCompanies(data ?? []));
     (supabase as any)
       .from("billing_products")
       .select("id, product_name, product_category, default_price, unit_label")

@@ -36,10 +36,11 @@ const SemenCompanyPicker = ({ value, onChange, orgId, className }: SemenCompanyP
     queryKey: ["semen-companies-picker", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("semen_companies")
         .select("id, name")
         .eq("organization_id", orgId)
+        .eq("active", true)
         .order("name");
       if (error) throw error;
       return data ?? [];
