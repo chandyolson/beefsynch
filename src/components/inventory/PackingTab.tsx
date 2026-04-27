@@ -371,6 +371,18 @@ const PacksList = ({ orgId }: { orgId: string }) => {
               title={hasFilters ? "No matching packs" : "No packs yet"}
               description={hasFilters ? "No packs match your filters. Try adjusting or clearing filters." : "Click '+ Pack Tank' to create your first pack."}
             />
+          ) : (viewMode === "active" && activeRows.length === 0) ? (
+            <EmptyState
+              icon={Package}
+              title="No active packs"
+              description="Nothing is currently in motion. Switch to All or Completed to see other packs."
+            />
+          ) : (viewMode === "completed" && receivedRows.length === 0) ? (
+            <EmptyState
+              icon={Package}
+              title="No completed packs"
+              description="No packs have been received or returned yet."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
