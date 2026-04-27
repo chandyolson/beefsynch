@@ -123,6 +123,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [viewMode, setViewMode] = useState<"active" | "all" | "completed">("active");
 
   const { data: packs = [], isLoading } = useQuery({
     queryKey: ["packs", "all", orgId, statusFilter, typeFilter, dateFrom?.toISOString(), dateTo?.toISOString()],
@@ -201,6 +202,12 @@ const PacksList = ({ orgId }: { orgId: string }) => {
 
   const [showReceived, setShowReceived] = useState(false);
 
+  // Derive what to render based on viewMode
+  const renderActive = viewMode !== "completed";
+  const renderReceived = viewMode !== "active";
+  const expandReceived = viewMode === "all" || viewMode === "completed" || showReceived;
+
+
   const fieldTankLabel = (row: any) => {
     const t = row.tanks as any;
     return t?.tank_name || t?.tank_number || "—";
@@ -265,7 +272,28 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div />
+        {/* View-mode chips */}
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/30 p-1">
+          {([
+            { key: "active", label: `Active${activeRows.length ? ` (${activeRows.length})` : ""}` },
+            { key: "all", label: `All${packs.length ? ` (${packs.length})` : ""}` },
+            { key: "completed", label: `Completed${receivedRows.length ? ` (${receivedRows.length})` : ""}` },
+          ] as const).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setViewMode(opt.key)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                viewMode === opt.key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleExportCsv} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
@@ -343,6 +371,18 @@ const PacksList = ({ orgId }: { orgId: string }) => {
               title={hasFilters ? "No matching packs" : "No packs yet"}
               description={hasFilters ? "No packs match your filters. Try adjusting or clearing filters." : "Click '+ Pack Tank' to create your first pack."}
             />
+          ) : (viewMode === "active" && activeRows.length === 0) ? (
+            <EmptyState
+              icon={Package}
+              title="No active packs"
+              description="Nothing is currently in motion. Switch to All or Completed to see other packs."
+            />
+          ) : (viewMode === "completed" && receivedRows.length === 0) ? (
+            <EmptyState
+              icon={Package}
+              title="No completed packs"
+              description="No packs have been received or returned yet."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -359,7 +399,7 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeRows.map((row: any) => {
+                  {renderActive && activeRows.map((row: any) => {
                     const stats = getLineStats(row);
                     const outbound = isCustomerOutbound(row.pack_type);
                     const pill = getOutboundPill(row);
@@ -396,20 +436,23 @@ const PacksList = ({ orgId }: { orgId: string }) => {
                       </TableRow>
                     );
                   })}
-                  {receivedRows.length > 0 && (
+                  {renderReceived && receivedRows.length > 0 && (
                     <>
-                      <TableRow
-                        className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
-                        onClick={() => setShowReceived((v) => !v)}
-                      >
-                        <TableCell colSpan={8} className="py-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            {showReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            Received Packs ({receivedRows.length})
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                      {showReceived && receivedRows.map((row: any) => {
+                      {/* Header row only acts as toggle when in 'all' mode (active also visible). */}
+                      {viewMode === "all" && (
+                        <TableRow
+                          className="cursor-pointer bg-muted/30 hover:bg-muted/50 border-t-2 border-border"
+                          onClick={() => setShowReceived((v) => !v)}
+                        >
+                          <TableCell colSpan={8} className="py-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                              {expandReceived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              Received Packs ({receivedRows.length})
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {expandReceived && receivedRows.map((row: any) => {
                         const stats = getLineStats(row);
                         const pill = getOutboundPill(row);
                         const orderLabels = getOrderLabels(row);

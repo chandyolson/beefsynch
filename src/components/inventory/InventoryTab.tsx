@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  MoreHorizontal,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -108,22 +108,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     },
   });
 
-  // Active packs
-  const { data: activePacks = [] } = useQuery({
-    queryKey: ["active_packs", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tank_packs")
-        .select("id, packed_at, status, packed_by, pack_type, destination_name, customer_id, customers!tank_packs_customer_id_fkey(name), tanks!tank_packs_field_tank_id_fkey(tank_name, tank_number), tank_pack_projects(project_id, projects!tank_pack_projects_project_id_fkey(name)), tank_pack_orders(semen_order_id, semen_orders(id, customers!semen_orders_customer_id_fkey(name))), tank_pack_lines(bull_name, units, field_canister)")
-        .eq("organization_id", orgId)
-        .in("status", ["packed", "in_field"])
-        .order("packed_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
+  // (Active Packs widget removed — see Packs tab for active/in-motion packs.)
 
   const { data: tankOptions = [] } = useQuery({
     queryKey: ["tanks_for_edit", orgId],
@@ -151,8 +136,8 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     },
   });
 
-  const [expandedPacks, setExpandedPacks] = useState<Record<string, boolean>>({});
-  const togglePackExpand = (id: string) => setExpandedPacks(prev => ({ ...prev, [id]: !prev[id] }));
+
+
 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
@@ -448,89 +433,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         </div>
       </div>
 
-      {/* Active Packs */}
-      {activePacks.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              Active Packs
-              <Badge variant="secondary" className="text-xs">{activePacks.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="rounded-lg border border-border/50 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead>Field Tank</TableHead>
-                    <TableHead>For</TableHead>
-                    <TableHead>Bulls</TableHead>
-                    <TableHead>Date Packed</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activePacks.map((p: any) => {
-                    const tankName = p.tanks?.tank_name || p.tanks?.tank_number || "—";
-                    const projNames = (p.tank_pack_projects || []).map((pp: any) => pp.projects?.name).filter(Boolean).join(", ");
-                    return (
-                      <TableRow key={p.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => navigate(`/pack/${p.id}`)}>
-                        <TableCell className="font-medium">{tankName}</TableCell>
-                        <TableCell>
-                          {p.pack_type === "shipment" ? (
-                            <span className="flex items-center gap-1">
-                              <Truck className="h-3 w-3 text-muted-foreground" />
-                              Ship to: {p.destination_name || "—"}
-                            </span>
-                          ) : p.pack_type === "pickup" ? (
-                            <span className="text-sm">
-                              Customer: {(p as any).customers?.name || "—"}
-                            </span>
-                          ) : p.pack_type === "order" ? (
-                            <span className="text-sm">
-                              {(p.tank_pack_orders?.[0] as any)?.semen_orders?.customers?.name || "Order"}
-                            </span>
-                          ) : (
-                            projNames || "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {(p.tank_pack_lines || []).length > 0 ? (
-                            <div>
-                              <button
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                onClick={(e) => { e.stopPropagation(); togglePackExpand(p.id); }}
-                              >
-                                {expandedPacks[p.id]
-                                  ? <ChevronUp className="h-3 w-3" />
-                                  : <ChevronDown className="h-3 w-3" />}
-                                {(p.tank_pack_lines as any[]).length} bull{(p.tank_pack_lines as any[]).length !== 1 ? "s" : ""}
-                              </button>
-                              {expandedPacks[p.id] && (
-                                <div className="mt-1 space-y-0.5">
-                                  {(p.tank_pack_lines as any[]).map((l: any, idx: number) => (
-                                    <div key={idx} className="text-xs text-muted-foreground pl-1">
-                                      {l.bull_name}{l.field_canister ? ` — Can. ${l.field_canister}` : ""} — {l.units} units
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30">{p.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={cn("transition-all", ownerFilter === "all" ? "ring-2 ring-primary rounded-xl" : "")}>
