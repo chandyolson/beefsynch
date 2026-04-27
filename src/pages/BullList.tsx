@@ -242,13 +242,13 @@ const BullList = () => {
   // Load active companies for the dialog
   useEffect(() => {
     if (!orgId) return;
-    supabase
+    (supabase as any)
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
-      .eq("active" as any, true)
+      .eq("active", true)
       .order("name")
-      .then(({ data }) => setAllCompanies((data ?? []) as any));
+      .then(({ data }: any) => setAllCompanies((data ?? []) as any));
   }, [orgId]);
 
   const openAddBull = () => {
