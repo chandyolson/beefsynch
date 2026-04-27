@@ -786,18 +786,30 @@ const CustomerDetail = () => {
           />
         </div>
 
-        {/* Tanks section header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Tanks</h2>
-          <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Add Tank
-          </Button>
-        </div>
-
-        {/* Tank cards */}
+        {/* Tanks section */}
         {allTanks.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No tanks for this customer.</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Tanks</h2>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-sm">No tanks currently with this customer.</p>
+          </div>
         ) : (
+          <Collapsible open={tanksOpen} onOpenChange={setTanksOpen} className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <CollapsibleTrigger className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity flex-1">
+                {tanksOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                <h2 className="text-lg font-semibold">Tanks at this customer ({allTanks.length})</h2>
+              </CollapsibleTrigger>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <CollapsibleContent className="space-y-3">
+              {
           allTanks.map((tank: any) => {
             const inv = inventoryByTank.get(tank.id) || [];
             const tankTotal = inv.reduce((s: number, i: any) => s + (i.units || 0), 0);
