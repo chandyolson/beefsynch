@@ -115,7 +115,19 @@ export default function BillingTab({
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className={`truncate ${isInvoiced ? "" : "text-foreground"}`}>
                           {line.product_name}
-                          {line.protocol_event_label ? ` — ${line.protocol_event_label}` : ""}
+                        </span>
+                        {!readOnly && !isInvoiced && (
+                          <OverrideButton
+                            currentValue={line.doses ?? null}
+                            calculatedValue={line.doses ?? null}
+                            hasOverride={!!line.override_reason}
+                            overrideReason={line.override_reason}
+                            overriddenAt={line.overridden_at}
+                            overriddenByUserId={line.overridden_by_user_id}
+                            unitLabel={line.product_category === "service" ? "head" : "doses"}
+                            onSave={(v, r) => saveProductOverride(idx, v, r)}
+                          />
+                        )}
                         </span>
                         {isInvoiced && !editing && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 whitespace-nowrap font-medium">
