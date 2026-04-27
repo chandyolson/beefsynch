@@ -115,6 +115,7 @@ const CustomerDetail = () => {
 
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
+  const [tanksOpen, setTanksOpen] = useState(false);
 
   const toggleSection = (tankId: string, section: string) => {
     setExpandedSections(prev => {
