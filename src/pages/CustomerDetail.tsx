@@ -690,14 +690,26 @@ const CustomerDetail = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {
+            <Button variant="outline" onClick={async () => {
               if (!customer) return;
+              // Fetch per-order billable units so the PDF's Orders section shows what
+              // the customer was actually billed for (not what they ordered).
+              const ordersWithBillable = await Promise.all(
+                (customerOrders ?? []).map(async (o: any) => {
+                  const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+                  const billable_units = ((data ?? []) as any[]).map((r) => ({
+                    bull_name: r.bull_name || "Unknown",
+                    units: r.units || 0,
+                  }));
+                  return { ...o, billable_units };
+                })
+              );
               generateCustomerInventoryPdf(
                 customer,
                 allTanks,
                 inventoryByTank,
                 allTanks.map((t: any) => t.id),
-                customerOrders,
+                ordersWithBillable,
                 customerShipments,
                 customerPickups
               );

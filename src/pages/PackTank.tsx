@@ -375,39 +375,42 @@ const PackTank = () => {
 
       let bestSource: any = null;
 
-      // Strategy 1: Match by bull_catalog_id
+      // Strategy 1: Match by bull_catalog_id (company-owned only — sourcing for a project pack)
       if (bullCatalogId) {
         const { data: invRows } = await supabase
           .from("tank_inventory")
           .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
           .eq("organization_id", orgId)
           .eq("bull_catalog_id", bullCatalogId)
+          .is("customer_id", null)
           .gt("units", 0)
           .order("units", { ascending: false })
           .limit(1);
         if (invRows && invRows.length > 0) bestSource = invRows[0];
       }
 
-      // Strategy 2: Match by bull_code / NAAB code
+      // Strategy 2: Match by bull_code / NAAB code (company-owned only)
       if (!bestSource && bullCode) {
         const { data: invRows } = await supabase
           .from("tank_inventory")
           .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
           .eq("organization_id", orgId)
           .eq("bull_code", bullCode)
+          .is("customer_id", null)
           .gt("units", 0)
           .order("units", { ascending: false })
           .limit(1);
         if (invRows && invRows.length > 0) bestSource = invRows[0];
       }
 
-      // Strategy 3: Match by custom_bull_name
+      // Strategy 3: Match by custom_bull_name (company-owned only)
       if (!bestSource) {
         const { data: invRows } = await supabase
           .from("tank_inventory")
           .select("tank_id, canister, units, tanks!inner(tank_name, tank_number)")
           .eq("organization_id", orgId)
           .eq("custom_bull_name", bullName)
+          .is("customer_id", null)
           .gt("units", 0)
           .order("units", { ascending: false })
           .limit(1);

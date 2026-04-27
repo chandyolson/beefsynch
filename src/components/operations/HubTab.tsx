@@ -65,6 +65,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     fulfillmentStatus: string;
     unitsOrdered: number;
     unitsFilled: number;
+    unitsBillable: number;
   }>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -161,6 +162,17 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         .in("fulfillment_status", ["partially_fulfilled", "fulfilled"])
         .order("order_date", { ascending: true });
 
+      // Per-order billable totals from get_billable_units_for_order RPC.
+      // Each row in the RPC return is one bull's billable units for the order.
+      const billableTotalById = new Map<string, number>();
+      await Promise.all(
+        (invoiceableOrders || []).map(async (o: any) => {
+          const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+          const total = (data ?? []).reduce((s: number, r: any) => s + (r.units || 0), 0);
+          billableTotalById.set(o.id, total);
+        })
+      );
+
       const invoiceList = (invoiceableOrders || []).map((o: any) => {
         const items = o.semen_order_items || [];
         const ordered = items.reduce((s: number, i: any) => s + (i.units || 0), 0);
@@ -179,6 +191,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           fulfillmentStatus: o.fulfillment_status,
           unitsOrdered: ordered,
           unitsFilled: filled,
+          unitsBillable: billableTotalById.get(o.id) ?? 0,
         };
       });
       setReadyToInvoice(invoiceList);
@@ -587,7 +600,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                     <div className="min-w-0">
                       <p className="text-sm truncate">{o.bullSummary}</p>
                       <p className="text-xs text-muted-foreground capitalize">
-                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered}
+                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered} · billable {o.unitsBillable}
                       </p>
                     </div>
                     <InvoiceOrderModal

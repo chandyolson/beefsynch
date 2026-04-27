@@ -40,7 +40,11 @@ interface OrderData {
   order_type: string;
   needed_by?: string | null;
   semen_companies?: { name: string } | null;
+  // Ordered-side: pending-units/open-orders display (kept for the Open Orders header math)
   semen_order_items?: { units: number; custom_bull_name?: string | null; bull_catalog_id?: string | null; bulls_catalog?: { bull_name: string } | null }[];
+  // Billed-side: per-bull rows from get_billable_units_for_order(order_id). Source of truth for the
+  // customer-facing per-order bulls list and total. Empty for orders with nothing yet billable.
+  billable_units?: { bull_name: string; units: number }[];
 }
 
 interface ShipmentData {
@@ -224,21 +228,22 @@ export function generateCustomerInventoryPdf(
   }
 
   // ========== ORDERS ==========
+  // Customer-facing — the bulls list and total here reflect what was BILLED for each order
+  // (sourced from get_billable_units_for_order via the caller). For not-yet-billed orders the
+  // billable_units list will be empty and the row shows "—" / 0.
   if (orders.length > 0) {
     sectionTitle("Orders");
     const orderBody = orders.map((o) => {
-      const bulls = (o.semen_order_items || [])
-        .map((i) => {
-          const name = i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown";
-          return `${name} (${i.units})`;
-        })
+      const billable = o.billable_units ?? [];
+      const bulls = billable
+        .map((b) => `${b.bull_name} (${b.units})`)
         .join(", ");
-      const totalUnits = (o.semen_order_items || []).reduce((s, i) => s + (i.units || 0), 0);
+      const totalBilled = billable.reduce((s, b) => s + (b.units || 0), 0);
       return [
         format(parseISO(o.order_date), "MMM d, yyyy"),
         o.semen_companies?.name || "—",
         bulls || "—",
-        String(totalUnits),
+        String(totalBilled),
         o.fulfillment_status.replace("_", " "),
         o.billing_status.replace("_", " "),
       ];
@@ -246,7 +251,7 @@ export function generateCustomerInventoryPdf(
 
     autoTable(doc, {
       startY: y,
-      head: [["Date", "Company", "Bulls (units)", "Total", "Fulfillment", "Billing"]],
+      head: [["Date", "Company", "Bulls (units billed)", "Total Billed", "Fulfillment", "Billing"]],
       body: orderBody,
       theme: "grid",
       headStyles,
