@@ -40,6 +40,7 @@ const SemenCompanyPicker = ({ value, onChange, orgId, className }: SemenCompanyP
         .from("semen_companies")
         .select("id, name")
         .eq("organization_id", orgId)
+        .eq("active", true)
         .order("name");
       if (error) throw error;
       return data ?? [];

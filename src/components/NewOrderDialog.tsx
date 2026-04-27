@@ -91,6 +91,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
+      .eq("active", true)
       .order("name")
       .then(({ data }) => setCompanies(data ?? []));
     (supabase as any)
