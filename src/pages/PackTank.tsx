@@ -206,7 +206,7 @@ const PackTank = () => {
       if (!orgId || !pickupCustomerId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name), semen_order_items(id, units)")
+        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId)
         .eq("customer_id", pickupCustomerId)
         .not("fulfillment_status", "in", "(delivered,cancelled)")
@@ -239,7 +239,7 @@ const PackTank = () => {
       if (!orgId) return [];
       const { data } = await supabase
         .from("semen_orders")
-        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name)")
+        .select("id, order_date, fulfillment_status, customer_id, customers!semen_orders_customer_id_fkey(name), semen_order_items(id, units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId)
         .not("fulfillment_status", "in", "(delivered,cancelled)")
         .order("order_date", { ascending: false })
@@ -252,7 +252,12 @@ const PackTank = () => {
   const filteredOrders = useMemo(() => {
     if (!orderSearch) return availableOrders;
     const q = orderSearch.toLowerCase();
-    return availableOrders.filter((o: any) => ((o as any).customers?.name || "").toLowerCase().includes(q));
+    return availableOrders.filter((o: any) => {
+      if (((o as any).customers?.name || "").toLowerCase().includes(q)) return true;
+      return (o.semen_order_items || []).some((i: any) =>
+        (i.bulls_catalog?.bull_name || i.custom_bull_name || "").toLowerCase().includes(q)
+      );
+    });
   }, [availableOrders, orderSearch]);
 
   // Fetch all tanks with inventory for source tank dropdown
@@ -1123,9 +1128,14 @@ const PackTank = () => {
                                 onCheckedChange={() => toggleOrder(o.id)}
                               />
                               <span className="flex-1">
-                                {(o as any).customers?.name || "No customer"}
-                                <span className="text-muted-foreground ml-1 text-xs">
-                                  {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                <span className="block">
+                                  {(o as any).customers?.name || "No customer"}
+                                  <span className="text-muted-foreground ml-1 text-xs">
+                                    {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                  </span>
+                                </span>
+                                <span className="block text-xs text-muted-foreground truncate max-w-[280px]">
+                                  {(o.semen_order_items || []).map((i: any) => `${i.bulls_catalog?.bull_name || i.custom_bull_name || 'Unknown'} ×${i.units}`).join(", ") || "No items"}
                                 </span>
                               </span>
                               <Badge variant="outline" className="text-[10px] px-1 py-0">{o.fulfillment_status}</Badge>
@@ -1279,8 +1289,13 @@ const PackTank = () => {
                                     onCheckedChange={() => togglePickupOrder(o.id)}
                                   />
                                   <span className="flex-1">
-                                    {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
-                                    <span className="text-muted-foreground ml-1 text-xs">{totalUnits} units</span>
+                                    <span className="block">
+                                      {o.order_date && format(new Date(o.order_date + "T00:00"), "MMM d, yyyy")}
+                                      <span className="text-muted-foreground ml-1 text-xs">{totalUnits} units</span>
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground truncate max-w-[280px]">
+                                      {(o.semen_order_items || []).map((i: any) => `${i.bulls_catalog?.bull_name || i.custom_bull_name || 'Unknown'} ×${i.units}`).join(", ") || "No items"}
+                                    </span>
                                   </span>
                                   <Badge variant="outline" className="text-[10px] px-1 py-0">{o.fulfillment_status}</Badge>
                                 </label>
