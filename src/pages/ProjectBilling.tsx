@@ -787,19 +787,24 @@ const ProjectBilling = () => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const used = bullUsed.get(key) ?? 0;
       const blown = bullBlown.get(key) ?? 0;
-      const billable = Math.max(0, used - blown);
-      const line_total = billable * (sl.unit_price ?? 0);
-      if (sl.units_billable !== billable || sl.units_blown !== blown) {
+      const newReturned = (sl.units_packed ?? 0) - used;
+      // Do NOT recompute units_billable from used/blown — user-owned.
+      // Just keep line_total in sync with the current billable value.
+      const effectiveBillable = sl.override_quantity != null
+        ? Number(sl.override_quantity)
+        : (sl.units_billable ?? 0);
+      const line_total = effectiveBillable * (sl.unit_price ?? 0);
+      if (sl.units_returned !== newReturned || sl.units_blown !== blown) {
         changed = true;
         if (sl.id) {
           debouncedSave(`semen-used-${sl.id}`, () =>
             supabase.from("project_billing_semen").update({
-              units_returned: (sl.units_packed ?? 0) - used,
+              units_returned: newReturned,
               units_blown: blown,
-              units_billable: billable, line_total,
+              line_total,
             } as any).eq("id", sl.id));
         }
-        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_blown: blown, units_billable: billable, line_total };
+        return { ...sl, units_returned: newReturned, units_blown: blown, line_total };
       }
       return sl;
     });
