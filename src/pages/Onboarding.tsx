@@ -50,7 +50,8 @@ const Onboarding = () => {
   }, [navigate]);
 
   const handleCreate = async () => {
-    if (!orgName.trim()) return;
+    const trimmedName = orgName.trim();
+    if (!trimmedName) return;
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -61,49 +62,22 @@ const Onboarding = () => {
       return;
     }
 
-    const { data: org, error: orgError } = await supabase
-      .from("organizations")
-      .insert({ name: orgName.trim(), created_by: user.id })
-      .select("id")
-      .single();
+    // Atomic org + owner membership + onboarding flag via SECURITY DEFINER RPC.
+    // Replaces the previous two-step insert that hit an RLS recursion bug.
+    const { data: newOrgId, error: rpcError } = await supabase.rpc(
+      "create_organization_with_owner" as any,
+      { _name: trimmedName }
+    );
 
-    if (orgError || !org) {
-      toast({ title: "Could not create organization", description: orgError?.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    const { error: memberError } = await supabase
-      .from("organization_members")
-      .insert({ user_id: user.id, organization_id: org.id, role: "owner", accepted: true });
-
-    if (memberError) {
-      toast({ title: "Organization created but membership failed", description: memberError.message, variant: "destructive" });
+    if (rpcError || !newOrgId) {
+      toast({ title: "Could not create organization", description: rpcError?.message, variant: "destructive" });
       setLoading(false);
       return;
     }
 
     await refresh();
 
-    // Confirm membership exists before navigating
-    const { data: confirmed } = await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .eq("organization_id", org.id)
-      .eq("accepted", true)
-      .limit(1);
-
-    if (!confirmed || confirmed.length === 0) {
-      toast({ title: "Something went wrong", description: "Organization membership could not be confirmed.", variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Mark onboarding complete
-    await supabase.from("profiles").upsert({ user_id: user.id, has_completed_onboarding: true }, { onConflict: "user_id" });
-
-    toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${orgName.trim()} has been created.` });
+    toast({ title: `Welcome to BeefSynch!`, description: `Your organization ${trimmedName} has been created.` });
     setLoading(false);
     navigate("/operations?tab=projects");
   };
