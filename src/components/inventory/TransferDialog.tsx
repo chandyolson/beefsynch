@@ -41,6 +41,9 @@ interface TransferDialogProps {
   orgId: string | null | undefined;
   userId: string | null | undefined;
   tankId: string;
+  defaultCustomerId?: string;
+  defaultCustomerName?: string;
+  onSuccess?: () => void;
 }
 
 export default function TransferDialog({
@@ -51,6 +54,9 @@ export default function TransferDialog({
   orgId,
   userId,
   tankId,
+  defaultCustomerId,
+  defaultCustomerName,
+  onSuccess,
 }: TransferDialogProps) {
   const queryClient = useQueryClient();
   const [units, setUnits] = useState<number>(0);
