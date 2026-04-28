@@ -348,6 +348,7 @@ export default function TransferDialog({
                             onSelect={() => {
                               setCustomerId("");
                               setOrderId("");
+                              setIsBillable(false);
                               setCustomerPopoverOpen(false);
                             }}
                           >
@@ -366,6 +367,7 @@ export default function TransferDialog({
                               onSelect={() => {
                                 setCustomerId(c.id);
                                 setOrderId("");
+                                setIsBillable(!sourceRow?.customer_id);
                                 setCustomerPopoverOpen(false);
                               }}
                             >
