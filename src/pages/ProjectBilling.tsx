@@ -563,7 +563,7 @@ const ProjectBilling = () => {
     newLines[idx] = line;
     setSemenLines(newLines);
     if (line.id) {
-      const { id, ...rest } = line;
+      const { id, semen_owner, ...rest } = line;
       debouncedSave(`semen-${id}`, () =>
         supabase.from("project_billing_semen").update(rest).eq("id", id));
     }
