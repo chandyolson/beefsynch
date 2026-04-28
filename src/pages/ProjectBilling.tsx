@@ -75,7 +75,7 @@ const ProjectBilling = () => {
     const [projRes, eventsRes, bullsRes, productsRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", projectId).single(),
       supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"),
-      supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number)").eq("project_id", projectId),
+      supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number, company)").eq("project_id", projectId),
       supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"),
     ]);
 
@@ -123,12 +123,16 @@ const ProjectBilling = () => {
     const [prodRes, sessRes, semRes, invRes] = await Promise.all([
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
       (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
-    setSemenLines((semRes.data ?? []) as SemenLine[]);
+    setSemenLines((semRes.data ?? []).map((sl: any) => ({
+      ...sl,
+      semen_owner: sl.bulls_catalog?.company ?? null,
+      bulls_catalog: undefined,
+    })) as SemenLine[]);
     setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
     return {
       sessions: (sessRes.data ?? []) as SessionLine[],
@@ -392,11 +396,17 @@ const ProjectBilling = () => {
         billing_id: bId, bull_catalog_id: catalogId, bull_name: bullName, bull_code: bullCode,
         units_packed: packed, units_returned: 0, units_blown: 0, units_billable: packed,
         unit_price: 0, line_total: 0, sort_order: i,
+        semen_owner: b.bulls_catalog?.company ?? null,
       };
     });
     if (newSemen.length > 0) {
       const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemen).select();
-      setSemenLines((inserted ?? []) as SemenLine[]);
+      // Re-attach semen_owner from our local data since the DB doesn't store it
+      const withOwner = (inserted ?? []).map((row: any, i: number) => ({
+        ...row,
+        semen_owner: newSemen[i]?.semen_owner ?? null,
+      }));
+      setSemenLines(withOwner as SemenLine[]);
     }
   }
 

@@ -152,6 +152,9 @@ export default function BillingTab({
                             {line.bull_code && (
                               <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>
                             )}
+                            {line.semen_owner && (
+                              <span className="block text-xs text-amber-500 font-medium">{line.semen_owner}</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">
                             {line.units_packed || "—"}

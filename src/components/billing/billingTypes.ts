@@ -82,6 +82,7 @@ export interface SemenLine {
   sort_order: number | null;
   invoiced?: boolean;
   invoiced_at?: string | null;
+  semen_owner?: string | null;
 }
 
 /* ── Constants ── */
