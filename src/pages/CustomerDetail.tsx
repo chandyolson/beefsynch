@@ -118,6 +118,19 @@ const CustomerDetail = () => {
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
   const [tanksOpen, setTanksOpen] = useState(false);
 
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferSource, setTransferSource] = useState<any>(null);
+  const [transferSourceTank, setTransferSourceTank] = useState<any>(null);
+
+  const { data: userId } = useQuery({
+    queryKey: ["auth_user_id"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user?.id ?? null;
+    },
+  });
+
   const toggleSection = (tankId: string, section: string) => {
     setExpandedSections(prev => {
       const tankSections = new Set(prev[tankId] || []);
