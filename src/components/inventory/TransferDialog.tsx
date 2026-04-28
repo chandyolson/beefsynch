@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,9 @@ interface TransferDialogProps {
   orgId: string | null | undefined;
   userId: string | null | undefined;
   tankId: string;
+  defaultCustomerId?: string;
+  defaultCustomerName?: string;
+  onSuccess?: () => void;
 }
 
 export default function TransferDialog({
@@ -50,6 +54,9 @@ export default function TransferDialog({
   orgId,
   userId,
   tankId,
+  defaultCustomerId,
+  defaultCustomerName,
+  onSuccess,
 }: TransferDialogProps) {
   const queryClient = useQueryClient();
   const [units, setUnits] = useState<number>(0);
@@ -64,6 +71,7 @@ export default function TransferDialog({
   const [tankPopoverOpen, setTankPopoverOpen] = useState(false);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
+  const [isBillable, setIsBillable] = useState(false);
 
   const bullName =
     sourceRow?.bulls_catalog?.bull_name || sourceRow?.custom_bull_name || "—";
@@ -76,11 +84,14 @@ export default function TransferDialog({
       setDestTankId("");
       setCanister("");
       setSubCanister("");
-      setCustomerId(sourceRow.customer_id || "");
+      const initialCustomer = sourceRow.customer_id || defaultCustomerId || "";
+      setCustomerId(initialCustomer);
       setOrderId("");
       setNote("");
+      // Auto-billable when company stock → customer (no source customer, customer assigned)
+      setIsBillable(!!initialCustomer && !sourceRow.customer_id);
     }
-  }, [open, sourceRow]);
+  }, [open, sourceRow, defaultCustomerId]);
 
   const { data: tanks = [] } = useQuery({
     queryKey: ["transfer_dialog_tanks", orgId],
@@ -167,6 +178,7 @@ export default function TransferDialog({
         _order_id: orderId || null,
         _notes: note.trim() || null,
         _performed_by: userId,
+        _is_billable: customerId ? isBillable : null,
       });
       if (error) throw error;
       toast({
@@ -177,6 +189,9 @@ export default function TransferDialog({
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", tankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {
       toast({
@@ -333,6 +348,7 @@ export default function TransferDialog({
                             onSelect={() => {
                               setCustomerId("");
                               setOrderId("");
+                              setIsBillable(false);
                               setCustomerPopoverOpen(false);
                             }}
                           >
@@ -351,6 +367,7 @@ export default function TransferDialog({
                               onSelect={() => {
                                 setCustomerId(c.id);
                                 setOrderId("");
+                                setIsBillable(!sourceRow?.customer_id);
                                 setCustomerPopoverOpen(false);
                               }}
                             >
@@ -433,6 +450,30 @@ export default function TransferDialog({
                 </div>
               )}
             </div>
+
+            {customerId && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  Billing
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="transfer-billable"
+                    checked={isBillable}
+                    onCheckedChange={(v) => setIsBillable(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="transfer-billable" className="cursor-pointer">
+                      Billable to customer
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Check this if the customer is being charged for this semen.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="transfer-note">Note</Label>

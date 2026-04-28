@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import TransferDialog from "@/components/inventory/TransferDialog";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
@@ -116,6 +117,19 @@ const CustomerDetail = () => {
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
   const [tanksOpen, setTanksOpen] = useState(false);
+
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferSource, setTransferSource] = useState<any>(null);
+  const [transferSourceTank, setTransferSourceTank] = useState<any>(null);
+
+  const { data: userId } = useQuery({
+    queryKey: ["auth_user_id"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user?.id ?? null;
+    },
+  });
 
   const toggleSection = (tankId: string, section: string) => {
     setExpandedSections(prev => {
@@ -899,12 +913,13 @@ const CustomerDetail = () => {
                       <TableHead>Bull Code</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {inv.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
+                        <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
                       </TableRow>
                     ) : (
                       <>
@@ -921,11 +936,27 @@ const CustomerDetail = () => {
                             <TableCell>{item.bull_code || "—"}</TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell className="text-right">{item.units}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setTransferSource(item);
+                                  setTransferSourceTank(tank);
+                                  setTransferOpen(true);
+                                }}
+                                className="h-7 w-7 p-0"
+                                title="Transfer to another tank"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-muted/20 font-semibold">
                           <TableCell colSpan={5}>Total</TableCell>
                           <TableCell className="text-right">{tankTotal}</TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                       </>
                     )}
@@ -1350,6 +1381,24 @@ const CustomerDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {transferSource && (
+        <TransferDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          sourceRow={transferSource}
+          sourceTankName={transferSourceTank?.tank_name || transferSourceTank?.tank_number || "Tank"}
+          orgId={orgId}
+          userId={userId ?? null}
+          tankId={transferSourceTank?.id || ""}
+          defaultCustomerId={id}
+          defaultCustomerName={customer?.name}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+            queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+          }}
+        />
+      )}
 
       <AppFooter />
     </div>
