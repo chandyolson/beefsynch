@@ -1382,6 +1382,24 @@ const CustomerDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {transferSource && (
+        <TransferDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          sourceRow={transferSource}
+          sourceTankName={transferSourceTank?.tank_name || transferSourceTank?.tank_number || "Tank"}
+          orgId={orgId}
+          userId={userId ?? null}
+          tankId={transferSourceTank?.id || ""}
+          defaultCustomerId={id}
+          defaultCustomerName={customer?.name}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+            queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+          }}
+        />
+      )}
+
       <AppFooter />
     </div>
   );
