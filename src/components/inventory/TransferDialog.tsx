@@ -178,6 +178,7 @@ export default function TransferDialog({
         _order_id: orderId || null,
         _notes: note.trim() || null,
         _performed_by: userId,
+        _is_billable: customerId ? isBillable : null,
       });
       if (error) throw error;
       toast({
@@ -188,6 +189,9 @@ export default function TransferDialog({
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", tankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {
       toast({
