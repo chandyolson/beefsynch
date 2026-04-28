@@ -68,10 +68,10 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   // Default to "available" so the dashboard shows what's actually for sale by default.
   const [shelfMode, setShelfMode] = useState<"available" | "all">("available");
 
-  // When the toggle is "available", picking "Customer" in ownerFilter would always be empty
-  // (company-only AND customer-only). Force it back to "company" instead — option (a).
+  // When the toggle is "available", customer-only filters would show empty results.
+  // Reset to "company" if a customer-related filter is active.
   useEffect(() => {
-    if (shelfMode === "available" && ownerFilter === "customer") {
+    if (shelfMode === "available" && !["all", "company", "CATL", "Select"].includes(ownerFilter)) {
       setOwnerFilter("company");
     }
   }, [shelfMode, ownerFilter]);
@@ -183,7 +183,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     } else if (ownerFilter === "customer") {
       result = result.filter((r) => !!r.customerId);
     } else if (ownerFilter !== "all") {
-      result = result.filter((r) => r.owner === ownerFilter);
+      result = result.filter((r) => r.owner === ownerFilter || r.customer === ownerFilter);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -234,6 +234,17 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const companyUnits = rows.filter((r) => !r.customerId).reduce((s, r) => s + r.units, 0);
   const uniqueBulls = new Set(rows.map((r) => r.bullName)).size;
   const filteredTotal = filtered.reduce((s, r) => s + r.units, 0);
+
+  // Distinct customer names for the owner filter dropdown
+  const customerOwnerNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of rows) {
+      if (r.customerId && r.customer && r.customer !== "Unknown" && r.customer !== "Company") {
+        names.add(r.customer);
+      }
+    }
+    return Array.from(names).sort();
+  }, [rows]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -497,11 +508,17 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
             <SelectContent>
               <SelectItem value="all">All Owners</SelectItem>
               <SelectItem value="company">Company Only</SelectItem>
-              {/* "Customer Only" is meaningless when showing available stock (which filters
-                  customer-owned out at the query). Hide it in that mode. */}
               {shelfMode === "all" && <SelectItem value="customer">Customer Only</SelectItem>}
               <SelectItem value="CATL">CATL</SelectItem>
               <SelectItem value="Select">Select</SelectItem>
+              {shelfMode === "all" && customerOwnerNames.length > 0 && (
+                <>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium border-t mt-1 pt-1">Customers</div>
+                  {customerOwnerNames.map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>
