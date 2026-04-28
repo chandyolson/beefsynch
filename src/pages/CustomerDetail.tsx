@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import TransferDialog from "@/components/inventory/TransferDialog";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
