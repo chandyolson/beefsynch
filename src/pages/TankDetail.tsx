@@ -176,6 +176,89 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
   );
 };
 
+function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel }: {
+  row: any;
+  tankName: string;
+  orgId: string | null;
+  userId: string | null;
+  tankId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [units, setUnits] = useState<number>(row.units);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const bullName = row.bulls_catalog?.bull_name || row.custom_bull_name || row.bull_code || "Unknown";
+  const customerName = row.customers?.name || row.owner || "Customer";
+
+  const handleSubmit = async () => {
+    if (!units || units <= 0) {
+      toast({ title: "Enter units", description: "Units must be greater than zero", variant: "destructive" });
+      return;
+    }
+    if (units > row.units) {
+      toast({ title: "Too many", description: `Only ${row.units} available`, variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await (supabase as any).rpc("customer_pickup", {
+        _source_inventory_id: row.id,
+        _units: units,
+        _customer_id: row.customer_id,
+        _notes: note.trim() || null,
+        _performed_by: userId,
+      });
+      if (error) throw error;
+      toast({ title: "Pickup recorded", description: `${units} units of ${bullName} picked up by ${customerName}` });
+      onSuccess();
+    } catch (e: any) {
+      toast({ title: "Pickup failed", description: e?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+        <div><span className="text-muted-foreground">Bull:</span> <span className="font-medium">{bullName}</span></div>
+        <div><span className="text-muted-foreground">Tank:</span> {tankName} / Can {row.canister}</div>
+        <div><span className="text-muted-foreground">Customer:</span> {customerName}</div>
+        <div><span className="text-muted-foreground">Available:</span> {row.units} units</div>
+      </div>
+      <div>
+        <Label>Units to pick up</Label>
+        <Input
+          type="number"
+          min={1}
+          max={row.units}
+          value={units}
+          onChange={(e) => setUnits(Number(e.target.value) || 0)}
+          placeholder="Units"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label>Note (optional)</Label>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Picked up by Nate on 4/28"
+          className="mt-1 h-16"
+        />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</> : "Record Pickup"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const TankDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
