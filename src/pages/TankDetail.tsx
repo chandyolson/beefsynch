@@ -820,11 +820,11 @@ const TankDetail = () => {
               <div className="rounded-lg border border-border/50 overflow-hidden">
                 <Table>
                   <TableHeader><TableRow className="bg-muted/10">
-                    <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                    <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead><TableHead className="w-[60px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {activeRows.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No active inventory</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No active inventory</TableCell></TableRow>
                     ) : (
                       <>
                         {activeRows.map((inv: any) => (
@@ -841,11 +841,29 @@ const TankDetail = () => {
                             <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
                             <TableCell className="text-right">{inv.units}</TableCell>
+                            <TableCell className="text-right">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => { setTransferRow(inv); setTransferOpen(true); }}
+                                    >
+                                      <ArrowRightLeft className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Transfer to another tank</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-muted/20 font-semibold">
                           <TableCell colSpan={6}>Total</TableCell>
                           <TableCell className="text-right">{totalUnits}</TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                       </>
                     )}
