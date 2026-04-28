@@ -65,7 +65,7 @@ const Onboarding = () => {
     // Atomic org + owner membership + onboarding flag via SECURITY DEFINER RPC.
     // Replaces the previous two-step insert that hit an RLS recursion bug.
     const { data: newOrgId, error: rpcError } = await supabase.rpc(
-      "create_organization_with_owner",
+      "create_organization_with_owner" as any,
       { _name: trimmedName }
     );
 
