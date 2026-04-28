@@ -451,6 +451,30 @@ export default function TransferDialog({
               )}
             </div>
 
+            {customerId && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  Billing
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="transfer-billable"
+                    checked={isBillable}
+                    onCheckedChange={(v) => setIsBillable(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="transfer-billable" className="cursor-pointer">
+                      Billable to customer
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Check this if the customer is being charged for this semen.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="transfer-note">Note</Label>
               <Textarea
