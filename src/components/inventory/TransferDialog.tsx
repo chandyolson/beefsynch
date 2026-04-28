@@ -84,11 +84,14 @@ export default function TransferDialog({
       setDestTankId("");
       setCanister("");
       setSubCanister("");
-      setCustomerId(sourceRow.customer_id || "");
+      const initialCustomer = sourceRow.customer_id || defaultCustomerId || "";
+      setCustomerId(initialCustomer);
       setOrderId("");
       setNote("");
+      // Auto-billable when company stock → customer (no source customer, customer assigned)
+      setIsBillable(!!initialCustomer && !sourceRow.customer_id);
     }
-  }, [open, sourceRow]);
+  }, [open, sourceRow, defaultCustomerId]);
 
   const { data: tanks = [] } = useQuery({
     queryKey: ["transfer_dialog_tanks", orgId],
