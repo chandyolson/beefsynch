@@ -913,12 +913,13 @@ const CustomerDetail = () => {
                       <TableHead>Bull Code</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {inv.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
+                        <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
                       </TableRow>
                     ) : (
                       <>
@@ -935,11 +936,27 @@ const CustomerDetail = () => {
                             <TableCell>{item.bull_code || "—"}</TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell className="text-right">{item.units}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setTransferSource(item);
+                                  setTransferSourceTank(tank);
+                                  setTransferOpen(true);
+                                }}
+                                className="h-7 w-7 p-0"
+                                title="Transfer to another tank"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-muted/20 font-semibold">
                           <TableCell colSpan={5}>Total</TableCell>
                           <TableCell className="text-right">{tankTotal}</TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                       </>
                     )}
