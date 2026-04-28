@@ -164,13 +164,9 @@ export default function BillingTab({
                             {line.units_billable || "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editing ? (
-                              <Input type="number" step="0.01" className="h-7 w-[60px] text-right text-xs ml-auto"
-                                value={line.unit_price ?? ""}
-                                onChange={(e) => onSaveSemen(idx, { unit_price: Number(e.target.value) || 0 })} />
-                            ) : (
-                              <span className="text-sm">{formatCurrency(line.unit_price)}</span>
-                            )}
+                            <Input type="number" step="0.01" className="h-7 w-[60px] text-right text-xs ml-auto"
+                              value={line.unit_price ?? ""} placeholder="—"
+                              onChange={(e) => onSaveSemen(idx, { unit_price: Number(e.target.value) || 0 })} />
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
                             {formatCurrency(line.line_total)}

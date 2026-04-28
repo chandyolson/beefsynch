@@ -783,6 +783,15 @@ const ReceiveShipmentPreview = () => {
                         } catch (e) {
                           console.error("Audit log write failed:", e);
                         }
+                        // Revert to draft so the edit page accepts it
+                        const { error: revertErr } = await supabase
+                          .from("shipments")
+                          .update({ status: "draft", confirmed_at: null, confirmed_by: null })
+                          .eq("id", id!);
+                        if (revertErr) {
+                          toast({ title: "Error", description: "Failed to unlock shipment: " + revertErr.message, variant: "destructive" });
+                          return;
+                        }
                         navigate(`/receive-shipment/${id}`);
                       }}>
                         I Understand — Edit
