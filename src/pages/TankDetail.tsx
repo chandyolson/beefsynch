@@ -225,6 +225,10 @@ const TankDetail = () => {
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
 
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferRow, setTransferRow] = useState<any | null>(null);
+
   // Fetch tank
   const { data: tank, isLoading } = useQuery({
     queryKey: ["tank_detail", id],
