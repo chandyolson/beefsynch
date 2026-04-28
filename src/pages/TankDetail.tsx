@@ -1247,6 +1247,16 @@ const TankDetail = () => {
         </DialogContent>
       </Dialog>
 
+      <TransferDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        sourceRow={transferRow}
+        sourceTankName={tank?.tank_name || tank?.tank_number || "Tank"}
+        orgId={orgId}
+        userId={userId}
+        tankId={id!}
+      />
+
       <AppFooter />
     </div>
   );
