@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRightLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, PackageOpen, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import TransferDialog from "@/components/inventory/TransferDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -228,6 +228,10 @@ const TankDetail = () => {
   // Transfer dialog
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferRow, setTransferRow] = useState<any | null>(null);
+
+  // Customer pickup dialog
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupRow, setPickupRow] = useState<any | null>(null);
 
   // Fetch tank
   const { data: tank, isLoading } = useQuery({
@@ -857,6 +861,23 @@ const TankDetail = () => {
                                   <TooltipContent>Transfer to another tank</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
+                              {inv.customer_id && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-amber-500 hover:text-amber-600"
+                                        onClick={() => { setPickupRow(inv); setPickupOpen(true); }}
+                                      >
+                                        <PackageOpen className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Customer pickup</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1256,6 +1277,34 @@ const TankDetail = () => {
         userId={userId}
         tankId={id!}
       />
+
+      <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Customer Pickup</DialogTitle>
+            <DialogDescription>
+              {pickupRow?.customers?.name || pickupRow?.owner || "Customer"} is picking up semen
+            </DialogDescription>
+          </DialogHeader>
+          {pickupRow && (
+            <PickupForm
+              row={pickupRow}
+              tankName={tank?.tank_name || tank?.tank_number || "Tank"}
+              orgId={orgId}
+              userId={userId}
+              tankId={id!}
+              onCancel={() => setPickupOpen(false)}
+              onSuccess={() => {
+                setPickupOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
+                queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
+                queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+                queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AppFooter />
     </div>
