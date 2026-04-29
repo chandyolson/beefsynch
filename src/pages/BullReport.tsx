@@ -384,7 +384,7 @@ const BullReport = () => {
         const q = appliedSearch.toLowerCase();
         if (q && !bullName.toLowerCase().includes(q) && !proj.name.toLowerCase().includes(q)) continue;
 
-        const entry = initEntry(key, bullName, co, regNum, br);
+        const entry = initEntry(key, bullName, co, regNum, br, row.bull_catalog_id);
         entry.totalUnits += row.units;
         entry.fromProjects = true;
 
@@ -429,7 +429,7 @@ const BullReport = () => {
         const q = appliedSearch.toLowerCase();
         if (q && !bullName.toLowerCase().includes(q) && !(ord.customers?.name || "").toLowerCase().includes(q)) continue;
 
-        const entry = initEntry(key, bullName, co, regNum, br);
+        const entry = initEntry(key, bullName, co, regNum, br, row.bull_catalog_id);
         entry.totalUnits += row.units;
         entry.fromOrders = true;
 
@@ -468,6 +468,8 @@ const BullReport = () => {
         registrationNumber: entry.registrationNumber,
         breed: entry.breed,
         totalUnits: entry.totalUnits,
+        onHand: entry.onHand,
+        onOrder: entry.onOrder,
         projectCount: entry.projectCount,
         projectNames: entry.namesList.join(", "),
         breedingDates: entry.datesList.join(", "),
