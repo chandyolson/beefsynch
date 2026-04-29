@@ -264,6 +264,68 @@ const BullReport = () => {
     enabled: hasRun && appliedSource !== "projects",
   });
 
+  // Fetch units on hand grouped by bull_catalog_id
+  const { data: inventoryOnHand } = useQuery({
+    queryKey: ["bull_report_on_hand"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_inventory")
+        .select("bull_catalog_id, units")
+        .gt("units", 0)
+        .not("bull_catalog_id", "is", null);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      (data ?? []).forEach((r: any) => {
+        map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + r.units);
+      });
+      return map;
+    },
+  });
+  const onHandMap = inventoryOnHand ?? new Map<string, number>();
+
+  // Fetch units on order (inventory orders, pending/partially fulfilled)
+  // Subtracts units already received via confirmed shipments
+  const { data: inventoryOnOrder } = useQuery({
+    queryKey: ["bull_report_on_order"],
+    queryFn: async () => {
+      const { data: lineItems, error: lineErr } = await supabase
+        .from("semen_order_items")
+        .select("bull_catalog_id, units, semen_order_id, semen_orders!inner(order_type, fulfillment_status)")
+        .not("bull_catalog_id", "is", null);
+      if (lineErr) throw lineErr;
+
+      const { data: receivedTxns, error: txnErr } = await supabase
+        .from("inventory_transactions")
+        .select("order_id, bull_catalog_id, units_change")
+        .eq("transaction_type", "received")
+        .not("order_id", "is", null)
+        .not("bull_catalog_id", "is", null);
+      if (txnErr) throw txnErr;
+
+      const receivedMap = new Map<string, number>();
+      (receivedTxns ?? []).forEach((t: any) => {
+        const key = `${t.order_id}|${t.bull_catalog_id}`;
+        receivedMap.set(key, (receivedMap.get(key) || 0) + Math.abs(t.units_change));
+      });
+
+      const map = new Map<string, number>();
+      (lineItems ?? []).forEach((r: any) => {
+        if (
+          r.semen_orders?.order_type === "inventory" &&
+          ["pending", "partially_fulfilled", "partially_filled"].includes(r.semen_orders?.fulfillment_status)
+        ) {
+          const received = receivedMap.get(`${r.semen_order_id}|${r.bull_catalog_id}`) || 0;
+          const outstanding = Math.max(r.units - received, 0);
+          if (outstanding > 0) {
+            map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + outstanding);
+          }
+        }
+      });
+      return map;
+    },
+  });
+  const onOrderMap = inventoryOnOrder ?? new Map<string, number>();
+
   const isLoading = loadingProjects || loadingOrders;
 
   // Group by bull — merge both sources
@@ -287,11 +349,14 @@ const BullReport = () => {
         : `custom_${customName ?? "unknown"}`;
     };
 
-    const initEntry = (key: string, bullName: string, co: string, regNum: string, breed: string) => {
+    const initEntry = (key: string, bullName: string, co: string, regNum: string, breed: string, catalogId: string | null) => {
       if (!map.has(key)) {
         map.set(key, {
           bullName, company: co, registrationNumber: regNum, breed,
-          totalUnits: 0, projectCount: 0, projectNames: "", breedingDates: "", cattleTypes: "",
+          totalUnits: 0,
+          onHand: catalogId ? (onHandMap.get(catalogId) ?? 0) : 0,
+          onOrder: catalogId ? (onOrderMap.get(catalogId) ?? 0) : 0,
+          projectCount: 0, projectNames: "", breedingDates: "", cattleTypes: "",
           source: "Project",
           projectIds: new Set(), orderIds: new Set(), headSet: new Map(),
           namesList: [], datesList: [], typesSet: new Set(),
@@ -319,7 +384,7 @@ const BullReport = () => {
         const q = appliedSearch.toLowerCase();
         if (q && !bullName.toLowerCase().includes(q) && !proj.name.toLowerCase().includes(q)) continue;
 
-        const entry = initEntry(key, bullName, co, regNum, br);
+        const entry = initEntry(key, bullName, co, regNum, br, row.bull_catalog_id);
         entry.totalUnits += row.units;
         entry.fromProjects = true;
 
@@ -364,7 +429,7 @@ const BullReport = () => {
         const q = appliedSearch.toLowerCase();
         if (q && !bullName.toLowerCase().includes(q) && !(ord.customers?.name || "").toLowerCase().includes(q)) continue;
 
-        const entry = initEntry(key, bullName, co, regNum, br);
+        const entry = initEntry(key, bullName, co, regNum, br, row.bull_catalog_id);
         entry.totalUnits += row.units;
         entry.fromOrders = true;
 
@@ -403,6 +468,8 @@ const BullReport = () => {
         registrationNumber: entry.registrationNumber,
         breed: entry.breed,
         totalUnits: entry.totalUnits,
+        onHand: entry.onHand,
+        onOrder: entry.onOrder,
         projectCount: entry.projectCount,
         projectNames: entry.namesList.join(", "),
         breedingDates: entry.datesList.join(", "),
@@ -518,7 +585,7 @@ const BullReport = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "Units Committed", "Source", "Project/Order Count", "Names", "Dates", "Cattle Type"];
+    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "On Hand", "On Order", "Units Committed", "Source", "Project/Order Count", "Names", "Dates", "Cattle Type"];
     const escape = (v: string | number) => {
       const s = String(v);
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
@@ -526,7 +593,7 @@ const BullReport = () => {
     const lines = [
       headers.map(escape).join(","),
       ...reportRows.map((r) =>
-        [r.bullName, r.registrationNumber, r.company, r.breed, r.totalUnits, r.source, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
+        [r.bullName, r.registrationNumber, r.company, r.breed, r.onHand, r.onOrder, r.totalUnits, r.source, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
           .map(escape)
           .join(",")
       ),
@@ -817,6 +884,8 @@ const BullReport = () => {
                         Bull Name <SortIcon col="bullName" />
                       </TableHead>
                       <TableHead>Company</TableHead>
+                      <TableHead className="text-right">On Hand</TableHead>
+                      <TableHead className="text-right">On Order</TableHead>
                       <TableHead
                         className="cursor-pointer select-none text-right"
                         onClick={() => toggleSort("totalUnits")}
@@ -871,6 +940,12 @@ const BullReport = () => {
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {row.onHand > 0 ? row.onHand : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {row.onOrder > 0 ? row.onOrder : "—"}
+                            </TableCell>
                             <TableCell className="text-right font-semibold text-lg">{row.totalUnits}</TableCell>
                             <TableCell className="text-right text-muted-foreground">{row.projectCount}</TableCell>
                             <TableCell>
@@ -904,6 +979,8 @@ const BullReport = () => {
                                   {d.type === "order" ? `Order: ${d.name}` : d.name}
                                   <span className="ml-2 text-xs text-muted-foreground">{d.date}</span>
                                 </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
                                 <TableCell className="text-right font-medium">{d.units}</TableCell>
                                 <TableCell className="text-right text-xs text-muted-foreground">
                                   {d.type === "project" ? `${d.headCount} hd` : ""}
