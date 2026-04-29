@@ -349,11 +349,14 @@ const BullReport = () => {
         : `custom_${customName ?? "unknown"}`;
     };
 
-    const initEntry = (key: string, bullName: string, co: string, regNum: string, breed: string) => {
+    const initEntry = (key: string, bullName: string, co: string, regNum: string, breed: string, catalogId: string | null) => {
       if (!map.has(key)) {
         map.set(key, {
           bullName, company: co, registrationNumber: regNum, breed,
-          totalUnits: 0, projectCount: 0, projectNames: "", breedingDates: "", cattleTypes: "",
+          totalUnits: 0,
+          onHand: catalogId ? (onHandMap.get(catalogId) ?? 0) : 0,
+          onOrder: catalogId ? (onOrderMap.get(catalogId) ?? 0) : 0,
+          projectCount: 0, projectNames: "", breedingDates: "", cattleTypes: "",
           source: "Project",
           projectIds: new Set(), orderIds: new Set(), headSet: new Map(),
           namesList: [], datesList: [], typesSet: new Set(),
