@@ -884,6 +884,8 @@ const BullReport = () => {
                         Bull Name <SortIcon col="bullName" />
                       </TableHead>
                       <TableHead>Company</TableHead>
+                      <TableHead className="text-right">On Hand</TableHead>
+                      <TableHead className="text-right">On Order</TableHead>
                       <TableHead
                         className="cursor-pointer select-none text-right"
                         onClick={() => toggleSort("totalUnits")}
@@ -937,6 +939,12 @@ const BullReport = () => {
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {row.onHand > 0 ? row.onHand : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {row.onOrder > 0 ? row.onOrder : "—"}
                             </TableCell>
                             <TableCell className="text-right font-semibold text-lg">{row.totalUnits}</TableCell>
                             <TableCell className="text-right text-muted-foreground">{row.projectCount}</TableCell>
