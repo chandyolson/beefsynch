@@ -16,6 +16,8 @@ export interface BullReportRow {
   registrationNumber: string;
   breed: string;
   totalUnits: number;
+  onHand: number;
+  onOrder: number;
   projectCount: number;
   projectNames: string;
   breedingDates: string;
