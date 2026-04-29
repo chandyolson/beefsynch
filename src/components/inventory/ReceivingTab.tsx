@@ -267,59 +267,6 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Drafts Tab */}
-        <TabsContent value="drafts">
-          <Card>
-            <CardContent className="p-0">
-              {loadingDrafts ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" /> Loading drafts…
-                </div>
-              ) : filteredDrafts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  {search ? "No drafts match your search." : "No drafts in progress."}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date Created</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Order</TableHead>
-                        <TableHead>Bulls</TableHead>
-                        <TableHead>Last Edited</TableHead>
-                        
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDrafts.map((row: any) => {
-                        const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const so = (row.semen_orders as any);
-                        const orderName = so?.customers?.name || (so?.order_type === "inventory" ? (so?.placed_by ? `Inventory — ${so.placed_by}` : "Inventory Order") : null);
-                        const lastEdited = row.updated_at || row.created_at;
-                        return (
-                          <TableRow
-                            key={row.id}
-                            className="cursor-pointer hover:bg-secondary/40"
-                            onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
-                          >
-                            <TableCell>{row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "—"}</TableCell>
-                            <TableCell>{row.semen_companies?.name || "—"}</TableCell>
-                            <TableCell>{orderName || "—"}</TableCell>
-                            <TableCell className="max-w-[300px] truncate text-sm">{getSnapshotBulls(row.reconciliation_snapshot)}</TableCell>
-                            <TableCell>{lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
