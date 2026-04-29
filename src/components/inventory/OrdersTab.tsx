@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
-  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart, ClipboardList, ChevronDown, ChevronRight,
+  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart, ClipboardList, ChevronDown, ChevronRight, Check,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -84,6 +84,23 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     },
   });
 
+  const { data: receivedOrderIds = [] } = useQuery({
+    queryKey: ["received_order_ids", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shipments")
+        .select("semen_order_id")
+        .eq("organization_id", orgId)
+        .eq("status", "confirmed")
+        .not("semen_order_id", "is", null);
+      if (error) throw error;
+      return [...new Set((data ?? []).map((r: any) => r.semen_order_id))];
+    },
+  });
+
+  const receivedSet = useMemo(() => new Set(receivedOrderIds), [receivedOrderIds]);
+
   const customerOrders = useMemo(
     () => orders.filter((o: any) => o.order_type === "customer"),
     [orders]
@@ -116,8 +133,17 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       else if (t === "fulfilled_invoiced") tier3.push(o);
       else if (t === "cancelled") cancelled.push(o);
     }
+    if (subTab === "inventory") {
+      const sortReceived = (arr: any[]) => arr.sort((a: any, b: any) => {
+        const aReceived = receivedSet.has(a.id) ? 1 : 0;
+        const bReceived = receivedSet.has(b.id) ? 1 : 0;
+        return aReceived - bReceived;
+      });
+      sortReceived(tier1);
+      sortReceived(tier2);
+    }
     return { tier1, tier2, tier3, cancelled };
-  }, [baseFiltered]);
+  }, [baseFiltered, subTab, receivedSet]);
 
   const totalOrders = scopedOrders.length;
   const totalUnits = useMemo(() => scopedOrders.reduce((sum: number, o: any) =>
@@ -125,9 +151,12 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const pendingCount = scopedOrders.filter((o: any) => o.fulfillment_status !== "fulfilled").length;
   const unbilledCount = scopedOrders.filter((o: any) => o.billing_status === "unbilled").length;
 
-  const getBullNames = (items: any[]) => {
+  const getBullSummary = (items: any[]) => {
     if (!items || items.length === 0) return "—";
-    return items.map((i: any) => i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown").join(", ");
+    return items.map((i: any) => {
+      const name = i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown";
+      return `${name} — ${i.units || 0}`;
+    }).join(", ");
   };
   const getOrderUnits = (items: any[]) => items ? items.reduce((s: number, i: any) => s + (i.units || 0), 0) : 0;
 
@@ -137,10 +166,19 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || (order.order_type === "inventory" ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order") : "—")}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
       <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
-      <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
+      <TableCell className="max-w-[250px] truncate">{getBullSummary(order.semen_order_items)}</TableCell>
       <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
       <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderFulfillment', order.fulfillment_status))}>{order.fulfillment_status}</Badge></TableCell>
       <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderBilling', order.billing_status))}>{order.billing_status}</Badge></TableCell>
+      {subTab === "inventory" && (
+        <TableCell>
+          {order.order_type === "inventory" && receivedSet.has(order.id) && (
+            <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-xs gap-1">
+              <Check className="h-3 w-3" /> Received
+            </Badge>
+          )}
+        </TableCell>
+      )}
     </TableRow>
   );
 
@@ -150,7 +188,6 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       || (order.order_type === "inventory"
         ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order")
         : "—");
-    const bullNames = getBullNames(order.semen_order_items);
     const totalUnitsRow = getOrderUnits(order.semen_order_items);
     return (
       <div
@@ -168,6 +205,11 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
               <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderBilling', order.billing_status))}>
                 {order.billing_status}
               </Badge>
+              {order.order_type === "inventory" && receivedSet.has(order.id) && (
+                <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-[10px] gap-0.5">
+                  <Check className="h-2.5 w-2.5" /> Received
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right shrink-0">
@@ -185,7 +227,16 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Date</div>
           <div>{format(parseISO(order.order_date), "MMM d, yyyy")}</div>
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Bulls</div>
-          <div className="text-foreground">{bullNames}</div>
+          <div className="text-foreground space-y-0.5">
+            {(order.semen_order_items || []).map((item: any, idx: number) => (
+              <div key={idx} className="text-sm">
+                {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"} — {item.units || 0}
+              </div>
+            ))}
+            {(!order.semen_order_items || order.semen_order_items.length === 0) && (
+              <div className="text-sm text-muted-foreground">No items</div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -230,6 +281,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                     <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                     <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
                     <TableHead className="whitespace-nowrap">Billing</TableHead>
+                    {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>{rows.map(renderRow)}</TableBody>
@@ -400,6 +452,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                   <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                   <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
                   <TableHead className="whitespace-nowrap">Billing</TableHead>
+                  {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>{flatList.map(renderRow)}</TableBody>
