@@ -133,8 +133,17 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       else if (t === "fulfilled_invoiced") tier3.push(o);
       else if (t === "cancelled") cancelled.push(o);
     }
+    if (subTab === "inventory") {
+      const sortReceived = (arr: any[]) => arr.sort((a: any, b: any) => {
+        const aReceived = receivedSet.has(a.id) ? 1 : 0;
+        const bReceived = receivedSet.has(b.id) ? 1 : 0;
+        return aReceived - bReceived;
+      });
+      sortReceived(tier1);
+      sortReceived(tier2);
+    }
     return { tier1, tier2, tier3, cancelled };
-  }, [baseFiltered]);
+  }, [baseFiltered, subTab, receivedSet]);
 
   const totalOrders = scopedOrders.length;
   const totalUnits = useMemo(() => scopedOrders.reduce((sum: number, o: any) =>
