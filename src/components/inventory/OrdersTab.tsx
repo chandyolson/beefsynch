@@ -98,6 +98,80 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   const receivedSet = useMemo(() => new Set(receivedOrderIds), [receivedOrderIds]);
 
+  const { data: rawOnHand = [] } = useQuery({
+    queryKey: ["orders_on_hand", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const PAGE = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("tank_inventory")
+          .select("bull_catalog_id, units")
+          .eq("organization_id", orgId)
+          .is("customer_id", null)
+          .gt("units", 0)
+          .not("bull_catalog_id", "is", null)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    },
+  });
+
+  const onHandMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rawOnHand as any[]) {
+      if (!r.bull_catalog_id) continue;
+      map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + (r.units || 0));
+    }
+    return map;
+  }, [rawOnHand]);
+
+  const { data: onOrderMap = new Map<string, number>() } = useQuery({
+    queryKey: ["orders_incoming", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data: lineItems, error: lineErr } = await supabase
+        .from("semen_order_items")
+        .select("bull_catalog_id, units, semen_order_id, semen_orders!inner(order_type, fulfillment_status)")
+        .not("bull_catalog_id", "is", null);
+      if (lineErr) throw lineErr;
+
+      const { data: receivedTxns, error: txnErr } = await supabase
+        .from("inventory_transactions")
+        .select("order_id, bull_catalog_id, units_change")
+        .eq("transaction_type", "received")
+        .not("order_id", "is", null)
+        .not("bull_catalog_id", "is", null);
+      if (txnErr) throw txnErr;
+
+      const receivedMap = new Map<string, number>();
+      for (const t of (receivedTxns ?? []) as any[]) {
+        const key = `${t.order_id}|${t.bull_catalog_id}`;
+        receivedMap.set(key, (receivedMap.get(key) || 0) + Math.abs(t.units_change));
+      }
+
+      const result = new Map<string, number>();
+      for (const item of (lineItems ?? []) as any[]) {
+        const so = (item as any).semen_orders;
+        if (so?.order_type !== "inventory") continue;
+        if (!["pending", "partially_fulfilled", "partially_filled"].includes(so?.fulfillment_status)) continue;
+        const received = receivedMap.get(`${item.semen_order_id}|${item.bull_catalog_id}`) || 0;
+        const outstanding = Math.max((item.units || 0) - received, 0);
+        if (outstanding > 0) {
+          result.set(item.bull_catalog_id, (result.get(item.bull_catalog_id) || 0) + outstanding);
+        }
+      }
+      return result;
+    },
+  });
+
   const customerOrders = useMemo(
     () => orders.filter((o: any) => o.order_type === "customer"),
     [orders]
@@ -157,35 +231,23 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   };
   const getOrderUnits = (items: any[]) => items ? items.reduce((s: number, i: any) => s + (i.units || 0), 0) : 0;
 
-  // Render a row (desktop) — extracted for reuse across tiers
-  const renderRow = (order: any) => (
-    <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/semen-orders/${order.id}`)}>
-      <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || (order.order_type === "inventory" ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order") : "—")}</TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
-      <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
-      <TableCell className="max-w-[250px] truncate">{getBullSummary(order.semen_order_items)}</TableCell>
-      <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
-      <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderFulfillment', order.fulfillment_status))}>{order.fulfillment_status}</Badge></TableCell>
-      <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderBilling', order.billing_status))}>{order.billing_status}</Badge></TableCell>
-      {subTab === "inventory" && (
-        <TableCell>
-          {order.order_type === "inventory" && receivedSet.has(order.id) && (
-            <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-xs gap-1">
-              <Check className="h-3 w-3" /> Received
-            </Badge>
-          )}
-        </TableCell>
-      )}
-    </TableRow>
-  );
+  const getShortage = (bullCatalogId: string | null, orderedUnits: number) => {
+    if (!bullCatalogId) return 0;
+    const onHand = onHandMap.get(bullCatalogId) || 0;
+    const incoming = (onOrderMap as Map<string, number>).get(bullCatalogId) || 0;
+    const available = onHand + incoming;
+    return Math.max(0, orderedUnits - available);
+  };
 
-  // Render a card (mobile) — extracted for reuse across tiers
   const renderCard = (order: any) => {
     const customerName = order.customers?.name
       || (order.order_type === "inventory"
         ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order")
         : "—");
     const totalUnitsRow = getOrderUnits(order.semen_order_items);
+    const items = order.semen_order_items || [];
+    const isUnfulfilled = !["fulfilled", "cancelled"].includes(order.fulfillment_status);
+
     return (
       <div
         key={order.id}
@@ -196,8 +258,13 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <div className="min-w-0 flex-1">
             <div className="font-semibold text-foreground truncate">{customerName}</div>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {order.semen_companies?.name && (
+                <span className="text-xs text-muted-foreground">{order.semen_companies.name}</span>
+              )}
+              <span className="text-xs text-muted-foreground">·</span>
+              <span className="text-xs text-muted-foreground">{format(parseISO(order.order_date), "MMM d, yyyy")}</span>
               <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderFulfillment', order.fulfillment_status))}>
-                {order.fulfillment_status}
+                {order.fulfillment_status?.replace(/_/g, " ")}
               </Badge>
               <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderBilling', order.billing_status))}>
                 {order.billing_status}
@@ -214,32 +281,35 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">units</div>
           </div>
         </div>
-        <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 text-sm">
-          {order.semen_companies?.name && (
-            <>
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">Company</div>
-              <div className="truncate">{order.semen_companies.name}</div>
-            </>
-          )}
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Date</div>
-          <div>{format(parseISO(order.order_date), "MMM d, yyyy")}</div>
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Bulls</div>
-          <div className="text-foreground space-y-0.5">
-            {(order.semen_order_items || []).map((item: any, idx: number) => (
-              <div key={idx} className="text-sm">
-                {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"} — {item.units || 0}
-              </div>
-            ))}
-            {(!order.semen_order_items || order.semen_order_items.length === 0) && (
-              <div className="text-sm text-muted-foreground">No items</div>
-            )}
+
+        {items.length > 0 && (
+          <div className="space-y-1 pl-0.5">
+            {items.map((item: any, idx: number) => {
+              const bullName = item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown";
+              const units = item.units || 0;
+              const shortage = isUnfulfilled ? getShortage(item.bull_catalog_id, units) : 0;
+              return (
+                <div key={idx} className="flex items-center justify-between text-sm">
+                  <span className="truncate">
+                    {bullName} — <span className="tabular-nums">{units}</span>
+                  </span>
+                  {shortage > 0 && (
+                    <span className="shrink-0 ml-2 text-xs font-medium tabular-nums" style={{ color: "#55BAAA" }}>
+                      Short {shortage}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
+        {items.length === 0 && (
+          <div className="text-sm text-muted-foreground pl-0.5">No items</div>
+        )}
       </div>
     );
   };
 
-  // Tier section component — desktop table version
   const TierSection = ({
     title, rows, defaultOpen, collapsible,
   }: { title: string; rows: any[]; defaultOpen: boolean; collapsible: boolean }) => {
@@ -265,30 +335,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           </div>
         )}
         {isOpen && (
-          <>
-            {/* Desktop */}
-            <div className="hidden xl:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/20">
-                    <TableHead className="whitespace-nowrap">Customer Name</TableHead>
-                    <TableHead className="whitespace-nowrap">Company</TableHead>
-                    <TableHead className="whitespace-nowrap">Order Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Bulls</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-                    <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
-                    <TableHead className="whitespace-nowrap">Billing</TableHead>
-                    {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>{rows.map(renderRow)}</TableBody>
-              </Table>
-            </div>
-            {/* Mobile */}
-            <div className="xl:hidden divide-y divide-border">
-              {rows.map(renderCard)}
-            </div>
-          </>
+          <div className="divide-y divide-border">
+            {rows.map(renderCard)}
+          </div>
         )}
       </div>
     );
@@ -437,26 +486,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         </div>
       ) : (
         <div className="rounded-lg border border-border/50 overflow-hidden">
-          {/* Desktop */}
-          <div className="hidden xl:block">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="whitespace-nowrap">Customer Name</TableHead>
-                  <TableHead className="whitespace-nowrap">Company</TableHead>
-                  <TableHead className="whitespace-nowrap">Order Date</TableHead>
-                  <TableHead className="whitespace-nowrap">Bulls</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
-                  <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
-                  <TableHead className="whitespace-nowrap">Billing</TableHead>
-                  {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>{flatList.map(renderRow)}</TableBody>
-            </Table>
-          </div>
-          {/* Mobile */}
-          <div className="xl:hidden divide-y divide-border">
+          <div className="divide-y divide-border">
             {flatList.map(renderCard)}
           </div>
         </div>
