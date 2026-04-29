@@ -92,13 +92,9 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
     };
   };
 
-  const getSnapshotBulls = (snapshot: any): string => {
-    if (!snapshot) return "—";
-    const rows = snapshot.received_lines || snapshot.draft_lines || [];
-    if (rows.length === 0) return "—";
-    return rows
-      .map((r: any) => `${r.bullName || 'Unknown'} ×${r.units || 0}`)
-      .join(", ");
+  const getSnapshotLines = (snapshot: any): any[] => {
+    if (!snapshot) return [];
+    return snapshot.received_lines || snapshot.draft_lines || [];
   };
 
   const clearOrderFilter = () => {
