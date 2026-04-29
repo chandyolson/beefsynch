@@ -264,6 +264,68 @@ const BullReport = () => {
     enabled: hasRun && appliedSource !== "projects",
   });
 
+  // Fetch units on hand grouped by bull_catalog_id
+  const { data: inventoryOnHand } = useQuery({
+    queryKey: ["bull_report_on_hand"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_inventory")
+        .select("bull_catalog_id, units")
+        .gt("units", 0)
+        .not("bull_catalog_id", "is", null);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      (data ?? []).forEach((r: any) => {
+        map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + r.units);
+      });
+      return map;
+    },
+  });
+  const onHandMap = inventoryOnHand ?? new Map<string, number>();
+
+  // Fetch units on order (inventory orders, pending/partially fulfilled)
+  // Subtracts units already received via confirmed shipments
+  const { data: inventoryOnOrder } = useQuery({
+    queryKey: ["bull_report_on_order"],
+    queryFn: async () => {
+      const { data: lineItems, error: lineErr } = await supabase
+        .from("semen_order_items")
+        .select("bull_catalog_id, units, semen_order_id, semen_orders!inner(order_type, fulfillment_status)")
+        .not("bull_catalog_id", "is", null);
+      if (lineErr) throw lineErr;
+
+      const { data: receivedTxns, error: txnErr } = await supabase
+        .from("inventory_transactions")
+        .select("order_id, bull_catalog_id, units_change")
+        .eq("transaction_type", "received")
+        .not("order_id", "is", null)
+        .not("bull_catalog_id", "is", null);
+      if (txnErr) throw txnErr;
+
+      const receivedMap = new Map<string, number>();
+      (receivedTxns ?? []).forEach((t: any) => {
+        const key = `${t.order_id}|${t.bull_catalog_id}`;
+        receivedMap.set(key, (receivedMap.get(key) || 0) + Math.abs(t.units_change));
+      });
+
+      const map = new Map<string, number>();
+      (lineItems ?? []).forEach((r: any) => {
+        if (
+          r.semen_orders?.order_type === "inventory" &&
+          ["pending", "partially_fulfilled", "partially_filled"].includes(r.semen_orders?.fulfillment_status)
+        ) {
+          const received = receivedMap.get(`${r.semen_order_id}|${r.bull_catalog_id}`) || 0;
+          const outstanding = Math.max(r.units - received, 0);
+          if (outstanding > 0) {
+            map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + outstanding);
+          }
+        }
+      });
+      return map;
+    },
+  });
+  const onOrderMap = inventoryOnOrder ?? new Map<string, number>();
+
   const isLoading = loadingProjects || loadingOrders;
 
   // Group by bull — merge both sources
