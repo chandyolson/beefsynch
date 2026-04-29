@@ -11,6 +11,7 @@ import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import BackButton from "@/components/BackButton";
 import InventoryBullPicker from "@/components/InventoryBullPicker";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1339,7 +1340,7 @@ const PackTank = () => {
             {/* Packed By */}
             <div className="flex items-center gap-4">
               <Label className="w-28 shrink-0 text-right">Packed By</Label>
-              <Input value={packedBy} onChange={e => setPackedBy(e.target.value)} placeholder="Who packed this tank?" className="flex-1" />
+              <TeamMemberSelect value={packedBy} onValueChange={setPackedBy} placeholder="Who packed this tank?" className="flex-1" />
             </div>
 
             {/* Date Packed */}

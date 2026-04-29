@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -335,7 +336,7 @@ const UnpackTank = () => {
             <div className="space-y-3 pt-4 border-t border-border/50">
               <div>
                 <Label>Unpacked By</Label>
-                <Input value={unpackedBy} onChange={(e) => setUnpackedBy(e.target.value)} placeholder="Who unpacked this tank?" className="mt-1.5" />
+                <TeamMemberSelect value={unpackedBy} onValueChange={setUnpackedBy} placeholder="Who unpacked this tank?" className="mt-1.5" />
               </div>
               <div>
                 <Label>Notes</Label>

@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import BullCombobox from "@/components/BullCombobox";
 import BullsRowManager from "@/components/BullsRowManager";
 import CustomerPicker from "@/components/CustomerPicker";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -454,7 +455,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
           {/* Placed By */}
           <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
             <Label className="text-right text-sm">Placed By</Label>
-            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" />
+            <TeamMemberSelect value={placedBy} onValueChange={setPlacedBy} placeholder="Who placed this order?" />
           </div>
 
           {/* Status dropdowns */}
