@@ -84,6 +84,23 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
     },
   });
 
+  const { data: receivedOrderIds = [] } = useQuery({
+    queryKey: ["received_order_ids", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shipments")
+        .select("semen_order_id")
+        .eq("organization_id", orgId)
+        .eq("status", "confirmed")
+        .not("semen_order_id", "is", null);
+      if (error) throw error;
+      return [...new Set((data ?? []).map((r: any) => r.semen_order_id))];
+    },
+  });
+
+  const receivedSet = useMemo(() => new Set(receivedOrderIds), [receivedOrderIds]);
+
   const customerOrders = useMemo(
     () => orders.filter((o: any) => o.order_type === "customer"),
     [orders]
