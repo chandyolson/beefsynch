@@ -271,6 +271,7 @@ const BullReport = () => {
       const { data, error } = await supabase
         .from("tank_inventory")
         .select("bull_catalog_id, units")
+        .is("customer_id", null)
         .gt("units", 0)
         .not("bull_catalog_id", "is", null);
       if (error) throw error;

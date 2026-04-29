@@ -481,8 +481,7 @@ const PackTank = () => {
       .from("tank_inventory")
       .select("tank_id, canister, units, owner, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
       .eq("organization_id", orgId)
-      .eq("storage_type", "inventory")
-      .in("owner", ["Select", "CATL"])
+      .is("customer_id", null)
       .gt("units", 0)
       .order("units", { ascending: false });
 

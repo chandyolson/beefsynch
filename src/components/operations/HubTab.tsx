@@ -261,6 +261,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
           const { data: invData } = await (supabase.from as any)("tank_inventory")
             .select("bull_catalog_id, units")
+            .is("customer_id", null)
             .in("bull_catalog_id", catalogIds.length > 0 ? catalogIds : ["00000000-0000-0000-0000-000000000000"])
             .in("tank_id", hereTankIds.length > 0 ? hereTankIds : ["00000000-0000-0000-0000-000000000000"]);
 

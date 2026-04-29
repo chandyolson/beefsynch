@@ -202,8 +202,7 @@ const SemenOrderDetail = () => {
         const { data, error } = await supabase
           .from("tank_inventory")
           .select("bull_catalog_id, custom_bull_name, canister, units, owner, storage_type, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
-          .eq("storage_type", "inventory")
-          .in("owner", ["Select", "CATL"])
+          .is("customer_id", null)
           .gt("units", 0)
           .or(orFilters.join(","));
 
