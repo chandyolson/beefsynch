@@ -142,9 +142,12 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const pendingCount = scopedOrders.filter((o: any) => o.fulfillment_status !== "fulfilled").length;
   const unbilledCount = scopedOrders.filter((o: any) => o.billing_status === "unbilled").length;
 
-  const getBullNames = (items: any[]) => {
+  const getBullSummary = (items: any[]) => {
     if (!items || items.length === 0) return "—";
-    return items.map((i: any) => i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown").join(", ");
+    return items.map((i: any) => {
+      const name = i.bulls_catalog?.bull_name || i.custom_bull_name || "Unknown";
+      return `${name} — ${i.units || 0}`;
+    }).join(", ");
   };
   const getOrderUnits = (items: any[]) => items ? items.reduce((s: number, i: any) => s + (i.units || 0), 0) : 0;
 
