@@ -227,7 +227,16 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Date</div>
           <div>{format(parseISO(order.order_date), "MMM d, yyyy")}</div>
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Bulls</div>
-          <div className="text-foreground">{bullNames}</div>
+          <div className="text-foreground space-y-0.5">
+            {(order.semen_order_items || []).map((item: any, idx: number) => (
+              <div key={idx} className="text-sm">
+                {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"} — {item.units || 0}
+              </div>
+            ))}
+            {(!order.semen_order_items || order.semen_order_items.length === 0) && (
+              <div className="text-sm text-muted-foreground">No items</div>
+            )}
+          </div>
         </div>
       </div>
     );
