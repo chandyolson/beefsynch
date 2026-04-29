@@ -585,7 +585,7 @@ const BullReport = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "Units Committed", "Source", "Project/Order Count", "Names", "Dates", "Cattle Type"];
+    const headers = ["Bull Name", "Registration Number", "Company", "Breed", "On Hand", "On Order", "Units Committed", "Source", "Project/Order Count", "Names", "Dates", "Cattle Type"];
     const escape = (v: string | number) => {
       const s = String(v);
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
@@ -593,7 +593,7 @@ const BullReport = () => {
     const lines = [
       headers.map(escape).join(","),
       ...reportRows.map((r) =>
-        [r.bullName, r.registrationNumber, r.company, r.breed, r.totalUnits, r.source, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
+        [r.bullName, r.registrationNumber, r.company, r.breed, r.onHand, r.onOrder, r.totalUnits, r.source, r.projectCount, r.projectNames, r.breedingDates, r.cattleTypes]
           .map(escape)
           .join(",")
       ),
