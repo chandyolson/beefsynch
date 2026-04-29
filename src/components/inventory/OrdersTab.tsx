@@ -205,6 +205,11 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
               <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderBilling', order.billing_status))}>
                 {order.billing_status}
               </Badge>
+              {order.order_type === "inventory" && receivedSet.has(order.id) && (
+                <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-[10px] gap-0.5">
+                  <Check className="h-2.5 w-2.5" /> Received
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right shrink-0">
