@@ -166,42 +166,102 @@ const ReceivingTab = ({ orgId }: { orgId: string }) => {
                   {search ? "No shipments match your search." : orderFilter ? "No confirmed shipments for this order." : "No confirmed shipments yet. Click '+ Receive Shipment' to get started."}
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date Received</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Order</TableHead>
-                        <TableHead>Bulls</TableHead>
-                        <TableHead className="text-right">Units</TableHead>
-                        <TableHead>Confirmed</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredConfirmed.map((row: any) => {
-                        const stats = getSnapshotStats(row.reconciliation_snapshot);
-                        const so = (row.semen_orders as any);
-                        const orderName = so?.customers?.name || (so?.order_type === "inventory" ? (so?.placed_by ? `Inventory — ${so.placed_by}` : "Inventory Order") : null);
-                        return (
-                          <TableRow
-                            key={row.id}
-                            className="cursor-pointer hover:bg-secondary/40"
-                            onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
-                          >
-                            <TableCell>{row.received_date ? format(new Date(row.received_date + "T00:00:00"), "MMM d, yyyy") : "—"}</TableCell>
-                            <TableCell>{row.semen_companies?.name || "—"}</TableCell>
-                            <TableCell>{orderName || "—"}</TableCell>
-                            <TableCell className="max-w-[300px] truncate text-sm">{getSnapshotBulls(row.reconciliation_snapshot)}</TableCell>
-                            <TableCell className="text-right">{stats.units}</TableCell>
-                            <TableCell className="text-sm">
-                              {row.confirmed_at ? format(new Date(row.confirmed_at), "MMM d, yyyy h:mm a") : "—"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="p-4 space-y-3">
+                  {filteredConfirmed.map((row: any) => {
+                    const lines = getSnapshotLines(row.reconciliation_snapshot);
+                    const totalUnits = lines.reduce((s: number, r: any) => s + (r.units || 0), 0);
+                    const so = (row.semen_orders as any);
+                    const customerName = so?.customers?.name || null;
+                    return (
+                      <div
+                        key={row.id}
+                        className="rounded-lg border p-4 cursor-pointer hover:bg-secondary/40 transition-colors"
+                        onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="font-semibold">{row.semen_companies?.name || "—"}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {row.received_date ? format(new Date(row.received_date + "T00:00:00"), "MMM d, yyyy") : "—"}
+                          </div>
+                        </div>
+                        {customerName && (
+                          <div className="text-sm text-teal-500 mt-1">For: {customerName}</div>
+                        )}
+                        <div className="border-t mt-3 pt-3 space-y-1">
+                          {lines.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">No bulls recorded</div>
+                          ) : (
+                            lines.map((l: any, i: number) => (
+                              <div key={i} className="text-sm">
+                                {l.bullName || "Unknown bull"} — {l.units || 0} units
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        <div className="border-t mt-3 pt-2 flex justify-end">
+                          <span className="text-sm font-medium">Total: {totalUnits} units</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Drafts Tab */}
+        <TabsContent value="drafts">
+          <Card>
+            <CardContent className="p-0">
+              {loadingDrafts ? (
+                <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" /> Loading drafts…
+                </div>
+              ) : filteredDrafts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  {search ? "No drafts match your search." : "No drafts in progress."}
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {filteredDrafts.map((row: any) => {
+                    const lines = getSnapshotLines(row.reconciliation_snapshot);
+                    const totalUnits = lines.reduce((s: number, r: any) => s + (r.units || 0), 0);
+                    const so = (row.semen_orders as any);
+                    const customerName = so?.customers?.name || null;
+                    const lastEdited = row.updated_at || row.created_at;
+                    return (
+                      <div
+                        key={row.id}
+                        className="rounded-lg border border-dashed p-4 cursor-pointer hover:bg-secondary/40 transition-colors"
+                        onClick={() => navigate(`/receive-shipment/preview/${row.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="font-semibold">{row.semen_companies?.name || "—"}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {lastEdited ? format(new Date(lastEdited), "MMM d, yyyy h:mm a") : "—"}
+                          </div>
+                        </div>
+                        {customerName && (
+                          <div className="text-sm text-teal-500 mt-1">For: {customerName}</div>
+                        )}
+                        <div className="border-t mt-3 pt-3 space-y-1">
+                          {lines.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">No bulls recorded</div>
+                          ) : (
+                            lines.map((l: any, i: number) => (
+                              <div key={i} className="text-sm">
+                                {l.bullName || "Unknown bull"} — {l.units || 0} units
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        <div className="border-t mt-3 pt-2 flex justify-end">
+                          <span className="text-sm font-medium">Total: {totalUnits} units</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
