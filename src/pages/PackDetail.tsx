@@ -10,6 +10,7 @@ import {
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1515,10 +1516,9 @@ const PackDetail = () => {
               {/* Packed by */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-packed-by">Packed by</Label>
-                <Input
-                  id="edit-packed-by"
+                <TeamMemberSelect
                   value={editPackedBy}
-                  onChange={(e) => setEditPackedBy(e.target.value)}
+                  onValueChange={setEditPackedBy}
                   placeholder="Name of person who packed"
                 />
               </div>
