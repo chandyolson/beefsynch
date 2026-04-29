@@ -281,6 +281,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                     <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                     <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
                     <TableHead className="whitespace-nowrap">Billing</TableHead>
+                    {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>{rows.map(renderRow)}</TableBody>
@@ -451,6 +452,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
                   <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                   <TableHead className="whitespace-nowrap">Fulfillment</TableHead>
                   <TableHead className="whitespace-nowrap">Billing</TableHead>
+                  {subTab === "inventory" && <TableHead className="whitespace-nowrap">Received</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>{flatList.map(renderRow)}</TableBody>
