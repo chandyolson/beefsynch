@@ -166,10 +166,19 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       <TableCell className="font-medium whitespace-nowrap">{order.customers?.name || (order.order_type === "inventory" ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order") : "—")}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">{order.semen_companies?.name || "—"}</TableCell>
       <TableCell className="whitespace-nowrap">{format(parseISO(order.order_date), "MMM d, yyyy")}</TableCell>
-      <TableCell className="max-w-[250px] truncate">{getBullNames(order.semen_order_items)}</TableCell>
+      <TableCell className="max-w-[250px] truncate">{getBullSummary(order.semen_order_items)}</TableCell>
       <TableCell className="text-right">{getOrderUnits(order.semen_order_items)}</TableCell>
       <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderFulfillment', order.fulfillment_status))}>{order.fulfillment_status}</Badge></TableCell>
       <TableCell><Badge variant="outline" className={cn("capitalize text-xs", getBadgeClass('orderBilling', order.billing_status))}>{order.billing_status}</Badge></TableCell>
+      {subTab === "inventory" && (
+        <TableCell>
+          {order.order_type === "inventory" && receivedSet.has(order.id) && (
+            <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-xs gap-1">
+              <Check className="h-3 w-3" /> Received
+            </Badge>
+          )}
+        </TableCell>
+      )}
     </TableRow>
   );
 
@@ -179,7 +188,6 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       || (order.order_type === "inventory"
         ? (order.placed_by ? `Inventory — ${order.placed_by}` : "Inventory Order")
         : "—");
-    const bullNames = getBullNames(order.semen_order_items);
     const totalUnitsRow = getOrderUnits(order.semen_order_items);
     return (
       <div
