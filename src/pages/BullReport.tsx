@@ -979,6 +979,8 @@ const BullReport = () => {
                                   {d.type === "order" ? `Order: ${d.name}` : d.name}
                                   <span className="ml-2 text-xs text-muted-foreground">{d.date}</span>
                                 </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
                                 <TableCell className="text-right font-medium">{d.units}</TableCell>
                                 <TableCell className="text-right text-xs text-muted-foreground">
                                   {d.type === "project" ? `${d.headCount} hd` : ""}
