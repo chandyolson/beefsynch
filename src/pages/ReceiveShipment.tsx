@@ -994,6 +994,19 @@ const ReceiveShipment = () => {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="absolute top-2 right-[68px] h-7 w-7"
+                  onClick={() => {
+                    setMapHighlightId(group.bullCatalogId || null);
+                    setMapHighlightName(group.bullName || null);
+                    setMapOpen(true);
+                  }}
+                  title="Show tank map"
+                >
+                  <MapIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="absolute top-2 right-9 h-7 w-7"
                   disabled={!group.bullName || !getLineUnits(line.units)}
                   onClick={() => generateTankLabelPdf(group.bullName, getLineUnits(line.units))}
@@ -1055,6 +1068,19 @@ const ReceiveShipment = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => {
+                    setMapHighlightId(group.bullCatalogId || null);
+                    setMapHighlightName(group.bullName || null);
+                    setMapOpen(true);
+                  }}
+                  title="Show tank map"
+                >
+                  <MapIcon className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1440,6 +1466,13 @@ const ReceiveShipment = () => {
         </div>
       </main>
       <AppFooter />
+      <TankMapDialog
+        open={mapOpen}
+        onOpenChange={setMapOpen}
+        orgId={orgId!}
+        highlightBullCatalogId={mapHighlightId}
+        highlightBullName={mapHighlightName}
+      />
     </div>
   );
 };
