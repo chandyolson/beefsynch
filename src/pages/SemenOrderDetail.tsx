@@ -90,6 +90,7 @@ const SemenOrderDetail = () => {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
