@@ -26,6 +26,7 @@ import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmen
 import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
 import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 
 interface OrderRow {
   id: string;
