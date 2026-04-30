@@ -862,6 +862,13 @@ const SemenOrderDetail = () => {
         }}
         editData={getEditData()}
       />
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );
