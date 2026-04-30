@@ -1001,8 +1001,8 @@ const PackDetail = () => {
                         checked={billable}
                         onCheckedChange={async (checked) => {
                           const next = !!checked;
-                          const { error: lineErr } = await supabase
-                            .from("tank_pack_lines")
+                          const { error: lineErr } = await (supabase
+                            .from("tank_pack_lines") as any)
                             .update({ is_billable: next })
                             .eq("id", l.id);
                           if (lineErr) {
