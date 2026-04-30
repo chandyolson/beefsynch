@@ -157,6 +157,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
     bullName: getBullDisplayName(item),
+    bullCatalogId: item.bull_catalog_id || null,
     _raw: item,
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
