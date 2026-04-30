@@ -1009,8 +1009,8 @@ const PackDetail = () => {
                             toast({ title: "Failed to update", description: lineErr.message, variant: "destructive" });
                             return;
                           }
-                          const txnUpdate = supabase
-                            .from("inventory_transactions")
+                          const txnUpdate = (supabase
+                            .from("inventory_transactions") as any)
                             .update({ is_billable: next })
                             .eq("tank_pack_id", id)
                             .eq("transaction_type", "pack_out");
