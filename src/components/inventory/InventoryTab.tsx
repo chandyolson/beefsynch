@@ -81,6 +81,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     setOwnerFilter(initialOwnerFilter);
   }, [initialOwnerFilter]);
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped" | "map">("detail");
   const [editRow, setEditRow] = useState<any>(null);
