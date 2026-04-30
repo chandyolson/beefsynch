@@ -11,6 +11,7 @@ import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
 import TeamMemberSelect from "@/components/TeamMemberSelect";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ const PackDetail = () => {
   const { orgId } = useOrgRole();
 
   const [editingTracking, setEditingTracking] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [editCarrier, setEditCarrier] = useState("");
   const [editTrackingNumber, setEditTrackingNumber] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
