@@ -989,23 +989,58 @@ const PackDetail = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {packLines.map((l: any) => (
+              {packLines.map((l: any) => {
+                const billable = l.is_billable ?? false;
+                const dim = billable ? "" : "opacity-50";
+                return (
                 <TableRow key={l.id} className="hover:bg-muted/20">
-                  <TableCell>{l.tanks?.tank_name || l.tanks?.tank_number || "—"}</TableCell>
+                  <TableCell className={dim}>{l.tanks?.tank_name || l.tanks?.tank_number || "—"}</TableCell>
                   <TableCell className="font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      <span>{l.bull_name}</span>
-                      {l.bull_catalog_id && (
-                        <button onClick={(e) => { e.stopPropagation(); setEditBullId(l.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                    <span className="inline-flex items-center gap-2">
+                      <Checkbox
+                        checked={billable}
+                        onCheckedChange={async (checked) => {
+                          const next = !!checked;
+                          const { error: lineErr } = await supabase
+                            .from("tank_pack_lines")
+                            .update({ is_billable: next })
+                            .eq("id", l.id);
+                          if (lineErr) {
+                            toast({ title: "Failed to update", description: lineErr.message, variant: "destructive" });
+                            return;
+                          }
+                          const txnUpdate = supabase
+                            .from("inventory_transactions")
+                            .update({ is_billable: next })
+                            .eq("tank_pack_id", id)
+                            .eq("transaction_type", "pack_out");
+                          const { error: txnErr } = l.bull_catalog_id
+                            ? await txnUpdate.eq("bull_catalog_id", l.bull_catalog_id)
+                            : await txnUpdate.is("bull_catalog_id", null).eq("custom_bull_name", l.bull_name);
+                          if (txnErr) {
+                            toast({ title: "Failed to sync transaction", description: txnErr.message, variant: "destructive" });
+                            return;
+                          }
+                          queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+                          toast({ title: next ? "Marked billable" : "Marked not billable" });
+                        }}
+                        className="data-[state=checked]:bg-[#55BAAA] data-[state=checked]:border-[#55BAAA]"
+                        title={billable ? "Billable" : "Not billable"}
+                      />
+                      <span className={cn("inline-flex items-center gap-1", dim)}>
+                        <span>{l.bull_name}</span>
+                        {l.bull_catalog_id && (
+                          <button onClick={(e) => { e.stopPropagation(); setEditBullId(l.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
                     </span>
                   </TableCell>
-                  <TableCell>{l.bull_code || "—"}</TableCell>
-                  <TableCell>{l.source_canister || "—"}</TableCell>
-                  <TableCell>{l.field_canister || "—"}</TableCell>
-                  <TableCell className="text-right">{l.units}</TableCell>
+                  <TableCell className={dim}>{l.bull_code || "—"}</TableCell>
+                  <TableCell className={dim}>{l.source_canister || "—"}</TableCell>
+                  <TableCell className={dim}>{l.field_canister || "—"}</TableCell>
+                  <TableCell className={cn("text-right", dim)}>{l.units}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button
@@ -1031,7 +1066,8 @@ const PackDetail = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow>
