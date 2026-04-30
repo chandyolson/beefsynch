@@ -670,7 +670,18 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                       <div key={row.id} className={cn("p-4 space-y-3", isZero && "opacity-60")}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{row.bullName}</div>
+                            <div className="font-medium truncate flex items-center gap-1">
+                              <span className="truncate">{row.bullName}</span>
+                              {row.bullCatalogId && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditBullId(row.bullCatalogId); }}
+                                  className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Edit bull info"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                             <div className="text-xs font-mono text-muted-foreground truncate">{row.bullCode}</div>
                           </div>
                           <div className="flex items-start gap-2 shrink-0">
