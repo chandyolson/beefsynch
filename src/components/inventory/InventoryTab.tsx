@@ -579,7 +579,18 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                       return (
                         <TableRow key={row.id} className={cn("hover:bg-muted/20", isZero && "opacity-60")}>
                           <TableCell className="align-top">
-                            <div className="font-medium truncate" title={row.bullName}>{row.bullName}</div>
+                            <div className="font-medium truncate flex items-center gap-1" title={row.bullName}>
+                              <span className="truncate">{row.bullName}</span>
+                              {row.bullCatalogId && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditBullId(row.bullCatalogId); }}
+                                  className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Edit bull info"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                             <div className="text-xs font-mono text-muted-foreground truncate" title={row.bullCode}>{row.bullCode}</div>
                           </TableCell>
                           <TableCell className="align-top">
