@@ -311,6 +311,7 @@ const TankDetail = () => {
 
   // Transfer dialog
   const [transferOpen, setTransferOpen] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [transferRow, setTransferRow] = useState<any | null>(null);
 
   // Customer pickup dialog
