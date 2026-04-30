@@ -385,35 +385,43 @@ const SemenOrderDetail = () => {
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> Export PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={openEdit}>
-              <Pencil className="h-4 w-4 mr-1" /> Edit Order
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-1" /> Delete Order
+            {!["fulfilled", "cancelled"].includes(order.fulfillment_status) ? (
+              <>
+                <Button variant="outline" size="sm" onClick={openEdit}>
+                  <Pencil className="h-4 w-4 mr-1" /> Edit Order
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Order</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the order for {customerName}. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteOrder}
-                    disabled={deletingOrder}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deletingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-1" /> Delete Order
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Order</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the order for {customerName}. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteOrder}
+                        disabled={deletingOrder}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {deletingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground italic self-center">
+                {order.fulfillment_status === "fulfilled" ? "Fulfilled — locked" : "Cancelled — locked"}
+              </span>
+            )}
           </div>
         </div>
 
