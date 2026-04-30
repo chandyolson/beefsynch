@@ -889,7 +889,14 @@ const TankDetail = () => {
                           <TableCell>{inv.canister}</TableCell>
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
                           <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                            <span className="inline-flex items-center gap-1">
+                              <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                              {inv.bull_catalog_id && (
+                                <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
                             {inv.item_type === "embryo" && (
                               <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                             )}
