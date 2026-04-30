@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  Truck, ChevronDown, ChevronUp, MoreHorizontal, Pencil,
 } from "lucide-react";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 
 import StatCard from "@/components/StatCard";
 import TableSkeleton from "@/components/TableSkeleton";
