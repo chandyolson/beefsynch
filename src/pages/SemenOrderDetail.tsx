@@ -619,7 +619,14 @@ const SemenOrderDetail = () => {
                         return (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
+                              <span className="inline-flex items-center gap-1">
+                                <span>{item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}</span>
+                                {item.bull_catalog_id && (
+                                  <button onClick={(e) => { e.stopPropagation(); setEditBullId(item.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
                             </TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell>
