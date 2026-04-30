@@ -954,6 +954,13 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
     </div>
   );
 };
