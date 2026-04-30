@@ -989,7 +989,16 @@ const PackDetail = () => {
               {packLines.map((l: any) => (
                 <TableRow key={l.id} className="hover:bg-muted/20">
                   <TableCell>{l.tanks?.tank_name || l.tanks?.tank_number || "—"}</TableCell>
-                  <TableCell className="font-medium">{l.bull_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center gap-1">
+                      <span>{l.bull_name}</span>
+                      {l.bull_catalog_id && (
+                        <button onClick={(e) => { e.stopPropagation(); setEditBullId(l.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  </TableCell>
                   <TableCell>{l.bull_code || "—"}</TableCell>
                   <TableCell>{l.source_canister || "—"}</TableCell>
                   <TableCell>{l.field_canister || "—"}</TableCell>
