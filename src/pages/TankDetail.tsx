@@ -1412,6 +1412,13 @@ const TankDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );
