@@ -86,7 +86,7 @@ interface PersistedDraft {
   selectedOrderId: string;
   customerId: string | null;
   shipmentType: "customer" | "inventory";
-  inventoryOwner: "Select" | "CATL" | null;
+  inventoryOwner: string | null;
   supplierInvoiceNumber: string;
   semenCompanyId: string | null;
   receivedById: string | null;
@@ -137,7 +137,7 @@ const ReceiveShipment = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [shipmentType, setShipmentType] = useState<"customer" | "inventory">("customer");
-  const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
+  const [inventoryOwner, setInventoryOwner] = useState<string | null>(null);
   const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState<string>("");
   const [semenCompanyId, setSemenCompanyId] = useState<string | null>(null);
   const [receivedById, setReceivedById] = useState<string | null>(null);
@@ -245,6 +245,21 @@ const ReceiveShipment = () => {
       return data ?? [];
     },
     enabled: !!orgId,
+  });
+
+  const { data: inventoryOwnerCompanies = [] } = useQuery({
+    queryKey: ["inventory_owner_companies", orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("semen_companies")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .eq("can_own_inventory", true)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as { id: string; name: string }[];
+    },
   });
 
   // Fetch customers for semen owner dropdown
@@ -378,7 +393,15 @@ const ReceiveShipment = () => {
       const snap = (shipment.reconciliation_snapshot as any) || {};
       if (snap.inventory_owner) {
         setShipmentType("inventory");
-        setInventoryOwner(snap.inventory_owner as "Select" | "CATL");
+        const snapOwner = snap.inventory_owner as string;
+        if (inventoryOwnerCompanies.length > 0) {
+          const match = inventoryOwnerCompanies.find(
+            (co) => co.name === snapOwner || co.name.toLowerCase().startsWith(snapOwner.toLowerCase())
+          );
+          setInventoryOwner(match ? match.name : snapOwner);
+        } else {
+          setInventoryOwner(snapOwner);
+        }
       } else {
         setShipmentType("customer");
         setInventoryOwner(null);
@@ -618,7 +641,15 @@ const ReceiveShipment = () => {
 
     if ((order as any).order_type === "inventory") {
       // Inventory order: set inventory owner from the order, clear customer-related fields
-      setInventoryOwner(((order as any).inventory_owner as "Select" | "CATL" | null) ?? null);
+      const rawOwner = (order as any).inventory_owner as string | null;
+      if (rawOwner && inventoryOwnerCompanies.length > 0) {
+        const match = inventoryOwnerCompanies.find(
+          (co) => co.name === rawOwner || co.name.toLowerCase().startsWith(rawOwner.toLowerCase())
+        );
+        setInventoryOwner(match ? match.name : rawOwner);
+      } else {
+        setInventoryOwner(rawOwner);
+      }
       setCustomerId(null);
       setSemenOwnerId(null);
     } else {
@@ -1276,32 +1307,23 @@ const ReceiveShipment = () => {
                     "flex rounded-md overflow-hidden border",
                     errors.inventoryOwner ? "border-destructive" : "border-border"
                   )}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 px-4 py-2 text-sm font-medium transition-colors",
-                        inventoryOwner === "Select"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                      )}
-                      onClick={() => setInventoryOwner("Select")}
-                    >
-                      Select Sires
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 px-4 py-2 text-sm font-medium transition-colors",
-                        inventoryOwner === "CATL"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                      )}
-                      onClick={() => setInventoryOwner("CATL")}
-                    >
-                      CATL Resources
-                    </button>
+                    {inventoryOwnerCompanies.map((co) => (
+                      <button
+                        key={co.id}
+                        type="button"
+                        className={cn(
+                          "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                          inventoryOwner === co.name
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                        )}
+                        onClick={() => setInventoryOwner(co.name)}
+                      >
+                        {co.name}
+                      </button>
+                    ))}
                   </div>
-                  {errors.inventoryOwner && <p className="mt-1 text-xs text-destructive">Pick Select Sires or CATL Resources</p>}
+                  {errors.inventoryOwner && <p className="mt-1 text-xs text-destructive">Select an inventory owner</p>}
                 </div>
               </div>
             ) : (
