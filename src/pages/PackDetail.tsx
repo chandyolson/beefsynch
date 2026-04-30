@@ -1581,6 +1581,13 @@ const PackDetail = () => {
           </DialogContent>
         </Dialog>
       </main>
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );
