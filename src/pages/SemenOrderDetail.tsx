@@ -26,6 +26,7 @@ import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmen
 import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
 import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 
 interface OrderRow {
   id: string;
@@ -89,6 +90,7 @@ const SemenOrderDetail = () => {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
@@ -619,7 +621,14 @@ const SemenOrderDetail = () => {
                         return (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}
+                              <span className="inline-flex items-center gap-1">
+                                <span>{item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}</span>
+                                {item.bull_catalog_id && (
+                                  <button onClick={(e) => { e.stopPropagation(); setEditBullId(item.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
                             </TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell>
@@ -853,6 +862,13 @@ const SemenOrderDetail = () => {
         }}
         editData={getEditData()}
       />
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );

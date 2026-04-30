@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRightLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, PackageOpen, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import TransferDialog from "@/components/inventory/TransferDialog";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ExportConfig } from "@/lib/exports";
@@ -310,6 +311,7 @@ const TankDetail = () => {
 
   // Transfer dialog
   const [transferOpen, setTransferOpen] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [transferRow, setTransferRow] = useState<any | null>(null);
 
   // Customer pickup dialog
@@ -887,7 +889,14 @@ const TankDetail = () => {
                           <TableCell>{inv.canister}</TableCell>
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
                           <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                            <span className="inline-flex items-center gap-1">
+                              <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                              {inv.bull_catalog_id && (
+                                <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
                             {inv.item_type === "embryo" && (
                               <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                             )}
@@ -919,7 +928,14 @@ const TankDetail = () => {
                             <TableCell>{inv.canister}</TableCell>
                             <TableCell>{inv.sub_canister || "—"}</TableCell>
                             <TableCell>
-                              {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                              <span className="inline-flex items-center gap-1">
+                                <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                {inv.bull_catalog_id && (
+                                  <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
                               {inv.item_type === "embryo" && (
                                 <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                               )}
@@ -992,7 +1008,14 @@ const TankDetail = () => {
                               <TableCell>{inv.canister}</TableCell>
                               <TableCell>{inv.sub_canister || "—"}</TableCell>
                               <TableCell>
-                                {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                                <span className="inline-flex items-center gap-1">
+                                  <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                  {inv.bull_catalog_id && (
+                                    <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </span>
                                 {inv.item_type === "embryo" && (
                                   <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                                 )}
@@ -1389,6 +1412,13 @@ const TankDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );

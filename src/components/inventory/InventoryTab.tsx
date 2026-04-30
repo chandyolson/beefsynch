@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
-  Truck, ChevronDown, ChevronUp, MoreHorizontal,
+  Truck, ChevronDown, ChevronUp, MoreHorizontal, Pencil,
 } from "lucide-react";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 
 import StatCard from "@/components/StatCard";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -80,6 +81,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
     setOwnerFilter(initialOwnerFilter);
   }, [initialOwnerFilter]);
   const [sortKey, setSortKey] = useState<SortKey>("bull_name");
+  const [editBullId, setEditBullId] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [viewMode, setViewMode] = useState<"detail" | "grouped" | "map">("detail");
   const [editRow, setEditRow] = useState<any>(null);
@@ -156,6 +158,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   const rows = useMemo(() => inventory.map((item: any) => ({
     id: item.id,
     bullName: getBullDisplayName(item),
+    bullCatalogId: item.bull_catalog_id || null,
     _raw: item,
     bullCode: item.bull_code || "—",
     customer: item.customers?.name || (item.customer_id ? "Unknown" : "Company"),
@@ -576,7 +579,18 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                       return (
                         <TableRow key={row.id} className={cn("hover:bg-muted/20", isZero && "opacity-60")}>
                           <TableCell className="align-top">
-                            <div className="font-medium truncate" title={row.bullName}>{row.bullName}</div>
+                            <div className="font-medium truncate flex items-center gap-1" title={row.bullName}>
+                              <span className="truncate">{row.bullName}</span>
+                              {row.bullCatalogId && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditBullId(row.bullCatalogId); }}
+                                  className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Edit bull info"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                             <div className="text-xs font-mono text-muted-foreground truncate" title={row.bullCode}>{row.bullCode}</div>
                           </TableCell>
                           <TableCell className="align-top">
@@ -656,7 +670,18 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                       <div key={row.id} className={cn("p-4 space-y-3", isZero && "opacity-60")}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{row.bullName}</div>
+                            <div className="font-medium truncate flex items-center gap-1">
+                              <span className="truncate">{row.bullName}</span>
+                              {row.bullCatalogId && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditBullId(row.bullCatalogId); }}
+                                  className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Edit bull info"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                             <div className="text-xs font-mono text-muted-foreground truncate">{row.bullCode}</div>
                           </div>
                           <div className="flex items-start gap-2 shrink-0">
@@ -929,6 +954,13 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
     </div>
   );
 };
