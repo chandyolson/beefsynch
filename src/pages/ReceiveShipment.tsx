@@ -86,7 +86,7 @@ interface PersistedDraft {
   selectedOrderId: string;
   customerId: string | null;
   shipmentType: "customer" | "inventory";
-  inventoryOwner: "Select" | "CATL" | null;
+  inventoryOwner: string | null;
   supplierInvoiceNumber: string;
   semenCompanyId: string | null;
   receivedById: string | null;
@@ -137,7 +137,7 @@ const ReceiveShipment = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [shipmentType, setShipmentType] = useState<"customer" | "inventory">("customer");
-  const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
+  const [inventoryOwner, setInventoryOwner] = useState<string | null>(null);
   const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState<string>("");
   const [semenCompanyId, setSemenCompanyId] = useState<string | null>(null);
   const [receivedById, setReceivedById] = useState<string | null>(null);
