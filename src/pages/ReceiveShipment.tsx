@@ -30,6 +30,7 @@ import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTr
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
+import TankMapDialog from "@/components/inventory/TankMapDialog";
 
 interface OrderItem {
   bull_catalog_id: string | null;
@@ -157,6 +158,11 @@ const ReceiveShipment = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [autosaveReady, setAutosaveReady] = useState(false);
   const [restorablePending, setRestorablePending] = useState<PersistedDraft | null>(null);
+
+  // Tank Map popup
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapHighlightId, setMapHighlightId] = useState<string | null>(null);
+  const [mapHighlightName, setMapHighlightName] = useState<string | null>(null);
 
   // Track auth user id for autosave keying
   useEffect(() => {
@@ -988,6 +994,19 @@ const ReceiveShipment = () => {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="absolute top-2 right-[68px] h-7 w-7"
+                  onClick={() => {
+                    setMapHighlightId(group.bullCatalogId || null);
+                    setMapHighlightName(group.bullName || null);
+                    setMapOpen(true);
+                  }}
+                  title="Show tank map"
+                >
+                  <MapIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="absolute top-2 right-9 h-7 w-7"
                   disabled={!group.bullName || !getLineUnits(line.units)}
                   onClick={() => generateTankLabelPdf(group.bullName, getLineUnits(line.units))}
@@ -1049,6 +1068,19 @@ const ReceiveShipment = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => {
+                    setMapHighlightId(group.bullCatalogId || null);
+                    setMapHighlightName(group.bullName || null);
+                    setMapOpen(true);
+                  }}
+                  title="Show tank map"
+                >
+                  <MapIcon className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1120,10 +1152,14 @@ const ReceiveShipment = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open("/operations?tab=inventory", "_blank")}
-            title="Open the Tank Map in a new tab to see where tanks have open canisters"
+            onClick={() => {
+              setMapHighlightId(null);
+              setMapHighlightName(null);
+              setMapOpen(true);
+            }}
+            title="See where bulls already live in your tanks"
           >
-            <MapIcon className="h-3.5 w-3.5 mr-1.5" /> Tank map
+            <MapIcon className="h-3.5 w-3.5 mr-1.5" /> Tank Map
           </Button>
         </div>
 
@@ -1430,6 +1466,13 @@ const ReceiveShipment = () => {
         </div>
       </main>
       <AppFooter />
+      <TankMapDialog
+        open={mapOpen}
+        onOpenChange={setMapOpen}
+        orgId={orgId!}
+        highlightBullCatalogId={mapHighlightId}
+        highlightBullName={mapHighlightName}
+      />
     </div>
   );
 };
