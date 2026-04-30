@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRightLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, PackageOpen, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import TransferDialog from "@/components/inventory/TransferDialog";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ExportConfig } from "@/lib/exports";
