@@ -203,9 +203,11 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCsv}>
             <FileSpreadsheet className="h-4 w-4" /> Export CSV
           </Button>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> New Project
-          </Button>
+          {subView === "projects" && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> New Project
+            </Button>
+          )}
         </div>
       </div>
 
