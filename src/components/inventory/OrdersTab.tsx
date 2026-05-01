@@ -26,14 +26,15 @@ const classify = (o: any): Tier | "cancelled" | null => {
   const f = o.fulfillment_status;
   const b = o.billing_status;
   const isInvoiced = b === "invoiced" || b === "paid";
+  const isFulfilled = f === "fulfilled" || f === "ready_to_close";
 
   if (f === "cancelled") return "cancelled";
 
   // Done = fulfilled AND invoiced
-  if (f === "fulfilled" && isInvoiced) return "done";
+  if (isFulfilled && isInvoiced) return "done";
 
   // Needs invoice = fulfilled but NOT invoiced
-  if (f === "fulfilled" && !isInvoiced) return "needs_invoice";
+  if (isFulfilled && !isInvoiced) return "needs_invoice";
 
   // Everything else is open (pending, partially_fulfilled, ordered, shipped, etc)
   return "open";
