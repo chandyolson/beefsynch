@@ -323,6 +323,8 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
         bullsByProject={bullsByProject}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
+        </>
+      )}
     </div>
   );
 };
