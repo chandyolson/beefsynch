@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Package, ShoppingCart,
+  ShoppingCart,
   Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
@@ -31,7 +32,6 @@ const TABS: TabDef[] = [
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
   { key: "customers", label: "Customers", icon: Users, href: "/customers" },
-  { key: "tanks", label: "Tanks", icon: Package },
   { key: "log", label: "Log", icon: ScrollText },
 ];
 
@@ -44,6 +44,7 @@ const OperationsDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
+  const [inventoryView, setInventoryView] = useState<"bull" | "tank">("bull");
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
     setSearchParams({ tab, ...extra }, { replace: true });
@@ -90,13 +91,42 @@ const OperationsDashboard = () => {
             <ProjectsTab orgId={orgId} />
           )}
           {activeTab === "inventory" && orgId && (
-            <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInventoryView("bull")}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                    inventoryView === "bull"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+                  )}
+                >
+                  By Bull
+                </button>
+                <button
+                  onClick={() => setInventoryView("tank")}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                    inventoryView === "tank"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+                  )}
+                >
+                  By Tank
+                </button>
+              </div>
+
+              {inventoryView === "bull" && (
+                <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
+              )}
+              {inventoryView === "tank" && (
+                <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
+              )}
+            </div>
           )}
           {activeTab === "orders" && orgId && (
             <OrdersTab orgId={orgId} />
-          )}
-          {activeTab === "tanks" && orgId && (
-            <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
           )}
           {activeTab === "log" && orgId && <LogTab orgId={orgId} />}
         </div>
