@@ -12,7 +12,7 @@ import HubTab from "@/components/operations/HubTab";
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
-import PackingTab from "@/components/inventory/PackingTab";
+
 import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 
