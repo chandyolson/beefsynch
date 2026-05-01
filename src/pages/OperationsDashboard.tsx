@@ -30,7 +30,7 @@ const TABS: TabDef[] = [
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
-  { key: "receiving", label: "Receiving", icon: Truck },
+  
   { key: "packing", label: "Packing", icon: PackagePlus },
   { key: "customers", label: "Customers", icon: Users, href: "/customers" },
   { key: "tanks", label: "Tanks", icon: Package },
