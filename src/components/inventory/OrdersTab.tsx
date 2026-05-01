@@ -19,31 +19,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
 
-type ChipFilter = "all" | "pending" | "fulfilled" | "invoiced";
-type Tier = "pending" | "in_progress" | "fulfilled_invoiced";
+type ChipFilter = "all" | "open" | "needs_invoice" | "done";
+type Tier = "open" | "needs_invoice" | "done";
 
-// Classify an order into one of the three tiers (or null = excluded from default view).
-// "invoiced" proxy: billing_status in ('invoiced','paid'). "not invoiced" = 'unbilled'.
-// Note: prompt references invoice_number, but the schema only has billing_status — using that.
 const classify = (o: any): Tier | "cancelled" | null => {
   const f = o.fulfillment_status;
   const b = o.billing_status;
   const isInvoiced = b === "invoiced" || b === "paid";
 
   if (f === "cancelled") return "cancelled";
-  if (f === "pending") return "pending";
-  if (f === "fulfilled" && !isInvoiced) return "pending"; // fulfilled-but-unbilled = still on plate
-  if (f === "fulfilled" && isInvoiced) return "fulfilled_invoiced";
-  // partially_fulfilled (and the data-actual spelling partially_filled), ready_to_close, ordered, shipped, backordered
-  if (
-    f === "partially_fulfilled" ||
-    f === "partially_filled" ||
-    f === "ready_to_close" ||
-    f === "ordered" ||
-    f === "shipped" ||
-    f === "backordered"
-  ) return "in_progress";
-  return "in_progress";
+
+  // Done = fulfilled AND invoiced
+  if (f === "fulfilled" && isInvoiced) return "done";
+
+  // Needs invoice = fulfilled but NOT invoiced
+  if (f === "fulfilled" && !isInvoiced) return "needs_invoice";
+
+  // Everything else is open (pending, partially_fulfilled, ordered, shipped, etc)
+  return "open";
 };
 
 const OrdersTab = ({ orgId }: { orgId: string }) => {
@@ -193,15 +186,15 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   // Group into tiers (most-recent first within tier — query already orders by order_date DESC)
   const grouped = useMemo(() => {
-    const tier1: any[] = []; // pending / unbilled
-    const tier2: any[] = []; // in progress / partially fulfilled
-    const tier3: any[] = []; // fulfilled & invoiced
+    const tier1: any[] = []; // open orders
+    const tier2: any[] = []; // needs invoice
+    const tier3: any[] = []; // done (fulfilled + invoiced)
     const cancelled: any[] = [];
     for (const o of baseFiltered) {
       const t = classify(o);
-      if (t === "pending") tier1.push(o);
-      else if (t === "in_progress") tier2.push(o);
-      else if (t === "fulfilled_invoiced") tier3.push(o);
+      if (t === "open") tier1.push(o);
+      else if (t === "needs_invoice") tier2.push(o);
+      else if (t === "done") tier3.push(o);
       else if (t === "cancelled") cancelled.push(o);
     }
     if (subTab === "inventory") {
@@ -345,9 +338,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   // Build the list of orders per chip filter
   const flatList = useMemo(() => {
-    if (chipFilter === "pending") return grouped.tier1;
-    if (chipFilter === "fulfilled") return grouped.tier3;
-    if (chipFilter === "invoiced") return grouped.tier3; // same proxy in this schema
+    if (chipFilter === "open") return grouped.tier1;
+    if (chipFilter === "needs_invoice") return grouped.tier2;
+    if (chipFilter === "done") return [...grouped.tier3, ...grouped.cancelled];
     return [];
   }, [chipFilter, grouped]);
 
@@ -415,9 +408,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       <div className="flex flex-wrap gap-2 items-center">
         {([
           { key: "all", label: "All" },
-          { key: "pending", label: "Pending" },
-          { key: "fulfilled", label: "Fulfilled" },
-          { key: "invoiced", label: "Invoiced" },
+          { key: "open", label: "Open" },
+          { key: "needs_invoice", label: "Needs Invoice" },
+          { key: "done", label: "Completed" },
         ] as { key: ChipFilter; label: string }[]).map(chip => (
           <button
             key={chip.key}
@@ -480,9 +473,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         </div>
       ) : showTiers ? (
         <div className="space-y-4">
-          <TierSection title="Pending / Unbilled" rows={grouped.tier1} defaultOpen collapsible={false} />
-          <TierSection title="In Progress / Partially Fulfilled" rows={grouped.tier2} defaultOpen collapsible={false} />
-          <TierSection title="Fulfilled & Invoiced" rows={tier3Rows} defaultOpen={false} collapsible />
+          <TierSection title="Open Orders" rows={grouped.tier1} defaultOpen collapsible={false} />
+          <TierSection title="Needs Invoice" rows={grouped.tier2} defaultOpen collapsible={false} />
+          <TierSection title="Completed" rows={tier3Rows} defaultOpen={false} collapsible />
         </div>
       ) : (
         <div className="rounded-lg border border-border/50 overflow-hidden">
