@@ -186,15 +186,15 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   // Group into tiers (most-recent first within tier — query already orders by order_date DESC)
   const grouped = useMemo(() => {
-    const tier1: any[] = []; // pending / unbilled
-    const tier2: any[] = []; // in progress / partially fulfilled
-    const tier3: any[] = []; // fulfilled & invoiced
+    const tier1: any[] = []; // open orders
+    const tier2: any[] = []; // needs invoice
+    const tier3: any[] = []; // done (fulfilled + invoiced)
     const cancelled: any[] = [];
     for (const o of baseFiltered) {
       const t = classify(o);
-      if (t === "pending") tier1.push(o);
-      else if (t === "in_progress") tier2.push(o);
-      else if (t === "fulfilled_invoiced") tier3.push(o);
+      if (t === "open") tier1.push(o);
+      else if (t === "needs_invoice") tier2.push(o);
+      else if (t === "done") tier3.push(o);
       else if (t === "cancelled") cancelled.push(o);
     }
     if (subTab === "inventory") {
