@@ -51,7 +51,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const [chipFilter, setChipFilter] = useState<ChipFilter>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [subTab, setSubTab] = useState<"customer" | "inventory">("customer");
+  const [subTab, setSubTab] = useState<"customer" | "inventory" | "shipments">("customer");
   const [newOrderDefaultType, setNewOrderDefaultType] = useState<"customer" | "inventory">("customer");
   const [tier3Open, setTier3Open] = useState(false);
 
