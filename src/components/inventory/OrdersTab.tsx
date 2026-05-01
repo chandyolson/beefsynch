@@ -19,31 +19,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
 
-type ChipFilter = "all" | "pending" | "fulfilled" | "invoiced";
-type Tier = "pending" | "in_progress" | "fulfilled_invoiced";
+type ChipFilter = "all" | "open" | "needs_invoice" | "done";
+type Tier = "open" | "needs_invoice" | "done";
 
-// Classify an order into one of the three tiers (or null = excluded from default view).
-// "invoiced" proxy: billing_status in ('invoiced','paid'). "not invoiced" = 'unbilled'.
-// Note: prompt references invoice_number, but the schema only has billing_status — using that.
 const classify = (o: any): Tier | "cancelled" | null => {
   const f = o.fulfillment_status;
   const b = o.billing_status;
   const isInvoiced = b === "invoiced" || b === "paid";
 
   if (f === "cancelled") return "cancelled";
-  if (f === "pending") return "pending";
-  if (f === "fulfilled" && !isInvoiced) return "pending"; // fulfilled-but-unbilled = still on plate
-  if (f === "fulfilled" && isInvoiced) return "fulfilled_invoiced";
-  // partially_fulfilled (and the data-actual spelling partially_filled), ready_to_close, ordered, shipped, backordered
-  if (
-    f === "partially_fulfilled" ||
-    f === "partially_filled" ||
-    f === "ready_to_close" ||
-    f === "ordered" ||
-    f === "shipped" ||
-    f === "backordered"
-  ) return "in_progress";
-  return "in_progress";
+
+  // Done = fulfilled AND invoiced
+  if (f === "fulfilled" && isInvoiced) return "done";
+
+  // Needs invoice = fulfilled but NOT invoiced
+  if (f === "fulfilled" && !isInvoiced) return "needs_invoice";
+
+  // Everything else is open (pending, partially_fulfilled, ordered, shipped, etc)
+  return "open";
 };
 
 const OrdersTab = ({ orgId }: { orgId: string }) => {
