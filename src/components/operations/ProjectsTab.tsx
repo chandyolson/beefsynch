@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/types/project";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
+import PackingTab from "@/components/inventory/PackingTab";
+import { cn } from "@/lib/utils";
 
 interface DbProject {
   id: string;
