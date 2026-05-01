@@ -881,7 +881,7 @@ const ReceiveShipment = () => {
       {tanks.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           No tanks found.{" "}
-          <Link to="/tanks" className="text-primary hover:underline">Add tanks first.</Link>
+          <Link to="/operations?tab=tanks" className="text-primary hover:underline">Add tanks first.</Link>
         </p>
       ) : (
         <Select value={line.tankId} onValueChange={(v) => updateLine(line.key, { tankId: v })}>
