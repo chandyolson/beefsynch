@@ -32,7 +32,6 @@ const TABS: TabDef[] = [
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
   { key: "customers", label: "Customers", icon: Users, href: "/customers" },
-  { key: "tanks", label: "Tanks", icon: Package },
   { key: "log", label: "Log", icon: ScrollText },
 ];
 
