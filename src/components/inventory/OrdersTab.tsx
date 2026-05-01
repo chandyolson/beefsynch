@@ -473,9 +473,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         </div>
       ) : showTiers ? (
         <div className="space-y-4">
-          <TierSection title="Pending / Unbilled" rows={grouped.tier1} defaultOpen collapsible={false} />
-          <TierSection title="In Progress / Partially Fulfilled" rows={grouped.tier2} defaultOpen collapsible={false} />
-          <TierSection title="Fulfilled & Invoiced" rows={tier3Rows} defaultOpen={false} collapsible />
+          <TierSection title="Open Orders" rows={grouped.tier1} defaultOpen collapsible={false} />
+          <TierSection title="Needs Invoice" rows={grouped.tier2} defaultOpen collapsible={false} />
+          <TierSection title="Completed" rows={tier3Rows} defaultOpen={false} collapsible />
         </div>
       ) : (
         <div className="rounded-lg border border-border/50 overflow-hidden">
