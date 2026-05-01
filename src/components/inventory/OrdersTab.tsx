@@ -364,11 +364,13 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
             <ClipboardList className="h-4 w-4" /> Planning
           </Button>
-          <Button className="gap-2" onClick={() => {
-            setEditOrder(null);
-            setNewOrderDefaultType(subTab);
-            setDialogOpen(true);
-          }}><Plus className="h-4 w-4" /> New Order</Button>
+          {subTab !== "shipments" && (
+            <Button className="gap-2" onClick={() => {
+              setEditOrder(null);
+              setNewOrderDefaultType(subTab === "inventory" ? "inventory" : "customer");
+              setDialogOpen(true);
+            }}><Plus className="h-4 w-4" /> New Order</Button>
+          )}
         </div>
       </div>
 
