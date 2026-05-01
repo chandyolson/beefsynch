@@ -338,9 +338,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   // Build the list of orders per chip filter
   const flatList = useMemo(() => {
-    if (chipFilter === "pending") return grouped.tier1;
-    if (chipFilter === "fulfilled") return grouped.tier3;
-    if (chipFilter === "invoiced") return grouped.tier3; // same proxy in this schema
+    if (chipFilter === "open") return grouped.tier1;
+    if (chipFilter === "needs_invoice") return grouped.tier2;
+    if (chipFilter === "done") return [...grouped.tier3, ...grouped.cancelled];
     return [];
   }, [chipFilter, grouped]);
 
