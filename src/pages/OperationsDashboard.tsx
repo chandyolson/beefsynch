@@ -14,7 +14,7 @@ import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
 
-import TanksTabContent from "@/components/inventory/TanksTabContent";
+import TanksTabContent, { CustomersTab } from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 
 import { useOrgRole } from "@/hooks/useOrgRole";
@@ -31,7 +31,7 @@ const TABS: TabDef[] = [
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
-  { key: "customers", label: "Customers", icon: Users, href: "/customers" },
+  { key: "customers", label: "Customers", icon: Users },
   { key: "log", label: "Log", icon: ScrollText },
 ];
 
@@ -127,6 +127,9 @@ const OperationsDashboard = () => {
           )}
           {activeTab === "orders" && orgId && (
             <OrdersTab orgId={orgId} />
+          )}
+          {activeTab === "customers" && orgId && (
+            <CustomersTab orgId={orgId} />
           )}
           {activeTab === "log" && orgId && <LogTab orgId={orgId} />}
         </div>
