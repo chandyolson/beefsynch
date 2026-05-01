@@ -18,6 +18,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
+import ReceivingTab from "@/components/inventory/ReceivingTab";
 
 type ChipFilter = "all" | "open" | "needs_invoice" | "done";
 type Tier = "open" | "needs_invoice" | "done";
