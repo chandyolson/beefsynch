@@ -23,7 +23,7 @@ const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
 const Companies = lazy(() => import("./pages/Companies"));
 const ReInventory = lazy(() => import("./pages/ReInventory"));
 const TankDetail = lazy(() => import("./pages/TankDetail"));
-const TankFills = lazy(() => import("./pages/TankFills"));
+
 const ReceiveShipment = lazy(() => import("./pages/ReceiveShipment"));
 const ReceiveShipmentPreview = lazy(() => import("./pages/ReceiveShipmentPreview"));
 const OperationsDashboard = lazy(() => import("./pages/OperationsDashboard"));
@@ -110,7 +110,7 @@ const App = () => (
                 <Route path="/tanks" element={<Navigate to="/operations?tab=tanks" replace />} />
                 <Route path="/tanks/:id" element={<ProtectedRoute><TankDetail /></ProtectedRoute>} />
                 <Route path="/tanks/:tankId/reinventory" element={<ProtectedRoute><ReInventory /></ProtectedRoute>} />
-                <Route path="/tank-fills" element={<ProtectedRoute><TankFills /></ProtectedRoute>} />
+                <Route path="/tank-fills" element={<Navigate to="/operations?tab=tanks" replace />} />
                 <Route path="/tanks-out" element={<Navigate to="/operations?tab=tanks" replace />} />
                 <Route path="/semen-inventory" element={<Navigate to="/operations?tab=inventory" replace />} />
                 <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
