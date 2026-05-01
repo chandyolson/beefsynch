@@ -23,7 +23,7 @@ const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
 const Companies = lazy(() => import("./pages/Companies"));
 const ReInventory = lazy(() => import("./pages/ReInventory"));
 const TankDetail = lazy(() => import("./pages/TankDetail"));
-const TankFills = lazy(() => import("./pages/TankFills"));
+
 const ReceiveShipment = lazy(() => import("./pages/ReceiveShipment"));
 const ReceiveShipmentPreview = lazy(() => import("./pages/ReceiveShipmentPreview"));
 const OperationsDashboard = lazy(() => import("./pages/OperationsDashboard"));
