@@ -128,6 +128,9 @@ const OperationsDashboard = () => {
           {activeTab === "orders" && orgId && (
             <OrdersTab orgId={orgId} />
           )}
+          {activeTab === "customers" && orgId && (
+            <CustomersTab orgId={orgId} />
+          )}
           {activeTab === "log" && orgId && <LogTab orgId={orgId} />}
         </div>
       </main>
