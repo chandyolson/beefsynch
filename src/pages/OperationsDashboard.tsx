@@ -15,7 +15,7 @@ import OrdersTab from "@/components/inventory/OrdersTab";
 import PackingTab from "@/components/inventory/PackingTab";
 import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
-import ReceivingTab from "@/components/inventory/ReceivingTab";
+
 import { useOrgRole } from "@/hooks/useOrgRole";
 
 interface TabDef {
