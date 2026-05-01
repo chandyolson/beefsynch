@@ -97,9 +97,6 @@ const OperationsDashboard = () => {
           {activeTab === "orders" && orgId && (
             <OrdersTab orgId={orgId} />
           )}
-          {activeTab === "receiving" && orgId && (
-            <ReceivingTab orgId={orgId} />
-          )}
           {activeTab === "packing" && orgId && (
             <PackingTab orgId={orgId} />
           )}
