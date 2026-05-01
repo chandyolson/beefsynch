@@ -44,6 +44,7 @@ const OperationsDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
+  const [inventoryView, setInventoryView] = useState<"bull" | "tank">("bull");
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
     setSearchParams({ tab, ...extra }, { replace: true });
