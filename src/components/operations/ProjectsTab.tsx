@@ -36,6 +36,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bullsDialogOpen, setBullsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [subView, setSubView] = useState<"projects" | "packs">("projects");
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
   const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
