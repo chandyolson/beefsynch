@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Package, PackagePlus, ShoppingCart,
+  Package, ShoppingCart,
   Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -12,7 +12,7 @@ import HubTab from "@/components/operations/HubTab";
 import ProjectsTab from "@/components/operations/ProjectsTab";
 import InventoryTab from "@/components/inventory/InventoryTab";
 import OrdersTab from "@/components/inventory/OrdersTab";
-import PackingTab from "@/components/inventory/PackingTab";
+
 import TanksTabContent from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
 
@@ -30,8 +30,6 @@ const TABS: TabDef[] = [
   { key: "projects", label: "Projects", icon: List },
   { key: "inventory", label: "Inventory", icon: Layers },
   { key: "orders", label: "Orders", icon: ShoppingCart },
-  
-  { key: "packing", label: "Packing", icon: PackagePlus },
   { key: "customers", label: "Customers", icon: Users, href: "/customers" },
   { key: "tanks", label: "Tanks", icon: Package },
   { key: "log", label: "Log", icon: ScrollText },
@@ -96,9 +94,6 @@ const OperationsDashboard = () => {
           )}
           {activeTab === "orders" && orgId && (
             <OrdersTab orgId={orgId} />
-          )}
-          {activeTab === "packing" && orgId && (
-            <PackingTab orgId={orgId} />
           )}
           {activeTab === "tanks" && orgId && (
             <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />

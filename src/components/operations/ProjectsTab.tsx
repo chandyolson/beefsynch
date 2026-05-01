@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BreedingProject } from "@/types/project";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
+import PackingTab from "@/components/inventory/PackingTab";
+import { cn } from "@/lib/utils";
 
 interface DbProject {
   id: string;
@@ -34,6 +36,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bullsDialogOpen, setBullsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [subView, setSubView] = useState<"projects" | "packs">("projects");
 
   const [bullsByProject, setBullsByProject] = useState<Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]>>({});
   const [syncedProjectIds, setSyncedProjectIds] = useState<Set<string>>(new Set());
@@ -200,13 +203,44 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCsv}>
             <FileSpreadsheet className="h-4 w-4" /> Export CSV
           </Button>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> New Project
-          </Button>
+          {subView === "projects" && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> New Project
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSubView("projects")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subView === "projects"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          All Projects
+        </button>
+        <button
+          onClick={() => setSubView("packs")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subView === "packs"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Packs
+        </button>
+      </div>
+
+      {subView === "packs" ? (
+        <PackingTab orgId={orgId} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Projects"
           value={totalProjects}
@@ -289,6 +323,8 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
         bullsByProject={bullsByProject}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
       />
+        </>
+      )}
     </div>
   );
 };
