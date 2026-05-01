@@ -400,7 +400,8 @@ const ProjectBilling = () => {
       };
     });
     if (newSemen.length > 0) {
-      const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemen).select();
+      const newSemenForInsert = newSemen.map(({ semen_owner, ...rest }) => rest);
+      const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemenForInsert).select();
       // Re-attach semen_owner from our local data since the DB doesn't store it
       const withOwner = (inserted ?? []).map((row: any, i: number) => ({
         ...row,
