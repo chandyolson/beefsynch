@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Package, ShoppingCart,
+  ShoppingCart,
   Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import NewProjectDialog from "@/components/NewProjectDialog";
