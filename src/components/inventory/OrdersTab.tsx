@@ -18,6 +18,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
+import ReceivingTab from "@/components/inventory/ReceivingTab";
 
 type ChipFilter = "all" | "open" | "needs_invoice" | "done";
 type Tier = "open" | "needs_invoice" | "done";
@@ -50,7 +51,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const [chipFilter, setChipFilter] = useState<ChipFilter>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [subTab, setSubTab] = useState<"customer" | "inventory">("customer");
+  const [subTab, setSubTab] = useState<"customer" | "inventory" | "shipments">("customer");
   const [newOrderDefaultType, setNewOrderDefaultType] = useState<"customer" | "inventory">("customer");
   const [tier3Open, setTier3Open] = useState(false);
 
@@ -363,11 +364,13 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/planning")}>
             <ClipboardList className="h-4 w-4" /> Planning
           </Button>
-          <Button className="gap-2" onClick={() => {
-            setEditOrder(null);
-            setNewOrderDefaultType(subTab);
-            setDialogOpen(true);
-          }}><Plus className="h-4 w-4" /> New Order</Button>
+          {subTab !== "shipments" && (
+            <Button className="gap-2" onClick={() => {
+              setEditOrder(null);
+              setNewOrderDefaultType(subTab === "inventory" ? "inventory" : "customer");
+              setDialogOpen(true);
+            }}><Plus className="h-4 w-4" /> New Order</Button>
+          )}
         </div>
       </div>
 
@@ -396,102 +399,119 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           Inventory Orders
           <Badge variant="secondary" className="h-5 px-2 text-xs">{inventoryOrders.length}</Badge>
         </button>
+        <button
+          onClick={() => setSubTab("shipments")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subTab === "shipments"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Shipments
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Orders" value={totalOrders} delay={0} index={0} icon={ShoppingCart} />
-        <StatCard title="Total Units" value={totalUnits} delay={100} index={1} icon={Package} />
-        <StatCard title="Pending / Open" value={pendingCount} delay={200} index={2} icon={Clock} />
-        <StatCard title="Unbilled" value={unbilledCount} delay={300} index={3} icon={DollarSign} />
-      </div>
-
-      {/* Filter chips (replaces fulfillment + billing dropdowns) */}
-      <div className="flex flex-wrap gap-2 items-center">
-        {([
-          { key: "all", label: "All" },
-          { key: "open", label: "Open" },
-          { key: "needs_invoice", label: "Needs Invoice" },
-          { key: "done", label: "Completed" },
-        ] as { key: ChipFilter; label: string }[]).map(chip => (
-          <button
-            key={chip.key}
-            onClick={() => setChipFilter(chip.key)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-              chipFilter === chip.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
-            )}
-          >
-            {chip.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Search + date range */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[200px] max-w-xs relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search customer..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn("gap-2 text-sm", !dateFrom && "text-muted-foreground")}><CalendarIcon className="h-4 w-4" />{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} className="p-3 pointer-events-auto" /></PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={cn("gap-2 text-sm", !dateTo && "text-muted-foreground")}><CalendarIcon className="h-4 w-4" />{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} className="p-3 pointer-events-auto" /></PopoverContent>
-        </Popover>
-        {(search || chipFilter !== "all" || dateFrom || dateTo) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setChipFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>Clear</Button>
-        )}
-      </div>
-
-      {noResults && !isLoading ? (
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <EmptyState
-            icon={ShoppingCart}
-            title={scopedOrders.length === 0
-              ? subTab === "customer" ? "No customer orders" : "No inventory orders"
-              : "No results"}
-            description={scopedOrders.length === 0
-              ? subTab === "customer"
-                ? "No customer orders to display yet."
-                : "No inventory orders to display yet."
-              : "No orders match your filters. Try adjusting your filters."}
-            action={scopedOrders.length === 0
-              ? { label: "Create Order", onClick: () => {
-                  setEditOrder(null);
-                  setNewOrderDefaultType(subTab);
-                  setDialogOpen(true);
-                } }
-              : undefined}
-          />
-        </div>
-      ) : showTiers ? (
-        <div className="space-y-4">
-          <TierSection title="Open Orders" rows={grouped.tier1} defaultOpen collapsible={false} />
-          <TierSection title="Needs Invoice" rows={grouped.tier2} defaultOpen collapsible={false} />
-          <TierSection title="Completed" rows={tier3Rows} defaultOpen={false} collapsible />
-        </div>
+      {subTab === "shipments" ? (
+        <ReceivingTab orgId={orgId} />
       ) : (
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <div className="divide-y divide-border">
-            {flatList.map(renderCard)}
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard title="Total Orders" value={totalOrders} delay={0} index={0} icon={ShoppingCart} />
+            <StatCard title="Total Units" value={totalUnits} delay={100} index={1} icon={Package} />
+            <StatCard title="Pending / Open" value={pendingCount} delay={200} index={2} icon={Clock} />
+            <StatCard title="Unbilled" value={unbilledCount} delay={300} index={3} icon={DollarSign} />
           </div>
-        </div>
-      )}
 
-      <NewOrderDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editData={editOrder}
-        initialOrderType={newOrderDefaultType}
-      />
+          {/* Filter chips (replaces fulfillment + billing dropdowns) */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {([
+              { key: "all", label: "All" },
+              { key: "open", label: "Open" },
+              { key: "needs_invoice", label: "Needs Invoice" },
+              { key: "done", label: "Completed" },
+            ] as { key: ChipFilter; label: string }[]).map(chip => (
+              <button
+                key={chip.key}
+                onClick={() => setChipFilter(chip.key)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  chipFilter === chip.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+                )}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search + date range */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px] max-w-xs relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search customer..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("gap-2 text-sm", !dateFrom && "text-muted-foreground")}><CalendarIcon className="h-4 w-4" />{dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("gap-2 text-sm", !dateTo && "text-muted-foreground")}><CalendarIcon className="h-4 w-4" />{dateTo ? format(dateTo, "MMM d, yyyy") : "To"}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} className="p-3 pointer-events-auto" /></PopoverContent>
+            </Popover>
+            {(search || chipFilter !== "all" || dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setChipFilter("all"); setDateFrom(undefined); setDateTo(undefined); }}>Clear</Button>
+            )}
+          </div>
+
+          {noResults && !isLoading ? (
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <EmptyState
+                icon={ShoppingCart}
+                title={scopedOrders.length === 0
+                  ? subTab === "customer" ? "No customer orders" : "No inventory orders"
+                  : "No results"}
+                description={scopedOrders.length === 0
+                  ? subTab === "customer"
+                    ? "No customer orders to display yet."
+                    : "No inventory orders to display yet."
+                  : "No orders match your filters. Try adjusting your filters."}
+                action={scopedOrders.length === 0
+                  ? { label: "Create Order", onClick: () => {
+                      setEditOrder(null);
+                      setNewOrderDefaultType(subTab === "inventory" ? "inventory" : "customer");
+                      setDialogOpen(true);
+                    } }
+                  : undefined}
+              />
+            </div>
+          ) : showTiers ? (
+            <div className="space-y-4">
+              <TierSection title="Open Orders" rows={grouped.tier1} defaultOpen collapsible={false} />
+              <TierSection title="Needs Invoice" rows={grouped.tier2} defaultOpen collapsible={false} />
+              <TierSection title="Completed" rows={tier3Rows} defaultOpen={false} collapsible />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <div className="divide-y divide-border">
+                {flatList.map(renderCard)}
+              </div>
+            </div>
+          )}
+
+          <NewOrderDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            editData={editOrder}
+            initialOrderType={newOrderDefaultType}
+          />
+        </>
+      )}
     </div>
   );
 };
