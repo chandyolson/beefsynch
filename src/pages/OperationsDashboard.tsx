@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Package, PackagePlus, ShoppingCart,
+  Package, ShoppingCart,
   Layers, ScrollText, List, Users, LayoutDashboard,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
