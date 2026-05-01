@@ -332,7 +332,7 @@ const ReInventory = () => {
               </>
             ) : (
               <BreadcrumbItem>
-                <BreadcrumbLink onClick={() => navigate("/tanks")} className="cursor-pointer">Tanks</BreadcrumbLink>
+                <BreadcrumbLink onClick={() => navigate("/operations?tab=tanks")} className="cursor-pointer">Tanks</BreadcrumbLink>
               </BreadcrumbItem>
             )}
             <BreadcrumbSeparator />

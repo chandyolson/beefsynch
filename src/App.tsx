@@ -21,12 +21,9 @@ const SemenOrderDetail = lazy(() => import("./pages/SemenOrderDetail"));
 const Customers = lazy(() => import("./pages/Customers"));
 const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
 const Companies = lazy(() => import("./pages/Companies"));
-const Tanks = lazy(() => import("./pages/Tanks"));
 const ReInventory = lazy(() => import("./pages/ReInventory"));
 const TankDetail = lazy(() => import("./pages/TankDetail"));
 const TankFills = lazy(() => import("./pages/TankFills"));
-const TanksOut = lazy(() => import("./pages/TanksOut"));
-const SemenInventory = lazy(() => import("./pages/SemenInventory"));
 const ReceiveShipment = lazy(() => import("./pages/ReceiveShipment"));
 const ReceiveShipmentPreview = lazy(() => import("./pages/ReceiveShipmentPreview"));
 const OperationsDashboard = lazy(() => import("./pages/OperationsDashboard"));
@@ -110,12 +107,12 @@ const App = () => (
                 <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
                 <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetail /></ProtectedRoute>} />
                 <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
-                <Route path="/tanks" element={<ProtectedRoute><Tanks /></ProtectedRoute>} />
+                <Route path="/tanks" element={<Navigate to="/operations?tab=tanks" replace />} />
                 <Route path="/tanks/:id" element={<ProtectedRoute><TankDetail /></ProtectedRoute>} />
                 <Route path="/tanks/:tankId/reinventory" element={<ProtectedRoute><ReInventory /></ProtectedRoute>} />
                 <Route path="/tank-fills" element={<ProtectedRoute><TankFills /></ProtectedRoute>} />
-                <Route path="/tanks-out" element={<ProtectedRoute><TanksOut /></ProtectedRoute>} />
-                <Route path="/semen-inventory" element={<ProtectedRoute><SemenInventory /></ProtectedRoute>} />
+                <Route path="/tanks-out" element={<Navigate to="/operations?tab=tanks" replace />} />
+                <Route path="/semen-inventory" element={<Navigate to="/operations?tab=inventory" replace />} />
                 <Route path="/receive-shipment" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
                 <Route path="/receive-shipment/preview/:id" element={<ProtectedRoute><ReceiveShipmentPreview /></ProtectedRoute>} />
                 <Route path="/receive-shipment/:id" element={<ProtectedRoute><ReceiveShipment /></ProtectedRoute>} />
