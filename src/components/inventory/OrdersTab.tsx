@@ -408,9 +408,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       <div className="flex flex-wrap gap-2 items-center">
         {([
           { key: "all", label: "All" },
-          { key: "pending", label: "Pending" },
-          { key: "fulfilled", label: "Fulfilled" },
-          { key: "invoiced", label: "Invoiced" },
+          { key: "open", label: "Open" },
+          { key: "needs_invoice", label: "Needs Invoice" },
+          { key: "done", label: "Completed" },
         ] as { key: ChipFilter; label: string }[]).map(chip => (
           <button
             key={chip.key}
