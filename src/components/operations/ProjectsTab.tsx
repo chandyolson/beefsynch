@@ -211,7 +211,36 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSubView("projects")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subView === "projects"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          All Projects
+        </button>
+        <button
+          onClick={() => setSubView("packs")}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+            subView === "packs"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+          )}
+        >
+          Packs
+        </button>
+      </div>
+
+      {subView === "packs" ? (
+        <PackingTab orgId={orgId} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Projects"
           value={totalProjects}
