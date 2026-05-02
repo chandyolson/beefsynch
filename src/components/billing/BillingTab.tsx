@@ -69,25 +69,17 @@ export default function BillingTab({
                       className={`flex items-center justify-between py-2 border-b border-border/50 text-sm ${
                         isInvoiced ? "text-muted-foreground" : ""}`}>
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className={`truncate ${isInvoiced ? "" : "text-foreground"}`}>
+                        {!readOnly && (
+                          <Checkbox
+                            checked={isInvoiced}
+                            onCheckedChange={() => onToggleProductInvoiced(idx)}
+                            className="shrink-0"
+                          />
+                        )}
+                        <span className={`truncate ${isInvoiced ? "line-through" : "text-foreground"}`}>
                           {line.product_name}
                           {line.protocol_event_label ? ` — ${line.protocol_event_label}` : ""}
                         </span>
-                        {isInvoiced && !editing && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 whitespace-nowrap font-medium">
-                            Previously invoiced
-                          </span>
-                        )}
-                        {editing && (
-                          <button type="button"
-                            className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap font-medium ${
-                              isInvoiced
-                                ? "bg-amber-500/15 text-amber-600"
-                                : "bg-muted text-muted-foreground border border-dashed border-border"}`}
-                            onClick={() => onToggleProductInvoiced(idx)}>
-                            {isInvoiced ? "Invoiced" : "Mark invoiced"}
-                          </button>
-                        )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         {editing ? (
