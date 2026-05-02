@@ -558,7 +558,10 @@ const ProjectBilling = () => {
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    // Only auto-calculate billable if the update did NOT explicitly set units_billable
+    if (!('units_billable' in updates)) {
+      line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    }
     line.line_total = (line.units_billable ?? 0) * (line.unit_price ?? 0);
     const newLines = [...semenLines];
     newLines[idx] = line;
