@@ -992,6 +992,32 @@ const ProjectBilling = () => {
             />
           )}
         </fieldset>
+
+        {/* ── Status action bar ── */}
+        {!readOnly && (
+          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border py-4 -mx-4 px-4 mt-6">
+            {currentStatus === "in_process" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                onClick={() => saveBillingField("status", "work_complete")}>
+                Mark Work Complete
+              </Button>
+            )}
+            {currentStatus === "work_complete" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                disabled={!allInvoiced}
+                onClick={() => saveBillingField("status", "invoiced_closed")}>
+                {allInvoiced ? "Mark Invoiced & Closed" : "Invoice all lines first"}
+              </Button>
+            )}
+          </div>
+        )}
+        {readOnly && currentStatus === "invoiced_closed" && (
+          <div className="text-center py-6">
+            <span className="inline-flex items-center gap-2 text-emerald-600 font-semibold text-lg">
+              ✓ Invoiced &amp; Closed
+            </span>
+          </div>
+        )}
       </main>
 
       {/* Save confirmation toast */}
