@@ -133,7 +133,7 @@ const OperationsDashboard = () => {
                 <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
               )}
               {inventoryView === "tank" && (
-                <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
+                <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} companyOnly />
               )}
               {inventoryView === "planning" && (
                 <Planning embedded />
