@@ -122,8 +122,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               <DropdownMenuItem onClick={() => go("/calendar")} className="cursor-pointer gap-2">
                 <CalendarDays className="h-4 w-4" /> Calendar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => go("/bull-report")} className="cursor-pointer gap-2">
-                <BarChart3 className="h-4 w-4" /> Bull Report
+              <DropdownMenuItem onClick={() => go("/operations?tab=inventory")} className="cursor-pointer gap-2">
+                <BarChart3 className="h-4 w-4" /> Planning
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => go("/chat")} className="cursor-pointer gap-2">
                 <MessageSquare className="h-4 w-4" /> Bull Chat
@@ -208,8 +208,8 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
           <button onClick={() => go("/calendar")} className={navBtnClass}>
             <CalendarDays className="h-4 w-4" /> Calendar
           </button>
-          <button onClick={() => go("/bull-report")} className={navBtnClass}>
-            <BarChart3 className="h-4 w-4" /> Bull Report
+          <button onClick={() => go("/operations?tab=inventory")} className={navBtnClass}>
+            <BarChart3 className="h-4 w-4" /> Planning
           </button>
           <button onClick={() => go("/chat")} className={navBtnClass}>
             <MessageSquare className="h-4 w-4" /> Bull Chat

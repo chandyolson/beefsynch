@@ -16,6 +16,7 @@ import OrdersTab from "@/components/inventory/OrdersTab";
 
 import TanksTabContent, { CustomersTab } from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
+import Planning from "@/pages/Planning";
 
 import { useOrgRole } from "@/hooks/useOrgRole";
 
