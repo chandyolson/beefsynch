@@ -342,7 +342,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
 /* ═══════════════════════════════════════════════════
    TAB 2 — TANKS
    ═══════════════════════════════════════════════════ */
-const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null }) => {
+const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgName: string | null; companyOnly?: boolean }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -413,6 +413,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   const unitSumMap = useMemo(() => { const map = new Map<string, number>(); for (const inv of inventory) { map.set(inv.tank_id, (map.get(inv.tank_id) || 0) + (inv.units || 0)); } return map; }, [inventory]);
 
   const enriched = useMemo(() => tanks.map((t: any) => ({ ...t, customerName: t.customers?.name || null, lastFill: lastFillMap.get(t.id) || null, totalUnits: unitSumMap.get(t.id) || 0 })), [tanks, lastFillMap, unitSumMap]);
+  const baseTanks = useMemo(() => companyOnly ? enriched.filter((t: any) => !t.customer_id) : enriched, [enriched, companyOnly]);
 
   const toggleSort = (key: string) => {
     if (sortKey === key) { setSortDir((d) => (d === "asc" ? "desc" : "asc")); }
@@ -420,7 +421,7 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
   };
 
   const filtered = useMemo(() => {
-    let list = enriched;
+    let list = baseTanks;
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
     if (statusFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === statusFilter || (statusFilter === "out" && t.location_status === "out"));
     if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => (t.tank_number || "").toLowerCase().includes(q) || (t.tank_name || "").toLowerCase().includes(q) || (t.customerName || "").toLowerCase().includes(q)); }
@@ -441,12 +442,12 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
       return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
     });
     return list;
-  }, [enriched, typeFilter, statusFilter, search, sortKey, sortDir]);
+  }, [baseTanks, typeFilter, statusFilter, search, sortKey, sortDir]);
 
-  const totalTanks = tanks.length;
-  const wetCount = tanks.filter((t: any) => t.nitrogen_status === "wet" && t.location_status === "here").length;
-  const dryCount = tanks.filter((t: any) => t.nitrogen_status === "dry" && t.location_status === "here").length;
-  const outCount = tanks.filter((t: any) => t.location_status === "out").length;
+  const totalTanks = baseTanks.length;
+  const wetCount = baseTanks.filter((t: any) => t.nitrogen_status === "wet" && t.location_status === "here").length;
+  const dryCount = baseTanks.filter((t: any) => t.nitrogen_status === "dry" && t.location_status === "here").length;
+  const outCount = baseTanks.filter((t: any) => t.location_status === "out").length;
 
   const handleSave = async () => {
     if (!tankNumber.trim() || !orgId) return;
@@ -670,16 +671,18 @@ const TanksTab = ({ orgId, orgName }: { orgId: string; orgName: string | null })
             <div className="space-y-1.5"><Label>Tank Number *</Label><Input value={tankNumber} onChange={(e) => setTankNumber(e.target.value)} placeholder="e.g. T-001" /></div>
             <div className="space-y-1.5"><Label>Tank Name</Label><Input value={tankName} onChange={(e) => setTankName(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>EID</Label><Input value={tankEid} onChange={(e) => setTankEid(e.target.value)} /></div>
-            <div className="space-y-1.5">
-              <Label>Customer</Label>
-              <Select value={tankCustomerId} onValueChange={setTankCustomerId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Company Owned</SelectItem>
-                  {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!companyOnly && (
+              <div className="space-y-1.5">
+                <Label>Customer</Label>
+                <Select value={tankCustomerId} onValueChange={setTankCustomerId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Company Owned</SelectItem>
+                    {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Tank Type</Label>
@@ -1140,7 +1143,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
    ═══════════════════════════════════════════════════ */
 type SubTabKey = "tanks" | "fills" | "out";
 
-const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: string | null; userId: string | null }) => {
+const TanksTabContent = ({ orgId, orgName, userId, companyOnly = false }: { orgId: string; orgName: string | null; userId: string | null; companyOnly?: boolean }) => {
   const [subTab, setSubTab] = useState<SubTabKey>("tanks");
 
   const subTabs: { key: SubTabKey; label: string }[] = [
@@ -1169,7 +1172,7 @@ const TanksTabContent = ({ orgId, orgName, userId }: { orgId: string; orgName: s
       </div>
 
       
-      {subTab === "tanks" && <TanksTab orgId={orgId} orgName={orgName} />}
+      {subTab === "tanks" && <TanksTab orgId={orgId} orgName={orgName} companyOnly={companyOnly} />}
       {subTab === "fills" && <FillsTab orgId={orgId} userId={userId} />}
       {subTab === "out" && <TanksOutTab orgId={orgId} userId={userId} />}
     </div>
