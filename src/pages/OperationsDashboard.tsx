@@ -16,6 +16,7 @@ import OrdersTab from "@/components/inventory/OrdersTab";
 
 import TanksTabContent, { CustomersTab } from "@/components/inventory/TanksTabContent";
 import LogTab from "@/components/inventory/LogTab";
+import Planning from "@/pages/Planning";
 
 import { useOrgRole } from "@/hooks/useOrgRole";
 
@@ -44,7 +45,7 @@ const OperationsDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
-  const [inventoryView, setInventoryView] = useState<"bull" | "tank">("bull");
+  const [inventoryView, setInventoryView] = useState<"bull" | "tank" | "planning">("bull");
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
     setSearchParams({ tab, ...extra }, { replace: true });
@@ -115,6 +116,17 @@ const OperationsDashboard = () => {
                 >
                   By Tank
                 </button>
+                <button
+                  onClick={() => setInventoryView("planning")}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                    inventoryView === "planning"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40"
+                  )}
+                >
+                  Planning
+                </button>
               </div>
 
               {inventoryView === "bull" && (
@@ -122,6 +134,9 @@ const OperationsDashboard = () => {
               )}
               {inventoryView === "tank" && (
                 <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} />
+              )}
+              {inventoryView === "planning" && (
+                <Planning embedded />
               )}
             </div>
           )}

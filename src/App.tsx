@@ -15,7 +15,7 @@ import { useOrgRole } from "./hooks/useOrgRole";
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const MasterCalendar = lazy(() => import("./pages/MasterCalendar"));
 const BullList = lazy(() => import("./pages/BullList"));
-const BullReport = lazy(() => import("./pages/BullReport"));
+
 const BullChat = lazy(() => import("./pages/BullChat"));
 const SemenOrderDetail = lazy(() => import("./pages/SemenOrderDetail"));
 const Customers = lazy(() => import("./pages/Customers"));
@@ -102,7 +102,7 @@ const App = () => (
                 <Route path="/calendar" element={<ProtectedRoute><MasterCalendar /></ProtectedRoute>} />
                 <Route path="/bulls" element={<ProtectedRoute><BullList /></ProtectedRoute>} />
                 <Route path="/semen-orders/:id" element={<ProtectedRoute><SemenOrderDetail /></ProtectedRoute>} />
-                <Route path="/bull-report" element={<ProtectedRoute><BullReport /></ProtectedRoute>} />
+                <Route path="/bull-report" element={<Navigate to="/operations?tab=inventory" replace />} />
                 <Route path="/chat" element={<ProtectedRoute><BullChat /></ProtectedRoute>} />
                 <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
                 <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetail /></ProtectedRoute>} />
