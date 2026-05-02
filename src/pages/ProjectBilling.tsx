@@ -522,13 +522,11 @@ const ProjectBilling = () => {
     const line = { ...productLines[idx], ...updates };
     const uc = calcUnits(line.doses, line.doses_per_unit);
     line.units_calculated = uc;
-    // Sync units_billed to the calculated value when:
-    //   - Brand-new line (no id) with no manual value yet, OR
-    //   - Doses just changed and units_billed is still 0 or null (i.e. was
-    //     never manually overridden — 0 came from auto-generation when doses
-    //     was empty, not from a deliberate user edit).
-    // Once a user explicitly sets units_billed to a non-zero value, it sticks.
-    if (!line.id && line.units_billed == null) {
+    // If units_billed is explicitly set (from the Qty input), keep it as-is.
+    // Otherwise auto-calculate from doses.
+    if ('units_billed' in updates) {
+      // Manual qty entry — keep it
+    } else if (!line.id && line.units_billed == null) {
       line.units_billed = uc;
     } else if ("doses" in updates && (line.units_billed == null || Number(line.units_billed) === 0)) {
       line.units_billed = uc;
@@ -904,22 +902,9 @@ const ProjectBilling = () => {
                 Invoice All
               </Button>
             )}
-            <Select value={currentStatus} onValueChange={(v) => saveBillingField("status", v)}
-              disabled={readOnly && currentStatus !== "work_complete"}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[currentStatus] || ""}`}>
-                    {STATUS_LABELS[currentStatus] || currentStatus}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {BILLING_STATUSES.map(s => {
-                  const disabled = s === "invoiced_closed" && !allInvoiced && currentStatus !== "invoiced_closed";
-                  return <SelectItem key={s} value={s} disabled={disabled}>{STATUS_LABELS[s]}</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
+              {STATUS_LABELS[currentStatus] || currentStatus}
+            </span>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
@@ -1007,6 +992,32 @@ const ProjectBilling = () => {
             />
           )}
         </fieldset>
+
+        {/* ── Status action bar ── */}
+        {!readOnly && (
+          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border py-4 -mx-4 px-4 mt-6">
+            {currentStatus === "in_process" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                onClick={() => saveBillingField("status", "work_complete")}>
+                Mark Work Complete
+              </Button>
+            )}
+            {currentStatus === "work_complete" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                disabled={!allInvoiced}
+                onClick={() => saveBillingField("status", "invoiced_closed")}>
+                {allInvoiced ? "Mark Invoiced & Closed" : "Invoice all lines first"}
+              </Button>
+            )}
+          </div>
+        )}
+        {readOnly && currentStatus === "invoiced_closed" && (
+          <div className="text-center py-6">
+            <span className="inline-flex items-center gap-2 text-emerald-600 font-semibold text-lg">
+              ✓ Invoiced &amp; Closed
+            </span>
+          </div>
+        )}
       </main>
 
       {/* Save confirmation toast */}
