@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { DirectSaleDialog } from "@/components/orders/DirectSaleDialog";
+import { FulfillOrderDialog } from "@/components/orders/FulfillOrderDialog";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { toast } from "@/hooks/use-toast";
