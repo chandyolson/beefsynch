@@ -474,7 +474,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           {actions.tanksOut > 0 && (
             <Card
               className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
-              onClick={() => onSwitchTab("packing")}
+              onClick={() => onSwitchTab("projects")}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -518,7 +518,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           {actions.pendingInventoryOrders > 0 && (
             <Card
               className="cursor-pointer border-blue-500/40 bg-blue-500/5 transition-colors hover:bg-blue-500/10"
-              onClick={() => onSwitchTab("receiving")}
+              onClick={() => onSwitchTab("orders")}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -539,7 +539,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
           <Card
             className="cursor-pointer transition-colors hover:bg-secondary/40"
-            onClick={() => onSwitchTab("tanks")}
+            onClick={() => onSwitchTab("inventory")}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
