@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, HandCoins } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { DirectSaleDialog } from "@/components/orders/DirectSaleDialog";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
@@ -367,14 +367,6 @@ const SemenOrderDetail = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex items-center gap-2">
-            {order.order_type === "customer" && (
-              <Button
-                size="sm"
-                onClick={() => navigate(`/pack-tank?packType=order&orderId=${id}`)}
-              >
-                <Package className="h-4 w-4 mr-1" /> Fill from Inventory
-              </Button>
-            )}
             <Button
               variant="outline"
               size="sm"
@@ -497,15 +489,15 @@ const SemenOrderDetail = () => {
                   />
                 )}
                 {canDirectSale && (
-                  <DirectSaleDialog
+                  <FulfillOrderDialog
                     orderId={order.id}
                     customerName={customerName}
                     organizationId={orgId!}
                     lines={directSaleLines}
                     trigger={
                       <Button size="sm" variant="outline">
-                        <HandCoins className="h-4 w-4 mr-2" />
-                        Record Direct Sale
+                        <Package className="h-4 w-4 mr-2" />
+                        Fulfill Order
                       </Button>
                     }
                     onSuccess={() => load()}
