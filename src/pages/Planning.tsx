@@ -51,7 +51,7 @@ interface PlanningRow {
   status: "short" | "incoming" | "ok";
 }
 
-export default function Planning() {
+export default function Planning({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<PlanningRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,7 @@ export default function Planning() {
     projects: { id: string; name: string; breedingDate: string | null; status: string; units: number }[];
     customerOrders: { orderId: string; customerName: string; units: number; orderDate: string | null; status: string }[];
     inventoryOrders: { orderId: string; units: number; orderDate: string | null; status: string }[];
+    locations: { tank: string; canister: string; units: number; owner: string }[];
   } | null>(null);
 
   async function loadBullDetail(bullCatalogId: string) {
@@ -117,7 +118,22 @@ export default function Planning() {
         status: item.semen_orders.fulfillment_status,
       }));
 
-    setDetailData({ projects, customerOrders, inventoryOrders });
+    // On-hand locations (which tanks hold stock for this bull)
+    const { data: locationData } = await supabase
+      .from("tank_inventory")
+      .select("units, canister, owner, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
+      .eq("bull_catalog_id", bullCatalogId)
+      .is("customer_id", null)
+      .gt("units", 0);
+
+    const locations = (locationData ?? []).map((row: any) => ({
+      tank: row.tanks?.tank_name || row.tanks?.tank_number || "—",
+      canister: row.canister || "?",
+      units: row.units,
+      owner: row.owner || "—",
+    }));
+
+    setDetailData({ projects, customerOrders, inventoryOrders, locations });
     setDetailLoading(false);
   }
 
@@ -508,6 +524,34 @@ export default function Planning() {
                     </div>
                   )}
                 </div>
+
+                {/* On Hand Locations */}
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    On Hand Locations ({detailData.locations.length})
+                  </div>
+                  {detailData.locations.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic">No units currently in inventory</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {detailData.locations.map((loc, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-3 text-sm rounded-md border border-border/30 bg-card/40 px-3 py-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-foreground truncate">{loc.tank}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">can {loc.canister}</span>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-xs">
+                            <span className="text-foreground font-medium tabular-nums">{loc.units}u</span>
+                            <span className="text-muted-foreground">{loc.owner}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             ) : null}
           </div>
@@ -541,19 +585,19 @@ export default function Planning() {
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
-      <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-6 space-y-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="gap-2 -ml-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
+  const content = (
+    <div className="space-y-6">
+        {!embedded && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="gap-2 -ml-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -746,6 +790,16 @@ export default function Planning() {
             )}
           </Card>
         )}
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--gradient-bg)" }}>
+      <Navbar />
+      <main className="flex-1 container mx-auto px-4 py-6">
+        {content}
       </main>
       <AppFooter />
     </div>
