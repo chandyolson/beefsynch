@@ -180,7 +180,15 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   // Apply search + date filters (chip filter handled separately for tier rendering)
   const baseFiltered = useMemo(() => scopedOrders.filter((o: any) => {
-    if (search && !(o.customers?.name || "").toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const customerMatch = (o.customers?.name || "").toLowerCase().includes(q);
+      const bullMatch = (o.semen_order_items || []).some((item: any) =>
+        (item.bulls_catalog?.bull_name || "").toLowerCase().includes(q) ||
+        (item.custom_bull_name || "").toLowerCase().includes(q)
+      );
+      if (!customerMatch && !bullMatch) return false;
+    }
     if (dateFrom && isBefore(parseISO(o.order_date), dateFrom)) return false;
     if (dateTo && isAfter(parseISO(o.order_date), dateTo)) return false;
     return true;
@@ -450,7 +458,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
           <div className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[200px] max-w-xs relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search customer..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search customer or bull..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Popover>
               <PopoverTrigger asChild>
