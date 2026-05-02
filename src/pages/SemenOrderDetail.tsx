@@ -527,71 +527,64 @@ const SemenOrderDetail = () => {
           })()}
         </div>
 
-        {/* Details card */}
+        {/* Details card — compact inline labels */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Order Details</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Customer</span>
-              <p className="font-medium">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Customer</span>
+              <span className="font-medium truncate">
                 {order.customer_id ? (
                   <Link to={`/customers/${order.customer_id}`} className="text-primary hover:underline">
                     {customerName}
                   </Link>
                 ) : customerName}
-              </p>
+              </span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Phone</span>
-              <p className="font-medium">{order.customers?.phone || "—"}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Phone</span>
+              <span className="font-medium">{order.customers?.phone || "—"}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Email</span>
-              <p className="font-medium">{order.customers?.email || "—"}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Email</span>
+              <span className="font-medium truncate">{order.customers?.email || "—"}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Order Date</span>
-              <p className="font-medium">{format(parseISO(order.order_date), "MMMM d, yyyy")}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Order Date</span>
+              <span className="font-medium">{format(parseISO(order.order_date), "MMMM d, yyyy")}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Placed By</span>
-              <p className="font-medium">{order.placed_by || "—"}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Placed By</span>
+              <span className="font-medium">{order.placed_by || "—"}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Fulfillment Status</span>
-              <p className="font-medium capitalize">{order.fulfillment_status.replace(/_/g, " ")}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Semen Company</span>
+              <span className="font-medium">{companyName || "—"}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground">Billing Status</span>
-              <p className="font-medium capitalize">{order.billing_status}</p>
-              {order.invoice_number && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Invoice #{order.invoice_number}
-                </p>
-              )}
-            </div>
-            <div>
-              <span className="text-muted-foreground">Semen Company</span>
-              <p className="font-medium">{companyName || "—"}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Linked Project</span>
-              <p className="font-medium">
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Project</span>
+              <span className="font-medium">
                 {project ? (
                   <Link to={`/project/${project.id}`} className="text-primary hover:underline">
                     {project.name}
                   </Link>
-                ) : (
-                  "—"
-                )}
-              </p>
+                ) : "—"}
+              </span>
             </div>
-            <div className="sm:col-span-2">
-              <span className="text-muted-foreground">Notes</span>
-              <p className="font-medium whitespace-pre-wrap">{order.notes || "—"}</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Invoice</span>
+              <span className="font-medium">
+                {order.invoice_number ? `#${order.invoice_number}` : "—"}
+              </span>
             </div>
+            {order.notes && (
+              <div className="sm:col-span-2 flex items-baseline gap-2">
+                <span className="text-muted-foreground shrink-0">Notes</span>
+                <span className="font-medium whitespace-pre-wrap">{order.notes}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -607,10 +600,11 @@ const SemenOrderDetail = () => {
               <>
                 {/* Column headers */}
                 <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/40">
-                  <div className="col-span-4">Bull</div>
+                  <div className="col-span-3">Bull</div>
                   <div className="col-span-2 text-right">Ordered</div>
                   <div className="col-span-2 text-right">On Hand</div>
                   <div className="col-span-2 text-right">Packed</div>
+                  <div className="col-span-1 text-center">Billed</div>
                   <div className="col-span-2 text-right">Status</div>
                 </div>
 
@@ -675,7 +669,7 @@ const SemenOrderDetail = () => {
                       {/* Main row */}
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 px-3 py-3 items-start">
                         {/* Bull info */}
-                        <div className="col-span-4">
+                        <div className="col-span-3">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm">
                               {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
@@ -736,6 +730,18 @@ const SemenOrderDetail = () => {
                           )}
                         </div>
 
+                        {/* Billed */}
+                        <div className="col-span-1 text-center">
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Billed:</span>
+                          {order.billing_status === "invoiced" ? (
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓</span>
+                          ) : order.invoice_number ? (
+                            <span className="text-xs text-muted-foreground">#{order.invoice_number}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
+
                         {/* Status */}
                         <div className="col-span-2 text-right">
                           {isFullyFilled ? (
@@ -793,7 +799,7 @@ const SemenOrderDetail = () => {
 
                 {/* Totals row */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 px-3 py-2 bg-muted/20 rounded-lg font-semibold text-sm mt-2">
-                  <div className="col-span-4 text-right">Totals</div>
+                  <div className="col-span-3 text-right">Totals</div>
                   <div className="col-span-2 text-right">{totalUnits}</div>
                   <div className="col-span-2 text-right">
                     {availabilityLoading ? "..." : Object.values(availability).reduce((s, a) => s + a.total, 0)}
@@ -811,6 +817,7 @@ const SemenOrderDetail = () => {
                       return packed > 0 ? packed : "—";
                     })()}
                   </div>
+                  <div className="col-span-1"></div>
                   <div className="col-span-2 text-right">
                     {(() => {
                       let totalDelivered = 0;
