@@ -902,22 +902,9 @@ const ProjectBilling = () => {
                 Invoice All
               </Button>
             )}
-            <Select value={currentStatus} onValueChange={(v) => saveBillingField("status", v)}
-              disabled={readOnly && currentStatus !== "work_complete"}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[currentStatus] || ""}`}>
-                    {STATUS_LABELS[currentStatus] || currentStatus}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {BILLING_STATUSES.map(s => {
-                  const disabled = s === "invoiced_closed" && !allInvoiced && currentStatus !== "invoiced_closed";
-                  return <SelectItem key={s} value={s} disabled={disabled}>{STATUS_LABELS[s]}</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
+              {STATUS_LABELS[currentStatus] || currentStatus}
+            </span>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
