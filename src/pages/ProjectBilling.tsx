@@ -558,7 +558,10 @@ const ProjectBilling = () => {
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    // Only auto-calculate billable if the update did NOT explicitly set units_billable
+    if (!('units_billable' in updates)) {
+      line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    }
     line.line_total = (line.units_billable ?? 0) * (line.unit_price ?? 0);
     const newLines = [...semenLines];
     newLines[idx] = line;
@@ -883,6 +886,24 @@ const ProjectBilling = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!readOnly && !allInvoiced && (
+              <Button variant="outline" size="sm" className="h-9"
+                onClick={() => {
+                  productLines.forEach((l, idx) => { if (!l.invoiced) toggleProductInvoiced(idx); });
+                  semenLines.forEach((l, idx) => { if (!l.invoiced) toggleSemenInvoiced(idx); });
+                  sessions.forEach((s, idx) => {
+                    if (!s.invoiced) {
+                      const updated = { ...s, invoiced: true, invoiced_at: new Date().toISOString() };
+                      const newSessions = [...sessions];
+                      newSessions[idx] = updated;
+                      setSessions(newSessions);
+                      if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
+                    }
+                  });
+                }}>
+                Invoice All
+              </Button>
+            )}
             <Select value={currentStatus} onValueChange={(v) => saveBillingField("status", v)}
               disabled={readOnly && currentStatus !== "work_complete"}>
               <SelectTrigger className="w-[180px] h-9">

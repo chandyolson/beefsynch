@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ProductLine, SemenLine, formatCurrency } from "./billingTypes";
 
 interface BillingTabProps {
@@ -68,25 +69,17 @@ export default function BillingTab({
                       className={`flex items-center justify-between py-2 border-b border-border/50 text-sm ${
                         isInvoiced ? "text-muted-foreground" : ""}`}>
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className={`truncate ${isInvoiced ? "" : "text-foreground"}`}>
+                        {!readOnly && (
+                          <Checkbox
+                            checked={isInvoiced}
+                            onCheckedChange={() => onToggleProductInvoiced(idx)}
+                            className="shrink-0"
+                          />
+                        )}
+                        <span className={`truncate ${isInvoiced ? "line-through" : "text-foreground"}`}>
                           {line.product_name}
                           {line.protocol_event_label ? ` — ${line.protocol_event_label}` : ""}
                         </span>
-                        {isInvoiced && !editing && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 whitespace-nowrap font-medium">
-                            Previously invoiced
-                          </span>
-                        )}
-                        {editing && (
-                          <button type="button"
-                            className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap font-medium ${
-                              isInvoiced
-                                ? "bg-amber-500/15 text-amber-600"
-                                : "bg-muted text-muted-foreground border border-dashed border-border"}`}
-                            onClick={() => onToggleProductInvoiced(idx)}>
-                            {isInvoiced ? "Invoiced" : "Mark invoiced"}
-                          </button>
-                        )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         {editing ? (
@@ -133,21 +126,31 @@ export default function BillingTab({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {!readOnly && <TableHead className="w-[40px]"></TableHead>}
                       <TableHead>Bull</TableHead>
                       <TableHead className="w-[60px] text-right">Packed</TableHead>
                       <TableHead className="w-[60px] text-right">Used</TableHead>
-                      <TableHead className="w-[60px] text-right">Blown</TableHead>
-                      <TableHead className="w-[70px] text-right">Billable</TableHead>
+                      <TableHead className="w-[70px] text-right">Blown</TableHead>
+                      <TableHead className="w-[80px] text-right">Billable</TableHead>
                       <TableHead className="w-[70px] text-right">Price</TableHead>
                       <TableHead className="w-[80px] text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {semenLines.map((line, idx) => {
+                      const isInvoiced = !!line.invoiced;
                       const used = (line.units_packed ?? 0) - (line.units_returned ?? 0);
                       return (
-                        <TableRow key={line.id || idx}>
-                          <TableCell>
+                        <TableRow key={line.id || idx} className={isInvoiced ? "text-muted-foreground" : ""}>
+                          {!readOnly && (
+                            <TableCell>
+                              <Checkbox
+                                checked={isInvoiced}
+                                onCheckedChange={() => onToggleSemenInvoiced(idx)}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell className={isInvoiced ? "line-through" : ""}>
                             <span className="text-sm font-medium">{line.bull_name}</span>
                             {line.bull_code && (
                               <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>
@@ -161,10 +164,22 @@ export default function BillingTab({
                           </TableCell>
                           <TableCell className="text-right text-sm">{used || "—"}</TableCell>
                           <TableCell className="text-right text-sm">
-                            {line.units_blown ?? "—"}
+                            {readOnly ? (
+                              <span>{line.units_blown ?? "—"}</span>
+                            ) : (
+                              <Input type="number" className="h-7 w-[60px] text-right text-xs ml-auto"
+                                value={line.units_blown ?? ""} placeholder="—"
+                                onChange={(e) => onSaveSemen(idx, { units_blown: Number(e.target.value) || 0 })} />
+                            )}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.units_billable || "—"}
+                            {readOnly ? (
+                              <span>{line.units_billable || "—"}</span>
+                            ) : (
+                              <Input type="number" className="h-7 w-[70px] text-right text-xs ml-auto"
+                                value={line.units_billable ?? ""} placeholder="—"
+                                onChange={(e) => onSaveSemen(idx, { units_billable: Number(e.target.value) || 0 })} />
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <Input type="number" step="0.01" className="h-7 w-[60px] text-right text-xs ml-auto"
