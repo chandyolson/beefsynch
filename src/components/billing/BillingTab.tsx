@@ -126,21 +126,31 @@ export default function BillingTab({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {!readOnly && <TableHead className="w-[40px]"></TableHead>}
                       <TableHead>Bull</TableHead>
                       <TableHead className="w-[60px] text-right">Packed</TableHead>
                       <TableHead className="w-[60px] text-right">Used</TableHead>
-                      <TableHead className="w-[60px] text-right">Blown</TableHead>
-                      <TableHead className="w-[70px] text-right">Billable</TableHead>
+                      <TableHead className="w-[70px] text-right">Blown</TableHead>
+                      <TableHead className="w-[80px] text-right">Billable</TableHead>
                       <TableHead className="w-[70px] text-right">Price</TableHead>
                       <TableHead className="w-[80px] text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {semenLines.map((line, idx) => {
+                      const isInvoiced = !!line.invoiced;
                       const used = (line.units_packed ?? 0) - (line.units_returned ?? 0);
                       return (
-                        <TableRow key={line.id || idx}>
-                          <TableCell>
+                        <TableRow key={line.id || idx} className={isInvoiced ? "text-muted-foreground" : ""}>
+                          {!readOnly && (
+                            <TableCell>
+                              <Checkbox
+                                checked={isInvoiced}
+                                onCheckedChange={() => onToggleSemenInvoiced(idx)}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell className={isInvoiced ? "line-through" : ""}>
                             <span className="text-sm font-medium">{line.bull_name}</span>
                             {line.bull_code && (
                               <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>
@@ -154,10 +164,22 @@ export default function BillingTab({
                           </TableCell>
                           <TableCell className="text-right text-sm">{used || "—"}</TableCell>
                           <TableCell className="text-right text-sm">
-                            {line.units_blown ?? "—"}
+                            {readOnly ? (
+                              <span>{line.units_blown ?? "—"}</span>
+                            ) : (
+                              <Input type="number" className="h-7 w-[60px] text-right text-xs ml-auto"
+                                value={line.units_blown ?? ""} placeholder="—"
+                                onChange={(e) => onSaveSemen(idx, { units_blown: Number(e.target.value) || 0 })} />
+                            )}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium">
-                            {line.units_billable || "—"}
+                            {readOnly ? (
+                              <span>{line.units_billable || "—"}</span>
+                            ) : (
+                              <Input type="number" className="h-7 w-[70px] text-right text-xs ml-auto"
+                                value={line.units_billable ?? ""} placeholder="—"
+                                onChange={(e) => onSaveSemen(idx, { units_billable: Number(e.target.value) || 0 })} />
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <Input type="number" step="0.01" className="h-7 w-[60px] text-right text-xs ml-auto"
