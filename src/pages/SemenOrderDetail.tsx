@@ -595,98 +595,244 @@ const SemenOrderDetail = () => {
           </CardContent>
         </Card>
 
-        {/* Bulls & Units card */}
+        {/* Bull Summary — unified lifecycle view */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Bulls & Units</CardTitle>
+            <CardTitle className="text-lg">Bull Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-border/50 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead>Bull Name</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Reg #</TableHead>
-                    <TableHead>In Inventory</TableHead>
-                    <TableHead className="text-right">Units</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No bulls added to this order.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {items.map((item) => {
-                        const avail = availability[item.id];
-                        const availTotal = avail?.total ?? 0;
-                        const ordered = item.units ?? 0;
-                        const hasEnough = availTotal >= ordered;
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">
-                              <span className="inline-flex items-center gap-1">
-                                <span>{item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}{item.bulls_catalog?.naab_code ? ` (${item.bulls_catalog.naab_code})` : ""}</span>
-                                {item.bull_catalog_id && (
-                                  <button onClick={(e) => { e.stopPropagation(); setEditBullId(item.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </span>
-                            </TableCell>
-                            <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
-                            <TableCell>
-                              {item.bulls_catalog?.registration_number ? (
-                                <ClickableRegNumber
-                                  registrationNumber={item.bulls_catalog.registration_number}
-                                  breed={item.bulls_catalog.breed}
-                                />
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {availabilityLoading ? (
-                                <span className="text-xs text-muted-foreground">Loading...</span>
-                              ) : availTotal === 0 ? (
-                                <span className="text-xs font-medium text-destructive">0u — order from stud</span>
-                              ) : (
-                                <div className="space-y-1">
-                                  <div
-                                    className={cn(
-                                      "text-xs font-semibold",
-                                      hasEnough ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400",
-                                    )}
-                                  >
-                                    {availTotal}u available{!hasEnough && ` (need ${ordered - availTotal} more)`}
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    {avail!.locations.map((loc, idx) => (
-                                      <div key={idx} className="text-[11px] text-muted-foreground">
-                                        {loc.tank} / can {loc.canister} — {loc.units}u ({loc.owner})
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">{item.units}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      <TableRow className="bg-muted/20 font-bold">
-                        <TableCell colSpan={4} className="text-right">Total</TableCell>
-                        <TableCell className="text-right">{totalUnits}</TableCell>
-                      </TableRow>
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="space-y-1">
+            {items.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No bulls added to this order.</p>
+            ) : (
+              <>
+                {/* Column headers */}
+                <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border/40">
+                  <div className="col-span-4">Bull</div>
+                  <div className="col-span-2 text-right">Ordered</div>
+                  <div className="col-span-2 text-right">On Hand</div>
+                  <div className="col-span-2 text-right">Packed</div>
+                  <div className="col-span-2 text-right">Status</div>
+                </div>
+
+                {items.map((item) => {
+                  const avail = availability[item.id];
+                  const availTotal = avail?.total ?? 0;
+                  const ordered = item.units ?? 0;
+
+                  // Compute packed & used for this bull across all linked packs
+                  const bullKey = item.bull_catalog_id || item.custom_bull_name || "";
+                  let totalPacked = 0;
+                  let totalReturned = 0;
+                  const packDetails: Array<{
+                    tankName: string;
+                    sourceTank: string;
+                    fieldCanister: string;
+                    packed: number;
+                    returned: number;
+                    used: number;
+                    packedAt: string;
+                    status: string;
+                  }> = [];
+
+                  for (const link of (packData || [])) {
+                    const pack = link.tank_packs;
+                    if (!pack) continue;
+                    const fieldTank = pack.tanks;
+                    const returnMap = unpackReturnsByBull(pack.tank_unpack_lines || []);
+
+                    for (const line of (pack.tank_pack_lines || [])) {
+                      const lineKey = line.bull_catalog_id || line.bull_name || "";
+                      if (lineKey !== bullKey) continue;
+
+                      const linePacked = line.units || 0;
+                      const lineReturned = returnMap.get(lineKey) || 0;
+                      const lineUsed = Math.max(0, linePacked - lineReturned);
+
+                      totalPacked += linePacked;
+                      totalReturned += lineReturned;
+
+                      const srcTank = line.tanks;
+                      packDetails.push({
+                        tankName: fieldTank ? `${fieldTank.tank_number}${fieldTank.tank_name ? ` — ${fieldTank.tank_name}` : ""}` : "Unknown",
+                        sourceTank: srcTank ? `${srcTank.tank_number}${srcTank.tank_name ? ` — ${srcTank.tank_name}` : ""}` : "—",
+                        fieldCanister: line.field_canister || "—",
+                        packed: linePacked,
+                        returned: lineReturned,
+                        used: lineUsed,
+                        packedAt: pack.packed_at ? format(new Date(pack.packed_at), "MMM d, yyyy") : "",
+                        status: pack.status || "",
+                      });
+                    }
+                  }
+
+                  const totalUsed = totalPacked - totalReturned;
+                  const delivered = totalPacked > 0 ? totalUsed : 0;
+                  const outstanding = Math.max(0, ordered - delivered);
+                  const isFullyFilled = outstanding === 0 && ordered > 0;
+
+                  return (
+                    <div key={item.id} className="rounded-lg border border-border/30 bg-card/30">
+                      {/* Main row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 px-3 py-3 items-start">
+                        {/* Bull info */}
+                        <div className="col-span-4">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-sm">
+                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
+                            </span>
+                            {item.bull_catalog_id && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditBullId(item.bull_catalog_id); }}
+                                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                                title="Edit bull info"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                          {item.bulls_catalog?.naab_code && (
+                            <div className="text-xs text-muted-foreground">{item.bulls_catalog.naab_code}</div>
+                          )}
+                          {item.bulls_catalog?.company && (
+                            <div className="text-xs text-muted-foreground">{item.bulls_catalog.company}</div>
+                          )}
+                          {item.bulls_catalog?.registration_number && (
+                            <div className="text-xs">
+                              <ClickableRegNumber
+                                registrationNumber={item.bulls_catalog.registration_number}
+                                breed={item.bulls_catalog.breed}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ordered */}
+                        <div className="col-span-2 text-right">
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Ordered:</span>
+                          <span className="font-medium">{ordered}</span>
+                        </div>
+
+                        {/* On Hand */}
+                        <div className="col-span-2 text-right">
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">On Hand:</span>
+                          {availabilityLoading ? (
+                            <span className="text-xs text-muted-foreground">...</span>
+                          ) : (
+                            <span className={cn(
+                              "font-medium",
+                              availTotal === 0 ? "text-destructive" : availTotal >= ordered ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                            )}>
+                              {availTotal}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Packed */}
+                        <div className="col-span-2 text-right">
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Packed:</span>
+                          <span className="font-medium">{totalPacked > 0 ? totalPacked : "—"}</span>
+                          {totalReturned > 0 && (
+                            <div className="text-xs text-muted-foreground">({totalReturned} returned)</div>
+                          )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="col-span-2 text-right">
+                          {isFullyFilled ? (
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓ Filled</span>
+                          ) : outstanding > 0 && totalPacked > 0 ? (
+                            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{outstanding} outstanding</span>
+                          ) : availTotal === 0 && totalPacked === 0 ? (
+                            <span className="text-xs font-medium text-destructive">Not in stock</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* On-hand location details (expandable) */}
+                      {!availabilityLoading && avail && avail.locations.length > 0 && (
+                        <details className="px-3 pb-2">
+                          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                            {avail.locations.length} location{avail.locations.length !== 1 ? "s" : ""} in inventory
+                          </summary>
+                          <div className="mt-1 ml-2 space-y-0.5">
+                            {avail.locations.map((loc, idx) => (
+                              <div key={idx} className="text-[11px] text-muted-foreground">
+                                {loc.tank} / can {loc.canister} — {loc.units}u ({loc.owner})
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+
+                      {/* Pack details (expandable) */}
+                      {packDetails.length > 0 && (
+                        <details className="px-3 pb-2">
+                          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                            {packDetails.length} pack record{packDetails.length !== 1 ? "s" : ""}
+                          </summary>
+                          <div className="mt-1 ml-2 space-y-1">
+                            {packDetails.map((pd, idx) => (
+                              <div key={idx} className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3">
+                                <span>→ {pd.tankName}</span>
+                                <span>from {pd.sourceTank}</span>
+                                <span>can {pd.fieldCanister}</span>
+                                <span className="font-medium text-foreground">{pd.packed}u packed</span>
+                                {pd.returned > 0 && <span>{pd.returned}u returned · {pd.used}u used</span>}
+                                <span>{pd.packedAt}</span>
+                                <Badge variant="outline" className="text-[10px] capitalize h-4">{pd.status}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Totals row */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 px-3 py-2 bg-muted/20 rounded-lg font-semibold text-sm mt-2">
+                  <div className="col-span-4 text-right">Totals</div>
+                  <div className="col-span-2 text-right">{totalUnits}</div>
+                  <div className="col-span-2 text-right">
+                    {availabilityLoading ? "..." : Object.values(availability).reduce((s, a) => s + a.total, 0)}
+                  </div>
+                  <div className="col-span-2 text-right">
+                    {(() => {
+                      let packed = 0;
+                      for (const link of (packData || [])) {
+                        const pack = link.tank_packs;
+                        if (!pack) continue;
+                        for (const line of (pack.tank_pack_lines || [])) {
+                          packed += line.units || 0;
+                        }
+                      }
+                      return packed > 0 ? packed : "—";
+                    })()}
+                  </div>
+                  <div className="col-span-2 text-right">
+                    {(() => {
+                      let totalDelivered = 0;
+                      for (const link of (packData || [])) {
+                        const pack = link.tank_packs;
+                        if (!pack) continue;
+                        const returnMap = unpackReturnsByBull(pack.tank_unpack_lines || []);
+                        for (const line of (pack.tank_pack_lines || [])) {
+                          const k = line.bull_catalog_id || line.bull_name || "";
+                          const ret = returnMap.get(k) || 0;
+                          totalDelivered += Math.max(0, (line.units || 0) - ret);
+                        }
+                      }
+                      const outstanding = Math.max(0, totalUnits - totalDelivered);
+                      if (outstanding === 0 && totalUnits > 0) return <span className="text-emerald-600 dark:text-emerald-400">✓ All filled</span>;
+                      if (outstanding > 0 && totalDelivered > 0) return <span className="text-amber-600 dark:text-amber-400">{outstanding} outstanding</span>;
+                      return "—";
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
