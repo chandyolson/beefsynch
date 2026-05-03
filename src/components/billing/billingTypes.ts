@@ -35,6 +35,7 @@ export interface ProductLine {
   invoiced?: boolean;
   invoiced_at?: string | null;
   session_id?: string | null;
+  delivery_method?: string | null;
 }
 
 export interface SessionLine {
