@@ -1024,6 +1024,7 @@ const ProjectBilling = () => {
             onAddLabor={addLaborLine}
             onDeleteLabor={deleteLaborLine}
             onAddProduct={addAdditionalProduct}
+            availableProducts={billingProducts}
             onDeleteProduct={deleteAdditionalProductLine}
             onCloseOut={closeOutProject}
             currentStatus={currentStatus}
