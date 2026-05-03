@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { ProductLine, SemenLine, LaborLine, formatCurrency } from "./billingTypes";
 
 const DELIVERY_OPTIONS = [
@@ -34,10 +36,11 @@ interface BillingTabProps {
   onSaveLabor: (idx: number, updates: Partial<LaborLine>) => void;
   onAddLabor: () => void;
   onDeleteLabor: (idx: number) => void;
-  onAddProduct: () => void;
+  onAddProduct: (catalogProduct?: any) => void;
   onDeleteProduct: (idx: number) => void;
   onCloseOut: () => void;
   currentStatus: string;
+  availableProducts: any[];
 }
 
 export default function BillingTab({
@@ -45,8 +48,36 @@ export default function BillingTab({
   onSaveProduct, onSaveSemen, onSaveBillingField,
   onSaveLabor, onAddLabor, onDeleteLabor,
   onAddProduct, onDeleteProduct,
-  onCloseOut, currentStatus,
+  onCloseOut, currentStatus, availableProducts,
 }: BillingTabProps) {
+  const [productPickerOpen, setProductPickerOpen] = React.useState(false);
+
+  const productsByCategory = React.useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    for (const p of availableProducts || []) {
+      const cat = p.product_category || "other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(p);
+    }
+    return groups;
+  }, [availableProducts]);
+
+  const categoryLabels: Record<string, string> = {
+    gnrh: "GnRH",
+    pgf: "PGF",
+    cidr: "CIDR",
+    patch: "Patches",
+    supply: "Supplies",
+    service: "Services",
+    breeding_supply: "Breeding Supplies",
+    sheath: "Sheaths",
+    glove: "Gloves",
+    gun_warmer: "Gun Warmers",
+    ai_gun: "AI Guns",
+    heat_detection: "Heat Detection",
+    nutritional: "Nutritional",
+    other: "Other",
+  };
   const protocolLines = productLines
     .map((line, idx) => ({ line, idx }))
     .filter(({ line }) => !!line.protocol_event_label);
@@ -162,13 +193,59 @@ export default function BillingTab({
 
         {!readOnly && (
           <div className="pt-3">
-            <button
-              type="button"
-              onClick={onAddProduct}
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add product (fly tags, pink eye, etc.)
-            </button>
+            <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add product
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search products..." />
+                  <CommandList>
+                    <CommandEmpty>No products found.</CommandEmpty>
+                    {Object.entries(productsByCategory).map(([cat, products]) => (
+                      <CommandGroup key={cat} heading={categoryLabels[cat] || cat}>
+                        {products.map((p: any) => (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.product_name} ${cat}`}
+                            onSelect={() => {
+                              onAddProduct(p);
+                              setProductPickerOpen(false);
+                            }}
+                          >
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span className="truncate">{p.product_name}</span>
+                              {p.default_price > 0 && (
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  ${Number(p.default_price).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ))}
+                    <CommandSeparator />
+                    <CommandGroup>
+                      <CommandItem
+                        value="custom product blank"
+                        onSelect={() => {
+                          onAddProduct();
+                          setProductPickerOpen(false);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Custom product
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
