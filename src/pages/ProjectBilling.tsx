@@ -965,27 +965,6 @@ const ProjectBilling = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!readOnly && !allInvoiced && (
-              <Button variant="outline" size="sm" className="h-9"
-                onClick={() => {
-                  productLines.forEach((l, idx) => { if (!l.invoiced) toggleProductInvoiced(idx); });
-                  semenLines.forEach((l, idx) => { if (!l.invoiced) toggleSemenInvoiced(idx); });
-                  sessions.forEach((s, idx) => {
-                    if (!s.invoiced) {
-                      const updated = { ...s, invoiced: true, invoiced_at: new Date().toISOString() };
-                      const newSessions = [...sessions];
-                      newSessions[idx] = updated;
-                      setSessions(newSessions);
-                      if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
-                    }
-                  });
-                  laborLines.forEach((l, idx) => {
-                    if (!l.invoiced) saveLaborLine(idx, { invoiced: true, invoiced_at: new Date().toISOString() });
-                  });
-                }}>
-                Invoice All
-              </Button>
-            )}
             <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
               {STATUS_LABELS[currentStatus] || currentStatus}
             </span>
