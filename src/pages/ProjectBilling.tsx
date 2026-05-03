@@ -958,6 +958,9 @@ const ProjectBilling = () => {
                       if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
                     }
                   });
+                  laborLines.forEach((l, idx) => {
+                    if (!l.invoiced) saveLaborLine(idx, { invoiced: true, invoiced_at: new Date().toISOString() });
+                  });
                 }}>
                 Invoice All
               </Button>
