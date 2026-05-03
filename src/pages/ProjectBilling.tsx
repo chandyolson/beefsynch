@@ -777,6 +777,28 @@ const ProjectBilling = () => {
     saveSemenLine(idx, { invoiced: nowInvoiced, invoiced_at: nowInvoiced ? new Date().toISOString() : null });
   }
 
+  async function closeOutProject() {
+    if (!billingId) return;
+    const now = new Date().toISOString();
+    for (let i = 0; i < productLines.length; i++) {
+      if (!productLines[i].invoiced) toggleProductInvoiced(i);
+    }
+    for (let i = 0; i < semenLines.length; i++) {
+      if (!semenLines[i].invoiced) toggleSemenInvoiced(i);
+    }
+    for (const s of sessions) {
+      if (s.id && !s.invoiced) {
+        await supabase.from("project_billing_sessions").update({
+          invoiced: true, invoiced_at: now,
+        } as any).eq("id", s.id);
+      }
+    }
+    for (let i = 0; i < laborLines.length; i++) {
+      if (!laborLines[i].invoiced) saveLaborLine(i, { invoiced: true, invoiced_at: now });
+    }
+    saveBillingField("status", "invoiced_closed");
+  }
+
   /* ── Finalize inventory ── */
   async function handleFinalizeInventory() {
     if (!billingId || !orgId) return;
