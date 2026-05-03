@@ -24,6 +24,7 @@ import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { OrderShipmentReconciliation } from "@/components/inventory/OrderShipmentReconciliation";
 import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
 import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
@@ -463,7 +464,7 @@ const SemenOrderDetail = () => {
               const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
               return {
                 bull_catalog_id: it.bull_catalog_id,
-                bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown bull",
+                bull_name: getBullDisplayName(it),
                 bull_code: it.bulls_catalog?.naab_code || null,
                 ordered: it.units || 0,
                 fulfilled: fulfilledByBull.get(k) || 0,
@@ -665,7 +666,7 @@ const SemenOrderDetail = () => {
                         <div className="col-span-3">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm">
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
+                              {getBullDisplayName(item)}
                             </span>
                             {item.bull_catalog_id && (
                               <button
