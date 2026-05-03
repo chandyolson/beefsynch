@@ -36,10 +36,11 @@ interface BillingTabProps {
   onSaveLabor: (idx: number, updates: Partial<LaborLine>) => void;
   onAddLabor: () => void;
   onDeleteLabor: (idx: number) => void;
-  onAddProduct: () => void;
+  onAddProduct: (catalogProduct?: any) => void;
   onDeleteProduct: (idx: number) => void;
   onCloseOut: () => void;
   currentStatus: string;
+  availableProducts: any[];
 }
 
 export default function BillingTab({
