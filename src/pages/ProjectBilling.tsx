@@ -538,7 +538,7 @@ const ProjectBilling = () => {
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`product-${id}`, () =>
-        supabase.from("project_billing_products").update(rest).eq("id", id));
+        supabase.from("project_billing_products").update(rest as any).eq("id", id));
     }
   }
 
