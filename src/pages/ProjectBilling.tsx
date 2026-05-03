@@ -122,7 +122,7 @@ const ProjectBilling = () => {
 
   async function loadBillingChildren(bId: string) {
     const [prodRes, sessRes, semRes, invRes, laborRes] = await Promise.all([
-      supabase.from("project_billing_products").select("*, delivery_method").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
       (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
