@@ -40,6 +40,7 @@ const ProjectBilling = () => {
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
+  const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
   const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [saved, setSaved] = useState(false);
