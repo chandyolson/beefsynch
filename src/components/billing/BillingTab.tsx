@@ -48,8 +48,36 @@ export default function BillingTab({
   onSaveProduct, onSaveSemen, onSaveBillingField,
   onSaveLabor, onAddLabor, onDeleteLabor,
   onAddProduct, onDeleteProduct,
-  onCloseOut, currentStatus,
+  onCloseOut, currentStatus, availableProducts,
 }: BillingTabProps) {
+  const [productPickerOpen, setProductPickerOpen] = React.useState(false);
+
+  const productsByCategory = React.useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    for (const p of availableProducts || []) {
+      const cat = p.product_category || "other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(p);
+    }
+    return groups;
+  }, [availableProducts]);
+
+  const categoryLabels: Record<string, string> = {
+    gnrh: "GnRH",
+    pgf: "PGF",
+    cidr: "CIDR",
+    patch: "Patches",
+    supply: "Supplies",
+    service: "Services",
+    breeding_supply: "Breeding Supplies",
+    sheath: "Sheaths",
+    glove: "Gloves",
+    gun_warmer: "Gun Warmers",
+    ai_gun: "AI Guns",
+    heat_detection: "Heat Detection",
+    nutritional: "Nutritional",
+    other: "Other",
+  };
   const protocolLines = productLines
     .map((line, idx) => ({ line, idx }))
     .filter(({ line }) => !!line.protocol_event_label);
