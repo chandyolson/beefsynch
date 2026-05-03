@@ -269,7 +269,7 @@ const ReInventory = () => {
         changes,
       };
 
-      const { error } = await (supabase as any).rpc("save_reinventory", { _input: payload });
+      const { error } = await supabase.rpc("save_reinventory", { _input: payload });
 
       if (error) {
         const msg = error.message || "";

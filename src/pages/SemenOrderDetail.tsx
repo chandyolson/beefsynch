@@ -162,7 +162,7 @@ const SemenOrderDetail = () => {
       setPackData(packLinks || []);
 
       // Fetch supply items for this order
-      const { data: supplyData } = await (supabase as any)
+      const { data: supplyData } = await supabase
         .from("order_supply_items")
         .select("*")
         .eq("semen_order_id", id)

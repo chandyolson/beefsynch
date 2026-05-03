@@ -230,11 +230,11 @@ const CustomerDetail = () => {
     queryKey: ["tank_inventory_all", allTankIds, id],
     enabled: allTankIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tank_inventory")
         .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number)")
         .in("tank_id", allTankIds)
-        .eq("owner_customer_id", id)
+        .eq("owner_customer_id" as any, id)
         .limit(10000);
       if (error) throw error;
       return data ?? [];
@@ -328,7 +328,7 @@ const CustomerDetail = () => {
     queryKey: ["customer_projects", id, orgId],
     enabled: !!id && !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("projects")
         .select("id, name, status, cattle_type, head_count, breeding_date, protocol, created_at")
         .eq("organization_id", orgId!)
@@ -606,7 +606,7 @@ const CustomerDetail = () => {
       return;
     }
 
-    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", custMoveTankId).select();
+    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter }).eq("id", custMoveTankId).select();
     if (error || !data || data.length === 0) {
       setCustMoveSaving(false);
       toast({ title: "Error", description: "Movement recorded but tank status update failed.", variant: "destructive" });
@@ -729,7 +729,7 @@ const CustomerDetail = () => {
               // the customer was actually billed for (not what they ordered).
               const ordersWithBillable = await Promise.all(
                 (customerOrders ?? []).map(async (o: any) => {
-                  const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+                  const { data } = await supabase.rpc("get_billable_units_for_order", { _order_id: o.id });
                   const billable_units = ((data ?? []) as any[]).map((r) => ({
                     bull_name: r.bull_name || "Unknown",
                     units: r.units || 0,

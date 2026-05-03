@@ -55,7 +55,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
       // Tanks: company-owned inventory + communal only.
       // Cast to any because the generated types.ts doesn't yet know about
       // total_canisters / canister_capacity columns (added server-side).
-      const { data: tanks, error: tErr } = await (supabase as any)
+      const { data: tanks, error: tErr } = await supabase
         .from("tanks")
         .select(
           "id, tank_name, tank_number, tank_type, nitrogen_status, location_status, total_canisters, canister_capacity"

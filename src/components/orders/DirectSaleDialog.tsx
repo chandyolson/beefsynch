@@ -91,7 +91,7 @@ export const DirectSaleDialog = ({
     let cancelled = false;
     (async () => {
       setTanksLoading(true);
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tanks")
         .select("id, tank_number, tank_name")
         .eq("organization_id", organizationId)
@@ -178,7 +178,7 @@ export const DirectSaleDialog = ({
     setSubmitting(true);
     try {
       for (const p of payloads) {
-        const { error } = await (supabase as any).rpc("record_direct_sale", {
+        const { error } = await supabase.rpc("record_direct_sale", {
           _input: {
             order_id: orderId,
             source_tank_id: p.tankId,

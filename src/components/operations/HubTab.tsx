@@ -167,7 +167,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const billableTotalById = new Map<string, number>();
       await Promise.all(
         (invoiceableOrders || []).map(async (o: any) => {
-          const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+          const { data } = await supabase.rpc("get_billable_units_for_order", { _order_id: o.id });
           const total = (data ?? []).reduce((s: number, r: any) => s + (r.units || 0), 0);
           billableTotalById.set(o.id, total);
         })
@@ -272,14 +272,14 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .filter(Boolean);
 
           // Sum available inventory per bull from tanks that are here
-          const { data: hereTanks } = await (supabase as any)
+          const { data: hereTanks } = await supabase
             .from("tanks")
             .select("id")
             .eq("organization_id", orgId)
             .eq("location_status", "here");
           const hereTankIds = (hereTanks || []).map((t: any) => t.id);
 
-          const { data: invData } = await (supabase.from as any)("tank_inventory")
+          const { data: invData } = await supabase.from("tank_inventory")
             .select("bull_catalog_id, units")
             .is("customer_id", null)
             .in("bull_catalog_id", catalogIds.length > 0 ? catalogIds : ["00000000-0000-0000-0000-000000000000"])

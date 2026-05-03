@@ -98,7 +98,7 @@ const BulkActionToolbar = ({ selectedProjects, onClear, onComplete, canDelete = 
       // Nullable FKs (inventory_transactions, semen_orders, tank_movements) set to NULL.
       // See Supabase migration create_bulk_delete_projects_rpc (April 22).
       const ids = selectedProjects.map((p) => p.id);
-      const { data, error } = await (supabase as any).rpc("bulk_delete_projects", {
+      const { data, error } = await supabase.rpc("bulk_delete_projects", {
         _project_ids: ids,
       });
       if (error) throw error;

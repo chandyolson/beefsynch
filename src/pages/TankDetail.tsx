@@ -204,7 +204,7 @@ function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel 
     }
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any).rpc("customer_pickup", {
+      const { error } = await supabase.rpc("customer_pickup", {
         _source_inventory_id: row.id,
         _units: units,
         _customer_id: row.customer_id,
@@ -592,7 +592,7 @@ const TankDetail = () => {
       return;
     }
     // Update the tank's location status to match the movement
-    await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", id);
+    await supabase.from("tanks").update({ location_status: locationAfter }).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });

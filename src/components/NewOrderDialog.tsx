@@ -88,21 +88,21 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
 
   useEffect(() => {
     if (!open || !orgId) return;
-    (supabase as any)
+    supabase
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
       .eq("active", true)
       .order("name")
-      .then(({ data }: any) => setCompanies(data ?? []));
-    (supabase as any)
+      .then(({ data }) => setCompanies(data ?? []));
+    supabase
       .from("billing_products")
       .select("id, product_name, product_category, default_price, unit_label")
       .eq("organization_id", orgId)
       .eq("active", true)
       .in("product_category", ["breeding_supply", "sheath", "glove", "gun_warmer", "ai_gun", "heat_detection", "nutritional", "patch"])
       .order("sort_order")
-      .then(({ data }: { data: any }) => setSupplyProducts(data ?? []));
+      .then(({ data }) => setSupplyProducts(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
@@ -122,11 +122,11 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
       // Fetch existing supply lines for edit
       if (editData.id) {
-        (supabase as any)
+        supabase
           .from("order_supply_items")
           .select("*")
           .eq("semen_order_id", editData.id)
-          .then(({ data }: { data: any }) => {
+          .then(({ data }) => {
             setSupplyLines((data ?? []).map((d: any) => ({
               productId: d.billing_product_id || "",
               productName: d.product_name,
@@ -254,7 +254,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
 
       // Supplies — delete existing and re-insert
       if (isEditing) {
-        const { error: delSupErr } = await (supabase as any)
+        const { error: delSupErr } = await supabase
           .from("order_supply_items")
           .delete()
           .eq("semen_order_id", orderId);
@@ -274,7 +274,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
             line_total: qty * s.unitPrice,
           };
         });
-        const { error: supplyErr } = await (supabase as any).from("order_supply_items").insert(supplyRows);
+        const { error: supplyErr } = await supabase.from("order_supply_items").insert(supplyRows);
         if (supplyErr) throw supplyErr;
       }
 

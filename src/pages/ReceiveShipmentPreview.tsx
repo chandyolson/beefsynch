@@ -262,7 +262,7 @@ const ReceiveShipmentPreview = () => {
     setConfirming(true);
 
     try {
-      const { data, error } = await (supabase.rpc as any)("confirm_shipment", {
+      const { data, error } = await supabase.rpc("confirm_shipment", {
         _input: { shipment_id: id },
       });
 

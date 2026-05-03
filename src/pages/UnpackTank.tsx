@@ -120,7 +120,7 @@ const UnpackTank = () => {
         .in("project_id", projectIds);
       if (!billings?.length) return [];
       const billingIds = billings.map((b: any) => b.id);
-      const { data: semen } = await (supabase.from as any)("project_billing_semen")
+      const { data: semen } = await supabase.from("project_billing_semen")
         .select("bull_catalog_id, bull_name, bull_code, units_packed, units_returned, units_billable")
         .in("billing_id", billingIds);
       return (semen ?? []) as any[];
@@ -197,7 +197,7 @@ const UnpackTank = () => {
         })),
       };
 
-      const { data, error } = await (supabase.rpc as any)("unpack_tank", { _input: payload });
+      const { data, error } = await supabase.rpc("unpack_tank", { _input: payload });
       if (error) throw error;
 
       const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;

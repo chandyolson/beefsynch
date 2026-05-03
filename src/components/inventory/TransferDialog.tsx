@@ -168,7 +168,7 @@ export default function TransferDialog({
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("transfer_inventory" as any, {
+      const { error } = await supabase.rpc("transfer_inventory", {
         _source_inventory_id: sourceRow.id,
         _dest_tank_id: destTankId,
         _dest_canister: canister.trim(),
