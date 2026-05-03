@@ -42,7 +42,6 @@ const ProjectBilling = () => {
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
-  const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
