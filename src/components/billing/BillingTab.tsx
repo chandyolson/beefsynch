@@ -193,13 +193,59 @@ export default function BillingTab({
 
         {!readOnly && (
           <div className="pt-3">
-            <button
-              type="button"
-              onClick={onAddProduct}
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add product (fly tags, pink eye, etc.)
-            </button>
+            <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add product
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search products..." />
+                  <CommandList>
+                    <CommandEmpty>No products found.</CommandEmpty>
+                    {Object.entries(productsByCategory).map(([cat, products]) => (
+                      <CommandGroup key={cat} heading={categoryLabels[cat] || cat}>
+                        {products.map((p: any) => (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.product_name} ${cat}`}
+                            onSelect={() => {
+                              onAddProduct(p);
+                              setProductPickerOpen(false);
+                            }}
+                          >
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span className="truncate">{p.product_name}</span>
+                              {p.default_price > 0 && (
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  ${Number(p.default_price).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ))}
+                    <CommandSeparator />
+                    <CommandGroup>
+                      <CommandItem
+                        value="custom product blank"
+                        onSelect={() => {
+                          onAddProduct();
+                          setProductPickerOpen(false);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Custom product
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
