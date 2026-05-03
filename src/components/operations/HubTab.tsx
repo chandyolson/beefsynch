@@ -153,8 +153,8 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           order_date,
           fulfillment_status,
           customers!semen_orders_customer_id_fkey(name),
-          semen_order_items(units, custom_bull_name, bulls_catalog(bull_name)),
-          tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units)))
+          semen_order_items(units, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)),
+          tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units, bull_catalog_id)))
         `)
         .eq("organization_id", orgId)
         .eq("order_type", "customer")
@@ -176,10 +176,30 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const invoiceList = (invoiceableOrders || []).map((o: any) => {
         const items = o.semen_order_items || [];
         const ordered = items.reduce((s: number, i: any) => s + (i.units || 0), 0);
-        const filled = (o.tank_pack_orders || []).reduce((s: number, tpo: any) => {
-          const lines = tpo.tank_packs?.tank_pack_lines || [];
-          return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-        }, 0);
+        // Build a map of ordered bulls: bull_catalog_id -> units ordered
+        const orderedByBull = new Map<string, number>();
+        for (const item of items) {
+          if (item.bull_catalog_id) {
+            orderedByBull.set(item.bull_catalog_id, (orderedByBull.get(item.bull_catalog_id) || 0) + (item.units || 0));
+          }
+        }
+
+        // Sum pack lines but ONLY for bulls on this order, capped at ordered amount per bull
+        const filledByBull = new Map<string, number>();
+        for (const tpo of (o.tank_pack_orders || [])) {
+          for (const line of (tpo.tank_packs?.tank_pack_lines || [])) {
+            const bullId = line.bull_catalog_id;
+            if (!bullId || !orderedByBull.has(bullId)) continue;
+            filledByBull.set(bullId, (filledByBull.get(bullId) || 0) + (line.units || 0));
+          }
+        }
+
+        // Cap each bull's filled at ordered
+        let filled = 0;
+        for (const [bullId, filledUnits] of filledByBull) {
+          const orderedUnits = orderedByBull.get(bullId) || 0;
+          filled += Math.min(filledUnits, orderedUnits);
+        }
         const bullSummary = items
           .map((i: any) => `${i.units} ${i.bulls_catalog?.bull_name || i.custom_bull_name || "?"}`)
           .join(" + ");
