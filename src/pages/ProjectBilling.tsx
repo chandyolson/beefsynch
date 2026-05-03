@@ -884,11 +884,12 @@ const ProjectBilling = () => {
   const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
   const readOnly = project?.status === "Invoiced";
 
-  const totalLines = productLines.length + semenLines.length + sessions.length;
+  const totalLines = productLines.length + semenLines.length + sessions.length + laborLines.length;
   const allInvoiced = totalLines > 0 && [
     ...productLines.map(l => l.invoiced),
     ...semenLines.map(l => l.invoiced),
     ...sessions.map(l => l.invoiced),
+    ...laborLines.map(l => l.invoiced),
   ].every(Boolean);
 
   const firstPack: any = projectPacks[0] || null;
