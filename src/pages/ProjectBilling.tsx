@@ -576,15 +576,18 @@ const ProjectBilling = () => {
     setLaborLines(prev => prev.filter((_, i) => i !== idx));
   }
 
-  async function addAdditionalProduct() {
+  async function addAdditionalProduct(catalogProduct?: any) {
     if (!billingId) return;
     const { data } = await supabase.from("project_billing_products").insert({
       billing_id: billingId,
-      product_name: "New product",
-      product_category: "additional",
+      product_name: catalogProduct?.product_name || "Custom product",
+      product_category: catalogProduct?.product_category || "additional",
+      billing_product_id: catalogProduct?.id || null,
       doses: 0,
+      doses_per_unit: catalogProduct?.doses_per_unit || null,
+      unit_label: catalogProduct?.unit_label || null,
       units_billed: null,
-      unit_price: null,
+      unit_price: catalogProduct?.default_price || null,
       line_total: 0,
       sort_order: productLines.length,
       delivery_method: "not_yet",
