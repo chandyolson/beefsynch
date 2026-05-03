@@ -370,7 +370,7 @@ const ProjectBilling = () => {
     }
 
     if (newProducts.length > 0) {
-      const { data: inserted } = await supabase.from("project_billing_products").insert(newProducts).select();
+      const { data: inserted } = await supabase.from("project_billing_products").insert(newProducts as any).select();
       setProductLines((inserted ?? []) as ProductLine[]);
     }
 
