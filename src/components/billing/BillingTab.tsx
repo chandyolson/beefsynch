@@ -69,8 +69,9 @@ export default function BillingTab({
             <div className="flex items-center gap-2">
               <Input
                 className="h-7 text-sm"
-                value={line.product_name ?? ""}
-                onChange={(e) => onSaveProduct(idx, { product_name: e.target.value })}
+                key={`name-${line.id}`}
+                defaultValue={line.product_name ?? ""}
+                onBlur={(e) => onSaveProduct(idx, { product_name: e.target.value })}
               />
               <button
                 type="button"
@@ -112,10 +113,10 @@ export default function BillingTab({
             <span className="text-sm">{line.units_billed ?? "—"}</span>
           ) : (
             <Input
-              type="number" step="0.01"
+              type="number" step="any"
               className="h-7 w-[64px] text-right text-xs ml-auto"
-              value={line.units_billed ?? ""} placeholder="—"
-              onChange={(e) => onSaveProduct(idx, { units_billed: Number(e.target.value) || 0 })}
+              key={`qty-${line.id}-${line.units_billed}`} defaultValue={line.units_billed ?? ""} placeholder="—"
+              onBlur={(e) => onSaveProduct(idx, { units_billed: e.target.value === "" ? null : Number(e.target.value) })}
             />
           )}
         </div>
@@ -126,10 +127,10 @@ export default function BillingTab({
             <span className="text-sm">{line.unit_price ? formatCurrency(line.unit_price) : "—"}</span>
           ) : (
             <Input
-              type="number" step="0.01"
+              type="number" step="any"
               className="h-7 w-[72px] text-right text-xs ml-auto"
-              value={line.unit_price ?? ""} placeholder="—"
-              onChange={(e) => onSaveProduct(idx, { unit_price: Number(e.target.value) || 0 })}
+              key={`price-${line.id}-${line.unit_price}`} defaultValue={line.unit_price ?? ""} placeholder="—"
+              onBlur={(e) => onSaveProduct(idx, { unit_price: e.target.value === "" ? null : Number(e.target.value) })}
             />
           )}
         </div>
@@ -208,45 +209,45 @@ export default function BillingTab({
                   {readOnly ? (
                     <span className="text-xs text-muted-foreground">{line.units_packed || "—"}</span>
                   ) : (
-                    <Input type="number" className="h-7 w-[52px] text-right text-xs ml-auto"
-                      value={line.units_packed ?? ""} placeholder="—"
-                      onChange={(e) => onSaveSemen(idx, { units_packed: Number(e.target.value) || 0 })} />
+                    <Input type="number" step="any" className="h-7 w-[52px] text-right text-xs ml-auto"
+                      key={`packed-${line.id}-${line.units_packed}`} defaultValue={line.units_packed ?? ""} placeholder="—"
+                      onBlur={(e) => onSaveSemen(idx, { units_packed: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
                 </div>
                 <div className="text-right">
                   {readOnly ? (
                     <span className="text-xs">{line.units_returned || "—"}</span>
                   ) : (
-                    <Input type="number" className="h-7 w-[52px] text-right text-xs ml-auto"
-                      value={line.units_returned ?? ""} placeholder="—"
-                      onChange={(e) => onSaveSemen(idx, { units_returned: Number(e.target.value) || 0 })} />
+                    <Input type="number" step="any" className="h-7 w-[52px] text-right text-xs ml-auto"
+                      key={`returned-${line.id}-${line.units_returned}`} defaultValue={line.units_returned ?? ""} placeholder="—"
+                      onBlur={(e) => onSaveSemen(idx, { units_returned: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
                 </div>
                 <div className="text-right">
                   {readOnly ? (
                     <span className="text-sm">{line.units_blown ?? "—"}</span>
                   ) : (
-                    <Input type="number" className="h-7 w-[60px] text-right text-xs ml-auto"
-                      value={line.units_blown ?? ""} placeholder="—"
-                      onChange={(e) => onSaveSemen(idx, { units_blown: Number(e.target.value) || 0 })} />
+                    <Input type="number" step="any" className="h-7 w-[60px] text-right text-xs ml-auto"
+                      key={`blown-${line.id}-${line.units_blown}`} defaultValue={line.units_blown ?? ""} placeholder="—"
+                      onBlur={(e) => onSaveSemen(idx, { units_blown: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
                 </div>
                 <div className="text-right">
                   {readOnly ? (
                     <span className="text-sm">{line.units_billable || "—"}</span>
                   ) : (
-                    <Input type="number" className="h-7 w-[68px] text-right text-xs ml-auto"
-                      value={line.units_billable ?? ""} placeholder="—"
-                      onChange={(e) => onSaveSemen(idx, { units_billable: Number(e.target.value) || 0 })} />
+                    <Input type="number" step="any" className="h-7 w-[68px] text-right text-xs ml-auto"
+                      key={`billable-${line.id}-${line.units_billable}`} defaultValue={line.units_billable ?? ""} placeholder="—"
+                      onBlur={(e) => onSaveSemen(idx, { units_billable: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
                 </div>
                 <div className="text-right">
                   {readOnly ? (
                     <span className="text-sm">{line.unit_price ? formatCurrency(line.unit_price) : "—"}</span>
                   ) : (
-                    <Input type="number" step="0.01" className="h-7 w-[68px] text-right text-xs ml-auto"
-                      value={line.unit_price ?? ""} placeholder="—"
-                      onChange={(e) => onSaveSemen(idx, { unit_price: Number(e.target.value) || 0 })} />
+                    <Input type="number" step="any" className="h-7 w-[68px] text-right text-xs ml-auto"
+                      key={`sprice-${line.id}-${line.unit_price}`} defaultValue={line.unit_price ?? ""} placeholder="—"
+                      onBlur={(e) => onSaveSemen(idx, { unit_price: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
                 </div>
                 <div className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</div>
@@ -283,14 +284,16 @@ export default function BillingTab({
                     <Input
                       className="h-8 text-sm"
                       placeholder="What work did we do?"
-                      value={line.description ?? ""}
-                      onChange={(e) => onSaveLabor(idx, { description: e.target.value })}
+                      key={`ldesc-${line.id}`}
+                      defaultValue={line.description ?? ""}
+                      onBlur={(e) => onSaveLabor(idx, { description: e.target.value })}
                     />
                     <Input
                       className="h-8 text-sm"
                       placeholder="Dates"
-                      value={line.labor_dates ?? ""}
-                      onChange={(e) => onSaveLabor(idx, { labor_dates: e.target.value })}
+                      key={`ldate-${line.id}`}
+                      defaultValue={line.labor_dates ?? ""}
+                      onBlur={(e) => onSaveLabor(idx, { labor_dates: e.target.value })}
                     />
                   </>
                 )}
