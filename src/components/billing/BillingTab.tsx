@@ -185,7 +185,7 @@ export default function BillingTab({
           <div className="grid grid-cols-[1fr_60px_60px_70px_80px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
             <div>Bull</div>
             <div className="text-right">Pkd</div>
-            <div className="text-right">Used</div>
+            <div className="text-right">Ret</div>
             <div className="text-right">Blown</div>
             <div className="text-right">Bill</div>
             <div className="text-right">Price</div>
@@ -193,7 +193,6 @@ export default function BillingTab({
           </div>
 
           {semenLines.map((line, idx) => {
-            const used = (line.units_packed ?? 0) - (line.units_returned ?? 0);
             return (
               <div key={line.id || idx} className="grid grid-cols-[1fr_60px_60px_70px_80px_80px_90px] items-center gap-3 py-2 border-b border-border/40 last:border-b-0">
                 <div className="min-w-0">
@@ -205,8 +204,24 @@ export default function BillingTab({
                     <div className="text-xs text-amber-500 font-medium">{line.semen_owner}</div>
                   )}
                 </div>
-                <div className="text-right text-sm text-muted-foreground">{line.units_packed || "—"}</div>
-                <div className="text-right text-sm">{used || "—"}</div>
+                <div className="text-right">
+                  {readOnly ? (
+                    <span className="text-xs text-muted-foreground">{line.units_packed || "—"}</span>
+                  ) : (
+                    <Input type="number" className="h-7 w-[52px] text-right text-xs ml-auto"
+                      value={line.units_packed ?? ""} placeholder="—"
+                      onChange={(e) => onSaveSemen(idx, { units_packed: Number(e.target.value) || 0 })} />
+                  )}
+                </div>
+                <div className="text-right">
+                  {readOnly ? (
+                    <span className="text-xs">{line.units_returned || "—"}</span>
+                  ) : (
+                    <Input type="number" className="h-7 w-[52px] text-right text-xs ml-auto"
+                      value={line.units_returned ?? ""} placeholder="—"
+                      onChange={(e) => onSaveSemen(idx, { units_returned: Number(e.target.value) || 0 })} />
+                  )}
+                </div>
                 <div className="text-right">
                   {readOnly ? (
                     <span className="text-sm">{line.units_blown ?? "—"}</span>
