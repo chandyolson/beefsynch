@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
-import SessionsTab from "@/components/billing/SessionsTab";
+// SessionsTab no longer rendered — kept in repo for reference
 import BillingTab from "@/components/billing/BillingTab";
 import {
   BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine, LaborLine,
@@ -42,7 +42,6 @@ const ProjectBilling = () => {
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
   const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
-  const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -778,6 +777,28 @@ const ProjectBilling = () => {
     saveSemenLine(idx, { invoiced: nowInvoiced, invoiced_at: nowInvoiced ? new Date().toISOString() : null });
   }
 
+  async function closeOutProject() {
+    if (!billingId) return;
+    const now = new Date().toISOString();
+    for (let i = 0; i < productLines.length; i++) {
+      if (!productLines[i].invoiced) toggleProductInvoiced(i);
+    }
+    for (let i = 0; i < semenLines.length; i++) {
+      if (!semenLines[i].invoiced) toggleSemenInvoiced(i);
+    }
+    for (const s of sessions) {
+      if (s.id && !s.invoiced) {
+        await supabase.from("project_billing_sessions").update({
+          invoiced: true, invoiced_at: now,
+        } as any).eq("id", s.id);
+      }
+    }
+    for (let i = 0; i < laborLines.length; i++) {
+      if (!laborLines[i].invoiced) saveLaborLine(i, { invoiced: true, invoiced_at: now });
+    }
+    saveBillingField("status", "invoiced_closed");
+  }
+
   /* ── Finalize inventory ── */
   async function handleFinalizeInventory() {
     if (!billingId || !orgId) return;
@@ -944,27 +965,6 @@ const ProjectBilling = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!readOnly && !allInvoiced && (
-              <Button variant="outline" size="sm" className="h-9"
-                onClick={() => {
-                  productLines.forEach((l, idx) => { if (!l.invoiced) toggleProductInvoiced(idx); });
-                  semenLines.forEach((l, idx) => { if (!l.invoiced) toggleSemenInvoiced(idx); });
-                  sessions.forEach((s, idx) => {
-                    if (!s.invoiced) {
-                      const updated = { ...s, invoiced: true, invoiced_at: new Date().toISOString() };
-                      const newSessions = [...sessions];
-                      newSessions[idx] = updated;
-                      setSessions(newSessions);
-                      if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
-                    }
-                  });
-                  laborLines.forEach((l, idx) => {
-                    if (!l.invoiced) saveLaborLine(idx, { invoiced: true, invoiced_at: new Date().toISOString() });
-                  });
-                }}>
-                Invoice All
-              </Button>
-            )}
             <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
               {STATUS_LABELS[currentStatus] || currentStatus}
             </span>
@@ -1009,84 +1009,23 @@ const ProjectBilling = () => {
           </div>
         </div>
 
-        {/* ── Tab navigation ── */}
-        <div className="flex gap-1 border-b border-border">
-          {(["sessions", "billing"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-                activeTab === tab
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}>
-              {tab === "sessions" ? "Sessions" : "Billing"}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Tab content ── */}
+        {/* ── Billing sheet ── */}
         <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
-          {activeTab === "sessions" && (
-            <SessionsTab
-              sessions={sessions} productLines={productLines}
-              sessionInventory={sessionInventory} semenLines={semenLines}
-              billingProducts={billingProducts} readOnly={readOnly}
-              onSaveSession={saveSessionLine} onSaveProduct={saveProductLine}
-              onSwapProduct={swapProduct} onToggleProductInvoiced={toggleProductInvoiced}
-              onAddBreedingSession={addBreedingSession}
-              onCreateCustomerPickup={createCustomerPickup}
-              onRemoveSession={removeSession}
-              onRemoveProduct={removeProductLine}
-              onAddProductToSession={addProductToSession}
-              onAddProductToSessionWithProduct={addProductToSessionWithProduct}
-              onAddMiscProduct={addMiscProduct}
-              onSaveWorksheetCell={saveWorksheetCell}
-              onSetSessionInventory={setSessionInventory}
-              onTotalUsedChanged={handleTotalUsedChanged}
-            />
-          )}
-          {activeTab === "billing" && (
-            <BillingTab
-              productLines={productLines} semenLines={semenLines}
-              laborLines={laborLines}
-              billingRecord={billingRecord} readOnly={readOnly}
-              onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}
-              onToggleProductInvoiced={toggleProductInvoiced}
-              onToggleSemenInvoiced={toggleSemenInvoiced}
-              onSaveBillingField={saveBillingField}
-              onSaveLabor={saveLaborLine}
-              onAddLabor={addLaborLine}
-              onDeleteLabor={deleteLaborLine}
-              onAddProduct={addAdditionalProduct}
-              onDeleteProduct={deleteAdditionalProductLine}
-            />
-          )}
+          <BillingTab
+            productLines={productLines} semenLines={semenLines}
+            laborLines={laborLines}
+            billingRecord={billingRecord} readOnly={readOnly}
+            onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}
+            onSaveBillingField={saveBillingField}
+            onSaveLabor={saveLaborLine}
+            onAddLabor={addLaborLine}
+            onDeleteLabor={deleteLaborLine}
+            onAddProduct={addAdditionalProduct}
+            onDeleteProduct={deleteAdditionalProductLine}
+            onCloseOut={closeOutProject}
+            currentStatus={currentStatus}
+          />
         </fieldset>
-
-        {/* ── Status action bar ── */}
-        {!readOnly && (
-          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border py-4 -mx-4 px-4 mt-6">
-            {currentStatus === "in_process" && (
-              <Button className="w-full h-12 text-base font-semibold"
-                onClick={() => saveBillingField("status", "work_complete")}>
-                Mark Work Complete
-              </Button>
-            )}
-            {currentStatus === "work_complete" && (
-              <Button className="w-full h-12 text-base font-semibold"
-                disabled={!allInvoiced}
-                onClick={() => saveBillingField("status", "invoiced_closed")}>
-                {allInvoiced ? "Mark Invoiced & Closed" : "Invoice all lines first"}
-              </Button>
-            )}
-          </div>
-        )}
-        {readOnly && currentStatus === "invoiced_closed" && (
-          <div className="text-center py-6">
-            <span className="inline-flex items-center gap-2 text-emerald-600 font-semibold text-lg">
-              ✓ Invoiced &amp; Closed
-            </span>
-          </div>
-        )}
       </main>
 
       {/* Save confirmation toast */}
