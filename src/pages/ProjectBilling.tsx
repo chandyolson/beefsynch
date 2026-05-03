@@ -14,7 +14,7 @@ import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 import SessionsTab from "@/components/billing/SessionsTab";
 import BillingTab from "@/components/billing/BillingTab";
 import {
-  BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine,
+  BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine, LaborLine,
   STATUS_COLORS, BILLING_STATUSES, STATUS_LABELS, calcUnits, formatTime12,
 } from "@/components/billing/billingTypes";
 
