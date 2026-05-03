@@ -522,18 +522,8 @@ const ProjectBilling = () => {
 
   function saveProductLine(idx: number, updates: Partial<ProductLine>) {
     const line = { ...productLines[idx], ...updates };
-    const uc = calcUnits(line.doses, line.doses_per_unit);
-    line.units_calculated = uc;
-    // If units_billed is explicitly set (from the Qty input), keep it as-is.
-    // Otherwise auto-calculate from doses.
-    if ('units_billed' in updates) {
-      // Manual qty entry — keep it
-    } else if (!line.id && line.units_billed == null) {
-      line.units_billed = uc;
-    } else if ("doses" in updates && (line.units_billed == null || Number(line.units_billed) === 0)) {
-      line.units_billed = uc;
-    }
-    line.line_total = (line.units_billed ?? uc) * (line.unit_price ?? 0);
+    // Never auto-overwrite units_billed. The user controls this value.
+    line.line_total = (line.units_billed ?? 0) * (line.unit_price ?? 0);
     const newLines = [...productLines];
     newLines[idx] = line;
     setProductLines(newLines);
