@@ -1047,11 +1047,17 @@ const ProjectBilling = () => {
           {activeTab === "billing" && (
             <BillingTab
               productLines={productLines} semenLines={semenLines}
+              laborLines={laborLines}
               billingRecord={billingRecord} readOnly={readOnly}
               onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}
               onToggleProductInvoiced={toggleProductInvoiced}
               onToggleSemenInvoiced={toggleSemenInvoiced}
               onSaveBillingField={saveBillingField}
+              onSaveLabor={saveLaborLine}
+              onAddLabor={addLaborLine}
+              onDeleteLabor={deleteLaborLine}
+              onAddProduct={addAdditionalProduct}
+              onDeleteProduct={deleteAdditionalProductLine}
             />
           )}
         </fieldset>
