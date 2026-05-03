@@ -35,6 +35,7 @@ export interface ProductLine {
   invoiced?: boolean;
   invoiced_at?: string | null;
   session_id?: string | null;
+  delivery_method?: string | null;
 }
 
 export interface SessionLine {
@@ -83,6 +84,17 @@ export interface SemenLine {
   invoiced?: boolean;
   invoiced_at?: string | null;
   semen_owner?: string | null;
+}
+
+export interface LaborLine {
+  id?: string;
+  billing_id: string;
+  description: string | null;
+  labor_dates: string | null;
+  amount: number | null;
+  sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
 }
 
 /* ── Constants ── */

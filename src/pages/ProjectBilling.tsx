@@ -14,7 +14,7 @@ import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 import SessionsTab from "@/components/billing/SessionsTab";
 import BillingTab from "@/components/billing/BillingTab";
 import {
-  BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine,
+  BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine, LaborLine,
   STATUS_COLORS, BILLING_STATUSES, STATUS_LABELS, calcUnits, formatTime12,
 } from "@/components/billing/billingTypes";
 
@@ -40,6 +40,7 @@ const ProjectBilling = () => {
   const [sessions, setSessions] = useState<SessionLine[]>([]);
   const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
+  const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
   const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [saved, setSaved] = useState(false);
@@ -120,11 +121,12 @@ const ProjectBilling = () => {
   }, [projectId, orgId]);
 
   async function loadBillingChildren(bId: string) {
-    const [prodRes, sessRes, semRes, invRes] = await Promise.all([
+    const [prodRes, sessRes, semRes, invRes, laborRes] = await Promise.all([
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
       (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
+      (supabase.from as any)("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
@@ -134,6 +136,7 @@ const ProjectBilling = () => {
       bulls_catalog: undefined,
     })) as SemenLine[]);
     setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
+    setLaborLines((laborRes?.data ?? []) as LaborLine[]);
     return {
       sessions: (sessRes.data ?? []) as SessionLine[],
       inventory: (invRes.data ?? []) as SessionInventoryLine[],
@@ -370,7 +373,7 @@ const ProjectBilling = () => {
     }
 
     if (newProducts.length > 0) {
-      const { data: inserted } = await supabase.from("project_billing_products").insert(newProducts).select();
+      const { data: inserted } = await supabase.from("project_billing_products").insert(newProducts as any).select();
       setProductLines((inserted ?? []) as ProductLine[]);
     }
 
@@ -538,8 +541,64 @@ const ProjectBilling = () => {
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`product-${id}`, () =>
-        supabase.from("project_billing_products").update(rest).eq("id", id));
+        supabase.from("project_billing_products").update(rest as any).eq("id", id));
     }
+  }
+
+  function saveLaborLine(idx: number, updates: Partial<LaborLine>) {
+    const line = { ...laborLines[idx], ...updates };
+    const newLines = [...laborLines];
+    newLines[idx] = line;
+    setLaborLines(newLines);
+    if (line.id) {
+      const { id, ...rest } = line;
+      debouncedSave(`labor-${id}`, () =>
+        (supabase.from as any)("project_billing_labor").update(rest as any).eq("id", id));
+    }
+  }
+
+  async function addLaborLine() {
+    if (!billingId) return;
+    const { data } = await (supabase.from as any)("project_billing_labor").insert({
+      billing_id: billingId,
+      description: "",
+      labor_dates: null,
+      amount: 0,
+      sort_order: laborLines.length,
+    }).select().single();
+    if (data) setLaborLines(prev => [...prev, data as LaborLine]);
+  }
+
+  async function deleteLaborLine(idx: number) {
+    const line = laborLines[idx];
+    if (line?.id) {
+      await (supabase.from as any)("project_billing_labor").delete().eq("id", line.id);
+    }
+    setLaborLines(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function addAdditionalProduct() {
+    if (!billingId) return;
+    const { data } = await supabase.from("project_billing_products").insert({
+      billing_id: billingId,
+      product_name: "New product",
+      product_category: "additional",
+      doses: 0,
+      units_billed: null,
+      unit_price: null,
+      line_total: 0,
+      sort_order: productLines.length,
+      delivery_method: "not_yet",
+    } as any).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+  }
+
+  async function deleteAdditionalProductLine(idx: number) {
+    const line = productLines[idx];
+    if (line?.id) {
+      await supabase.from("project_billing_products").delete().eq("id", line.id);
+    }
+    setProductLines(prev => prev.filter((_, i) => i !== idx));
   }
 
   function saveSessionLine(idx: number, updates: Partial<SessionLine>) {
@@ -825,11 +884,12 @@ const ProjectBilling = () => {
   const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
   const readOnly = project?.status === "Invoiced";
 
-  const totalLines = productLines.length + semenLines.length + sessions.length;
+  const totalLines = productLines.length + semenLines.length + sessions.length + laborLines.length;
   const allInvoiced = totalLines > 0 && [
     ...productLines.map(l => l.invoiced),
     ...semenLines.map(l => l.invoiced),
     ...sessions.map(l => l.invoiced),
+    ...laborLines.map(l => l.invoiced),
   ].every(Boolean);
 
   const firstPack: any = projectPacks[0] || null;
@@ -897,6 +957,9 @@ const ProjectBilling = () => {
                       setSessions(newSessions);
                       if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
                     }
+                  });
+                  laborLines.forEach((l, idx) => {
+                    if (!l.invoiced) saveLaborLine(idx, { invoiced: true, invoiced_at: new Date().toISOString() });
                   });
                 }}>
                 Invoice All
@@ -984,11 +1047,17 @@ const ProjectBilling = () => {
           {activeTab === "billing" && (
             <BillingTab
               productLines={productLines} semenLines={semenLines}
+              laborLines={laborLines}
               billingRecord={billingRecord} readOnly={readOnly}
               onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}
               onToggleProductInvoiced={toggleProductInvoiced}
               onToggleSemenInvoiced={toggleSemenInvoiced}
               onSaveBillingField={saveBillingField}
+              onSaveLabor={saveLaborLine}
+              onAddLabor={addLaborLine}
+              onDeleteLabor={deleteLaborLine}
+              onAddProduct={addAdditionalProduct}
+              onDeleteProduct={deleteAdditionalProductLine}
             />
           )}
         </fieldset>
