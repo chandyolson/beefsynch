@@ -726,6 +726,7 @@ export type Database = {
           billing_id: string
           billing_product_id: string | null
           created_at: string | null
+          delivery_method: string | null
           doses: number
           doses_per_unit: number | null
           event_date: string | null
@@ -751,6 +752,7 @@ export type Database = {
           billing_id: string
           billing_product_id?: string | null
           created_at?: string | null
+          delivery_method?: string | null
           doses?: number
           doses_per_unit?: number | null
           event_date?: string | null
@@ -780,6 +782,7 @@ export type Database = {
           doses_per_unit?: number | null
           event_date?: string | null
           id?: string
+          delivery_method?: string | null
           invoiced?: boolean
           invoiced_at?: string | null
           line_total?: number | null
@@ -1566,6 +1569,9 @@ export type Database = {
           notes: string | null
           organization_id: string
           owner: string | null
+          owner_company_id: string | null
+          owner_customer_id: string | null
+          owner_type: string | null
           storage_type: string | null
           sub_canister: string | null
           tank_id: string
@@ -1582,6 +1588,9 @@ export type Database = {
           inventoried_at?: string | null
           inventoried_by?: string | null
           item_type?: string
+          owner_company_id?: string | null
+          owner_customer_id?: string | null
+          owner_type?: string | null
           notes?: string | null
           organization_id: string
           owner?: string | null
@@ -1604,6 +1613,9 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           owner?: string | null
+          owner_company_id?: string | null
+          owner_customer_id?: string | null
+          owner_type?: string | null
           storage_type?: string | null
           sub_canister?: string | null
           tank_id?: string
