@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
@@ -1365,7 +1366,7 @@ const PackDetail = () => {
                             return name.includes(q) || code.includes(q);
                           })
                           .map((inv: any) => {
-                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            const displayName = getBullDisplayName(inv);
                             return (
                               <button
                                 key={inv.id}
