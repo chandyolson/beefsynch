@@ -1,0 +1,1 @@
+ALTER TABLE public.project_billing ADD COLUMN zoho_project_id text;

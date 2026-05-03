@@ -1,15 +1,17 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calculateProtocolEvents } from "@/lib/protocolEvents";
+import CustomerPicker from "@/components/CustomerPicker";
 import BullCombobox from "@/components/BullCombobox";
+import BullsRowManager from "@/components/BullsRowManager";
 
 import {
   Dialog,
@@ -58,12 +60,13 @@ const heiferProtocols = [
 
 const formSchema = z.object({
   name: z.string().trim().min(1, "Project name is required").max(200),
+  customer_id: z.string().uuid({ message: "Customer is required" }),
   cattle_type: z.enum(["Heifers", "Cows"]),
   protocol: z.string().min(1, "Protocol is required"),
   head_count: z.coerce.number().int().min(1, "Must be at least 1"),
   breeding_date: z.date({ required_error: "Breeding date is required" }),
   breeding_time: z.string().default("10:00"),
-  status: z.enum(["Tentative", "Confirmed", "Complete"]).default("Tentative"),
+  status: z.enum(["Tentative", "Confirmed", "Work Complete", "Invoiced"]).default("Tentative"),
   notes: z.string().max(2000).optional(),
 });
 
@@ -78,6 +81,7 @@ interface BullRow {
 interface EditProjectData {
   id: string;
   name: string;
+  customer_id: string;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -101,6 +105,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [bulls, setBulls] = useState<BullRow[]>([]);
+  const [breedingDatePopoverOpen, setBreedingDatePopoverOpen] = useState(false);
   const isEditing = !!editData;
 
   // Organization selection
@@ -117,7 +122,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
       }
       const { data } = await supabase
         .from("organization_members")
-        .select("organization_id, organizations(id, name)")
+        .select("organization_id, organizations!organization_members_organization_id_fkey(id, name)")
         .eq("user_id", user.id)
         .eq("accepted", true);
       if (data && data.length > 0) {
@@ -138,6 +143,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      customer_id: undefined as unknown as string,
       cattle_type: "Heifers",
       protocol: "",
       head_count: undefined as unknown as number,
@@ -152,12 +158,13 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     if (editData && open) {
       form.reset({
         name: editData.name,
+        customer_id: editData.customer_id,
         cattle_type: editData.cattle_type as "Heifers" | "Cows",
         protocol: editData.protocol,
         head_count: editData.head_count,
         breeding_date: editData.breeding_date ? new Date(editData.breeding_date + "T12:00:00") : undefined,
         breeding_time: editData.breeding_time?.slice(0, 5) || "10:00",
-        status: editData.status as "Tentative" | "Confirmed" | "Complete",
+        status: editData.status as "Tentative" | "Confirmed" | "Work Complete" | "Invoiced",
         notes: editData.notes || "",
       });
       setBulls(editData.bulls);
@@ -166,6 +173,10 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
       setBulls([]);
     }
   }, [editData, open]);
+
+  useEffect(() => {
+    if (!open) setBreedingDatePopoverOpen(false);
+  }, [open]);
 
   const cattleType = form.watch("cattle_type");
   const protocol = form.watch("protocol");
@@ -184,7 +195,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
     form.setValue("protocol", "");
   };
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, units: 0 }]);
 
   const removeBullRow = (index: number) => setBulls((prev) => prev.filter((_, i) => i !== index));
 
@@ -211,6 +222,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
 
       const projectPayload: Record<string, any> = {
         name: values.name,
+        customer_id: values.customer_id,
         cattle_type: values.cattle_type,
         protocol: values.protocol,
         head_count: values.head_count,
@@ -324,6 +336,21 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
               </div>
             )}
 
+            {/* Customer (required) */}
+            <FormField control={form.control} name="customer_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Customer <span className="text-destructive">*</span></FormLabel>
+                <FormControl>
+                  <CustomerPicker
+                    value={field.value || null}
+                    onChange={(customerId) => field.onChange(customerId)}
+                    orgId={selectedOrgId || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             {/* Project Name */}
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
@@ -370,7 +397,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
               <FormField control={form.control} name="head_count" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Head Count</FormLabel>
-                  <FormControl><Input type="number" min={1} placeholder="0" {...field} /></FormControl>
+                  <FormControl><Input type="number" min={1} placeholder="Head count" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -380,9 +407,12 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {["Tentative", "Confirmed", "Complete"].map((s) => (
+                      {["Tentative", "Confirmed", "Work Complete"].map((s) => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
+                      {field.value === "Invoiced" && (
+                        <SelectItem value="Invoiced" disabled>Invoiced</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -392,12 +422,10 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
 
             {/* Breeding Date & Time */}
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="breeding_date" render={({ field }) => {
-                const [dateOpen, setDateOpen] = React.useState(false);
-                return (
+              <FormField control={form.control} name="breeding_date" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Breeding Date</FormLabel>
-                  <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                  <Popover open={breedingDatePopoverOpen} onOpenChange={setBreedingDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -407,13 +435,12 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setDateOpen(false); }} initialFocus className="p-3 pointer-events-auto" />
+                      <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setBreedingDatePopoverOpen(false); }} initialFocus className="p-3 pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
                 </FormItem>
-                );
-              }} />
+              )} />
               <FormField control={form.control} name="breeding_time" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Breeding Time</FormLabel>
@@ -449,37 +476,20 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
             )}
 
             {/* Bulls & Semen */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground font-display">Bulls & Semen</h3>
-                <Button type="button" variant="outline" size="sm" onClick={addBullRow} className="gap-1">
-                  <Plus className="h-3.5 w-3.5" /> Add Bull
-                </Button>
-              </div>
-              {bulls.length === 0 && (
-                <p className="text-sm text-muted-foreground">No bulls added yet. Click "Add Bull" to assign semen.</p>
-              )}
-              {bulls.map((bull, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <BullCombobox
-                    value={bull.name}
-                    catalogId={bull.catalogId}
-                    onChange={(name, catId) => updateBull(i, name, catId)}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    value={bull.units}
-                    onChange={(e) => updateBullUnits(i, parseInt(e.target.value) || 0)}
-                    className="w-20"
-                    placeholder="Units"
-                  />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeBullRow(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <BullsRowManager
+              bulls={bulls.map((b) => ({
+                bull_name: b.name,
+                bull_catalog_id: b.catalogId,
+                units: b.units,
+              }))}
+              onAdd={addBullRow}
+              onRemove={removeBullRow}
+              onUpdateBull={updateBull}
+              onUpdateUnits={updateBullUnits}
+              showUnits={true}
+              showInventory={true}
+              orgId={selectedOrgId}
+            />
 
             {/* Notes */}
             <FormField control={form.control} name="notes" render={({ field }) => (

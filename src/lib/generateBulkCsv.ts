@@ -1,5 +1,5 @@
 import { format, parseISO, addDays } from "date-fns";
-import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
+import { formatTime12, isNoTimeEvent, escapeCSV } from "./formatUtils";
 
 export interface BulkProjectData {
   name: string;
@@ -24,13 +24,6 @@ export interface BulkBullData {
   custom_bull_name: string | null;
   bulls_catalog: { bull_name: string; company: string; registration_number: string } | null;
 }
-
-const esc = (v: string | number) => {
-  const s = String(v);
-  return s.includes(",") || s.includes('"') || s.includes("\n")
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
-};
 
 export function generateBulkCsv(
   projects: BulkProjectData[],
@@ -102,7 +95,7 @@ export function generateBulkCsv(
           ]
         : ["", "", "", ""];
 
-      allRows.push([...prefix, ...eventFields, ...bullFields].map((v) => esc(v)));
+      allRows.push([...prefix, ...eventFields, ...bullFields].map((v) => escapeCSV(v)));
     }
 
     // Blank separator between projects
@@ -111,7 +104,7 @@ export function generateBulkCsv(
     }
   });
 
-  const csv = [headers.map(esc).join(","), ...allRows.map((r) => r.join(","))].join("\n");
+  const csv = [headers.map(escapeCSV).join(","), ...allRows.map((r) => r.join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

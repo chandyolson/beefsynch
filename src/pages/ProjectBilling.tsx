@@ -1,109 +1,22 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Plus, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Check, Package, PackageOpen } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
-import { formatTime12 } from "@/lib/formatting";
-import { BILLING_STATUS_COLORS } from "@/lib/constants";
-
-/* ────────────────── types ────────────────── */
-
-interface BillingProduct {
-  id: string;
-  product_name: string;
-  product_category: string;
-  drug_name: string | null;
-  doses_per_unit: number | null;
-  unit_label: string | null;
-  default_price: number | null;
-  is_default: boolean | null;
-  sort_order: number | null;
-}
-
-interface ProductLine {
-  id?: string;
-  billing_id: string;
-  billing_product_id: string | null;
-  product_name: string;
-  product_category: string | null;
-  protocol_event_label: string | null;
-  event_date: string | null;
-  doses: number;
-  doses_per_unit: number | null;
-  unit_label: string | null;
-  units_calculated: number | null;
-  units_billed: number | null;
-  units_returned: number | null;
-  unit_price: number | null;
-  line_total: number | null;
-  sort_order: number | null;
-}
-
-interface SessionLine {
-  id?: string;
-  billing_id: string;
-  session_date: string;
-  session_label: string | null;
-  time_of_day: string | null;
-  head_count: number | null;
-  crew: string | null;
-  notes: string | null;
-  sort_order: number | null;
-}
-
-interface SemenLine {
-  id?: string;
-  billing_id: string;
-  bull_catalog_id: string | null;
-  bull_name: string;
-  bull_code: string | null;
-  units_packed: number | null;
-  units_returned: number | null;
-  units_blown: number | null;
-  units_billable: number | null;
-  unit_price: number | null;
-  line_total: number | null;
-  sort_order: number | null;
-}
-
-interface LaborLine {
-  id?: string;
-  billing_id: string;
-  description: string;
-  labor_dates: string | null;
-  amount: number | null;
-  sort_order: number | null;
-}
-
-/* ────────────────── helpers ────────────────── */
-
-const BILLING_STATUSES = ["draft", "review", "invoiced", "paid"];
-
-function calcUnits(doses: number, dpu: number | null) {
-  if (!dpu || dpu <= 0) return doses;
-  return doses / dpu;
-}
-
-function formatCurrency(v: number | null) {
-  if (v == null) return "$0.00";
-  return `$${v.toFixed(2)}`;
-}
+import SessionsTab from "@/components/billing/SessionsTab";
+import BillingTab from "@/components/billing/BillingTab";
+import {
+  BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine,
+  STATUS_COLORS, BILLING_STATUSES, STATUS_LABELS, calcUnits, formatTime12,
+} from "@/components/billing/billingTypes";
 
 /* ────────────────── component ────────────────── */
 
@@ -120,18 +33,22 @@ const ProjectBilling = () => {
 
   const [billingId, setBillingId] = useState<string | null>(null);
   const [billingRecord, setBillingRecord] = useState<any>(null);
+  const [projectPacks, setProjectPacks] = useState<any[]>([]);
+  const [finalizing, setFinalizing] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [sessions, setSessions] = useState<SessionLine[]>([]);
+  const [sessionInventory, setSessionInventory] = useState<SessionInventoryLine[]>([]);
   const [semenLines, setSemenLines] = useState<SemenLine[]>([]);
-  const [laborLines, setLaborLines] = useState<LaborLine[]>([]);
 
+  const [activeTab, setActiveTab] = useState<"sessions" | "billing">("sessions");
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showSaved = () => {
     setSaved(true);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => setSaved(false), 1500);
+    saveTimerRef.current = setTimeout(() => setSaved(false), 2000);
   };
 
   /* ── debounced save helper ── */
@@ -149,16 +66,17 @@ const ProjectBilling = () => {
     }, delay);
   }
 
-  /* ── data loading ── */
+  /* ════════════════════ DATA LOADING ════════════════════ */
+
   const loadData = useCallback(async () => {
     if (!projectId || !orgId) return;
     setLoading(true);
 
     const [projRes, eventsRes, bullsRes, productsRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", projectId).single(), // TODO: narrow select columns
-      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"), // TODO: narrow select columns
-      supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number)").eq("project_id", projectId),
-      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"), // TODO: narrow select columns
+      supabase.from("projects").select("*").eq("id", projectId).single(),
+      supabase.from("protocol_events").select("*").eq("project_id", projectId).order("event_date"),
+      supabase.from("project_bulls").select("*, bulls_catalog(bull_name, naab_code, registration_number, company)").eq("project_id", projectId),
+      supabase.from("billing_products").select("*").eq("organization_id", orgId).eq("active", true).order("sort_order"),
     ]);
 
     if (projRes.error || !projRes.data) {
@@ -172,201 +90,282 @@ const ProjectBilling = () => {
     setProjectBulls(bullsRes.data ?? []);
     setBillingProducts((productsRes.data ?? []) as BillingProduct[]);
 
-    // Check if billing record exists
     const { data: existingBilling } = await supabase
-      .from("project_billing")
-      .select("*") // TODO: narrow select columns
-      .eq("project_id", projectId)
-      .maybeSingle();
+      .from("project_billing").select("*").eq("project_id", projectId).maybeSingle();
 
     if (existingBilling) {
       setBillingId(existingBilling.id);
       setBillingRecord(existingBilling);
       await loadBillingChildren(existingBilling.id);
     } else {
-      // Create new billing record and auto-fill
-      await createAndAutoFill(
-        projRes.data,
-        eventsRes.data ?? [],
-        bullsRes.data ?? [],
+      await createBlankWithSuggestions(
+        projRes.data, eventsRes.data ?? [], bullsRes.data ?? [],
         (productsRes.data ?? []) as BillingProduct[],
       );
+    }
+
+    const { data: packLinks } = await supabase
+      .from("tank_pack_projects")
+      .select("tank_pack_id, tank_packs(id, status, pack_type, field_tank_id, tanks:field_tank_id(id, tank_number, tank_name))")
+      .eq("project_id", projectId!);
+    const packs = (packLinks ?? []).map((pl: any) => pl.tank_packs).filter(Boolean);
+    setProjectPacks(packs);
+
+    // Auto-generate semen worksheet if pack exists + breeding sessions + no inventory rows yet
+    if (existingBilling && packs.length > 0) {
+      await autoGenerateSessionInventory(existingBilling.id, packs);
     }
 
     setLoading(false);
   }, [projectId, orgId]);
 
   async function loadBillingChildren(bId: string) {
-    const [prodRes, sessRes, semRes, labRes] = await Promise.all([
-      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
-      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
-      supabase.from("project_billing_semen").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
-      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"), // TODO: narrow select columns
+    const [prodRes, sessRes, semRes, invRes] = await Promise.all([
+      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
+      (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
-    setSemenLines((semRes.data ?? []) as SemenLine[]);
-    setLaborLines((labRes.data ?? []) as LaborLine[]);
+    setSemenLines((semRes.data ?? []).map((sl: any) => ({
+      ...sl,
+      semen_owner: sl.bulls_catalog?.company ?? null,
+      bulls_catalog: undefined,
+    })) as SemenLine[]);
+    setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
+    return {
+      sessions: (sessRes.data ?? []) as SessionLine[],
+      inventory: (invRes.data ?? []) as SessionInventoryLine[],
+    };
   }
 
-  /* ── auto-fill logic ── */
-  async function createAndAutoFill(proj: any, evts: any[], bulls: any[], products: BillingProduct[]) {
+  async function autoGenerateSessionInventory(bId: string, packs: any[]) {
+    // Get breeding sessions
+    const { data: allSessions } = await supabase
+      .from("project_billing_sessions").select("*").eq("billing_id", bId);
+    const breedingSessions = (allSessions ?? []).filter((s: any) => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+    });
+    if (breedingSessions.length === 0) return;
+
+    // Get ALL pack lines across all packs for this project
+    const packIds = packs.map((p: any) => p.id);
+    const { data: packLines } = await supabase
+      .from("tank_pack_lines").select("bull_catalog_id, bull_name, bull_code, field_canister, units")
+      .in("tank_pack_id", packIds);
+    if (!packLines || packLines.length === 0) return;
+
+    // Build bull×canister combos with total packed units
+    const comboMap = new Map<string, { bull_catalog_id: string | null; bull_name: string; bull_code: string | null; canister: string; packed_units: number }>();
+    for (const pl of packLines) {
+      const canister = pl.field_canister || "1";
+      const bullKey = pl.bull_catalog_id || `name:${pl.bull_name}`;
+      const comboKey = `${bullKey}|${canister}`;
+      if (comboMap.has(comboKey)) {
+        comboMap.get(comboKey)!.packed_units += pl.units;
+      } else {
+        comboMap.set(comboKey, {
+          bull_catalog_id: pl.bull_catalog_id, bull_name: pl.bull_name,
+          bull_code: pl.bull_code, canister, packed_units: pl.units,
+        });
+      }
+    }
+    const combos = Array.from(comboMap.values()).sort((a, b) => {
+      const n = a.bull_name.localeCompare(b.bull_name);
+      return n !== 0 ? n : a.canister.localeCompare(b.canister, undefined, { numeric: true });
+    });
+
+    // Sort breeding sessions chronologically
+    const sorted = [...breedingSessions].sort((a: any, b: any) =>
+      a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    // Fetch existing session inventory rows
+    const { data: existingRows } = await (supabase.from as any)("project_billing_session_inventory")
+      .select("*").eq("billing_id", bId);
+    const existingMap = new Map<string, any>();
+    for (const row of (existingRows ?? [])) {
+      // Key: bull identifier + canister + session_id
+      const bullKey = row.bull_catalog_id || `name:${row.bull_name}`;
+      const key = `${bullKey}|${row.canister}|${row.session_id}`;
+      existingMap.set(key, row);
+    }
+
+    // Find missing combos and update changed start_units
+    const toInsert: any[] = [];
+    const maxSort = (existingRows ?? []).reduce((m: number, r: any) => Math.max(m, r.sort_order ?? 0), 0);
+    let sortIdx = maxSort + 1;
+
+    for (const combo of combos) {
+      const bullKey = combo.bull_catalog_id || `name:${combo.bull_name}`;
+      let sessIdx = 0;
+
+      for (const sess of sorted) {
+        const key = `${bullKey}|${combo.canister}|${(sess as any).id}`;
+        const existing = existingMap.get(key);
+
+        if (existing) {
+          // Row exists — update start_units if packed total changed (only for first session)
+          if (sessIdx === 0 && existing.start_units !== combo.packed_units) {
+            await (supabase.from as any)("project_billing_session_inventory")
+              .update({ start_units: combo.packed_units })
+              .eq("id", existing.id);
+          }
+        } else {
+          // Missing row — add it
+          toInsert.push({
+            billing_id: bId,
+            session_id: (sess as any).id,
+            bull_catalog_id: combo.bull_catalog_id,
+            bull_name: combo.bull_name,
+            bull_code: combo.bull_code,
+            canister: combo.canister,
+            start_units: sessIdx === 0 ? combo.packed_units : null,
+            end_units: null,
+            sort_order: sortIdx++,
+          });
+        }
+        sessIdx++;
+      }
+    }
+
+    // Insert any new rows
+    if (toInsert.length > 0) {
+      await (supabase.from as any)("project_billing_session_inventory")
+        .insert(toInsert);
+    }
+
+    // Reload session inventory into state if anything changed
+    if (toInsert.length > 0 || existingRows?.some((r: any) => {
+      const bullKey = r.bull_catalog_id || `name:${r.bull_name}`;
+      const combo = combos.find(c => (c.bull_catalog_id || `name:${c.bull_name}`) === bullKey && c.canister === r.canister);
+      return combo && r.start_units !== combo.packed_units;
+    })) {
+      const { data: refreshed } = await (supabase.from as any)("project_billing_session_inventory")
+        .select("*").eq("billing_id", bId).order("sort_order");
+      setSessionInventory((refreshed ?? []) as SessionInventoryLine[]);
+    }
+
+    // Sync units_packed on semen lines from pack data
+    const packedByBull = new Map<string, number>();
+    for (const combo of combos) {
+      const key = combo.bull_catalog_id || combo.bull_name;
+      packedByBull.set(key, (packedByBull.get(key) || 0) + combo.packed_units);
+    }
+    const updatedSemen = semenLines.map(sl => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const packed = packedByBull.get(key);
+      if (packed != null && sl.units_packed !== packed) {
+        return { ...sl, units_packed: packed };
+      }
+      return sl;
+    });
+    if (JSON.stringify(updatedSemen) !== JSON.stringify(semenLines)) {
+      setSemenLines(updatedSemen);
+      for (const sl of updatedSemen) {
+        const key = sl.bull_catalog_id || sl.bull_name;
+        const packed = packedByBull.get(key);
+        if (packed != null && sl.id) {
+          await supabase.from("project_billing_semen").update({ units_packed: packed } as any).eq("id", sl.id);
+        }
+      }
+    }
+  }
+
+  /* ── Create billing with protocol-based suggestions ── */
+  async function createBlankWithSuggestions(proj: any, evts: any[], bulls: any[], products: BillingProduct[]) {
     const { data: billing, error } = await supabase
       .from("project_billing")
-      .insert({ project_id: proj.id, organization_id: orgId!, status: "draft" })
-      .select()
-      .single();
+      .insert({ project_id: proj.id, organization_id: orgId!, status: "in_process" })
+      .select().single();
 
     if (error || !billing) {
       toast({ title: "Error creating billing sheet", description: error?.message, variant: "destructive" });
       return;
     }
-
     setBillingId(billing.id);
     setBillingRecord(billing);
-
     const bId = billing.id;
-    const hc = proj.head_count || 0;
 
-    // ── Products from protocol events ──
+    // ── Sessions from protocol events ──
+    const sessionSkip = ["return heat", "estimated calving"];
+    const newSessions: Omit<SessionLine, "id">[] = evts
+      .filter(e => !sessionSkip.some(s => (e.event_name || "").toLowerCase().includes(s)))
+      .map((e, i) => ({
+        billing_id: bId, session_date: e.event_date, session_label: e.event_name,
+        time_of_day: e.event_time ? formatTime12(e.event_time) : null,
+        head_count: null, crew: null, notes: null, sort_order: i,
+      }));
+
+    let insertedSessions: SessionLine[] = [];
+    if (newSessions.length > 0) {
+      const { data } = await supabase.from("project_billing_sessions").insert(newSessions).select();
+      insertedSessions = (data ?? []) as SessionLine[];
+      setSessions(insertedSessions);
+    }
+
+    // Build session lookup by date+label for linking products
+    const sessionLookup = new Map<string, string>();
+    for (const s of insertedSessions) {
+      if (s.id) sessionLookup.set(`${s.session_date}|${s.session_label}`, s.id);
+    }
+
+    // ── Products from protocol events (zeroed out, linked to sessions) ──
     const newProducts: Omit<ProductLine, "id">[] = [];
     let sortIdx = 0;
-
     const getDefaultProduct = (cat: string) => products.find(p => p.product_category === cat && p.is_default);
     const getProduct = (cat: string) => products.find(p => p.product_category === cat);
-
     const skipEvents = ["Return Heat", "Estimated Calving", "MGA Start", "MGA End", "Bulls In"];
     const isMGA = proj.protocol?.toLowerCase().includes("mga");
 
     for (const evt of evts) {
       const en = (evt.event_name || "").toLowerCase();
       if (skipEvents.some(s => en.includes(s.toLowerCase()))) continue;
-
       const eventLabel = evt.event_name;
       const eventDate = evt.event_date;
+      const sessionId = sessionLookup.get(`${eventDate}|${eventLabel}`) || null;
+
+      const makeLine = (prod: BillingProduct, cat: string, label: string): Omit<ProductLine, "id"> => ({
+        billing_id: bId, billing_product_id: prod.id, product_name: prod.product_name,
+        product_category: cat, protocol_event_label: label, event_date: eventDate,
+        doses: 0, doses_per_unit: prod.doses_per_unit, unit_label: prod.unit_label,
+        units_calculated: 0, units_billed: 0, units_returned: 0,
+        unit_price: prod.default_price, line_total: 0, sort_order: sortIdx++,
+        session_id: sessionId,
+      });
 
       if (en.includes("pgf") && en.includes("cidr insert")) {
-        // 7&7 first step: PGF + CIDR Insert (must come before generic cidr insert check)
         const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
-        if (pgfProd) {
-          const u = calcUnits(hc, pgfProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: pgfProd.id, product_name: pgfProd.product_name,
-            product_category: "pgf", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: pgfProd.doses_per_unit, unit_label: pgfProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: pgfProd.default_price, line_total: u * (pgfProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel));
         if (!isMGA) {
           const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
-          if (cidrProd) {
-            const u = calcUnits(hc, cidrProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: cidrProd.id, product_name: cidrProd.product_name,
-              product_category: "cidr", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: cidrProd.doses_per_unit, unit_label: cidrProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: cidrProd.default_price, line_total: u * (cidrProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel));
         }
       } else if (en.includes("cidr in") || en.includes("cidr insert")) {
         if (!isMGA) {
           const cidrProd = getDefaultProduct("cidr") || getProduct("cidr");
-          if (cidrProd) {
-            const u = calcUnits(hc, cidrProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: cidrProd.id, product_name: cidrProd.product_name,
-              product_category: "cidr", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: cidrProd.doses_per_unit, unit_label: cidrProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: cidrProd.default_price, line_total: u * (cidrProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (cidrProd) newProducts.push(makeLine(cidrProd, "cidr", eventLabel));
         }
         if (en.includes("gnrh")) {
           const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-          if (gnrhProd) {
-            const u = calcUnits(hc, gnrhProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-              product_category: "gnrh", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel));
         }
       } else if (en.includes("pgf") || en.includes("cidr out")) {
         const pgfProd = getDefaultProduct("pgf") || getProduct("pgf");
-        if (pgfProd) {
-          const u = calcUnits(hc, pgfProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: pgfProd.id, product_name: pgfProd.product_name,
-            product_category: "pgf", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: pgfProd.doses_per_unit, unit_label: pgfProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: pgfProd.default_price, line_total: u * (pgfProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (pgfProd) newProducts.push(makeLine(pgfProd, "pgf", eventLabel));
         if (en.includes("cidr out") && !isMGA) {
           const patchProd = getDefaultProduct("patch") || getProduct("patch");
-          if (patchProd) {
-            const u = calcUnits(hc, patchProd.doses_per_unit);
-            newProducts.push({
-              billing_id: bId, billing_product_id: patchProd.id, product_name: patchProd.product_name,
-              product_category: "patch", protocol_event_label: eventLabel, event_date: eventDate,
-              doses: hc, doses_per_unit: patchProd.doses_per_unit, unit_label: patchProd.unit_label,
-              units_calculated: u, units_billed: u, units_returned: 0,
-              unit_price: patchProd.default_price, line_total: u * (patchProd.default_price ?? 0),
-              sort_order: sortIdx++,
-            });
-          }
+          if (patchProd) newProducts.push(makeLine(patchProd, "patch", eventLabel));
         }
       } else if (en.includes("gnrh")) {
         const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-        if (gnrhProd) {
-          const u = calcUnits(hc, gnrhProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-            product_category: "gnrh", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", eventLabel));
       } else if (en.includes("timed breeding") || en.includes("tai") || en.includes("breed")) {
         const gnrhProd = getDefaultProduct("gnrh") || getProduct("gnrh");
-        if (gnrhProd) {
-          const u = calcUnits(hc, gnrhProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: gnrhProd.id, product_name: gnrhProd.product_name,
-            product_category: "gnrh", protocol_event_label: "Breeding (Mass GnRH)", event_date: eventDate,
-            doses: hc, doses_per_unit: gnrhProd.doses_per_unit, unit_label: gnrhProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: gnrhProd.default_price, line_total: u * (gnrhProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (gnrhProd) newProducts.push(makeLine(gnrhProd, "gnrh", "Breeding (Mass GnRH)"));
         const svcProd = getDefaultProduct("service") || getProduct("service");
-        if (svcProd) {
-          const u = calcUnits(hc, svcProd.doses_per_unit);
-          newProducts.push({
-            billing_id: bId, billing_product_id: svcProd.id, product_name: svcProd.product_name,
-            product_category: "service", protocol_event_label: eventLabel, event_date: eventDate,
-            doses: hc, doses_per_unit: svcProd.doses_per_unit, unit_label: svcProd.unit_label,
-            units_calculated: u, units_billed: u, units_returned: 0,
-            unit_price: svcProd.default_price, line_total: u * (svcProd.default_price ?? 0),
-            sort_order: sortIdx++,
-          });
-        }
+        if (svcProd) newProducts.push(makeLine(svcProd, "service", eventLabel));
       }
     }
 
@@ -375,124 +374,171 @@ const ProjectBilling = () => {
       setProductLines((inserted ?? []) as ProductLine[]);
     }
 
-    // ── Sessions from protocol events ──
-    const sessionSkip = ["return heat", "estimated calving"];
-    const newSessions: Omit<SessionLine, "id">[] = evts
-      .filter(e => !sessionSkip.some(s => (e.event_name || "").toLowerCase().includes(s)))
-      .map((e, i) => ({
-        billing_id: bId,
-        session_date: e.event_date,
-        session_label: e.event_name,
-        time_of_day: e.event_time ? formatTime12(e.event_time) : null,
-        head_count: null,
-        crew: null,
-        notes: null,
-        sort_order: i,
-      }));
-
-    if (newSessions.length > 0) {
-      const { data: inserted } = await supabase.from("project_billing_sessions").insert(newSessions).select();
-      setSessions((inserted ?? []) as SessionLine[]);
-    }
-
     // ── Semen from project bulls ──
-    // Also check for pack data
-    let packUnitsMap = new Map<string, number>();
-    let unpackUnitsMap = new Map<string, number>();
-
-    const { data: packProjects } = await supabase
-      .from("tank_pack_projects")
-      .select("tank_pack_id")
-      .eq("project_id", proj.id);
-
-    if (packProjects && packProjects.length > 0) {
-      const packIds = packProjects.map(pp => pp.tank_pack_id);
-      const { data: packLines } = await supabase
-        .from("tank_pack_lines")
-        .select("bull_catalog_id, bull_name, units")
-        .in("tank_pack_id", packIds);
-
-      for (const pl of packLines ?? []) {
+    const { data: semenPackProjects } = await supabase
+      .from("tank_pack_projects").select("tank_pack_id").eq("project_id", proj.id);
+    const packedByBull: Record<string, number> = {};
+    if (semenPackProjects && semenPackProjects.length > 0) {
+      const { data: semenPackLines } = await supabase
+        .from("tank_pack_lines").select("bull_catalog_id, bull_name, units")
+        .in("tank_pack_id", semenPackProjects.map(pp => pp.tank_pack_id));
+      for (const pl of semenPackLines ?? []) {
         const key = pl.bull_catalog_id || pl.bull_name;
-        packUnitsMap.set(key, (packUnitsMap.get(key) || 0) + pl.units);
-      }
-
-      const { data: unpackLines } = await supabase
-        .from("tank_unpack_lines")
-        .select("bull_catalog_id, bull_name, units_returned")
-        .in("tank_pack_id", packIds);
-
-      for (const ul of unpackLines ?? []) {
-        const key = ul.bull_catalog_id || ul.bull_name;
-        unpackUnitsMap.set(key, (unpackUnitsMap.get(key) || 0) + ul.units_returned);
+        packedByBull[key] = (packedByBull[key] || 0) + pl.units;
       }
     }
-
     const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
       const bullName = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
-      const key = catalogId || bullName;
-      const packed = packUnitsMap.get(key) || 0;
-      const returned = unpackUnitsMap.get(key) || 0;
-      const billable = Math.max(0, packed - returned);
-
+      const packed = packedByBull[catalogId || bullName] || 0;
       return {
-        billing_id: bId,
-        bull_catalog_id: catalogId,
-        bull_name: bullName,
-        bull_code: bullCode,
-        units_packed: packed,
-        units_returned: returned,
-        units_blown: 0,
-        units_billable: billable,
-        unit_price: 0,
-        line_total: 0,
-        sort_order: i,
+        billing_id: bId, bull_catalog_id: catalogId, bull_name: bullName, bull_code: bullCode,
+        units_packed: packed, units_returned: 0, units_blown: 0, units_billable: packed,
+        unit_price: 0, line_total: 0, sort_order: i,
+        semen_owner: b.bulls_catalog?.company ?? null,
       };
     });
-
     if (newSemen.length > 0) {
-      const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemen).select();
-      setSemenLines((inserted ?? []) as SemenLine[]);
+      const newSemenForInsert = newSemen.map(({ semen_owner, ...rest }) => rest);
+      const { data: inserted } = await supabase.from("project_billing_semen").insert(newSemenForInsert).select();
+      // Re-attach semen_owner from our local data since the DB doesn't store it
+      const withOwner = (inserted ?? []).map((row: any, i: number) => ({
+        ...row,
+        semen_owner: newSemen[i]?.semen_owner ?? null,
+      }));
+      setSemenLines(withOwner as SemenLine[]);
     }
-
-    setLaborLines([]);
   }
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  /* ── save helpers ── */
+  /* ── Auto-sync returned units when pack is unpacked ── */
+  const unpackSyncDone = useRef(false);
+  useEffect(() => {
+    if (!projectPacks.length || !semenLines.length) return;
+    const packStatus = projectPacks[0]?.status || null;
+    const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+    if (isUnpacked && !unpackSyncDone.current) {
+      unpackSyncDone.current = true;
+      syncReturnedFromUnpack();
+    }
+  }, [projectPacks, semenLines]);
+
+  async function syncReturnedFromUnpack() {
+    const packIds = projectPacks.map((p) => p.id);
+    const { data: unpackLines } = await supabase
+      .from("tank_unpack_lines").select("bull_catalog_id, bull_name, units_returned")
+      .in("tank_pack_id", packIds);
+    if (!unpackLines?.length) return;
+
+    const returnedByBull: Record<string, number> = {};
+    for (const ul of unpackLines) {
+      const key = (ul.bull_catalog_id as string) || ul.bull_name;
+      returnedByBull[key] = (returnedByBull[key] || 0) + (ul.units_returned || 0);
+    }
+
+    const updates: Array<{ id: string; units_returned: number; units_billable: number; line_total: number }> = [];
+    const updated = semenLines.map((sl) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const returned = returnedByBull[key] ?? 0;
+      if (sl.units_returned !== returned) {
+        const used = (sl.units_packed ?? 0) - returned;
+        const billable = Math.max(0, used - (sl.units_blown ?? 0));
+        const line_total = billable * (sl.unit_price ?? 0);
+        if (sl.id) updates.push({ id: sl.id, units_returned: returned, units_billable: billable, line_total });
+        return { ...sl, units_returned: returned, units_billable: billable, line_total };
+      }
+      return sl;
+    });
+
+    if (updates.length === 0) return;
+    setSemenLines(updated);
+    await Promise.all(updates.map((u) =>
+      supabase.from("project_billing_semen").update({
+        units_returned: u.units_returned, units_billable: u.units_billable, line_total: u.line_total,
+      }).eq("id", u.id)
+    ));
+  }
+
+  /* ── Auto-sync units_packed on semen lines from pack data ── */
+  const packedSyncDone = useRef(false);
+  useEffect(() => {
+    if (!projectPacks.length || !semenLines.length || packedSyncDone.current) return;
+    packedSyncDone.current = true;
+    syncPackedFromPacks();
+  }, [projectPacks, semenLines]);
+
+  async function syncPackedFromPacks() {
+    const packIds = projectPacks.map((p) => p.id);
+    const { data: packLines } = await supabase
+      .from("tank_pack_lines").select("bull_catalog_id, bull_name, units")
+      .in("tank_pack_id", packIds);
+    if (!packLines?.length) return;
+
+    const packedByBull: Record<string, number> = {};
+    for (const pl of packLines) {
+      const key = (pl.bull_catalog_id as string) || pl.bull_name;
+      packedByBull[key] = (packedByBull[key] || 0) + pl.units;
+    }
+
+    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; units_billable: number; line_total: number }> = [];
+    const updated = semenLines.map((sl) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const packed = packedByBull[key] ?? 0;
+      if (packed > 0 && sl.units_packed !== packed && sl.id) {
+        // Preserve the "used" amount and recalculate derived values
+        const used = (sl.units_packed ?? 0) - (sl.units_returned ?? 0);
+        const returned = Math.max(0, packed - used);
+        const billable = Math.max(0, used - (sl.units_blown ?? 0));
+        const line_total = billable * (sl.unit_price ?? 0);
+        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, units_billable: billable, line_total });
+        return { ...sl, units_packed: packed, units_returned: returned, units_billable: billable, line_total };
+      }
+      return sl;
+    });
+
+    if (dbUpdates.length === 0) return;
+    setSemenLines(updated);
+    await Promise.all(dbUpdates.map((u) =>
+      supabase.from("project_billing_semen").update({
+        units_packed: u.units_packed, units_returned: u.units_returned,
+        units_billable: u.units_billable, line_total: u.line_total,
+      }).eq("id", u.id)
+    ));
+  }
+
+  /* ════════════════════ SAVE HELPERS ════════════════════ */
 
   function saveBillingField(field: string, value: any) {
     if (!billingId) return;
     debouncedSave(`billing-${field}`, () =>
-      supabase.from("project_billing").update({ [field]: value }).eq("id", billingId)
+      supabase.from("project_billing").update({ [field]: value } as any).eq("id", billingId)
     );
     setBillingRecord((prev: any) => ({ ...prev, [field]: value }));
   }
 
   function saveProductLine(idx: number, updates: Partial<ProductLine>) {
     const line = { ...productLines[idx], ...updates };
-    // recalc
     const uc = calcUnits(line.doses, line.doses_per_unit);
     line.units_calculated = uc;
-    if (updates.doses !== undefined || updates.doses_per_unit !== undefined) {
+    // If units_billed is explicitly set (from the Qty input), keep it as-is.
+    // Otherwise auto-calculate from doses.
+    if ('units_billed' in updates) {
+      // Manual qty entry — keep it
+    } else if (!line.id && line.units_billed == null) {
+      line.units_billed = uc;
+    } else if ("doses" in updates && (line.units_billed == null || Number(line.units_billed) === 0)) {
       line.units_billed = uc;
     }
     line.line_total = (line.units_billed ?? uc) * (line.unit_price ?? 0);
-
     const newLines = [...productLines];
     newLines[idx] = line;
     setProductLines(newLines);
-
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`product-${id}`, () =>
-        supabase.from("project_billing_products").update(rest).eq("id", id)
-      );
+        supabase.from("project_billing_products").update(rest).eq("id", id));
     }
   }
 
@@ -501,91 +547,85 @@ const ProjectBilling = () => {
     const newLines = [...sessions];
     newLines[idx] = line;
     setSessions(newLines);
-
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`session-${id}`, () =>
-        supabase.from("project_billing_sessions").update(rest).eq("id", id)
-      );
+        supabase.from("project_billing_sessions").update(rest).eq("id", id));
     }
   }
 
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
-    line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    // Only auto-calculate billable if the update did NOT explicitly set units_billable
+    if (!('units_billable' in updates)) {
+      line.units_billable = Math.max(0, (line.units_packed ?? 0) - (line.units_returned ?? 0) - (line.units_blown ?? 0));
+    }
     line.line_total = (line.units_billable ?? 0) * (line.unit_price ?? 0);
-
     const newLines = [...semenLines];
     newLines[idx] = line;
     setSemenLines(newLines);
-
     if (line.id) {
-      const { id, ...rest } = line;
+      const { id, semen_owner, ...rest } = line;
       debouncedSave(`semen-${id}`, () =>
-        supabase.from("project_billing_semen").update(rest).eq("id", id)
-      );
+        supabase.from("project_billing_semen").update(rest).eq("id", id));
     }
   }
 
-  function saveLaborLine(idx: number, updates: Partial<LaborLine>) {
-    const line = { ...laborLines[idx], ...updates };
-    const newLines = [...laborLines];
-    newLines[idx] = line;
-    setLaborLines(newLines);
-
-    if (line.id) {
-      const { id, ...rest } = line;
-      debouncedSave(`labor-${id}`, () =>
-        supabase.from("project_billing_labor").update(rest).eq("id", id)
-      );
-    }
+  async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) {
+    setSessionInventory(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
+    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+      .update({ [field]: value }).eq("id", rowId);
+    if (error) toast({ title: "Failed to save", description: error.message, variant: "destructive" });
   }
 
-  /* ── add / remove helpers ── */
+  /* ── Add / remove helpers ── */
 
-  async function addProductLine() {
+  async function addBreedingSession() {
     if (!billingId) return;
-    const defaultProd = billingProducts[0];
-    const newLine: Omit<ProductLine, "id"> = {
-      billing_id: billingId,
-      billing_product_id: defaultProd?.id || null,
-      product_name: defaultProd?.product_name || "New Product",
-      product_category: defaultProd?.product_category || null,
-      protocol_event_label: "Manual",
-      event_date: null,
-      doses: project?.head_count || 0,
-      doses_per_unit: defaultProd?.doses_per_unit || null,
-      unit_label: defaultProd?.unit_label || null,
-      units_calculated: 0, units_billed: 0, units_returned: 0,
-      unit_price: defaultProd?.default_price || 0,
-      line_total: 0,
-      sort_order: productLines.length,
-    };
-    const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
-    if (data) setProductLines(prev => [...prev, data as ProductLine]);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-  }
-
-  async function removeProductLine(idx: number) {
-    const line = productLines[idx];
-    if (line.id) {
-      await supabase.from("project_billing_products").delete().eq("id", line.id);
-    }
-    setProductLines(prev => prev.filter((_, i) => i !== idx));
-    showSaved();
-  }
-
-  async function addSession() {
-    if (!billingId) return;
-    const newLine: Omit<SessionLine, "id"> = {
-      billing_id: billingId,
-      session_date: format(new Date(), "yyyy-MM-dd"),
-      session_label: "Additional Visit",
+    const { data } = await supabase.from("project_billing_sessions").insert({
+      billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
+      session_label: "Timed Breeding", session_type: "field_session",
       time_of_day: null, head_count: null, crew: null, notes: null,
       sort_order: sessions.length,
-    };
-    const { data } = await supabase.from("project_billing_sessions").insert(newLine).select().single();
+    } as any).select().single();
     if (data) setSessions(prev => [...prev, data as SessionLine]);
+  }
+
+  async function createCustomerPickup() {
+    if (!billingId) return;
+    // Create the pickup session
+    const { data: sess, error: sessErr } = await supabase.from("project_billing_sessions").insert({
+      billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
+      session_label: "Customer Pickup", session_type: "customer_pickup",
+      time_of_day: null, head_count: null, crew: null, notes: null,
+      sort_order: -1,
+    } as any).select().single();
+    if (sessErr || !sess) { toast({ title: "Error", description: sessErr?.message, variant: "destructive" }); return; }
+    setSessions(prev => [...prev, sess as SessionLine]);
+
+    // Pre-fill with protocol products (unique by billing_product_id, qty blank)
+    // Exclude services — those aren't physical products you pick up
+    const seen = new Set<string>();
+    const pickupProducts: any[] = [];
+    for (const p of productLines) {
+      if (p.product_category === "service") continue;
+      const key = p.billing_product_id || p.product_name;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pickupProducts.push({
+        billing_id: billingId, session_id: (sess as any).id,
+        billing_product_id: p.billing_product_id, product_name: p.product_name,
+        product_category: p.product_category, protocol_event_label: null, event_date: null,
+        doses: 0, doses_per_unit: p.doses_per_unit, unit_label: p.unit_label,
+        units_calculated: 0, units_billed: 0, units_returned: 0,
+        unit_price: p.unit_price, line_total: 0,
+        sort_order: pickupProducts.length,
+      });
+    }
+    if (pickupProducts.length > 0) {
+      const { data: inserted } = await supabase.from("project_billing_products").insert(pickupProducts).select();
+      if (inserted) setProductLines(prev => [...prev, ...(inserted as ProductLine[])]);
+    }
   }
 
   async function removeSession(idx: number) {
@@ -595,50 +635,208 @@ const ProjectBilling = () => {
     showSaved();
   }
 
-  async function addLabor() {
+  async function addProductToSession(sessionId: string) {
     if (!billingId) return;
-    const newLine: Omit<LaborLine, "id"> = {
-      billing_id: billingId, description: "", labor_dates: null, amount: 0, sort_order: laborLines.length,
+    const defaultProd = billingProducts[0];
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: defaultProd?.id || null,
+      product_name: defaultProd?.product_name || "New Product",
+      product_category: defaultProd?.product_category || null,
+      protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: defaultProd?.doses_per_unit || null,
+      unit_label: defaultProd?.unit_label || null,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: defaultProd?.default_price || 0, line_total: 0,
+      sort_order: productLines.length,
     };
-    const { data } = await supabase.from("project_billing_labor").insert(newLine).select().single();
-    if (data) setLaborLines(prev => [...prev, data as LaborLine]);
+    const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
   }
 
-  async function removeLabor(idx: number) {
-    const line = laborLines[idx];
-    if (line.id) await supabase.from("project_billing_labor").delete().eq("id", line.id);
-    setLaborLines(prev => prev.filter((_, i) => i !== idx));
+  async function addProductToSessionWithProduct(sessionId: string, productId: string) {
+    if (!billingId) return;
+    const prod = billingProducts.find(p => p.id === productId);
+    if (!prod) return;
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: prod.id,
+      product_name: prod.product_name,
+      product_category: prod.product_category,
+      protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: prod.doses_per_unit,
+      unit_label: prod.unit_label,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: prod.default_price || 0,
+      line_total: 0,
+      sort_order: productLines.length,
+    };
+    const { data, error } = await supabase
+      .from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+
+  async function addMiscProduct(sessionId: string) {
+    if (!billingId) return;
+    const newLine: any = {
+      billing_id: billingId, session_id: sessionId,
+      billing_product_id: null, product_name: "Miscellaneous",
+      product_category: null, protocol_event_label: null, event_date: null,
+      doses: 0, doses_per_unit: null, unit_label: null,
+      units_calculated: 0, units_billed: 0, units_returned: 0,
+      unit_price: 0, line_total: 0, sort_order: productLines.length,
+    };
+    const { data, error } = await supabase.from("project_billing_products").insert(newLine).select().single();
+    if (data) setProductLines(prev => [...prev, data as ProductLine]);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+
+  async function removeProductLine(idx: number) {
+    const line = productLines[idx];
+    if (line.id) await supabase.from("project_billing_products").delete().eq("id", line.id);
+    setProductLines(prev => prev.filter((_, i) => i !== idx));
     showSaved();
   }
 
-  /* ── totals ── */
-  const productsTotal = productLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
-  const semenTotal = semenLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
-  const laborTotal = laborLines.reduce((s, l) => s + (l.amount ?? 0), 0);
-  const grandTotal = productsTotal + semenTotal + laborTotal;
-
-  /* ── product swap ── */
   function swapProduct(idx: number, newProductId: string) {
     const prod = billingProducts.find(p => p.id === newProductId);
     if (!prod) return;
     saveProductLine(idx, {
-      billing_product_id: prod.id,
-      product_name: prod.product_name,
-      product_category: prod.product_category,
-      doses_per_unit: prod.doses_per_unit,
-      unit_label: prod.unit_label,
-      unit_price: prod.default_price,
+      billing_product_id: prod.id, product_name: prod.product_name,
+      product_category: prod.product_category, doses_per_unit: prod.doses_per_unit,
+      unit_label: prod.unit_label, unit_price: prod.default_price,
     });
   }
 
-  /* ── PDF ── */
+  function toggleProductInvoiced(idx: number) {
+    const nowInvoiced = !productLines[idx].invoiced;
+    saveProductLine(idx, { invoiced: nowInvoiced, invoiced_at: nowInvoiced ? new Date().toISOString() : null });
+  }
+  function toggleSemenInvoiced(idx: number) {
+    const nowInvoiced = !semenLines[idx].invoiced;
+    saveSemenLine(idx, { invoiced: nowInvoiced, invoiced_at: nowInvoiced ? new Date().toISOString() : null });
+  }
+
+  /* ── Finalize inventory ── */
+  async function handleFinalizeInventory() {
+    if (!billingId || !orgId) return;
+    setFinalizing(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("finalize_billing_inventory", {
+        _input: { organization_id: orgId, billing_id: billingId }
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; bulls_processed?: number; units_consumed?: number } | null;
+      if (!result?.ok) throw new Error("Finalize failed");
+      toast({ title: "Inventory finalized", description: `${result.units_consumed ?? 0} units consumed across ${result.bulls_processed ?? 0} bull(s).` });
+      const { data: refreshed } = await supabase.from("project_billing").select("*").eq("id", billingId).maybeSingle();
+      if (refreshed) setBillingRecord(refreshed);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not finalize inventory.", variant: "destructive" });
+    } finally { setFinalizing(false); }
+  }
+
+  /* ── Complete project ── */
+  async function handleCompleteProject() {
+    if (!projectId || !billingId) return;
+    setCompleting(true);
+    try {
+      const { error: projErr } = await supabase.from("projects").update({ status: "Work Complete" }).eq("id", projectId);
+      if (projErr) throw projErr;
+      const userId = (await supabase.auth.getUser()).data.user?.id || null;
+      const { error: billErr } = await (supabase.from("project_billing") as any)
+        .update({ billing_completed_at: new Date().toISOString(), billing_completed_by: userId })
+        .eq("id", billingId);
+      if (billErr) throw billErr;
+      toast({ title: "Project completed" });
+      setProject((prev: any) => ({ ...prev, status: "Work Complete" }));
+      setBillingRecord((prev: any) => ({ ...prev, billing_completed_at: new Date().toISOString() }));
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not complete project.", variant: "destructive" });
+    } finally { setCompleting(false); }
+  }
+
+  /* ── Print PDF ── */
   function handlePrint() {
     if (!project || !billingRecord) return;
-    generateBillingSheetPdf(project, billingRecord, productLines, semenLines, sessions, laborLines, {
-      productsTotal, semenTotal, laborTotal, grandTotal,
+    const productsTotal = productLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+    const semenTotal = semenLines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+    const grandTotal = productsTotal + semenTotal;
+    generateBillingSheetPdf(project, billingRecord, productLines, semenLines, {
+      productsTotal, semenTotal, laborTotal: 0, grandTotal,
     });
     toast({ title: "PDF downloaded" });
   }
+
+  /* ── Auto-update AI Service qty + semen line used values from breeding ── */
+  const lastTotalUsedRef = useRef<number>(0);
+  function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) {
+    if (totalUsed === lastTotalUsedRef.current) return;
+    lastTotalUsedRef.current = totalUsed;
+    // Update AI Service product line
+    const serviceIdx = productLines.findIndex(p =>
+      p.product_category === "service" || (p.product_name || "").toLowerCase().includes("service")
+    );
+    if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
+      // Always update doses (the session head count).
+      // Only update units_billed if the user hasn't manually overridden it —
+      // i.e., current units_billed still matches the old calculated value.
+      const svc = productLines[serviceIdx];
+      const wasManual = svc.units_billed != null && svc.units_calculated != null
+        && Math.abs(svc.units_billed - svc.units_calculated) > 0.001;
+      const updates: Partial<ProductLine> = { doses: totalUsed };
+      if (!wasManual) {
+        updates.units_billed = totalUsed;
+      }
+      saveProductLine(serviceIdx, updates);
+    }
+    // Update semen lines with per-bull used + blown values for billing tab
+    let changed = false;
+    const updated = semenLines.map((sl, idx) => {
+      const key = sl.bull_catalog_id || sl.bull_name;
+      const used = bullUsed.get(key) ?? 0;
+      const blown = bullBlown.get(key) ?? 0;
+      const billable = Math.max(0, used - blown);
+      const line_total = billable * (sl.unit_price ?? 0);
+      if (sl.units_billable !== billable || sl.units_blown !== blown) {
+        changed = true;
+        if (sl.id) {
+          debouncedSave(`semen-used-${sl.id}`, () =>
+            supabase.from("project_billing_semen").update({
+              units_returned: (sl.units_packed ?? 0) - used,
+              units_blown: blown,
+              units_billable: billable, line_total,
+            } as any).eq("id", sl.id));
+        }
+        return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_blown: blown, units_billable: billable, line_total };
+      }
+      return sl;
+    });
+    if (changed) setSemenLines(updated);
+  }
+
+  /* ════════════════════ COMPUTED VALUES ════════════════════ */
+
+  const currentStatus = billingRecord?.status || "in_process";
+  const hasPack = projectPacks.length > 0;
+  const packStatus = projectPacks[0]?.status || null;
+  const isUnpacked = packStatus === "unpacked" || packStatus === "tank_returned";
+  const readOnly = project?.status === "Invoiced";
+
+  const totalLines = productLines.length + semenLines.length + sessions.length;
+  const allInvoiced = totalLines > 0 && [
+    ...productLines.map(l => l.invoiced),
+    ...semenLines.map(l => l.invoiced),
+    ...sessions.map(l => l.invoiced),
+  ].every(Boolean);
+
+  const firstPack: any = projectPacks[0] || null;
+  const packTankLabel = firstPack?.tanks
+    ? (firstPack.tanks.tank_name || firstPack.tanks.tank_number || "") : "";
+
+  /* ════════════════════ RENDER ════════════════════ */
 
   if (loading) {
     return (
@@ -657,7 +855,7 @@ const ProjectBilling = () => {
         <Navbar />
         <div className="max-w-4xl mx-auto px-4 py-12 text-center">
           <p className="text-muted-foreground">Project not found.</p>
-          <Button className="mt-4" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          <Button className="mt-4" onClick={() => navigate("/operations")}>Back to Dashboard</Button>
         </div>
       </div>
     );
@@ -666,7 +864,8 @@ const ProjectBilling = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -677,8 +876,7 @@ const ProjectBilling = () => {
               <h1 className="text-2xl font-bold">{project.name}</h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <Badge className="bg-primary/20 text-primary border-primary/30">{project.protocol}</Badge>
-                <Badge variant="outline">{project.cattle_type}</Badge>
-                <Badge variant="outline">{project.head_count} head</Badge>
+                <Badge variant="outline">{project.cattle_type} · {project.head_count} head</Badge>
                 {project.breeding_date && (
                   <Badge variant="outline">Breed: {format(parseISO(project.breeding_date), "MMM d, yyyy")}</Badge>
                 )}
@@ -686,459 +884,150 @@ const ProjectBilling = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {saved && (
-              <span className="text-xs text-emerald-600 flex items-center gap-1 animate-in fade-in">
-                <Check className="h-3 w-3" /> Saved
-              </span>
+            {!readOnly && !allInvoiced && (
+              <Button variant="outline" size="sm" className="h-9"
+                onClick={() => {
+                  productLines.forEach((l, idx) => { if (!l.invoiced) toggleProductInvoiced(idx); });
+                  semenLines.forEach((l, idx) => { if (!l.invoiced) toggleSemenInvoiced(idx); });
+                  sessions.forEach((s, idx) => {
+                    if (!s.invoiced) {
+                      const updated = { ...s, invoiced: true, invoiced_at: new Date().toISOString() };
+                      const newSessions = [...sessions];
+                      newSessions[idx] = updated;
+                      setSessions(newSessions);
+                      if (s.id) supabase.from("project_billing_sessions").update({ invoiced: true, invoiced_at: new Date().toISOString() } as any).eq("id", s.id);
+                    }
+                  });
+                }}>
+                Invoice All
+              </Button>
             )}
-            <Select
-              value={billingRecord?.status || "draft"}
-              onValueChange={(v) => saveBillingField("status", v)}
-            >
-              <SelectTrigger className="w-[120px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {BILLING_STATUSES.map(s => (
-                  <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
+              {STATUS_LABELS[currentStatus] || currentStatus}
+            </span>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* ── Invoice Numbers ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">CATL Resources Invoice #</label>
-            <Input
-              className="mt-1"
-              defaultValue={billingRecord?.catl_invoice_number || ""}
-              onBlur={(e) => saveBillingField("catl_invoice_number", e.target.value || null)}
-            />
+        {/* ── Pack status bar ── */}
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/50 rounded-lg flex-wrap">
+          <div className="flex items-center gap-2 text-sm">
+            {hasPack ? (
+              <>
+                {isUnpacked
+                  ? <Check className="h-4 w-4 text-emerald-600" />
+                  : <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />}
+                <span className="font-medium">{isUnpacked ? "Unpacked" : "Packed"}</span>
+                {packTankLabel && <span className="text-muted-foreground">— Tank #{packTankLabel}</span>}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Not packed</span>
+            )}
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Select Sires Invoice #</label>
-            <Input
-              className="mt-1"
-              defaultValue={billingRecord?.select_sires_invoice_number || ""}
-              onBlur={(e) => saveBillingField("select_sires_invoice_number", e.target.value || null)}
-            />
+          <div className="flex gap-2">
+            {!hasPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/pack-tank?projectId=${projectId}`)}>
+                <Package className="h-3.5 w-3.5 mr-1" /> Pack Tank
+              </Button>
+            )}
+            {hasPack && firstPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/pack/${firstPack.id}`)}>View Pack</Button>
+            )}
+            {hasPack && !isUnpacked && firstPack && (
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => navigate(`/unpack/${firstPack.id}`)}>
+                <PackageOpen className="h-3.5 w-3.5 mr-1" /> Unpack Tank
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* ── Products Section ── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Products by Protocol Event</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[70px]">Date</TableHead>
-                    <TableHead className="w-[140px]">Event</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="w-[80px] text-right">Doses</TableHead>
-                    <TableHead className="w-[100px] text-right">Units</TableHead>
-                    <TableHead className="w-[80px] text-right">Price</TableHead>
-                    <TableHead className="w-[90px] text-right">Total</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productLines.map((line, idx) => {
-                    const prevLine = idx > 0 ? productLines[idx - 1] : null;
-                    const showDate = !prevLine || prevLine.event_date !== line.event_date;
-                    const showEvent = !prevLine || prevLine.protocol_event_label !== line.protocol_event_label || showDate;
-                    const categoryProducts = billingProducts.filter(p => p.product_category === line.product_category);
+        {/* ── Tab navigation ── */}
+        <div className="flex gap-1 border-b border-border">
+          {(["sessions", "billing"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
+                activeTab === tab
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}>
+              {tab === "sessions" ? "Sessions" : "Billing"}
+            </button>
+          ))}
+        </div>
 
-                    return (
-                      <TableRow key={line.id || idx}>
-                        <TableCell className="text-xs">
-                          {showDate && line.event_date ? format(parseISO(line.event_date), "MMM d") : ""}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {showEvent ? line.protocol_event_label : ""}
-                        </TableCell>
-                        <TableCell>
-                          {categoryProducts.length > 1 ? (
-                            <Select
-                              value={line.billing_product_id || ""}
-                              onValueChange={(v) => swapProduct(idx, v)}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue>{line.product_name}</SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categoryProducts.map(p => (
-                                  <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-sm">{line.product_name}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            className="h-8 w-[70px] text-right text-xs ml-auto"
-                            value={line.doses}
-                            onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {(line.units_billed ?? line.units_calculated ?? 0).toFixed(1)} {line.unit_label || ""}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="h-8 w-[70px] text-right text-xs ml-auto"
-                            value={line.unit_price ?? 0}
-                            onChange={(e) => saveProductLine(idx, { unit_price: Number(e.target.value) || 0 })}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right text-sm font-medium">
-                          {formatCurrency(line.line_total)}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3">
-              {productLines.map((line, idx) => (
-                <div key={line.id || idx} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {line.event_date ? format(parseISO(line.event_date), "MMM d") : ""} · {line.protocol_event_label}
-                      </p>
-                      <p className="font-medium text-sm">{line.product_name}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeProductLine(idx)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Doses</label>
-                      <Input type="number" className="h-8 text-xs" value={line.doses}
-                        onChange={(e) => saveProductLine(idx, { doses: Number(e.target.value) || 0 })} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Units</label>
-                      <p className="text-sm mt-1">{(line.units_billed ?? 0).toFixed(1)} {line.unit_label || ""}</p>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Total</label>
-                      <p className="text-sm font-medium mt-1">{formatCurrency(line.line_total)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between mt-3">
-              <Button variant="outline" size="sm" onClick={addProductLine}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Product
-              </Button>
-              <p className="text-sm font-semibold">Products Total: {formatCurrency(productsTotal)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Semen Section ── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Semen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bull</TableHead>
-                    <TableHead className="w-[90px]">Code</TableHead>
-                    <TableHead className="w-[70px] text-right">Packed</TableHead>
-                    <TableHead className="w-[70px] text-right">Returned</TableHead>
-                    <TableHead className="w-[70px] text-right">Blown</TableHead>
-                    <TableHead className="w-[70px] text-right">Billable</TableHead>
-                    <TableHead className="w-[80px] text-right">Price</TableHead>
-                    <TableHead className="w-[90px] text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {semenLines.map((line, idx) => (
-                    <TableRow key={line.id || idx}>
-                      <TableCell className="text-sm font-medium">{line.bull_name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{line.bull_code || "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_packed ?? 0}
-                          onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_returned ?? 0}
-                          onChange={(e) => saveSemenLine(idx, { units_returned: Number(e.target.value) || 0 })} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Input type="number" className="h-8 w-[60px] text-right text-xs ml-auto"
-                          value={line.units_blown ?? 0}
-                          onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">{line.units_billable ?? 0}</TableCell>
-                      <TableCell className="text-right">
-                        <Input type="number" step="0.01" className="h-8 w-[70px] text-right text-xs ml-auto"
-                          value={line.unit_price ?? 0}
-                          onChange={(e) => saveSemenLine(idx, { unit_price: Number(e.target.value) || 0 })} />
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">{formatCurrency(line.line_total)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile */}
-            <div className="md:hidden space-y-3">
-              {semenLines.map((line, idx) => (
-                <div key={line.id || idx} className="border rounded-lg p-3 space-y-2">
-                  <p className="font-medium text-sm">{line.bull_name} <span className="text-muted-foreground text-xs">{line.bull_code}</span></p>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Packed</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_packed ?? 0}
-                        onChange={(e) => saveSemenLine(idx, { units_packed: Number(e.target.value) || 0 })} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Ret'd</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_returned ?? 0}
-                        onChange={(e) => saveSemenLine(idx, { units_returned: Number(e.target.value) || 0 })} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Blown</label>
-                      <Input type="number" className="h-8 text-xs" value={line.units_blown ?? 0}
-                        onChange={(e) => saveSemenLine(idx, { units_blown: Number(e.target.value) || 0 })} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground">Billable</label>
-                      <p className="text-sm mt-1 font-medium">{line.units_billable ?? 0}</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-muted-foreground">Total</span>
-                    <span className="text-sm font-medium">{formatCurrency(line.line_total)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end mt-3">
-              <p className="text-sm font-semibold">Semen Total: {formatCurrency(semenTotal)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Sessions Section ── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Field Sessions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Date</TableHead>
-                    <TableHead className="w-[150px]">Event</TableHead>
-                    <TableHead className="w-[100px]">Time</TableHead>
-                    <TableHead className="w-[90px] text-right">Head Count</TableHead>
-                    <TableHead className="w-[120px]">Crew</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="w-[40px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessions.map((s, idx) => {
-                    const diff = s.head_count != null && project.head_count
-                      ? s.head_count - project.head_count : null;
-                    return (
-                      <TableRow key={s.id || idx}>
-                        <TableCell className="text-xs">{format(parseISO(s.session_date), "MMM d")}</TableCell>
-                        <TableCell className="text-xs">{s.session_label}</TableCell>
-                        <TableCell>
-                          <Input className="h-8 text-xs" value={s.time_of_day || ""}
-                            onChange={(e) => saveSessionLine(idx, { time_of_day: e.target.value })} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex flex-col items-end">
-                            <Input type="number" className="h-8 w-[70px] text-right text-xs"
-                              value={s.head_count ?? ""}
-                              placeholder="—"
-                              onChange={(e) => saveSessionLine(idx, { head_count: e.target.value ? Number(e.target.value) : null })} />
-                            {diff !== null && diff !== 0 && (
-                              <span className={`text-[10px] ${diff < 0 ? "text-destructive" : "text-emerald-600"}`}>
-                                {diff > 0 ? "+" : ""}{diff} vs projected
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Input className="h-8 text-xs" value={s.crew || ""}
-                            onChange={(e) => saveSessionLine(idx, { crew: e.target.value })} />
-                        </TableCell>
-                        <TableCell>
-                          <Input className="h-8 text-xs" value={s.notes || ""}
-                            onChange={(e) => saveSessionLine(idx, { notes: e.target.value })} />
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile */}
-            <div className="md:hidden space-y-3">
-              {sessions.map((s, idx) => {
-                const diff = s.head_count != null && project.head_count ? s.head_count - project.head_count : null;
-                return (
-                  <div key={s.id || idx} className="border rounded-lg p-3 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{format(parseISO(s.session_date), "MMM d")}</p>
-                        <p className="font-medium text-sm">{s.session_label}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSession(idx)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">Time</label>
-                        <Input className="h-8 text-xs" value={s.time_of_day || ""}
-                          onChange={(e) => saveSessionLine(idx, { time_of_day: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">Head</label>
-                        <Input type="number" className="h-8 text-xs" value={s.head_count ?? ""}
-                          placeholder="—"
-                          onChange={(e) => saveSessionLine(idx, { head_count: e.target.value ? Number(e.target.value) : null })} />
-                        {diff !== null && diff !== 0 && (
-                          <span className={`text-[10px] ${diff < 0 ? "text-destructive" : "text-emerald-600"}`}>
-                            {diff > 0 ? "+" : ""}{diff}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">Crew</label>
-                        <Input className="h-8 text-xs" value={s.crew || ""}
-                          onChange={(e) => saveSessionLine(idx, { crew: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <Button variant="outline" size="sm" className="mt-3" onClick={addSession}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Session
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* ── Labor Section ── */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Labor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {laborLines.map((line, idx) => (
-                <div key={line.id || idx} className="flex items-center gap-2">
-                  <Input className="h-9 flex-1 text-sm" placeholder="Description" value={line.description}
-                    onChange={(e) => saveLaborLine(idx, { description: e.target.value })} />
-                  <Input className="h-9 w-[120px] text-sm" placeholder="Dates" value={line.labor_dates || ""}
-                    onChange={(e) => saveLaborLine(idx, { labor_dates: e.target.value })} />
-                  <Input type="number" step="0.01" className="h-9 w-[100px] text-right text-sm" placeholder="$0.00"
-                    value={line.amount ?? 0}
-                    onChange={(e) => saveLaborLine(idx, { amount: Number(e.target.value) || 0 })} />
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeLabor(idx)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between mt-3">
-              <Button variant="outline" size="sm" onClick={addLabor}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Labor
-              </Button>
-              <p className="text-sm font-semibold">Labor Total: {formatCurrency(laborTotal)}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Grand Total ── */}
-        <Card className="border-2 border-primary/30">
-          <CardContent className="py-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Products</p>
-                <p className="font-semibold">{formatCurrency(productsTotal)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Semen</p>
-                <p className="font-semibold">{formatCurrency(semenTotal)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Labor</p>
-                <p className="font-semibold">{formatCurrency(laborTotal)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Grand Total</p>
-                <p className="text-xl font-bold text-primary">{formatCurrency(grandTotal)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Notes ── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              className="min-h-[80px]"
-              defaultValue={billingRecord?.notes || ""}
-              placeholder="General billing notes..."
-              onBlur={(e) => saveBillingField("notes", e.target.value || null)}
+        {/* ── Tab content ── */}
+        <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
+          {activeTab === "sessions" && (
+            <SessionsTab
+              sessions={sessions} productLines={productLines}
+              sessionInventory={sessionInventory} semenLines={semenLines}
+              billingProducts={billingProducts} readOnly={readOnly}
+              onSaveSession={saveSessionLine} onSaveProduct={saveProductLine}
+              onSwapProduct={swapProduct} onToggleProductInvoiced={toggleProductInvoiced}
+              onAddBreedingSession={addBreedingSession}
+              onCreateCustomerPickup={createCustomerPickup}
+              onRemoveSession={removeSession}
+              onRemoveProduct={removeProductLine}
+              onAddProductToSession={addProductToSession}
+              onAddProductToSessionWithProduct={addProductToSessionWithProduct}
+              onAddMiscProduct={addMiscProduct}
+              onSaveWorksheetCell={saveWorksheetCell}
+              onSetSessionInventory={setSessionInventory}
+              onTotalUsedChanged={handleTotalUsedChanged}
             />
-          </CardContent>
-        </Card>
+          )}
+          {activeTab === "billing" && (
+            <BillingTab
+              productLines={productLines} semenLines={semenLines}
+              billingRecord={billingRecord} readOnly={readOnly}
+              onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}
+              onToggleProductInvoiced={toggleProductInvoiced}
+              onToggleSemenInvoiced={toggleSemenInvoiced}
+              onSaveBillingField={saveBillingField}
+            />
+          )}
+        </fieldset>
+
+        {/* ── Status action bar ── */}
+        {!readOnly && (
+          <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border py-4 -mx-4 px-4 mt-6">
+            {currentStatus === "in_process" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                onClick={() => saveBillingField("status", "work_complete")}>
+                Mark Work Complete
+              </Button>
+            )}
+            {currentStatus === "work_complete" && (
+              <Button className="w-full h-12 text-base font-semibold"
+                disabled={!allInvoiced}
+                onClick={() => saveBillingField("status", "invoiced_closed")}>
+                {allInvoiced ? "Mark Invoiced & Closed" : "Invoice all lines first"}
+              </Button>
+            )}
+          </div>
+        )}
+        {readOnly && currentStatus === "invoiced_closed" && (
+          <div className="text-center py-6">
+            <span className="inline-flex items-center gap-2 text-emerald-600 font-semibold text-lg">
+              ✓ Invoiced &amp; Closed
+            </span>
+          </div>
+        )}
       </main>
+
+      {/* Save confirmation toast */}
+      {saved && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
+            <Check className="h-4 w-4" /> Saved
+          </div>
+        </div>
+      )}
       <AppFooter />
     </div>
   );

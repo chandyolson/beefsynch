@@ -1,6 +1,11 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  getStandardHeadStylesDark,
+  PDF_COLORS,
+  PDF_FONTS,
+} from "./pdfUtils";
 
 interface InventoryRow {
   bullName: string;
@@ -27,10 +32,10 @@ export function generateSemenInventoryPdf(rows: InventoryRow[], filters: Filters
   const today = format(new Date(), "MMM d, yyyy");
 
   // Header
-  doc.setFontSize(18);
+  doc.setFontSize(PDF_FONTS.sizeMedium);
   doc.text("BeefSynch — Semen Inventory Report", 14, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(100);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
+  doc.setTextColor(PDF_COLORS.textGray);
   doc.text(`Generated: ${today}`, 14, 25);
 
   // Filter info
@@ -42,7 +47,7 @@ export function generateSemenInventoryPdf(rows: InventoryRow[], filters: Filters
     doc.text(`Filters: ${filterParts.join(" | ")}`, 14, 31);
   }
 
-  doc.setTextColor(0);
+  doc.setTextColor(PDF_COLORS.textNormal);
 
   const startY = filterParts.length > 0 ? 36 : 30;
 
@@ -67,8 +72,8 @@ export function generateSemenInventoryPdf(rows: InventoryRow[], filters: Filters
       ]),
       ["", "", "", "", "", "", "Total", totalUnits.toString(), "", "", ""],
     ],
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [41, 37, 36] },
+    styles: { fontSize: PDF_FONTS.sizeSmallTiny },
+    headStyles: getStandardHeadStylesDark(),
     columnStyles: { 7: { halign: "right" } },
   });
 

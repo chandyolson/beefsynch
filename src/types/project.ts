@@ -1,5 +1,5 @@
 export type AnimalType = "Heifer" | "Cow";
-export type ProjectStatus = "Tentative" | "Confirmed" | "Complete";
+export type ProjectStatus = "Tentative" | "Confirmed" | "Work Complete" | "Invoiced";
 
 export interface BreedingProject {
   id: string;
@@ -13,4 +13,6 @@ export interface BreedingProject {
   location: string;
   userId?: string | null;
   lastContactedDate?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
 }

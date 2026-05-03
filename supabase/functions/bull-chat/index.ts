@@ -17,7 +17,7 @@ async function searchSelectSires(query: string): Promise<string[]> {
     const html = await resp.text();
 
     // Extract bull page URLs from search results
-    const urlPattern = /href=\"(https:\/\/selectsiresbeef\.com\/bull\/[^"]+)\"/g;
+    const urlPattern = /href="(https:\/\/selectsiresbeef\.com\/bull\/[^"]+)"/g;
     const urls = new Set<string>();
     let match;
     while ((match = urlPattern.exec(html)) !== null) {

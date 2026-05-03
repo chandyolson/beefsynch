@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, Plus, Search, Users, Package, Archive } from "lucide-react";
+import { Plus, Search, Users, Package, Archive } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
+import BackButton from "@/components/BackButton";
 import AppFooter from "@/components/AppFooter";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,13 +29,19 @@ const Customers = () => {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "has_tanks" | "has_units">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState("");
+  const [formCompanyName, setFormCompanyName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formAddress, setFormAddress] = useState("");
+  const [formAddressLine1, setFormAddressLine1] = useState("");
+  const [formAddressLine2, setFormAddressLine2] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formState, setFormState] = useState("");
+  const [formZip, setFormZip] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -113,10 +120,21 @@ const Customers = () => {
 
   // Filtered
   const filtered = useMemo(() => {
-    if (!search) return customerData;
-    const q = search.toLowerCase();
-    return customerData.filter((c: any) => c.name.toLowerCase().includes(q));
-  }, [customerData, search]);
+    let result = customerData;
+
+    if (filterMode === "has_tanks") {
+      result = result.filter((c: any) => c.tankCount > 0);
+    } else if (filterMode === "has_units") {
+      result = result.filter((c: any) => c.totalUnits > 0);
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((c: any) => c.name.toLowerCase().includes(q));
+    }
+
+    return result;
+  }, [customerData, search, filterMode]);
 
   // Stats
   const totalCustomers = customers.length;
@@ -133,9 +151,14 @@ const Customers = () => {
         .insert({
           organization_id: orgId!,
           name: formName.trim(),
+          company_name: formCompanyName.trim() || null,
           phone: formPhone.trim() || null,
           email: formEmail.trim() || null,
-          address: formAddress.trim() || null,
+          address_line1: formAddressLine1.trim() || null,
+          address_line2: formAddressLine2.trim() || null,
+          city: formCity.trim() || null,
+          state: formState.trim() || null,
+          zip: formZip.trim() || null,
           notes: formNotes.trim() || null,
         });
       if (error) throw error;
@@ -153,9 +176,14 @@ const Customers = () => {
 
   const resetForm = () => {
     setFormName("");
+    setFormCompanyName("");
     setFormPhone("");
     setFormEmail("");
-    setFormAddress("");
+    setFormAddressLine1("");
+    setFormAddressLine2("");
+    setFormCity("");
+    setFormState("");
+    setFormZip("");
     setFormNotes("");
   };
 
@@ -166,6 +194,25 @@ const Customers = () => {
 
   const handleSave = async () => {
     if (!formName.trim()) return;
+
+    // Validate email if provided
+    if (formEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formEmail.trim())) {
+        toast({ title: "Invalid email", description: "Please enter a valid email address", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Validate phone if provided
+    if (formPhone.trim()) {
+      const phoneDigits = formPhone.trim().replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        toast({ title: "Invalid phone", description: "Phone number must have at least 10 digits", variant: "destructive" });
+        return;
+      }
+    }
+
     setSaving(true);
     await saveMutation.mutateAsync();
     setSaving(false);
@@ -183,6 +230,7 @@ const Customers = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <BackButton />
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold font-display tracking-tight">Customers</h2>
@@ -199,8 +247,8 @@ const Customers = () => {
         </div>
 
         {/* Search */}
-        <div className="flex-1 min-w-[200px] max-w-xs">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] max-w-xs flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search customer..."
@@ -208,6 +256,32 @@ const Customers = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
+          </div>
+          <div className="inline-flex rounded-lg border border-border/50 overflow-hidden">
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("all")}
+            >
+              All
+            </button>
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "has_tanks" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("has_tanks")}
+            >
+              Has Tanks
+            </button>
+            <button
+              className={cn("px-3 py-2 text-sm font-medium transition-colors",
+                filterMode === "has_units" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+              )}
+              onClick={() => setFilterMode("has_units")}
+            >
+              Has Units
+            </button>
           </div>
         </div>
 
@@ -222,17 +296,16 @@ const Customers = () => {
                 <TableHead className="whitespace-nowrap text-right">Tanks</TableHead>
                 <TableHead className="whitespace-nowrap text-right">Total Units</TableHead>
                 <TableHead className="whitespace-nowrap">Last Inventoried</TableHead>
-                <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Loading…</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     {customers.length === 0 ? "No customers yet." : "No customers match your search."}
                   </TableCell>
                 </TableRow>
@@ -249,11 +322,6 @@ const Customers = () => {
                         ? format(parseISO(cust.lastInventoried), "MMM d, yyyy")
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/customers/${cust.id}`)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -268,33 +336,33 @@ const Customers = () => {
           <DialogHeader>
             <DialogTitle>Add Customer</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Customer name" />
+          <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
+            <Label className="text-right text-sm">Display Name *</Label>
+            <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Customer name" />
+            <Label className="text-right text-sm">Company Name</Label>
+            <Input value={formCompanyName} onChange={(e) => setFormCompanyName(e.target.value)} />
+            <Label className="text-right text-sm">Email</Label>
+            <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Email address" />
+            <Label className="text-right text-sm">Phone</Label>
+            <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Phone number" />
+            <Label className="text-right text-sm">Address Line 1</Label>
+            <Input value={formAddressLine1} onChange={(e) => setFormAddressLine1(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 2</Label>
+            <Input value={formAddressLine2} onChange={(e) => setFormAddressLine2(e.target.value)} />
+            <Label className="text-right text-sm">City / State / Zip</Label>
+            <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+              <Input value={formCity} onChange={(e) => setFormCity(e.target.value)} placeholder="City" />
+              <Input value={formState} onChange={(e) => setFormState(e.target.value)} placeholder="ST" maxLength={2} />
+              <Input value={formZip} onChange={(e) => setFormZip(e.target.value)} placeholder="Zip" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="Phone number" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="Email address" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="Address" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Notes" rows={3} />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !formName.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
+            <Label className="text-right text-sm">Notes</Label>
+            <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Notes" rows={3} />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || !formName.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

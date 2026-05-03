@@ -1,0 +1,1 @@
+ALTER TABLE public.tank_packs ADD COLUMN customer_id uuid REFERENCES public.customers(id);

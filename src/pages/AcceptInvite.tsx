@@ -18,16 +18,31 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+// ── Error mapping ────────────────────────────────────────────────────────
+function mapAuthError(error: any): string {
+  const message = error?.message || "";
+  if (message.includes("User already registered")) {
+    return "An account with this email already exists";
+  }
+  if (message.includes("Invalid login credentials")) {
+    return "Incorrect email or password";
+  }
+  if (message.includes("Email not confirmed")) {
+    return "Please check your email to confirm your account";
+  }
+  return "Something went wrong. Please try again.";
+}
+
 // ── Schemas ──────────────────────────────────────────────────────────────
 const loginSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 const signupSchema = z
   .object({
     email: z.string().trim().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -145,7 +160,7 @@ const AcceptInvite = () => {
       });
 
       setStep("done");
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
     },
     [navigate, refresh]
   );
@@ -154,8 +169,9 @@ const AcceptInvite = () => {
   useEffect(() => {
     const token = searchParams.get("token");
 
-    if (!token) {
-      navigate("/auth");
+    if (!token || token.trim() === "") {
+      setStep("invalid");
+      setErrorMsg("No invitation token provided. Please ask your organization owner to send a new invite.");
       return;
     }
 
@@ -191,7 +207,7 @@ const AcceptInvite = () => {
           if (membership) {
             // Already a member — just go to dashboard
             toast({ title: "You're already a member!", description: `Welcome back to ${invite.org_name}.` });
-            navigate("/dashboard");
+            navigate("/operations?tab=projects");
             return;
           }
         }
@@ -251,7 +267,7 @@ const AcceptInvite = () => {
       setLoading(false);
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: mapAuthError(error),
         variant: "destructive",
       });
       return;
@@ -276,7 +292,7 @@ const AcceptInvite = () => {
       setLoading(false);
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: mapAuthError(error),
         variant: "destructive",
       });
       return;

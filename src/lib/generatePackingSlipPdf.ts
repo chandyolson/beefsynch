@@ -1,6 +1,16 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  addStandardHeader,
+  addFooterToPdf,
+  buildPdfFilename,
+  getStandardHeadStyles,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { sanitizeFilename } from "./pdfUtils";
 
 interface PackSlipData {
   fieldTankName: string;
@@ -27,26 +37,13 @@ interface PackSlipLine {
 export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y: number = margin;
+
+  y = addStandardHeader(doc, margin, "BeefSynch", pack.packType === "shipment" ? "Shipping Packing List" : "Packing Slip");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.text("BeefSynch", margin, y);
-  y += 18;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text(pack.packType === "shipment" ? "Shipping Packing List" : "Packing Slip", margin, y);
-  doc.setTextColor(0);
-  y += 6;
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(pack.fieldTankName, margin, y);
   y += 22;
 
@@ -72,7 +69,7 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
 
   if (pack.notes) infoRows.push(["Notes", pack.notes]);
 
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   for (const [label, value] of infoRows) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, margin, y);
@@ -84,7 +81,7 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
   y += 10;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(PDF_FONTS.sizeBody);
   doc.text("Packed Semen", margin, y);
   y += 8;
 
@@ -104,8 +101,8 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
     margin: { left: margin, right: margin },
     head: [["Bull Name", "Code", "Source Tank", "Src Can.", "Field Can.", "Units"]],
     body: tableBody,
-    styles: { fontSize: 9, cellPadding: 5 },
-    headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+    headStyles: getStandardHeadStyles(),
     alternateRowStyles: { fillColor: [245, 245, 245] },
     didParseCell: (data) => {
       if (data.row.index === tableBody.length - 1 && data.section === "body") {
@@ -114,16 +111,8 @@ export function generatePackingSlipPdf(pack: PackSlipData, lines: PackSlipLine[]
     },
   });
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text("BeefSynch by Chuteside, LLC", pageWidth / 2, doc.internal.pageSize.getHeight() - 30, { align: "center" });
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC");
 
-  const safeName = pack.fieldTankName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   const safeDate = format(new Date(pack.packedAt), "yyyyMMdd");
-  doc.save(`BeefSynch_PackSlip_${safeName}_${safeDate}.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_PackSlip", pack.fieldTankName, safeDate));
 }

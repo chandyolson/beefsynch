@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PackageOpen, Loader2, ArrowLeft } from "lucide-react";
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -45,6 +46,7 @@ const UnpackTank = () => {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [linesInitialized, setLinesInitialized] = useState(false);
+  const [semenAdjusted, setSemenAdjusted] = useState(false);
 
   // Fetch pack
   const { data: pack, isLoading: packLoading } = useQuery({
@@ -105,6 +107,26 @@ const UnpackTank = () => {
     },
   });
 
+  // Fetch billing semen data to pre-populate expected return quantities
+  const { data: billingSemen = [] } = useQuery({
+    queryKey: ["unpack_billing_semen", packId, packProjects.length],
+    enabled: packProjects.length > 0,
+    queryFn: async () => {
+      const projectIds = packProjects.map((pp: any) => pp.project_id).filter(Boolean);
+      if (projectIds.length === 0) return [];
+      const { data: billings } = await supabase
+        .from("project_billing")
+        .select("id")
+        .in("project_id", projectIds);
+      if (!billings?.length) return [];
+      const billingIds = billings.map((b: any) => b.id);
+      const { data: semen } = await (supabase.from as any)("project_billing_semen")
+        .select("bull_catalog_id, bull_name, bull_code, units_packed, units_returned, units_billable")
+        .in("billing_id", billingIds);
+      return (semen ?? []) as any[];
+    },
+  });
+
   // Initialize return lines from pack lines once loaded
   if (packLines.length > 0 && !linesInitialized) {
     const lines: ReturnLine[] = packLines.map((pl: any) => ({
@@ -124,9 +146,30 @@ const UnpackTank = () => {
     setLinesInitialized(true);
   }
 
+  // Once billing semen data loads, adjust return quantities to account for usage
+  useEffect(() => {
+    if (semenAdjusted || billingSemen.length === 0 || returnLines.length === 0) return;
+    setReturnLines(prev => prev.map(line => {
+      const match = billingSemen.find((bs: any) =>
+        (bs.bull_catalog_id && bs.bull_catalog_id === line.bullCatalogId) ||
+        (bs.bull_code && bs.bull_code === line.bullCode) ||
+        (bs.bull_name && bs.bull_name === line.bullName)
+      );
+      if (!match) return line;
+      // units_returned = packed - used = physical straws still in tank
+      const expectedReturn = match.units_returned != null && match.units_returned >= 0
+        ? match.units_returned
+        : line.unitsPacked;
+      return { ...line, unitsReturning: Math.max(0, expectedReturn) };
+    }));
+    setSemenAdjusted(true);
+  }, [billingSemen, returnLines, semenAdjusted]);
+
   const fieldTankName = pack?.tanks?.tank_name || pack?.tanks?.tank_number || "Unknown";
   const fieldTankId = pack?.tanks?.id || pack?.field_tank_id;
   const projectNames = packProjects.map((pp: any) => pp.projects?.name).filter(Boolean);
+  const firstProjectId = packProjects[0]?.project_id;
+  const backPath = firstProjectId ? `/project/${firstProjectId}/billing` : `/pack/${packId}`;
 
   const updateLine = (index: number, updates: Partial<ReturnLine>) => {
     setReturnLines(prev => prev.map((l, i) => i === index ? { ...l, ...updates } : l));
@@ -139,165 +182,31 @@ const UnpackTank = () => {
     setSubmitting(true);
 
     try {
-      // Step 1: Process each return line
-      for (const line of returnLines) {
-        const destTank = allTanks.find((t: any) => t.id === line.destinationTankId);
-        const destTankName = destTank ? tankLabel(destTank) : "Unknown";
-
-        if (line.unitsReturning > 0) {
-          // a. Insert unpack line
-          const { error: unpackLineErr } = await supabase.from("tank_unpack_lines").insert({
-            tank_pack_id: packId,
-            destination_tank_id: line.destinationTankId,
-            bull_catalog_id: line.bullCatalogId,
-            bull_name: line.bullName,
-            bull_code: line.bullCode,
-            destination_canister: line.destinationCanister || null,
-            units_returned: line.unitsReturning,
-          });
-          if (unpackLineErr) throw unpackLineErr;
-
-          // b. Deduct from field tank inventory
-          let fieldQuery = supabase.from("tank_inventory").select("id, units")
-            .eq("tank_id", fieldTankId)
-            .eq("organization_id", orgId!);
-          if (line.bullCatalogId) {
-            fieldQuery = fieldQuery.eq("bull_catalog_id", line.bullCatalogId);
-          } else {
-            fieldQuery = fieldQuery.eq("custom_bull_name", line.bullName);
-          }
-          if (line.fieldCanister) {
-            fieldQuery = fieldQuery.eq("canister", line.fieldCanister);
-          }
-          const { data: fieldInv } = await fieldQuery.limit(1);
-          if (fieldInv && fieldInv[0]) {
-            const newUnits = fieldInv[0].units - line.unitsReturning;
-            if (newUnits <= 0) {
-              const { error: fieldDelErr } = await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
-              if (fieldDelErr) throw fieldDelErr;
-            } else {
-              const { error: fieldUpdErr } = await supabase.from("tank_inventory").update({ units: newUnits }).eq("id", fieldInv[0].id);
-              if (fieldUpdErr) throw fieldUpdErr;
-            }
-          }
-
-          // c. Add to destination tank inventory
-          let destQuery = supabase.from("tank_inventory").select("id, units")
-            .eq("tank_id", line.destinationTankId)
-            .eq("organization_id", orgId!);
-          if (line.bullCatalogId) {
-            destQuery = destQuery.eq("bull_catalog_id", line.bullCatalogId);
-          } else {
-            destQuery = destQuery.eq("custom_bull_name", line.bullName);
-          }
-          if (line.destinationCanister) {
-            destQuery = destQuery.eq("canister", line.destinationCanister);
-          }
-          const { data: destInv } = await destQuery.limit(1);
-          if (destInv && destInv.length > 0) {
-            const { error: destUpdErr } = await supabase.from("tank_inventory").update({ units: destInv[0].units + line.unitsReturning }).eq("id", destInv[0].id);
-            if (destUpdErr) throw destUpdErr;
-          } else {
-            const { error: destInsErr } = await supabase.from("tank_inventory").insert({
-              tank_id: line.destinationTankId,
-              organization_id: orgId!,
-              canister: line.destinationCanister || "1",
-              units: line.unitsReturning,
-              item_type: "semen",
-              bull_catalog_id: line.bullCatalogId,
-              custom_bull_name: line.bullName,
-              bull_code: line.bullCode,
-            });
-            if (destInsErr) throw destInsErr;
-          }
-
-          // d. Transaction: field tank deduction
-          const { error: txnOutErr } = await supabase.from("inventory_transactions").insert({
-            organization_id: orgId!,
-            tank_id: fieldTankId,
-            bull_catalog_id: line.bullCatalogId,
-            bull_code: line.bullCode,
-            custom_bull_name: line.bullName,
-            units_change: -line.unitsReturning,
-            transaction_type: "unpack_out",
-            notes: `Returned to ${destTankName}`,
-            performed_by: null,
-          });
-          if (txnOutErr) throw txnOutErr;
-
-          // e. Transaction: destination tank addition
-          const { error: txnReturnErr } = await supabase.from("inventory_transactions").insert({
-            organization_id: orgId!,
-            tank_id: line.destinationTankId,
-            bull_catalog_id: line.bullCatalogId,
-            bull_code: line.bullCode,
-            custom_bull_name: line.bullName,
-            units_change: line.unitsReturning,
-            transaction_type: "unpack_return",
-            notes: `Returned from ${fieldTankName} — ${projectNames.join(", ")}`,
-            performed_by: null,
-          });
-          if (txnReturnErr) throw txnReturnErr;
-        } else {
-          // All semen used
-          // a. Insert unpack line with 0
-          const { error: unpackLineZeroErr } = await supabase.from("tank_unpack_lines").insert({
-            tank_pack_id: packId,
-            destination_tank_id: line.destinationTankId,
-            bull_catalog_id: line.bullCatalogId,
-            bull_name: line.bullName,
-            bull_code: line.bullCode,
-            destination_canister: line.destinationCanister || null,
-            units_returned: 0,
-          });
-          if (unpackLineZeroErr) throw unpackLineZeroErr;
-
-          // b. Delete field tank inventory row
-          let fieldQuery = supabase.from("tank_inventory").select("id")
-            .eq("tank_id", fieldTankId)
-            .eq("organization_id", orgId!);
-          if (line.bullCatalogId) {
-            fieldQuery = fieldQuery.eq("bull_catalog_id", line.bullCatalogId);
-          } else {
-            fieldQuery = fieldQuery.eq("custom_bull_name", line.bullName);
-          }
-          if (line.fieldCanister) {
-            fieldQuery = fieldQuery.eq("canister", line.fieldCanister);
-          }
-          const { data: fieldInv } = await fieldQuery.limit(1);
-          if (fieldInv && fieldInv[0]) {
-            const { error: usedDelErr } = await supabase.from("tank_inventory").delete().eq("id", fieldInv[0].id);
-            if (usedDelErr) throw usedDelErr;
-          }
-
-          // c. Transaction: used in field
-          const { error: txnUsedErr } = await supabase.from("inventory_transactions").insert({
-            organization_id: orgId!,
-            tank_id: fieldTankId,
-            bull_catalog_id: line.bullCatalogId,
-            bull_code: line.bullCode,
-            custom_bull_name: line.bullName,
-            units_change: -line.unitsPacked,
-            transaction_type: "used_in_field",
-            notes: `Used during ${projectNames.join(", ")}`,
-            performed_by: null,
-          });
-          if (txnUsedErr) throw txnUsedErr;
-        }
-      }
-
-      // Step 2: Update pack status
-      const { error: packStatusErr } = await supabase.from("tank_packs").update({
-        status: "unpacked",
-        unpacked_at: new Date().toISOString(),
+      const payload = {
+        pack_id: packId,
         unpacked_by: unpackedBy.trim() || null,
-      }).eq("id", packId);
-      if (packStatusErr) throw packStatusErr;
+        lines: returnLines.map(line => ({
+          bull_catalog_id: line.bullCatalogId,
+          bull_name: line.bullName,
+          bull_code: line.bullCode,
+          field_canister: line.fieldCanister || null,
+          destination_tank_id: line.destinationTankId,
+          destination_canister: line.destinationCanister || null,
+          units_returning: line.unitsReturning,
+          units_packed: line.unitsPacked,
+        })),
+      };
+
+      const { data, error } = await (supabase.rpc as any)("unpack_tank", { _input: payload });
+      if (error) throw error;
+
+      const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;
+      if (!result?.ok) throw new Error("Unpack failed: invalid response from server");
 
       toast.success("Tank unpacked", { description: "Return slip ready to print." });
-      navigate(`/pack/${packId}`);
+      navigate(backPath);
     } catch (err: any) {
-      toast.error("Error unpacking tank", { description: err.message });
+      toast.error("Error unpacking tank", { description: err?.message || "Unknown error" });
     } finally {
       setSubmitting(false);
     }
@@ -317,7 +226,9 @@ const UnpackTank = () => {
         <Navbar />
         <main className="container mx-auto px-4 py-8 max-w-4xl space-y-4">
           <p className="text-muted-foreground">This pack has already been unpacked.</p>
-          <Button variant="outline" onClick={() => navigate(`/pack/${packId}`)}>View Pack Details</Button>
+          <Button variant="outline" onClick={() => navigate(backPath)}>
+            {firstProjectId ? "Back to Project Billing" : "View Pack Details"}
+          </Button>
         </main>
         <AppFooter />
       </div>
@@ -330,7 +241,7 @@ const UnpackTank = () => {
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${packId}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -425,7 +336,7 @@ const UnpackTank = () => {
             <div className="space-y-3 pt-4 border-t border-border/50">
               <div>
                 <Label>Unpacked By</Label>
-                <Input value={unpackedBy} onChange={(e) => setUnpackedBy(e.target.value)} placeholder="Who unpacked this tank?" className="mt-1.5" />
+                <TeamMemberSelect value={unpackedBy} onValueChange={setUnpackedBy} placeholder="Who unpacked this tank?" className="mt-1.5" />
               </div>
               <div>
                 <Label>Notes</Label>

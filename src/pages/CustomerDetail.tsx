@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail } from "lucide-react";
+import { ArrowLeft, Package, Archive, Dna, Plus, FileText, Droplets, ChevronDown, ChevronRight, Truck, Sun, Mail, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 import Navbar from "@/components/Navbar";
@@ -27,9 +27,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { getBadgeClass } from "@/lib/badgeStyles";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import TransferDialog from "@/components/inventory/TransferDialog";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
@@ -42,9 +49,9 @@ const STATUS_COLORS: Record<string, string> = {
 const FULFILLMENT_COLORS: Record<string, string> = {
   pending: "bg-muted text-muted-foreground",
   ordered: "bg-blue-600/20 text-blue-400",
-  partially_filled: "bg-yellow-600/20 text-yellow-400",
+  partially_fulfilled: "bg-yellow-600/20 text-yellow-400",
   shipped: "bg-purple-600/20 text-purple-400",
-  delivered: "bg-green-600/20 text-green-400",
+  fulfilled: "bg-green-600/20 text-green-400",
 };
 
 const BILLING_COLORS: Record<string, string> = {
@@ -61,10 +68,16 @@ const CustomerDetail = () => {
 
   // Edit customer dialog
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formName, setFormName] = useState("");
+  const [formCompanyName, setFormCompanyName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formAddress, setFormAddress] = useState("");
+  const [formAddressLine1, setFormAddressLine1] = useState("");
+  const [formAddressLine2, setFormAddressLine2] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formState, setFormState] = useState("");
+  const [formZip, setFormZip] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -93,8 +106,30 @@ const CustomerDetail = () => {
   const [semenNotes, setSemenNotes] = useState("");
   const [semenSaving, setSemenSaving] = useState(false);
 
+  // Mark Out / Mark In movement dialog
+  const [custMoveOpen, setCustMoveOpen] = useState(false);
+  const [custMoveTankId, setCustMoveTankId] = useState("");
+  const [custMoveTankLabel, setCustMoveTankLabel] = useState("");
+  const [custMoveType, setCustMoveType] = useState<"picked_up" | "returned">("picked_up");
+  const [custMoveNotes, setCustMoveNotes] = useState("");
+  const [custMoveSaving, setCustMoveSaving] = useState(false);
+
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, Set<string>>>({});
+  const [tanksOpen, setTanksOpen] = useState(false);
+
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferSource, setTransferSource] = useState<any>(null);
+  const [transferSourceTank, setTransferSourceTank] = useState<any>(null);
+
+  const { data: userId } = useQuery({
+    queryKey: ["auth_user_id"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user?.id ?? null;
+    },
+  });
 
   const toggleSection = (tankId: string, section: string) => {
     setExpandedSections(prev => {
@@ -139,13 +174,16 @@ const CustomerDetail = () => {
   });
 
   // Fetch inventory rows for this customer (to find communal tanks)
+  // NOTE: This query is needed to identify tanks that a customer has semen in (communal tanks).
+  // allInventory (below) fetches from all customer tanks but only for rows with this customer's items,
+  // so we need this to first discover which communal tank IDs belong to this customer.
   const { data: customerInventory = [] } = useQuery({
     queryKey: ["customer_inventory", id, orgId],
     enabled: !!id && !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number)")
         .eq("organization_id", orgId!)
         .eq("customer_id", id!)
         .limit(10000);
@@ -192,11 +230,11 @@ const CustomerDetail = () => {
     queryKey: ["tank_inventory_all", allTankIds, id],
     enabled: allTankIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number)")
         .in("tank_id", allTankIds)
-        .or(`customer_id.eq.${id},customer_id.is.null`)
+        .eq("owner_customer_id", id)
         .limit(10000);
       if (error) throw error;
       return data ?? [];
@@ -238,16 +276,15 @@ const CustomerDetail = () => {
 
   // Fetch customer orders
   const { data: customerOrders = [] } = useQuery({
-    queryKey: ["customer_orders", customer?.name, orgId],
-    enabled: !!customer?.name && !!orgId,
+    queryKey: ["customer_orders", customer?.id, orgId],
+    enabled: !!customer?.id && !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("semen_orders")
-        .select("*, semen_companies(name)")
+        .select("*, semen_companies!semen_orders_semen_company_id_fkey(name), customers!semen_orders_customer_id_fkey(id, name), semen_order_items(units, custom_bull_name, bull_catalog_id, bulls_catalog(bull_name))")
         .eq("organization_id", orgId!)
-        .ilike("customer_name", customer!.name)
-        .order("order_date", { ascending: false })
-        .limit(10);
+        .eq("customer_id", customer!.id)
+        .order("order_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -260,17 +297,49 @@ const CustomerDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shipments")
-        .select("*, semen_companies(name)")
+        .select("*, semen_companies!shipments_semen_company_id_fkey(name)")
         .eq("organization_id", orgId!)
         .eq("customer_id", id!)
-        .order("received_date", { ascending: false })
-        .limit(10);
+        .order("received_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Group fills and transactions by tank
+  // Fetch customer pickups
+  const { data: customerPickups = [] } = useQuery({
+    queryKey: ["customer_pickups", customer?.id, orgId],
+    enabled: !!customer?.id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select("id, pack_type, status, packed_at, tank_pack_lines(bull_name, bull_code, units)")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", customer!.id)
+        .in("pack_type", ["pickup", "order"])
+        .order("packed_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Fetch customer projects
+  const { data: customerProjects = [] } = useQuery({
+    queryKey: ["customer_projects", id, orgId],
+    enabled: !!id && !!orgId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("projects")
+        .select("id, name, status, cattle_type, head_count, breeding_date, protocol, created_at")
+        .eq("organization_id", orgId!)
+        .eq("customer_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+
   const fillsByTank = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const f of allFills) {
@@ -325,26 +394,70 @@ const CustomerDetail = () => {
   }, [allFills]);
 
   // Edit customer handlers
+  const handleDeleteCustomer = async () => {
+    if (!id || !orgId) return;
+    setDeletingCustomer(true);
+    try {
+      const { error } = await supabase.from("customers").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Customer deleted" });
+      navigate("/tanks-dashboard?tab=customers");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingCustomer(false);
+    }
+  };
+
   const openEdit = () => {
     if (!customer) return;
     setFormName(customer.name || "");
+    setFormCompanyName(customer.company_name || "");
     setFormPhone(customer.phone || "");
     setFormEmail(customer.email || "");
-    setFormAddress(customer.address || "");
+    setFormAddressLine1(customer.address_line1 || "");
+    setFormAddressLine2(customer.address_line2 || "");
+    setFormCity(customer.city || "");
+    setFormState(customer.state || "");
+    setFormZip(customer.zip || "");
     setFormNotes(customer.notes || "");
     setEditOpen(true);
   };
 
   const handleEditSave = async () => {
     if (!formName.trim() || !id) return;
+
+    // Validate email if provided
+    if (formEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formEmail.trim())) {
+        toast({ title: "Invalid email", description: "Please enter a valid email address", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Validate phone if provided
+    if (formPhone.trim()) {
+      const phoneDigits = formPhone.trim().replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        toast({ title: "Invalid phone", description: "Phone number must have at least 10 digits", variant: "destructive" });
+        return;
+      }
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from("customers")
       .update({
         name: formName.trim(),
+        company_name: formCompanyName.trim() || null,
         phone: formPhone.trim() || null,
         email: formEmail.trim() || null,
-        address: formAddress.trim() || null,
+        address_line1: formAddressLine1.trim() || null,
+        address_line2: formAddressLine2.trim() || null,
+        city: formCity.trim() || null,
+        state: formState.trim() || null,
+        zip: formZip.trim() || null,
         notes: formNotes.trim() || null,
       })
       .eq("id", id);
@@ -382,6 +495,8 @@ const CustomerDetail = () => {
       toast({ title: "Error", description: "Could not add tank.", variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
       toast({ title: "Tank added" });
       setTankDialogOpen(false);
       resetTankForm();
@@ -397,6 +512,24 @@ const CustomerDetail = () => {
   // Add semen handler
   const handleAddSemen = async () => {
     if (!semenCanister.trim() || !semenTankId || !orgId) return;
+    // Validate units
+    const units = parseInt(semenUnits);
+    if (isNaN(units) || units < 1) {
+      toast({ title: "Error", description: "Units must be a number greater than 0", variant: "destructive" });
+      return;
+    }
+    // Block save if the bull isn't linked to the catalog. The database now
+    // requires every tank_inventory row to have a real bull_catalog_id.
+    if (!semenBullCatalogId) {
+      toast({
+        title: "Bull not in catalog",
+        description: semenBullName?.trim()
+          ? `"${semenBullName.trim()}" isn't linked to your catalog. Click the Bull field, then either pick from the dropdown or use "Add custom bull" to create it. If you don't know what's in this canister, pick "Miscellaneous (placeholder)".`
+          : `Click the Bull field and pick from the dropdown, or use "Add custom bull" to create it. If you don't know what's in this canister, pick "Miscellaneous (placeholder)".`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSemenSaving(true);
     const { error } = await supabase
       .from("tank_inventory")
@@ -409,7 +542,7 @@ const CustomerDetail = () => {
         bull_catalog_id: semenBullCatalogId || null,
         custom_bull_name: semenBullCatalogId ? null : semenBullName.trim() || null,
         bull_code: semenBullCode.trim() || null,
-        units: parseInt(semenUnits) || 0,
+        units: units,
         storage_type: semenStorageType,
         notes: semenNotes.trim() || null,
       });
@@ -433,16 +566,58 @@ const CustomerDetail = () => {
 
   const handleDryToggle = async (tankId: string, currentStatus: string) => {
     const newStatus = currentStatus === "dry" ? "wet" : "dry";
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tanks")
-      .update({ status: newStatus })
-      .eq("id", tankId);
+      .update({ nitrogen_status: newStatus } as any)
+      .eq("id", tankId)
+      .select();
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
+    if (!data || data.length === 0) {
+      toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" });
+      return;
+    }
     toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
     queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+  };
+
+  const handleMovement = async () => {
+    if (!custMoveTankId || !orgId) return;
+    setCustMoveSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const locationAfter = custMoveType === "picked_up" ? "out" : "here";
+
+    const { error: moveErr } = await supabase.from("tank_movements").insert({
+      organization_id: orgId,
+      tank_id: custMoveTankId,
+      movement_type: custMoveType,
+      movement_date: format(new Date(), "yyyy-MM-dd"),
+      location_status_after: locationAfter,
+      customer_id: id,
+      performed_by: user?.id || null,
+      notes: custMoveNotes.trim() || null,
+    } as any);
+
+    if (moveErr) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
+      return;
+    }
+
+    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", custMoveTankId).select();
+    if (error || !data || data.length === 0) {
+      setCustMoveSaving(false);
+      toast({ title: "Error", description: "Movement recorded but tank status update failed.", variant: "destructive" });
+      return;
+    }
+
+    setCustMoveSaving(false);
+    toast({ title: locationAfter === "out" ? "Tank marked as out" : "Tank marked as in" });
+    queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
+    setCustMoveOpen(false);
+    setCustMoveNotes("");
   };
 
   const handleFillTank = async (tankId: string, tankNumber: string, tankName: string | null) => {
@@ -517,8 +692,9 @@ const CustomerDetail = () => {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/tanks-dashboard?tab=customers")} className="mt-1">
-              <ArrowLeft className="h-5 w-5" />
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5 mt-1">
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
             <div>
               <h1 className="text-2xl font-bold font-display tracking-tight">{customer.name}</h1>
@@ -526,22 +702,49 @@ const CustomerDetail = () => {
                 {customer.phone && <a href={`tel:${customer.phone}`} className="hover:underline">{customer.phone}</a>}
                 {customer.email && <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>}
               </div>
-              {customer.address && (
-                <p className="text-sm text-muted-foreground mt-1">{customer.address}</p>
-              )}
+              {(() => {
+                const hasStructuredAddress = !!(customer.company_name || customer.address_line1 || customer.city || customer.state || customer.zip);
+                if (hasStructuredAddress) {
+                  const cityStateZip = [customer.city, customer.state].filter(Boolean).join(", ") + (customer.zip ? ` ${customer.zip}` : "");
+                  return (
+                    <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                      {customer.company_name && <p className="font-medium">{customer.company_name}</p>}
+                      {customer.address_line1 && <p>{customer.address_line1}</p>}
+                      {customer.address_line2 && <p>{customer.address_line2}</p>}
+                      {cityStateZip.trim() && <p>{cityStateZip.trim()}</p>}
+                    </div>
+                  );
+                }
+                return customer.address ? <p className="text-sm text-muted-foreground mt-1">{customer.address}</p> : null;
+              })()}
               {customer.notes && (
                 <p className="text-sm text-muted-foreground italic mt-1">{customer.notes}</p>
               )}
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {
+            <Button variant="outline" onClick={async () => {
               if (!customer) return;
+              // Fetch per-order billable units so the PDF's Orders section shows what
+              // the customer was actually billed for (not what they ordered).
+              const ordersWithBillable = await Promise.all(
+                (customerOrders ?? []).map(async (o: any) => {
+                  const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+                  const billable_units = ((data ?? []) as any[]).map((r) => ({
+                    bull_name: r.bull_name || "Unknown",
+                    units: r.units || 0,
+                  }));
+                  return { ...o, billable_units };
+                })
+              );
               generateCustomerInventoryPdf(
                 customer,
                 allTanks,
                 inventoryByTank,
-                allTanks.map((t: any) => t.id)
+                allTanks.map((t: any) => t.id),
+                ordersWithBillable,
+                customerShipments,
+                customerPickups
               );
               toast({ title: "PDF downloaded" });
             }} className="gap-2">
@@ -553,8 +756,33 @@ const CustomerDetail = () => {
               </Button>
             )}
             <Button variant="outline" onClick={openEdit} className="gap-2">
-              <Edit className="h-4 w-4" /> Edit
+              <Pencil className="h-4 w-4" /> Edit Customer
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <Trash2 className="h-4 w-4" /> Delete Customer
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {customer.name} and all associated data. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteCustomer}
+                    disabled={deletingCustomer}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deletingCustomer ? "Deleting…" : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
@@ -572,18 +800,30 @@ const CustomerDetail = () => {
           />
         </div>
 
-        {/* Tanks section header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Tanks</h2>
-          <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Add Tank
-          </Button>
-        </div>
-
-        {/* Tank cards */}
+        {/* Tanks section */}
         {allTanks.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No tanks for this customer.</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Tanks</h2>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-sm">No tanks currently with this customer.</p>
+          </div>
         ) : (
+          <Collapsible open={tanksOpen} onOpenChange={setTanksOpen} className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <CollapsibleTrigger className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity flex-1">
+                {tanksOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                <h2 className="text-lg font-semibold">Tanks at this customer ({allTanks.length})</h2>
+              </CollapsibleTrigger>
+              <Button className="gap-2" onClick={() => { resetTankForm(); setTankDialogOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add Tank
+              </Button>
+            </div>
+            <CollapsibleContent className="space-y-3">
+              {
           allTanks.map((tank: any) => {
             const inv = inventoryByTank.get(tank.id) || [];
             const tankTotal = inv.reduce((s: number, i: any) => s + (i.units || 0), 0);
@@ -591,19 +831,26 @@ const CustomerDetail = () => {
             const tankTxns = txnsByTank.get(tank.id) || [];
             const lastTankFill = tankFills[0];
             const fillOverdue = lastTankFill
-              ? differenceInDays(new Date(), new Date(lastTankFill.fill_date + "T00:00:00")) > 90
+              ? differenceInDays(new Date(), new Date(lastTankFill.fill_date + "T00:00:00")) >= 90
               : false;
 
             return (
               <div key={tank.id} className="rounded-lg border border-border/50 overflow-hidden">
                 {/* Tank header */}
-                <div className={cn("flex items-center justify-between px-4 py-3", tank.status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
+                <div className={cn("flex items-center justify-between px-4 py-3", tank.nitrogen_status === "dry" ? "bg-yellow-500/10" : "bg-muted/30")}>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">
                         {tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number}
                       </span>
-                      {statusBadge(tank.status)}
+                      {statusBadge(tank.nitrogen_status || "unknown")}
+                      <Badge variant="outline" className={
+                        tank.location_status === "here"
+                          ? "bg-green-600/20 text-green-400 border-green-600/30"
+                          : "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                      }>
+                        {tank.location_status === "here" ? "in shop" : "out"}
+                      </Badge>
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                       {tank.model && <span>Model: {tank.model}</span>}
@@ -611,14 +858,35 @@ const CustomerDetail = () => {
                       {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {tank.status === "dry" ? (
-                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                  <div className="flex flex-wrap gap-2">
+                    {tank.location_status === "here" ? (
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("picked_up");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
+                      }} className="gap-1">
+                        <Truck className="h-4 w-4" /> Mark Out
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCustMoveTankId(tank.id);
+                        setCustMoveTankLabel(tank.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank.tank_number);
+                        setCustMoveType("returned");
+                        setCustMoveNotes("");
+                        setCustMoveOpen(true);
+                      }} className="gap-1">
+                        <ArrowLeft className="h-4 w-4" /> Mark In
+                      </Button>
+                    )}
+                    {tank.nitrogen_status === "dry" ? (
+                      <Button size="sm" onClick={() => handleDryToggle(tank.id, tank.nitrogen_status)} className="gap-1">
                         <Droplets className="h-4 w-4" /> Mark Wet
                       </Button>
                     ) : (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.status)} className="gap-1">
+                        <Button variant="outline" size="sm" onClick={() => handleDryToggle(tank.id, tank.nitrogen_status)} className="gap-1">
                           <Sun className="h-4 w-4" /> Dry Off
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleFillTank(tank.id, tank.tank_number, tank.tank_name)} className="gap-1">
@@ -645,12 +913,13 @@ const CustomerDetail = () => {
                       <TableHead>Bull Code</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {inv.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
+                        <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No inventory</TableCell>
                       </TableRow>
                     ) : (
                       <>
@@ -667,11 +936,27 @@ const CustomerDetail = () => {
                             <TableCell>{item.bull_code || "—"}</TableCell>
                             <TableCell>{item.bulls_catalog?.company || "—"}</TableCell>
                             <TableCell className="text-right">{item.units}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setTransferSource(item);
+                                  setTransferSourceTank(tank);
+                                  setTransferOpen(true);
+                                }}
+                                className="h-7 w-7 p-0"
+                                title="Transfer to another tank"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow className="bg-muted/20 font-semibold">
                           <TableCell colSpan={5}>Total</TableCell>
                           <TableCell className="text-right">{tankTotal}</TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                       </>
                     )}
@@ -780,8 +1065,53 @@ const CustomerDetail = () => {
                 </div>
               </div>
             );
-          })
+          })}
+            </CollapsibleContent>
+          </Collapsible>
         )}
+
+        {/* Projects */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Projects</h2>
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            {customerProjects.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet for this customer.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead>Project</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cattle</TableHead>
+                      <TableHead className="text-right">Head</TableHead>
+                      <TableHead>Breeding Date</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerProjects.map((p: any) => (
+                      <TableRow key={p.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/project/${p.id}`)}>
+                        <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getBadgeClass('projectStatus', p.status)}`}>
+                            {p.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{p.cattle_type || "—"}</TableCell>
+                        <TableCell className="text-sm text-right">{p.head_count ?? 0}</TableCell>
+                        <TableCell className="text-sm">
+                          {p.breeding_date ? format(new Date(p.breeding_date + "T00:00:00"), "MMM d, yyyy") : "—"}
+                        </TableCell>
+                        <TableCell><span className="text-xs text-primary hover:underline">View →</span></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Orders & Shipments */}
         <div className="space-y-4">
@@ -851,7 +1181,7 @@ const CustomerDetail = () => {
                     {customerShipments.map((ship: any) => (
                       <TableRow key={ship.id}>
                         <TableCell className="text-sm">{format(new Date(ship.received_date + "T00:00:00"), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="text-sm">{ship.received_from || ship.semen_companies?.name || "—"}</TableCell>
+                        <TableCell className="text-sm">{ship.semen_companies?.name || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{ship.notes || "—"}</TableCell>
                       </TableRow>
                     ))}
@@ -869,33 +1199,33 @@ const CustomerDetail = () => {
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
+          <div className="grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-3">
+            <Label className="text-right text-sm">Display Name *</Label>
+            <Input value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Label className="text-right text-sm">Company Name</Label>
+            <Input value={formCompanyName} onChange={(e) => setFormCompanyName(e.target.value)} />
+            <Label className="text-right text-sm">Email</Label>
+            <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+            <Label className="text-right text-sm">Phone</Label>
+            <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 1</Label>
+            <Input value={formAddressLine1} onChange={(e) => setFormAddressLine1(e.target.value)} />
+            <Label className="text-right text-sm">Address Line 2</Label>
+            <Input value={formAddressLine2} onChange={(e) => setFormAddressLine2(e.target.value)} />
+            <Label className="text-right text-sm">City / State / Zip</Label>
+            <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+              <Input value={formCity} onChange={(e) => setFormCity(e.target.value)} placeholder="City" />
+              <Input value={formState} onChange={(e) => setFormState(e.target.value)} placeholder="ST" maxLength={2} />
+              <Input value={formZip} onChange={(e) => setFormZip(e.target.value)} placeholder="Zip" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button onClick={handleEditSave} disabled={saving || !formName.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </div>
+            <Label className="text-right text-sm">Notes</Label>
+            <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={saving || !formName.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1022,6 +1352,53 @@ const CustomerDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mark Out / Mark In Dialog */}
+      <Dialog open={custMoveOpen} onOpenChange={setCustMoveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{custMoveType === "picked_up" ? "Mark Tank Out" : "Mark Tank In"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              {custMoveTankLabel} — {custMoveType === "picked_up" ? "leaving the shop" : "coming back to the shop"}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={custMoveNotes}
+                onChange={(e) => setCustMoveNotes(e.target.value)}
+                rows={2}
+                placeholder={custMoveType === "picked_up" ? "e.g. Customer picked up for breeding season" : "e.g. Returned after spring breeding"}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCustMoveOpen(false)}>Cancel</Button>
+              <Button onClick={handleMovement} disabled={custMoveSaving}>
+                {custMoveSaving ? "Saving…" : custMoveType === "picked_up" ? "Mark Out" : "Mark In"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {transferSource && (
+        <TransferDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          sourceRow={transferSource}
+          sourceTankName={transferSourceTank?.tank_name || transferSourceTank?.tank_number || "Tank"}
+          orgId={orgId}
+          userId={userId ?? null}
+          tankId={transferSourceTank?.id || ""}
+          defaultCustomerId={id}
+          defaultCustomerName={customer?.name}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+            queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+          }}
+        />
+      )}
 
       <AppFooter />
     </div>

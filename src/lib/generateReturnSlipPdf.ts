@@ -1,6 +1,16 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  addStandardHeader,
+  addFooterToPdf,
+  buildPdfFilename,
+  getStandardHeadStyles,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { sanitizeFilename } from "./pdfUtils";
 
 interface ReturnSlipData {
   fieldTankName: string;
@@ -24,28 +34,15 @@ interface ReturnSlipLine {
 export function generateReturnSlipPdf(pack: ReturnSlipData, lines: ReturnSlipLine[]) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y: number = margin;
 
   // Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.text("BeefSynch", margin, y);
-  y += 18;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text("Return Slip", margin, y);
-  doc.setTextColor(0);
-  y += 6;
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
+  y = addStandardHeader(doc, margin, "BeefSynch", "Return Slip");
 
   // Tank name
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(pack.fieldTankName, margin, y);
   y += 22;
 
@@ -59,19 +56,19 @@ export function generateReturnSlipPdf(pack: ReturnSlipData, lines: ReturnSlipLin
   ];
   if (pack.notes) infoRows.push(["Notes", pack.notes]);
 
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   for (const [label, value] of infoRows) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, margin, y);
     doc.setFont("helvetica", "normal");
     doc.text(value, margin + 120, y);
-    y += 15;
+    y += PDF_LAYOUT.lineHeight;
   }
   y += 10;
 
   // Table
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(PDF_FONTS.sizeBody);
   doc.text("Return Summary", margin, y);
   y += 8;
 
@@ -95,8 +92,8 @@ export function generateReturnSlipPdf(pack: ReturnSlipData, lines: ReturnSlipLin
     margin: { left: margin, right: margin },
     head: [["Bull", "Code", "Packed", "Returned", "Used", "Dest. Tank", "Can."]],
     body: tableBody,
-    styles: { fontSize: 8, cellPadding: 5 },
-    headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: PDF_FONTS.sizeSmallTiny, cellPadding: 5 },
+    headStyles: getStandardHeadStyles(),
     alternateRowStyles: { fillColor: [245, 245, 245] },
     columnStyles: {
       2: { halign: "center" },
@@ -110,17 +107,8 @@ export function generateReturnSlipPdf(pack: ReturnSlipData, lines: ReturnSlipLin
     },
   });
 
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text("BeefSynch by Chuteside, LLC", pageWidth / 2, doc.internal.pageSize.getHeight() - 30, { align: "center" });
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC");
 
-  const safeName = pack.fieldTankName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   const safeDate = format(new Date(pack.unpackedAt), "yyyyMMdd");
-  doc.save(`BeefSynch_ReturnSlip_${safeName}_${safeDate}.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_ReturnSlip", pack.fieldTankName, safeDate));
 }

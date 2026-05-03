@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -16,7 +16,7 @@
     --popover-foreground: 0 0% 98%;
 
     --primary: 168 60% 45%;
-    --primary-foreground: 192 80% 8%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 200 50% 18%;
     --secondary-foreground: 0 0% 95%;
@@ -69,7 +69,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
 
   .bg-card,
@@ -81,4 +81,14 @@
   table {
     background: transparent;
   }
+}
+
+/* ── Hide browser number-input spinner arrows globally ── */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

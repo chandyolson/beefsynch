@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Link,
   Preview,
   Text,
@@ -33,13 +32,6 @@ export const EmailChangeEmail = ({
     <Preview>Confirm your email change for BeefSynch</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img
-          src="https://qgpufoqjjxyecimxusze.supabase.co/storage/v1/object/public/email-assets/beefsynch-logo.png"
-          width="160"
-          height="auto"
-          alt="BeefSynch"
-          style={{ marginBottom: '24px' }}
-        />
         <Heading style={h1}>Confirm your email change</Heading>
         <Text style={text}>
           You requested to change your BeefSynch email from{' '}
@@ -71,7 +63,7 @@ const container = { padding: '32px 28px' }
 const h1 = {
   fontSize: '24px',
   fontWeight: 'bold' as const,
-  fontFamily: "'Space Grotesk', Arial, sans-serif",
+  fontFamily: "'Inter', Arial, sans-serif",
   color: '#0D0F35',
   margin: '0 0 20px',
 }

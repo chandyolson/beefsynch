@@ -1,7 +1,13 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Droplets, RotateCcw, Truck, Sun, Eye, PackagePlus, ClipboardList } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Droplets, RotateCcw, Truck, Sun, PackagePlus, ClipboardList, Package, PackageOpen, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import TransferDialog from "@/components/inventory/TransferDialog";
+import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ExportConfig } from "@/lib/exports";
+import { Plus, Loader2 } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -13,6 +19,8 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CustomerPicker from "@/components/CustomerPicker";
+import BullCombobox from "@/components/BullCombobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +29,15 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
@@ -83,13 +95,14 @@ const TANK_TYPES = [
   { value: "freeze_branding", label: "Freeze Branding" },
 ];
 
-const ALL_STATUSES = [
+const NITROGEN_STATUSES = [
   { value: "wet", label: "Wet" },
   { value: "dry", label: "Dry" },
-  { value: "out", label: "Out" },
   { value: "unknown", label: "Unknown" },
-  { value: "inactive", label: "Inactive" },
-  { value: "bad_tank", label: "Bad Tank" },
+];
+const LOCATION_STATUSES = [
+  { value: "here", label: "In shop" },
+  { value: "out", label: "Out with customer" },
 ];
 
 // ───── Pack History Section (for shipper tanks) ─────
@@ -129,7 +142,6 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                 <TableHead>Projects</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Units</TableHead>
-                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -138,7 +150,7 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                 const totalUnitsForPack = (p.tank_pack_lines || []).reduce((s: number, l: any) => s + (l.units || 0), 0);
                 const isShipment = p.pack_type === "shipment";
                 return (
-                  <TableRow key={p.id} className="hover:bg-muted/20">
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-muted/20" onClick={() => navigate(`/pack/${p.id}`)}>
                     <TableCell>{format(new Date(p.packed_at), "MMM d, yyyy")}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1">
@@ -154,11 +166,6 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
                       }>{p.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{totalUnitsForPack}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/pack/${p.id}`)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -170,6 +177,89 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
   );
 };
 
+function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel }: {
+  row: any;
+  tankName: string;
+  orgId: string | null;
+  userId: string | null;
+  tankId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [units, setUnits] = useState<number>(row.units);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const bullName = row.bulls_catalog?.bull_name || row.custom_bull_name || row.bull_code || "Unknown";
+  const customerName = row.customers?.name || row.owner || "Customer";
+
+  const handleSubmit = async () => {
+    if (!units || units <= 0) {
+      toast({ title: "Enter units", description: "Units must be greater than zero", variant: "destructive" });
+      return;
+    }
+    if (units > row.units) {
+      toast({ title: "Too many", description: `Only ${row.units} available`, variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await (supabase as any).rpc("customer_pickup", {
+        _source_inventory_id: row.id,
+        _units: units,
+        _customer_id: row.customer_id,
+        _notes: note.trim() || null,
+        _performed_by: userId,
+      });
+      if (error) throw error;
+      toast({ title: "Pickup recorded", description: `${units} units of ${bullName} picked up by ${customerName}` });
+      onSuccess();
+    } catch (e: any) {
+      toast({ title: "Pickup failed", description: e?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+        <div><span className="text-muted-foreground">Bull:</span> <span className="font-medium">{bullName}</span></div>
+        <div><span className="text-muted-foreground">Tank:</span> {tankName} / Can {row.canister}</div>
+        <div><span className="text-muted-foreground">Customer:</span> {customerName}</div>
+        <div><span className="text-muted-foreground">Available:</span> {row.units} units</div>
+      </div>
+      <div>
+        <Label>Units to pick up</Label>
+        <Input
+          type="number"
+          min={1}
+          max={row.units}
+          value={units}
+          onChange={(e) => setUnits(Number(e.target.value) || 0)}
+          placeholder="Units"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label>Note (optional)</Label>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Picked up by Nate on 4/28"
+          className="mt-1 h-16"
+        />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</> : "Record Pickup"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const TankDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -178,11 +268,13 @@ const TankDetail = () => {
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingTank, setDeletingTank] = useState(false);
   const [eTankNumber, setETankNumber] = useState("");
   const [eTankName, setETankName] = useState("");
   const [eTankEid, setETankEid] = useState("");
   const [eTankType, setETankType] = useState("inventory_tank");
-  const [eTankStatus, setETankStatus] = useState("wet");
+  const [eNitrogenStatus, setENitrogenStatus] = useState("wet");
+  const [eLocationStatus, setELocationStatus] = useState("here");
   const [eTankModel, setETankModel] = useState("");
   const [eTankSerial, setETankSerial] = useState("");
   const [eTankDesc, setETankDesc] = useState("");
@@ -198,11 +290,33 @@ const TankDetail = () => {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveType, setMoveType] = useState("picked_up");
   const [moveDate, setMoveDate] = useState<Date>(new Date());
-  const [moveStatusAfter, setMoveStatusAfter] = useState("wet");
   const [moveCustomerId, setMoveCustomerId] = useState("none");
   const [moveProjectId, setMoveProjectId] = useState("none");
   const [moveNotes, setMoveNotes] = useState("");
   const [moveSaving, setMoveSaving] = useState(false);
+
+  // Manual add dialog
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualBullName, setManualBullName] = useState("");
+  const [manualBullCatalogId, setManualBullCatalogId] = useState<string | null>(null);
+  const [manualBullCode, setManualBullCode] = useState("");
+  const [manualUnits, setManualUnits] = useState<number>(0);
+  const [manualCanister, setManualCanister] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualCustomerId, setManualCustomerId] = useState<string | null>(null);
+  const [manualOwner, setManualOwner] = useState<"Select" | "CATL" | "">("");
+  const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
+  const [fillHistoryOpen, setFillHistoryOpen] = useState(false);
+
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [editBullId, setEditBullId] = useState<string | null>(null);
+  const [transferRow, setTransferRow] = useState<any | null>(null);
+
+  // Customer pickup dialog
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupRow, setPickupRow] = useState<any | null>(null);
 
   // Fetch tank
   const { data: tank, isLoading } = useQuery({
@@ -222,7 +336,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number), customers(name)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", id!)
         .order("canister", { ascending: true })
         .order("sub_canister", { ascending: true })
@@ -231,6 +345,17 @@ const TankDetail = () => {
       return data ?? [];
     },
   });
+
+  const lastInventoried = useMemo(() => {
+    if (!inventory || inventory.length === 0) return null;
+    let latest: string | null = null;
+    for (const row of inventory as any[]) {
+      if (row.inventoried_at && (!latest || row.inventoried_at > latest)) {
+        latest = row.inventoried_at;
+      }
+    }
+    return latest;
+  }, [inventory]);
 
   // Fills
   const { data: fills = [] } = useQuery({
@@ -269,7 +394,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_transactions")
-        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(customer_name)")
+        .select("*, bulls_catalog(bull_name), customers(name), projects(name), semen_orders(id, customers!semen_orders_customer_id_fkey(name))")
         .eq("tank_id", id!)
         .order("created_at", { ascending: false })
         .limit(10000);
@@ -299,6 +424,28 @@ const TankDetail = () => {
     },
   });
 
+  // Active packs query (a tank can have multiple active packs)
+  const { data: activePacks } = useQuery({
+    queryKey: ["tank_active_packs", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tank_packs")
+        .select(`
+          id, pack_type, status, packed_at, tracking_number, destination_name,
+          tank_pack_projects(projects!tank_pack_projects_project_id_fkey(name))
+        `)
+        .eq("field_tank_id", id!)
+        .in("status", ["packed", "in_field"])
+        .order("packed_at", { ascending: false });
+      if (error) {
+        toast({ title: "Failed to load pack status", description: error.message, variant: "destructive" });
+        return [];
+      }
+      return (data ?? []) as any[];
+    },
+  });
+
   // Grouped inventory by customer for communal tanks
   const isCommunal = tank?.tank_type === "communal_tank";
   const inventoryByCustomer = useMemo(() => {
@@ -315,7 +462,9 @@ const TankDetail = () => {
     return Array.from(map.values());
   }, [inventory, isCommunal]);
 
-  const totalUnits = inventory.reduce((s: number, i: any) => s + (i.units || 0), 0);
+  const activeRows = inventory.filter((r: any) => (r.units ?? 0) > 0);
+  const emptyRows = inventory.filter((r: any) => (r.units ?? 0) === 0);
+  const totalUnits = activeRows.reduce((s: number, i: any) => s + (i.units || 0), 0);
 
   const lastFill = fills.length > 0 ? fills[0] : null;
   const fillWarning = lastFill ? differenceInDays(new Date(), parseISO(lastFill.fill_date)) > 90 : false;
@@ -327,11 +476,27 @@ const TankDetail = () => {
     setETankName(tank.tank_name || "");
     setETankEid(tank.eid || "");
     setETankType(tank.tank_type || "inventory_tank");
-    setETankStatus(tank.status || "wet");
+    setENitrogenStatus(tank.nitrogen_status || "wet");
+    setELocationStatus(tank.location_status || "here");
     setETankModel(tank.model || "");
     setETankSerial(tank.serial_number || "");
     setETankDesc(tank.description || "");
     setEditOpen(true);
+  };
+
+  const handleDeleteTank = async () => {
+    if (!tank?.id || !orgId) return;
+    setDeletingTank(true);
+    try {
+      const { error } = await supabase.from("tanks").delete().eq("id", tank.id);
+      if (error) throw error;
+      toast({ title: "Tank deleted" });
+      navigate("/tanks-dashboard?tab=tanks");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingTank(false);
+    }
   };
 
   const handleEditSave = async () => {
@@ -342,7 +507,8 @@ const TankDetail = () => {
       tank_name: eTankName.trim() || null,
       eid: eTankEid.trim() || null,
       tank_type: eTankType,
-      status: eTankStatus,
+      nitrogen_status: eNitrogenStatus,
+      
       model: eTankModel.trim() || null,
       serial_number: eTankSerial.trim() || null,
       description: eTankDesc.trim() || null,
@@ -360,26 +526,27 @@ const TankDetail = () => {
 
   const handleDryToggle = async () => {
     if (!id || !tank) return;
-    const newStatus = tank.status === "dry" ? "wet" : "dry";
-    const { error } = await supabase
+    const newNitrogen = tank.nitrogen_status === "dry" ? "wet" : "dry";
+    const { data, error } = await supabase
       .from("tanks")
-      .update({ status: newStatus })
-      .eq("id", id);
+      .update({ nitrogen_status: newNitrogen } as any)
+      .eq("id", id)
+      .select();
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: newStatus === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
+    if (!data || data.length === 0) {
+      toast({ title: "Error", description: "Update failed — you may not have permission to change this tank.", variant: "destructive" });
+      return;
+    }
+    toast({ title: newNitrogen === "dry" ? "Tank marked as dry" : "Tank marked as wet" });
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
   };
 
   // Fill handler
   const handleFillSave = async () => {
     if (!id || !orgId) return;
-    if (tank?.status === "dry") {
-      toast({ title: "Cannot fill a dry tank", variant: "destructive" });
-      return;
-    }
     setFillSaving(true);
     const { error } = await supabase.from("tank_fills").insert({
       organization_id: orgId,
@@ -406,12 +573,14 @@ const TankDetail = () => {
     setMoveSaving(true);
     const custId = moveCustomerId === "none" ? null : moveCustomerId;
     const projId = moveProjectId === "none" ? null : moveProjectId;
+    // Derive location from movement type — picked_up/shipped_out = out, returned/received_back = here
+    const locationAfter = (moveType === "picked_up" || moveType === "shipped_out") ? "out" : "here";
     const { error: moveErr } = await supabase.from("tank_movements").insert({
       organization_id: orgId,
       tank_id: id,
       movement_type: moveType,
       movement_date: format(moveDate, "yyyy-MM-dd"),
-      tank_status_after: moveStatusAfter,
+      location_status_after: locationAfter,
       customer_id: custId,
       project_id: projId,
       performed_by: userId,
@@ -422,20 +591,99 @@ const TankDetail = () => {
       toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
       return;
     }
-    // Update tank status
-    await supabase.from("tanks").update({ status: moveStatusAfter }).eq("id", id);
+    // Update the tank's location status to match the movement
+    await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });
     queryClient.invalidateQueries({ queryKey: ["all_tanks"] });
-    toast({ title: "Movement recorded" });
+    toast({ title: locationAfter === "out" ? "Tank marked as out" : "Tank marked as returned" });
     setMoveOpen(false);
     setMoveNotes("");
     setMoveType("picked_up");
     setMoveDate(new Date());
-    setMoveStatusAfter("wet");
     setMoveCustomerId("none");
     setMoveProjectId("none");
+  };
+
+  // Manual add handler
+  const handleManualAdd = async () => {
+    if (!orgId || !tank) return;
+
+    // Validate inline, not after the DB rejects us
+    const errs: Record<string, string> = {};
+    if (!manualBullName.trim()) {
+      errs.bullName = "Required";
+    } else if (!manualBullCatalogId) {
+      // Bull text was typed but not linked to the catalog. The database now
+      // requires every tank_inventory row to have a real bull_catalog_id.
+      errs.bullName = "Pick from dropdown or use 'Add custom bull'";
+    }
+    if (!manualBullCode.trim()) errs.bullCode = "Required (NAAB or your own code)";
+    if (manualUnits <= 0) errs.units = "Must be > 0";
+
+    // Determine effective customer_id and storage_type
+    const effectiveCustomerId = manualCustomerId || tank.customer_id || null;
+    const storageType: "customer" | "communal" | "inventory" = effectiveCustomerId
+      ? (tank.customer_id ? "customer" : "communal")
+      : "inventory";
+
+    // Owner is required when we're writing company inventory (no customer attribution)
+    if (storageType === "inventory" && !manualOwner) {
+      errs.owner = "Required — Select or CATL";
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setManualErrors(errs);
+      return;
+    }
+    setManualErrors({});
+
+    setManualSubmitting(true);
+    try {
+      const isCatalogBull = !!manualBullCatalogId;
+
+      const insertRow: any = {
+        tank_id: tank.id,
+        customer_id: effectiveCustomerId,
+        bull_catalog_id: isCatalogBull ? manualBullCatalogId : null,
+        custom_bull_name: isCatalogBull ? null : manualBullName.trim(),
+        bull_code: manualBullCode.trim(),
+        units: manualUnits,
+        canister: manualCanister.trim() || "1",
+        organization_id: orgId,
+        storage_type: storageType,
+        owner: storageType === "inventory" ? manualOwner : null,
+        source_type: "unknown",
+        notes: manualNotes.trim() || null,
+      };
+
+      const { error: invErr } = await supabase
+        .from("tank_inventory")
+        .insert(insertRow)
+        .select()
+        .single();
+      if (invErr) throw invErr;
+
+      toast({ title: "Bull added to inventory" });
+      setShowManualAdd(false);
+      setManualBullName("");
+      setManualBullCatalogId(null);
+      setManualBullCode("");
+      setManualUnits(0);
+      setManualCanister("");
+      setManualNotes("");
+      setManualCustomerId(null);
+      setManualOwner("");
+      setManualErrors({});
+      queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
+    } catch (err: any) {
+      setManualErrors({ submit: err.message || "Failed to add bull" });
+      toast({ title: "Failed to add bull", description: err.message, variant: "destructive" });
+    } finally {
+      setManualSubmitting(false);
+    }
   };
 
   const tankLabel = tank?.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank?.tank_number || "Tank";
@@ -463,33 +711,84 @@ const TankDetail = () => {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/tanks-dashboard?tab=tanks")} className="mt-1"><ArrowLeft className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5 mt-1">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
             <div>
               <h1 className="text-2xl font-bold font-display tracking-tight">{tankLabel}</h1>
               <div className="flex flex-wrap gap-2 mt-1 items-center">
                 <Badge variant="outline" className={TYPE_BADGE[tank.tank_type] || "bg-muted text-muted-foreground border-border"}>
                   {TYPE_LABELS[tank.tank_type] || tank.tank_type}
                 </Badge>
-                <Badge variant="outline" className={STATUS_BADGE[tank.status] || "bg-muted text-muted-foreground border-border"}>
-                  {tank.status}
+                <Badge variant="outline" className={
+                  tank.nitrogen_status === "wet" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                  tank.nitrogen_status === "dry" ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30" :
+                  "bg-muted text-muted-foreground border-border"
+                }>
+                  {tank.nitrogen_status || "unknown"}
+                </Badge>
+                <Badge variant="outline" className={
+                  tank.location_status === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" :
+                  "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                }>
+                  {tank.location_status === "here" ? "in shop" : "out with customer"}
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                 {tank.model && <span>Model: {tank.model}</span>}
                 {tank.serial_number && <span>S/N: {tank.serial_number}</span>}
                 {tank.eid && <span>EID: {tank.eid}</span>}
+                {lastInventoried && (
+                  <span>Last Inventoried: {format(parseISO(lastInventoried), "MMM d, yyyy")}</span>
+                )}
+                {!lastInventoried && inventory.length > 0 && (
+                  <span className="text-amber-400">Never inventoried</span>
+                )}
               </div>
-              {tank.status === "dry" && (
+              {tank.nitrogen_status === "dry" && (
                 <div className="mt-2 px-3 py-1.5 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-medium">
-                  This tank is currently dry — fill and inventory actions are disabled
+                  This tank is currently dry — record a fill to mark it wet
                 </div>
               )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Edit className="h-4 w-4" /> Edit</Button>
-            {tank.status === "dry" ? (
-              <Button size="sm" onClick={handleDryToggle} className="gap-1.5"><Droplets className="h-4 w-4" /> Mark Wet</Button>
+            <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5">
+              <Pencil className="h-4 w-4" /> Edit Tank
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-1.5">
+                  <Trash2 className="h-4 w-4" /> Delete Tank
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Tank</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {inventory.length > 0
+                      ? `This tank has ${inventory.length} inventory row${inventory.length > 1 ? "s" : ""}. Deleting it will remove the tank record but inventory rows may remain orphaned. Delete anyway?`
+                      : "Delete this tank? This cannot be undone."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteTank}
+                    disabled={deletingTank}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deletingTank && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            {tank.nitrogen_status === "dry" ? (
+              <Button size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5">
+                <Droplets className="h-4 w-4" /> Record Fill
+              </Button>
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => handleDryToggle()} className="gap-1.5"><Sun className="h-4 w-4" /> Dry Off</Button>
@@ -497,13 +796,83 @@ const TankDetail = () => {
                 <Button variant="outline" size="sm" onClick={() => { setFillDate(new Date()); setFillNotes(""); setFillOpen(true); }} className="gap-1.5"><Droplets className="h-4 w-4" /> Record Fill</Button>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={() => { setMoveDate(new Date()); setMoveNotes(""); setMoveType("picked_up"); setMoveStatusAfter("wet"); setMoveCustomerId("none"); setMoveProjectId("none"); setMoveOpen(true); }} className="gap-1.5"><Truck className="h-4 w-4" /> Record Movement</Button>
+            {tank.location_status === "here" ? (
+              <Button variant="outline" size="sm" onClick={() => {
+                setMoveDate(new Date());
+                setMoveNotes("");
+                setMoveType("picked_up");
+                setMoveCustomerId(tank.customer_id || "none");
+                setMoveProjectId("none");
+                setMoveOpen(true);
+              }} className="gap-1.5">
+                <Truck className="h-4 w-4" /> Mark Out
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => {
+                setMoveDate(new Date());
+                setMoveNotes("");
+                setMoveType("returned");
+                setMoveCustomerId(tank.customer_id || "none");
+                setMoveProjectId("none");
+                setMoveOpen(true);
+              }} className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" /> Mark In
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowManualAdd(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Add Bull to Inventory</Button>
           </div>
         </div>
 
+        {/* ───── Out With Banner(s) ───── */}
+        {activePacks && activePacks.length > 0 && (
+          <div className="space-y-2">
+            {activePacks.map((pack: any) => (
+              <div key={pack.id} className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-amber-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-amber-300">
+                      {pack.pack_type === "shipment"
+                        ? `Out with ${pack.destination_name || "shipment"}`
+                        : `Out for ${(pack.tank_pack_projects?.[0] as any)?.projects?.name || pack.destination_name || "project"}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="capitalize">{pack.pack_type}</span> · {pack.status === "in_field" ? "In Field" : "Packed"} · Packed on {format(new Date(pack.packed_at), "MMM d, yyyy")}
+                      {pack.tracking_number && ` · Tracking: ${pack.tracking_number}`}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate(`/pack/${pack.id}`)}>View Pack</Button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ───── Inventory ───── */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Inventory ({totalUnits} units)</h2>
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold">Inventory ({totalUnits} units)</h2>
+            {!isCommunal && activeRows.length > 0 && (
+              <ExportMenu
+                config={{
+                  title: `Tank Inventory — ${tankLabel}`,
+                  subtitle: `${activeRows.length} ${activeRows.length === 1 ? "item" : "items"} • ${totalUnits} units`,
+                  filenameBase: `tank_${(tank?.tank_number || "inventory").replace(/[^a-z0-9]+/gi, "_").toLowerCase()}_inventory`,
+                  columns: [
+                    { label: "Canister", value: (r: any) => r.canister },
+                    { label: "Sub-can", value: (r: any) => r.sub_canister || "" },
+                    { label: "Bull", value: (r: any) => r.bulls_catalog?.bull_name || r.custom_bull_name || "" },
+                    { label: "Bull Code", value: (r: any) => r.bull_code || "" },
+                    { label: "Company", value: (r: any) => r.bulls_catalog?.company || "" },
+                    { label: "Owner", value: (r: any) => r.owner || r.customers?.name || "" },
+                    { label: "Units", value: (r: any) => r.units },
+                    { label: "Storage Type", value: (r: any) => r.storage_type || "" },
+                  ],
+                } as ExportConfig<any>}
+                rows={activeRows}
+              />
+            )}
+          </div>
 
           {isCommunal && inventoryByCustomer ? (
             inventoryByCustomer.map((group, gi) => (
@@ -520,7 +889,14 @@ const TankDetail = () => {
                           <TableCell>{inv.canister}</TableCell>
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
                           <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
+                            <span className="inline-flex items-center gap-1">
+                              <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                              {inv.bull_catalog_id && (
+                                <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
                             {inv.item_type === "embryo" && (
                               <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                             )}
@@ -536,67 +912,163 @@ const TankDetail = () => {
               </div>
             ))
           ) : (
+            <>
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <Table>
+                  <TableHeader><TableRow className="bg-muted/10">
+                    <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead><TableHead className="w-[60px]"></TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {activeRows.length === 0 ? (
+                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No active inventory</TableCell></TableRow>
+                    ) : (
+                      <>
+                        {activeRows.map((inv: any) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>{inv.canister}</TableCell>
+                            <TableCell>{inv.sub_canister || "—"}</TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1">
+                                <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                {inv.bull_catalog_id && (
+                                  <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
+                              {inv.item_type === "embryo" && (
+                                <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{inv.bull_code || "—"}</TableCell>
+                            <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                            <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                            <TableCell className="text-right">{inv.units}</TableCell>
+                            <TableCell className="text-right">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => { setTransferRow(inv); setTransferOpen(true); }}
+                                    >
+                                      <ArrowRightLeft className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Transfer to another tank</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              {inv.customer_id && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-amber-500 hover:text-amber-600"
+                                        onClick={() => { setPickupRow(inv); setPickupOpen(true); }}
+                                      >
+                                        <PackageOpen className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Customer pickup</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/20 font-semibold">
+                          <TableCell colSpan={6}>Total</TableCell>
+                          <TableCell className="text-right">{totalUnits}</TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {emptyRows.length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-2">
+                    Empty / Previously Held ({emptyRows.length})
+                  </summary>
+                  <div className="mt-2 opacity-60">
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader><TableRow className="bg-muted/10">
+                          <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                        </TableRow></TableHeader>
+                        <TableBody>
+                          {emptyRows.map((inv: any) => (
+                            <TableRow key={inv.id}>
+                              <TableCell>{inv.canister}</TableCell>
+                              <TableCell>{inv.sub_canister || "—"}</TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center gap-1">
+                                  <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                  {inv.bull_catalog_id && (
+                                    <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </span>
+                                {inv.item_type === "embryo" && (
+                                  <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{inv.bull_code || "—"}</TableCell>
+                              <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
+                              <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
+                              <TableCell className="text-right">{inv.units}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </details>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ───── Fill History (collapsible) ───── */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setFillHistoryOpen((o) => !o)}
+            className="flex items-center gap-2 text-lg font-semibold mb-3 hover:text-primary transition-colors"
+          >
+            {fillHistoryOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            Fill History
+            <span className="text-sm text-muted-foreground font-normal">({fills.length})</span>
+          </button>
+          {fillHistoryOpen && (
             <div className="rounded-lg border border-border/50 overflow-hidden">
               <Table>
                 <TableHeader><TableRow className="bg-muted/10">
-                  <TableHead>Canister</TableHead><TableHead>Sub-can</TableHead><TableHead>Bull</TableHead><TableHead>Bull Code</TableHead><TableHead>Company</TableHead><TableHead>Owner</TableHead><TableHead className="text-right">Units</TableHead>
+                  <TableHead>Fill Date</TableHead><TableHead>Filled By</TableHead><TableHead>Notes</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {inventory.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No inventory</TableCell></TableRow>
-                  ) : (
-                    <>
-                      {inventory.map((inv: any) => (
-                        <TableRow key={inv.id}>
-                          <TableCell>{inv.canister}</TableCell>
-                          <TableCell>{inv.sub_canister || "—"}</TableCell>
-                          <TableCell>
-                            {inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}
-                            {inv.item_type === "embryo" && (
-                              <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{inv.bull_code || "—"}</TableCell>
-                          <TableCell>{inv.bulls_catalog?.company || "—"}</TableCell>
-                          <TableCell>{inv.owner || inv.customers?.name || "—"}</TableCell>
-                          <TableCell className="text-right">{inv.units}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/20 font-semibold">
-                        <TableCell colSpan={6}>Total</TableCell>
-                        <TableCell className="text-right">{totalUnits}</TableCell>
-                      </TableRow>
-                    </>
-                  )}
+                  {fills.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No fills recorded</TableCell></TableRow>
+                  ) : fills.map((f: any, i: number) => (
+                    <TableRow key={f.id} className={i === 0 && fillWarning ? "bg-amber-500/10" : ""}>
+                      <TableCell className={cn("whitespace-nowrap", i === 0 && fillWarning && "text-orange-400")}>
+                        {format(parseISO(f.fill_date), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{f.filled_by ? f.filled_by.substring(0, 8) + "…" : "—"}</TableCell>
+                      <TableCell>{f.notes || "—"}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
           )}
-        </div>
-
-        {/* ───── Fill History ───── */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Fill History</h2>
-          <div className="rounded-lg border border-border/50 overflow-hidden">
-            <Table>
-              <TableHeader><TableRow className="bg-muted/10">
-                <TableHead>Fill Date</TableHead><TableHead>Filled By</TableHead><TableHead>Notes</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {fills.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No fills recorded</TableCell></TableRow>
-                ) : fills.map((f: any, i: number) => (
-                  <TableRow key={f.id} className={i === 0 && fillWarning ? "bg-amber-500/10" : ""}>
-                    <TableCell className={cn("whitespace-nowrap", i === 0 && fillWarning && "text-orange-400")}>
-                      {format(parseISO(f.fill_date), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{f.filled_by ? f.filled_by.substring(0, 8) + "…" : "—"}</TableCell>
-                    <TableCell>{f.notes || "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
         </div>
 
         {/* ───── Movement History ───── */}
@@ -605,7 +1077,7 @@ const TankDetail = () => {
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <Table>
               <TableHeader><TableRow className="bg-muted/10">
-                <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Status After</TableHead><TableHead>Customer</TableHead><TableHead>Project</TableHead><TableHead>Notes</TableHead>
+                <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Location After</TableHead><TableHead>Customer</TableHead><TableHead>Project</TableHead><TableHead>Notes</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {movements.length === 0 ? (
@@ -614,7 +1086,7 @@ const TankDetail = () => {
                   <TableRow key={m.id}>
                     <TableCell className="whitespace-nowrap">{format(parseISO(m.movement_date), "MMM d, yyyy")}</TableCell>
                     <TableCell><Badge variant="outline" className={MOVEMENT_BADGE[m.movement_type] || "bg-muted text-muted-foreground border-border"}>{m.movement_type.replace(/_/g, " ")}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_BADGE[m.tank_status_after] || "bg-muted text-muted-foreground border-border"}>{m.tank_status_after}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className={m.location_status_after === "here" ? "bg-green-600/20 text-green-400 border-green-600/30" : "bg-blue-600/20 text-blue-400 border-blue-600/30"}>{m.location_status_after === "here" ? "in shop" : "out"}</Badge></TableCell>
                     <TableCell>{m.customers?.name || "—"}</TableCell>
                     <TableCell>{m.projects?.name || "—"}</TableCell>
                     <TableCell>{m.notes || "—"}</TableCell>
@@ -638,7 +1110,7 @@ const TankDetail = () => {
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions recorded</TableCell></TableRow>
                 ) : transactions.map((t: any) => {
                   const bullName = t.bulls_catalog?.bull_name || t.custom_bull_name || "—";
-                  const projOrder = t.projects?.name || t.semen_orders?.customer_name || "—";
+                  const projOrder = t.projects?.name || t.semen_orders?.customers?.name || "—";
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap">{format(parseISO(t.created_at), "MMM d, yyyy")}</TableCell>
@@ -670,21 +1142,25 @@ const TankDetail = () => {
             <div className="space-y-1.5"><Label>Tank Number *</Label><Input value={eTankNumber} onChange={(e) => setETankNumber(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Tank Name</Label><Input value={eTankName} onChange={(e) => setETankName(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>EID</Label><Input value={eTankEid} onChange={(e) => setETankEid(e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Tank Type</Label>
-                <Select value={eTankType} onValueChange={setETankType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TANK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={eTankStatus} onValueChange={setETankStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{ALL_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Tank Type</Label>
+              <Select value={eTankType} onValueChange={setETankType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{TANK_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-sm">Nitrogen</Label>
+              <Select value={eNitrogenStatus} onValueChange={setENitrogenStatus}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NITROGEN_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-sm text-muted-foreground">Location</Label>
+              <span className="text-sm">{eLocationStatus === "here" ? "In Shop" : "Out with Customer"}</span>
             </div>
             <div className="space-y-1.5"><Label>Model</Label><Input value={eTankModel} onChange={(e) => setETankModel(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Serial Number</Label><Input value={eTankSerial} onChange={(e) => setETankSerial(e.target.value)} /></div>
@@ -728,7 +1204,7 @@ const TankDetail = () => {
       {/* ───── Record Movement Dialog ───── */}
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Record Movement</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{moveType === "picked_up" || moveType === "shipped_out" ? "Mark Tank Out" : "Mark Tank In"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Movement Type</Label>
@@ -755,13 +1231,6 @@ const TankDetail = () => {
                   <Calendar mode="single" selected={moveDate} onSelect={(d) => d && setMoveDate(d)} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status After</Label>
-              <Select value={moveStatusAfter} onValueChange={setMoveStatusAfter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{ALL_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Customer</Label>
@@ -792,6 +1261,164 @@ const TankDetail = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Manual Add Dialog */}
+      <Dialog open={showManualAdd} onOpenChange={(o) => { setShowManualAdd(o); if (!o) setManualErrors({}); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Bull to {tankLabel}</DialogTitle>
+            <DialogDescription>Manually add semen that's already in this tank but not in the system.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {/* Customer — leave the picker in place for customer tanks or communal attribution */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Customer</Label>
+              {orgId ? (
+                <CustomerPicker value={manualCustomerId} onChange={setManualCustomerId} orgId={orgId} />
+              ) : (
+                <span className="text-sm text-muted-foreground">Loading...</span>
+              )}
+            </div>
+
+            {/* Owner toggle — only visible when this will become a company inventory row */}
+            {!tank?.customer_id && !manualCustomerId && (
+              <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+                <Label className="text-right pt-2">Owner *</Label>
+                <div>
+                  <Select value={manualOwner} onValueChange={(v) => setManualOwner(v as "Select" | "CATL")}>
+                    <SelectTrigger className={cn(manualErrors.owner && "border-destructive")}>
+                      <SelectValue placeholder="Select or CATL" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Select">Select</SelectItem>
+                      <SelectItem value="CATL">CATL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {manualErrors.owner && <p className="text-xs text-destructive mt-1">{manualErrors.owner}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Bull picker (searchable catalog with NAAB auto-fill) */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Bull *</Label>
+              <div>
+                <BullCombobox
+                  value={manualBullName}
+                  catalogId={manualBullCatalogId}
+                  onChange={(name, catId, naab) => {
+                    setManualBullName(name);
+                    setManualBullCatalogId(catId);
+                    if (catId && naab) {
+                      setManualBullCode(naab);
+                    }
+                  }}
+                />
+                {manualErrors.bullName && <p className="text-xs text-destructive mt-1">{manualErrors.bullName}</p>}
+              </div>
+            </div>
+
+            {/* Bull code — required, auto-fills from picker when catalog bull chosen */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Bull Code *</Label>
+              <div>
+                <Input
+                  value={manualBullCode}
+                  onChange={(e) => setManualBullCode(e.target.value)}
+                  placeholder="NAAB or custom code"
+                  className={cn(manualErrors.bullCode && "border-destructive")}
+                />
+                {manualErrors.bullCode && <p className="text-xs text-destructive mt-1">{manualErrors.bullCode}</p>}
+              </div>
+            </div>
+
+            {/* Units */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Units *</Label>
+              <div>
+                <Input
+                  type="number"
+                  min={1}
+                  value={manualUnits || ""}
+                  onChange={(e) => setManualUnits(parseInt(e.target.value) || 0)}
+                  className={cn(manualErrors.units && "border-destructive")}
+                />
+                {manualErrors.units && <p className="text-xs text-destructive mt-1">{manualErrors.units}</p>}
+              </div>
+            </div>
+
+            {/* Canister */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
+              <Label className="text-right">Canister</Label>
+              <Input value={manualCanister} onChange={(e) => setManualCanister(e.target.value)} placeholder="optional (defaults to 1)" />
+            </div>
+
+            {/* Notes */}
+            <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+              <Label className="text-right pt-2">Notes</Label>
+              <Textarea value={manualNotes} onChange={(e) => setManualNotes(e.target.value)} rows={2} />
+            </div>
+
+            {/* Submit-level error from the DB or elsewhere */}
+            {manualErrors.submit && (
+              <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded p-2">
+                {manualErrors.submit}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowManualAdd(false); setManualErrors({}); }}>Cancel</Button>
+            <Button onClick={handleManualAdd} disabled={manualSubmitting}>
+              {manualSubmitting ? "Adding..." : "Add to Inventory"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <TransferDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        sourceRow={transferRow}
+        sourceTankName={tank?.tank_name || tank?.tank_number || "Tank"}
+        orgId={orgId}
+        userId={userId}
+        tankId={id!}
+      />
+
+      <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Customer Pickup</DialogTitle>
+            <DialogDescription>
+              {pickupRow?.customers?.name || pickupRow?.owner || "Customer"} is picking up semen
+            </DialogDescription>
+          </DialogHeader>
+          {pickupRow && (
+            <PickupForm
+              row={pickupRow}
+              tankName={tank?.tank_name || tank?.tank_number || "Tank"}
+              orgId={orgId}
+              userId={userId}
+              tankId={id!}
+              onCancel={() => setPickupOpen(false)}
+              onSuccess={() => {
+                setPickupOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
+                queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
+                queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+                queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {editBullId && (
+        <QuickBullEditDialog
+          open={!!editBullId}
+          onOpenChange={(open) => { if (!open) setEditBullId(null); }}
+          bullCatalogId={editBullId}
+        />
+      )}
       <AppFooter />
     </div>
   );

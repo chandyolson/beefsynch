@@ -22,4 +22,17 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
 .env
+=======
+
+# Environment files (local values — never commit)
+.env
+.env.local
+
+# Schema snapshots (generated locally; keep .gitkeep only)
+snapshots/*.md
+
+# Claude Code session metadata + worktrees
+.claude/
+>>>>>>> origin/main

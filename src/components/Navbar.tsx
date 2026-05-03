@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Package, Layers, PackagePlus, type LucideIcon } from "lucide-react";
+import { List, CalendarDays, Plus, BarChart3, LogOut, User, UserPlus, Users, Menu, X, ChevronDown, MessageSquare, Layers, Database, Building2 } from "lucide-react";
 import beefsynchIcon from "@/assets/beefsynch-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -16,24 +16,6 @@ import {
 interface NavbarProps {
   onNewProject?: () => void;
 }
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: LucideIcon;
-  separator?: boolean; // render a divider BEFORE this item
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Projects", path: "/dashboard", icon: List },
-  { label: "Tanks", path: "/tanks-dashboard", icon: Package },
-  { label: "Inventory", path: "/inventory-dashboard", icon: Layers },
-  { label: "Pack Tank", path: "/pack-tank", icon: PackagePlus },
-  { label: "Bull Catalog", path: "/bulls", icon: List, separator: true },
-  { label: "Calendar", path: "/calendar", icon: CalendarDays },
-  { label: "Bull Report", path: "/bull-report", icon: BarChart3 },
-  { label: "Bull Chat", path: "/chat", icon: MessageSquare },
-];
 
 const navBtnClass =
   "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors w-full md:w-auto";
@@ -74,7 +56,7 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
     <header className="border-b border-border/50 backdrop-blur-sm">
       <div className="container mx-auto flex items-center justify-between px-4 py-4">
         {/* Logo */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/dashboard")}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/operations?tab=projects")}>
           <img src={beefsynchIcon} alt="BeefSynch logo" className="h-9 w-9 object-contain rounded" />
           <div>
             <h1 className="text-2xl font-bold font-display text-foreground tracking-tight">
@@ -124,14 +106,28 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="z-50 w-52 bg-popover border border-border shadow-lg">
-              {NAV_ITEMS.map((item) => (
-                <>
-                  {item.separator && <DropdownMenuSeparator key={`sep-${item.path}`} />}
-                  <DropdownMenuItem key={item.path} onClick={() => go(item.path)} className="cursor-pointer gap-2">
-                    <item.icon className="h-4 w-4" /> {item.label}
-                  </DropdownMenuItem>
-                </>
-              ))}
+              <DropdownMenuItem onClick={() => go("/operations")} className="cursor-pointer gap-2">
+                <Layers className="h-4 w-4" /> Operations
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/customers")} className="cursor-pointer gap-2">
+                <Users className="h-4 w-4" /> Customers
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => go("/bulls")} className="cursor-pointer gap-2">
+                <List className="h-4 w-4" /> Bull Catalog
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/companies")} className="cursor-pointer gap-2">
+                <Building2 className="h-4 w-4" /> Semen Companies
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/calendar")} className="cursor-pointer gap-2">
+                <CalendarDays className="h-4 w-4" /> Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/operations?tab=inventory")} className="cursor-pointer gap-2">
+                <BarChart3 className="h-4 w-4" /> Planning
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => go("/chat")} className="cursor-pointer gap-2">
+                <MessageSquare className="h-4 w-4" /> Bull Chat
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <button
@@ -165,6 +161,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
                   <Users className="h-4 w-4" /> Manage Team
                 </DropdownMenuItem>
               )}
+              {canManageTeam && (
+                <DropdownMenuItem onClick={() => go("/admin/import-bulls")} className="cursor-pointer gap-2">
+                  <Database className="h-4 w-4" /> Import Bull Catalog
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4" /> Sign Out
               </DropdownMenuItem>
@@ -194,14 +195,25 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
       {/* Mobile dropdown panel */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border/50 bg-popover/95 backdrop-blur-md px-4 py-3 space-y-1 animate-fade-in">
-          {NAV_ITEMS.map((item) => (
-            <>
-              {item.separator && <div key={`sep-${item.path}`} className="border-t border-border/50 my-1" />}
-              <button key={item.path} onClick={() => go(item.path)} className={navBtnClass}>
-                <item.icon className="h-4 w-4" /> {item.label}
-              </button>
-            </>
-          ))}
+          <button onClick={() => go("/operations")} className={navBtnClass}>
+            <Layers className="h-4 w-4" /> Operations
+          </button>
+          <button onClick={() => go("/customers")} className={navBtnClass}>
+            <Users className="h-4 w-4" /> Customers
+          </button>
+          <div className="border-t border-border/50 my-1" />
+          <button onClick={() => go("/bulls")} className={navBtnClass}>
+            <List className="h-4 w-4" /> Bull Catalog
+          </button>
+          <button onClick={() => go("/calendar")} className={navBtnClass}>
+            <CalendarDays className="h-4 w-4" /> Calendar
+          </button>
+          <button onClick={() => go("/operations?tab=inventory")} className={navBtnClass}>
+            <BarChart3 className="h-4 w-4" /> Planning
+          </button>
+          <button onClick={() => go("/chat")} className={navBtnClass}>
+            <MessageSquare className="h-4 w-4" /> Bull Chat
+          </button>
           <button
             onClick={() => { onNewProject?.(); setMobileOpen(false); }}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors w-full"
@@ -220,6 +232,11 @@ const Navbar = ({ onNewProject }: NavbarProps) => {
             {canManageTeam && (
               <button onClick={() => go("/team")} className={navBtnClass}>
                 <Users className="h-4 w-4" /> Manage Team
+              </button>
+            )}
+            {canManageTeam && (
+              <button onClick={() => go("/admin/import-bulls")} className={navBtnClass}>
+                <Database className="h-4 w-4" /> Import Bull Catalog
               </button>
             )}
             <button onClick={handleSignOut} className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-secondary transition-colors w-full">

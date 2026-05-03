@@ -1,7 +1,21 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO, addDays } from "date-fns";
-import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
+import {
+  addFooterToPdf,
+  addStandardHeader,
+  drawDividerLine,
+  buildPdfFilename,
+  ensurePageSpace,
+  renderInfoRows,
+  getStandardHeadStyles,
+  DEFAULT_PRODUCT_DIRECTIONS,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { formatTime12, isNoTimeEvent } from "./formatUtils";
+import { sanitizeFilename } from "./pdfUtils";
 
 interface ProjectData {
   name: string;
@@ -33,30 +47,15 @@ export function generateProjectPdf(
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y: number = margin;
 
   // ── Header ──
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.text("BeefSynch", margin, y);
-  y += 18;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text("Synchronization Planner", margin, y);
-  doc.setTextColor(0);
-  y += 6;
-
-  // Divider
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
+  y = addStandardHeader(doc, margin, "BeefSynch", "Synchronization Planner");
 
   // ── Project Info ──
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(project.name, margin, y);
   y += 22;
 
@@ -80,14 +79,7 @@ export function generateProjectPdf(
     ["Estimated Calving", estimatedCalving],
   ];
 
-  doc.setFontSize(10);
-  for (const [label, value] of infoRows) {
-    doc.setFont("helvetica", "bold");
-    doc.text(`${label}:`, margin, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(value, margin + 110, y);
-    y += 15;
-  }
+  y = renderInfoRows(doc, infoRows, margin, y);
   y += 10;
 
   // ── Bulls & Units ──
@@ -142,8 +134,8 @@ export function generateProjectPdf(
       margin: { left: margin, right: margin },
       head: [["Event", "Date", "Time"]],
       body: tableBody,
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
       alternateRowStyles: { fillColor: [245, 245, 245] },
     });
   }
@@ -181,48 +173,34 @@ export function generateProjectPdf(
 
   // GnRH subsection
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text("GnRH Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Cystorelin, Factrel, Fertagyl, Ovacyst", boxX + 14 + doc.getTextWidth("GnRH Products: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.gnrh.products}`, boxX + 14 + doc.getTextWidth("GnRH Products: "), dirY);
   dirY += 15;
   doc.setFont("helvetica", "bolditalic");
   doc.text("Directions:", boxX + 14, dirY);
   doc.setFont("helvetica", "italic");
-  doc.text(" Give 2 cc's intramuscularly in the neck.", boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.gnrh.directions}`, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
   dirY += 24;
 
   // PGF subsection
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   doc.text("PGF Products:", boxX + 14, dirY);
   doc.setFont("helvetica", "normal");
-  doc.text(" Lutalyse, Prostamate, Synchsure, Estrumate", boxX + 14 + doc.getTextWidth("PGF Products: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.pgf.products}`, boxX + 14 + doc.getTextWidth("PGF Products: "), dirY);
   dirY += 15;
   doc.setFont("helvetica", "bolditalic");
   doc.text("Directions:", boxX + 14, dirY);
   doc.setFont("helvetica", "italic");
-  const pgfDirText = " Give 2 cc's (Estrumate, Synchsure) or 5 cc's (Lutalyse, Prostamate)";
-  doc.text(pgfDirText, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
+  doc.text(` ${DEFAULT_PRODUCT_DIRECTIONS.pgf.directionsLine1}`, boxX + 14 + doc.getTextWidth("Directions: "), dirY);
   dirY += 13;
-  doc.text("intramuscularly in the neck.", boxX + 14, dirY);
+  doc.text(DEFAULT_PRODUCT_DIRECTIONS.pgf.directionsLine2, boxX + 14, dirY);
   dirY += 20;
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text(
-      "BeefSynch by Chuteside Resources",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 30,
-      { align: "center" }
-    );
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside Resources");
 
   // Save
-  const safeName = project.name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
-  doc.save(`${safeName}_BeefSynch_Report.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_Report", project.name));
 }

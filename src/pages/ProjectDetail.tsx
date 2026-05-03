@@ -7,6 +7,7 @@ import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Tr
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
+import CustomerPicker from "@/components/CustomerPicker";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
@@ -66,6 +67,8 @@ import { useBullFavorites } from "@/hooks/useBullFavorites";
 interface ProjectRow {
   id: string;
   name: string;
+  customer_id: string | null;
+  customers: { name: string } | { name: string }[] | null;
   cattle_type: string;
   protocol: string;
   head_count: number;
@@ -99,7 +102,6 @@ interface BullRow {
   bulls_catalog: { bull_name: string; company: string; registration_number: string; breed: string } | null;
 }
 
-
 const ProjectDetail = () => {
   const { favoritedIds, toggleFavorite } = useBullFavorites();
   const { role: orgRole, userId, orgId } = useOrgRole();
@@ -130,6 +132,7 @@ const ProjectDetail = () => {
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [orgGoogleCalendarId, setOrgGoogleCalendarId] = useState<string | null>(null);
   const [googleCalendarConfigured, setGoogleCalendarConfigured] = useState(isGoogleCalendarConfigured());
+  const [customerEditOpen, setCustomerEditOpen] = useState(false);
 
   // Fetch org members for the contact dropdown
   const fetchOrgMembers = useCallback(async () => {
@@ -194,32 +197,42 @@ const ProjectDetail = () => {
     if (!project || !contactDate || !contactBy || !orgId) return;
     setContactSaving(true);
     const dateStr = format(contactDate, "yyyy-MM-dd");
-    // Insert into project_contacts
-    const { error: insertErr } = await supabase
-      .from("project_contacts")
-      .insert({
-        project_id: project.id,
-        organization_id: orgId,
-        contact_date: dateStr,
-        contacted_by: contactBy,
-        notes: contactNotes.trim() || null,
-      });
-    if (insertErr) {
-      toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+    try {
+      // Insert into project_contacts
+      const { error: insertErr } = await supabase
+        .from("project_contacts")
+        .insert({
+          project_id: project.id,
+          organization_id: orgId,
+          contact_date: dateStr,
+          contacted_by: contactBy,
+          notes: contactNotes.trim() || null,
+        });
+      if (insertErr) {
+        toast({ title: "Could not log contact", description: insertErr.message, variant: "destructive" });
+        setContactSaving(false);
+        return;
+      }
+      // Also update the projects table for backward compat
+      const { error: updateErr } = await supabase
+        .from("projects")
+        .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
+        .eq("id", project.id);
+      if (updateErr) {
+        toast({ title: "Partial failure", description: "Contact logged but failed to update project. Please refresh.", variant: "destructive" });
+        setContactSaving(false);
+        return;
+      }
+      setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
+      await fetchContacts();
+      setContactEditing(false);
+      setContactNotes("");
+      toast({ title: "Contact logged" });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to log contact", variant: "destructive" });
+    } finally {
       setContactSaving(false);
-      return;
     }
-    // Also update the projects table for backward compat
-    await supabase
-      .from("projects")
-      .update({ last_contacted_date: dateStr, last_contacted_by: contactBy })
-      .eq("id", project.id);
-    setProject((p) => p ? { ...p, last_contacted_date: dateStr, last_contacted_by: contactBy } : p);
-    await fetchContacts();
-    setContactEditing(false);
-    setContactNotes("");
-    toast({ title: "Contact logged" });
-    setContactSaving(false);
   };
 
   const handleDeleteContact = async (contactId: string) => {
@@ -257,23 +270,28 @@ const ProjectDetail = () => {
 
   const load = async () => {
     if (!id) return;
-    const [pRes, eRes, bRes] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", id).single(), // TODO: narrow select columns
-      supabase
-        .from("protocol_events")
-        .select("*") // TODO: narrow select columns
-        .eq("project_id", id)
-        .order("event_date", { ascending: true }),
-      supabase
-        .from("project_bulls")
-        .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
-        .eq("project_id", id),
-    ]);
+    try {
+      const [pRes, eRes, bRes] = await Promise.all([
+        supabase.from("projects").select("*, customers!projects_customer_id_fkey(name)").eq("id", id).single(),
+        supabase
+          .from("protocol_events")
+          .select("*")
+          .eq("project_id", id)
+          .order("event_date", { ascending: true }),
+        supabase
+          .from("project_bulls")
+          .select("*, bulls_catalog(bull_name, company, registration_number, breed)")
+          .eq("project_id", id),
+      ]);
 
-    if (pRes.data) setProject(pRes.data as ProjectRow);
-    if (eRes.data) setEvents(eRes.data as EventRow[]);
-    if (bRes.data) setBulls(bRes.data as BullRow[]);
-    setLoading(false);
+      if (pRes.data) setProject(pRes.data as unknown as ProjectRow);
+      if (eRes.data) setEvents(eRes.data as EventRow[]);
+      if (bRes.data) setBulls(bRes.data as BullRow[]);
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to load project details", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch last sync timestamp
@@ -293,6 +311,25 @@ const ProjectDetail = () => {
     }
   }, [id, userId]);
 
+  const handleChangeCustomer = async (newCustomerId: string | null) => {
+    if (!newCustomerId || !project) return;
+    const { error } = await supabase
+      .from("projects")
+      .update({ customer_id: newCustomerId } as any)
+      .eq("id", project.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { data } = await supabase
+      .from("projects")
+      .select("*, customers!projects_customer_id_fkey(name)")
+      .eq("id", project.id)
+      .single();
+    if (data) setProject(data as unknown as ProjectRow);
+    toast({ title: "Customer updated" });
+  };
+
   const handleDelete = async () => {
     if (!id) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
@@ -300,7 +337,7 @@ const ProjectDetail = () => {
       toast({ title: "Could not delete project", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Project deleted", description: project?.name + " has been removed." });
-      navigate("/dashboard");
+      navigate("/operations");
     }
   };
 
@@ -531,7 +568,7 @@ const ProjectDetail = () => {
       <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
         {/* Top actions */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/operations")}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <div className="flex items-center gap-2">
@@ -666,6 +703,32 @@ const ProjectDetail = () => {
           <h1 className="text-3xl font-bold font-display text-foreground">
             {project.name}
           </h1>
+          {/* Customer line with edit pencil */}
+          <div className="flex items-center gap-2 text-lg text-muted-foreground">
+            <span>
+              {(Array.isArray(project.customers)
+                ? project.customers[0]?.name
+                : project.customers?.name) || "—"}
+            </span>
+            <Popover open={customerEditOpen} onOpenChange={setCustomerEditOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Change customer">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3" align="start">
+                <div className="text-sm font-medium mb-2">Change Customer</div>
+                <CustomerPicker
+                  value={project.customer_id || null}
+                  onChange={(newId) => {
+                    handleChangeCustomer(newId);
+                    setCustomerEditOpen(false);
+                  }}
+                  orgId={orgId || ""}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/20 text-primary border-primary/30">
               {project.protocol}
@@ -997,10 +1060,10 @@ const ProjectDetail = () => {
                       <TableCell className="font-medium">
                         {b.bulls_catalog
                           ? (() => {
-                              const isSelectSires = b.bulls_catalog!.company.toLowerCase().includes("select sires");
-                              const bullDisplay = `${b.bulls_catalog!.bull_name} (${b.bulls_catalog!.company})`;
+                              const isSelectSires = (b.bulls_catalog?.company || "").toLowerCase().includes("select sires");
+                              const bullDisplay = `${b.bulls_catalog!.bull_name} (${b.bulls_catalog?.company || "Custom"})`;
                               if (isSelectSires) {
-                                const breedSlug = b.bulls_catalog!.breed.toLowerCase().replace(/\s+/g, "-");
+                                const breedSlug = (b.bulls_catalog?.breed || "").toLowerCase().replace(/\s+/g, "-");
                                 const nameSlug = b.bulls_catalog!.bull_name.toLowerCase().replace(/\s+/g, "-");
                                 const url = `https://selectsiresbeef.com/bull/${breedSlug}/${nameSlug}/`;
                                 return (
@@ -1056,6 +1119,7 @@ const ProjectDetail = () => {
         editData={project ? {
           id: project.id,
           name: project.name,
+          customer_id: (project as any).customer_id,
           cattle_type: project.cattle_type,
           protocol: project.protocol,
           head_count: project.head_count,

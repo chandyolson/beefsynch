@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw, Download } from "lucide-react";
+import { Pencil, Check, X, Trash2, Send, ArrowLeft, Copy, RefreshCw, RotateCw, Download, Archive } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateFullExport } from "@/lib/generateFullExport";
 
@@ -60,6 +60,7 @@ const TeamManagement = () => {
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenDialog, setShowRegenDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
 
   const canManage = myRole === "owner" || myRole === "admin";
 
@@ -289,7 +290,7 @@ const TeamManagement = () => {
       <main className="container mx-auto px-4 py-8 max-w-3xl space-y-8">
         {/* Back */}
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/operations")}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -486,7 +487,7 @@ const TeamManagement = () => {
                 Download a complete backup of all your organization's data including projects, schedules, bulls, and team members.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-3 sm:flex-row">
               <Button
                 disabled={exporting}
                 onClick={async () => {
@@ -507,7 +508,49 @@ const TeamManagement = () => {
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {exporting ? "Exporting…" : "Export All Data"}
+                {exporting ? "Exporting…" : "Export All Data (JSON)"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={exportingZip}
+                onClick={async () => {
+                  setExportingZip(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) throw new Error("Not authenticated");
+                    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                    const url = `https://${projectId}.supabase.co/functions/v1/full-export`;
+                    const res = await fetch(url, {
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}));
+                      throw new Error(body.error || `Export failed (${res.status})`);
+                    }
+                    const blob = await res.blob();
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    const dateStr = new Date().toISOString().slice(0, 10);
+                    a.download = `beefsynch_export_${dateStr}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                    toast({ title: "Full migration export downloaded" });
+                  } catch (err: any) {
+                    toast({ title: "Export failed", description: err.message, variant: "destructive" });
+                  } finally {
+                    setExportingZip(false);
+                  }
+                }}
+                className="gap-2"
+              >
+                {exportingZip ? (
+                  <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                ) : (
+                  <Archive className="h-4 w-4" />
+                )}
+                {exportingZip ? "Exporting…" : "Full Migration Export (ZIP)"}
               </Button>
             </CardContent>
           </Card>

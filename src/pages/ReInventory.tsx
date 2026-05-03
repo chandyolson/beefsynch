@@ -77,7 +77,7 @@ const ReInventory = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tanks")
-        .select("*, customers(id, name)")
+        .select("*, customers!tanks_customer_id_fkey(id, name)")
         .eq("id", tankId!)
         .single();
       if (error) throw error;
@@ -106,7 +106,7 @@ const ReInventory = () => {
     queryFn: async () => {
       let query = supabase
         .from("tank_inventory")
-        .select("*, bulls_catalog(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
+        .select("*, bulls_catalog!tank_inventory_bull_catalog_id_fkey(bull_name, company, registration_number), customers!tank_inventory_customer_id_fkey(name)")
         .eq("tank_id", tankId!);
       if (customerId) {
         query = query.eq("customer_id", customerId);
@@ -196,99 +196,109 @@ const ReInventory = () => {
   // Save
   const handleSave = async () => {
     if (!tankId || !orgId) return;
+
+    // Block save if any new row has a canister but no bull catalog link.
+    // The database now requires every tank_inventory row to have a real
+    // bull_catalog_id. Existing rows being adjusted are already linked.
+    const unlinkedNewRows = newRows.filter(
+      (nr) => nr.canister.trim().length > 0 && !nr.bull_catalog_id
+    );
+    if (unlinkedNewRows.length > 0) {
+      const desc = unlinkedNewRows
+        .map((nr) =>
+          nr.bull_name?.trim()
+            ? `Canister ${nr.canister}: "${nr.bull_name.trim()}"`
+            : `Canister ${nr.canister}: (no bull)`
+        )
+        .join("; ");
+      toast({
+        title: "Bull not in catalog",
+        description: `${unlinkedNewRows.length} new row${unlinkedNewRows.length === 1 ? "" : "s"} need a bull from the catalog: ${desc}. Click the Bull field on each row and pick from the dropdown, use "Add custom bull", or pick "Miscellaneous (placeholder)" if unknown.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
 
     try {
-      const now = new Date().toISOString();
+      // Build the changes array — only include rows that actually changed
+      const changes: any[] = [];
 
-      // Update existing rows with changes
       for (const row of rows) {
-        const diff = row.actual - row.previous;
-        if (diff === 0) {
-          // Still update inventoried_at
-          await supabase
-            .from("tank_inventory")
-            .update({ inventoried_at: now, inventoried_by: userId })
-            .eq("id", row.id);
-          continue;
-        }
-
-        // Update inventory
-        await supabase
-          .from("tank_inventory")
-          .update({ units: row.actual, inventoried_at: now, inventoried_by: userId })
-          .eq("id", row.id);
-
-        // Log transaction
-        await supabase
-          .from("inventory_transactions")
-          .insert({
-            organization_id: orgId,
-            tank_id: tankId,
-            inventory_item_id: row.id,
-            customer_id: row.customer_id,
-            bull_catalog_id: row.bull_catalog_id,
-            custom_bull_name: row.custom_bull_name,
-            bull_code: row.bull_code,
-            units_change: diff,
-            transaction_type: "reinventory_adjustment",
-            reason: diff < 0 ? "Missing/used" : "Found/added",
-            notes: notes.trim() || null,
-            performed_by: userId,
-          });
+        if (row.actual === row.previous) continue; // skip no-ops
+        // Note: new_units=0 goes through as update; the RPC will DELETE server-side
+        changes.push({
+          action: "update",
+          inventory_id: row.id,
+          expected_previous_units: row.previous,
+          new_units: row.actual,
+        });
       }
 
-      // Insert new rows
       for (const nr of newRows) {
         if (!nr.canister.trim()) continue;
         const units = parseInt(nr.units) || 0;
-
         const nrCustomerId = nr.customer_id || customerId || null;
-        const nrOwnerName = nrCustomerId ? orgCustomers.find(c => c.id === nrCustomerId)?.name || null : null;
-        const { data: inserted } = await supabase
-          .from("tank_inventory")
-          .insert({
-            organization_id: orgId,
-            tank_id: tankId,
-            customer_id: nrCustomerId,
-            owner: nrOwnerName,
-            canister: nr.canister.trim(),
-            sub_canister: nr.sub_canister.trim() || null,
-            bull_catalog_id: nr.bull_catalog_id || null,
-            custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
-            bull_code: nr.bull_code.trim() || null,
-            units,
-            inventoried_at: now,
-            inventoried_by: userId,
-            storage_type: "customer",
-            item_type: nr.item_type,
-          })
-          .select("id")
-          .single();
-
-        if (inserted && units > 0) {
-          await supabase
-            .from("inventory_transactions")
-            .insert({
-              organization_id: orgId,
-              tank_id: tankId,
-              inventory_item_id: inserted.id,
-              customer_id: customerId || null,
-              bull_catalog_id: nr.bull_catalog_id || null,
-              custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
-              bull_code: nr.bull_code.trim() || null,
-              units_change: units,
-              transaction_type: "reinventory_found",
-              reason: "Found during re-inventory",
-              notes: notes.trim() || null,
-              performed_by: userId,
-            });
-        }
+        changes.push({
+          action: "insert",
+          canister: nr.canister.trim(),
+          sub_canister: nr.sub_canister.trim() || null,
+          bull_catalog_id: nr.bull_catalog_id || null,
+          custom_bull_name: nr.bull_catalog_id ? null : nr.bull_name.trim() || null,
+          bull_code: nr.bull_code.trim() || "Unknown",
+          new_units: units,
+          item_type: nr.item_type,
+          customer_id: nrCustomerId,
+          owner_type: nrCustomerId ? "customer" : null,
+          owner_customer_id: nrCustomerId,
+          owner_company_id: null,
+        });
       }
 
+      if (changes.length === 0) {
+        toast({ title: "No changes to save" });
+        setSaving(false);
+        return;
+      }
+
+      const payload = {
+        organization_id: orgId,
+        tank_id: tankId,
+        notes: notes.trim() || undefined,
+        changes,
+      };
+
+      const { error } = await (supabase as any).rpc("save_reinventory", { _input: payload });
+
+      if (error) {
+        const msg = error.message || "";
+        if (msg.startsWith("STALE:") || msg.startsWith("MISSING:")) {
+          toast({
+            title: "Inventory changed",
+            description: "Inventory changed since you opened this page. Reload and try again.",
+            variant: "destructive",
+          });
+          // Reset so a fresh fetch repopulates state
+          setInitialized(false);
+          await queryClient.invalidateQueries({ queryKey: ["reinventory_items", tankId, customerId] });
+        } else if (msg.startsWith("DUPLICATE:")) {
+          toast({
+            title: "Duplicate row",
+            description: "That bull is already on this canister — edit the existing row instead.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Error", description: msg || "Could not save.", variant: "destructive" });
+        }
+        setSaving(false);
+        return;
+      }
+
+      // Success — refetch from server (source of truth) before navigating away
+      await queryClient.invalidateQueries({ queryKey: ["reinventory_items", tankId, customerId] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["reinventory_items"] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       toast({ title: "Inventory saved" });
       navigate(-1);
@@ -322,7 +332,7 @@ const ReInventory = () => {
               </>
             ) : (
               <BreadcrumbItem>
-                <BreadcrumbLink onClick={() => navigate("/tanks")} className="cursor-pointer">Tanks</BreadcrumbLink>
+                <BreadcrumbLink onClick={() => navigate("/operations?tab=tanks")} className="cursor-pointer">Tanks</BreadcrumbLink>
               </BreadcrumbItem>
             )}
             <BreadcrumbSeparator />

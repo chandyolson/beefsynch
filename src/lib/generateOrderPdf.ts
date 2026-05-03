@@ -1,11 +1,20 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
+import {
+  addStandardHeader,
+  addFooterToPdf,
+  buildPdfFilename,
+  getStandardHeadStyles,
+  ensurePageSpace,
+  PDF_COLORS,
+  PDF_LAYOUT,
+  PDF_FONTS,
+} from "./pdfUtils";
+import { sanitizeFilename } from "./pdfUtils";
 
 interface OrderData {
   customer_name: string;
-  customer_phone: string | null;
-  customer_email: string | null;
   order_date: string;
   fulfillment_status: string;
   billing_status: string;
@@ -23,32 +32,45 @@ interface OrderItemData {
   } | null;
 }
 
-export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
+interface ReconciliationLine {
+  bull_name: string;
+  bull_code: string | null;
+  units: number;
+  source: string;
+}
+
+interface ReconciliationData {
+  type: "received" | "packed";
+  lines: ReconciliationLine[];
+  totalOrdered: number;
+  totalFulfilled: number;
+}
+
+interface OrderSupplyData {
+  product_name: string;
+  quantity: number;
+  unit_label: string | null;
+  unit_price: number | null;
+  line_total: number | null;
+}
+
+export function generateOrderPdf(
+  order: OrderData,
+  items: OrderItemData[],
+  reconciliation?: ReconciliationData | null,
+  supplies?: OrderSupplyData[] | null,
+) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 50;
-  let y = 50;
+  const margin = PDF_LAYOUT.margin;
+  let y: number = margin;
 
   // Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
-  doc.text("BeefSynch", margin, y);
-  y += 18;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(100);
-  doc.text("Semen Order", margin, y);
-  doc.setTextColor(0);
-  y += 6;
-
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 20;
+  y = addStandardHeader(doc, margin, "BeefSynch", "Semen Order");
 
   // Customer Info
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(PDF_FONTS.sizeSubhead);
   doc.text(order.customer_name, margin, y);
   y += 22;
 
@@ -58,17 +80,15 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
     ["Billing", order.billing_status.charAt(0).toUpperCase() + order.billing_status.slice(1)],
   ];
 
-  if (order.customer_phone) infoRows.push(["Phone", order.customer_phone]);
-  if (order.customer_email) infoRows.push(["Email", order.customer_email]);
   if (order.project_name) infoRows.push(["Linked Project", order.project_name]);
 
-  doc.setFontSize(10);
+  doc.setFontSize(PDF_FONTS.sizeBodyTiny);
   for (const [label, value] of infoRows) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, margin, y);
     doc.setFont("helvetica", "normal");
     doc.text(value, margin + 110, y);
-    y += 15;
+    y += PDF_LAYOUT.lineHeight;
   }
   y += 10;
 
@@ -94,11 +114,91 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
       margin: { left: margin, right: margin },
       head: [["Bull Name", "Company", "Reg #", "Units"]],
       body: tableBody,
-      styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
       alternateRowStyles: { fillColor: [245, 245, 245] },
       didParseCell: (data) => {
         if (data.row.index === tableBody.length - 1 && data.section === "body") {
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  }
+
+  // Reconciliation
+  if (reconciliation && reconciliation.lines.length > 0) {
+    let reconY = ((doc as any).lastAutoTable?.finalY ?? y) + 20;
+    reconY = ensurePageSpace(doc, reconY, 80, margin);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(reconciliation.type === "packed" ? "Packed from Inventory" : "Received Shipments", margin, reconY);
+    reconY += 8;
+
+    const reconBody = reconciliation.lines.map((line) => [
+      line.bull_name,
+      line.bull_code || "—",
+      line.source,
+      String(line.units),
+    ]);
+
+    autoTable(doc, {
+      startY: reconY,
+      margin: { left: margin, right: margin },
+      head: [["Bull", "Code", reconciliation.type === "packed" ? "Source Tank" : "Shipment", "Units"]],
+      body: reconBody,
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    let summaryY = ((doc as any).lastAutoTable?.finalY ?? reconY) + 14;
+    summaryY = ensurePageSpace(doc, summaryY, 30, margin);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const outstanding = reconciliation.totalOrdered - reconciliation.totalFulfilled;
+    const summaryText = `Ordered: ${reconciliation.totalOrdered}  |  ${reconciliation.type === "packed" ? "Packed" : "Received"}: ${reconciliation.totalFulfilled}  |  Outstanding: ${outstanding >= 0 ? outstanding : 0}`;
+    doc.text(summaryText, margin, summaryY);
+
+    if (outstanding <= 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(34, 139, 34);
+      doc.text("  ✓ Fully fulfilled", margin + doc.getTextWidth(summaryText) + 5, summaryY);
+      doc.setTextColor(0, 0, 0);
+    }
+  }
+
+  // Supplies
+  if (supplies && supplies.length > 0) {
+    let supplyY = ((doc as any).lastAutoTable?.finalY ?? y) + 20;
+    supplyY = ensurePageSpace(doc, supplyY, 80, margin);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Supplies", margin, supplyY);
+    supplyY += 8;
+
+    const supplyBody = supplies.map((s) => [
+      s.product_name,
+      String(s.quantity),
+      s.unit_label || "—",
+      `$${(Number(s.unit_price) || 0).toFixed(2)}`,
+      `$${(Number(s.line_total) || 0).toFixed(2)}`,
+    ]);
+
+    const supplyTotal = supplies.reduce((sum, i) => sum + (Number(i.line_total) || 0), 0);
+    supplyBody.push(["", "", "", "Total", `$${supplyTotal.toFixed(2)}`]);
+
+    autoTable(doc, {
+      startY: supplyY,
+      margin: { left: margin, right: margin },
+      head: [["Product", "Qty", "Unit", "Price", "Total"]],
+      body: supplyBody,
+      styles: { fontSize: PDF_FONTS.sizeSmall, cellPadding: 5 },
+      headStyles: getStandardHeadStyles(),
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      didParseCell: (data) => {
+        if (data.row.index === supplyBody.length - 1 && data.section === "body") {
           data.cell.styles.fontStyle = "bold";
         }
       },
@@ -110,9 +210,10 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
   let notesY = finalY + 20;
 
   if (order.notes) {
-    if (notesY + 60 > doc.internal.pageSize.getHeight() - 50) {
-      doc.addPage();
-      notesY = 50;
+    notesY = ensurePageSpace(doc, notesY, 60, margin);
+    if (notesY !== finalY + 20) {
+      // We added a page, so reset notesY
+      notesY = margin;
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
@@ -124,22 +225,8 @@ export function generateOrderPdf(order: OrderData, items: OrderItemData[]) {
     doc.text(lines, margin, notesY);
   }
 
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
-    doc.setTextColor(140);
-    doc.text(
-      "BeefSynch by Chuteside, LLC",
-      pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 30,
-      { align: "center" }
-    );
-  }
+  addFooterToPdf(doc, "BeefSynch by Chuteside, LLC");
 
-  const safeName = order.customer_name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
   const safeDate = order.order_date.replace(/-/g, "");
-  doc.save(`BeefSynch_Order_${safeName}_${safeDate}.pdf`);
+  doc.save(buildPdfFilename("BeefSynch_Order", order.customer_name, safeDate));
 }

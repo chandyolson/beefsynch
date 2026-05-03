@@ -36,7 +36,9 @@ export function useBullFavorites() {
   const toggleFavorite = useCallback(async (bullCatalogId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
 
-    if (isAnonymous) {
+    // Query current user directly instead of relying on stale isAnonymous state
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.is_anonymous) {
       toast({
         title: "Create a free account to save favorite bulls across sessions.",
         action: (
@@ -57,9 +59,6 @@ export function useBullFavorites() {
     queryClient.setQueryData<string[]>(QUERY_KEY, (old = []) =>
       isFav ? old.filter((id) => id !== bullCatalogId) : [...old, bullCatalogId]
     );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     const { error } = isFav
       ? await supabase

@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Preview,
   Text,
 } from 'npm:@react-email/components@0.0.22'
@@ -28,13 +27,6 @@ export const RecoveryEmail = ({
     <Preview>Reset your BeefSynch password</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img
-          src="https://qgpufoqjjxyecimxusze.supabase.co/storage/v1/object/public/email-assets/beefsynch-logo.png"
-          width="160"
-          height="auto"
-          alt="BeefSynch"
-          style={{ marginBottom: '24px' }}
-        />
         <Heading style={h1}>Reset your password</Heading>
         <Text style={text}>
           We received a request to reset your BeefSynch password. Click
@@ -59,7 +51,7 @@ const container = { padding: '32px 28px' }
 const h1 = {
   fontSize: '24px',
   fontWeight: 'bold' as const,
-  fontFamily: "'Space Grotesk', Arial, sans-serif",
+  fontFamily: "'Inter', Arial, sans-serif",
   color: '#0D0F35',
   margin: '0 0 20px',
 }

@@ -105,8 +105,12 @@ export type Database = {
           breed: string
           bull_name: string
           company: string
+          created_by: string | null
           id: string
+          is_custom: boolean
           naab_code: string | null
+          notes: string | null
+          organization_id: string | null
           registration_number: string
         }
         Insert: {
@@ -114,8 +118,12 @@ export type Database = {
           breed: string
           bull_name: string
           company: string
+          created_by?: string | null
           id?: string
+          is_custom?: boolean
           naab_code?: string | null
+          notes?: string | null
+          organization_id?: string | null
           registration_number: string
         }
         Update: {
@@ -123,15 +131,31 @@ export type Database = {
           breed?: string
           bull_name?: string
           company?: string
+          created_by?: string | null
           id?: string
+          is_custom?: boolean
           naab_code?: string | null
+          notes?: string | null
+          organization_id?: string | null
           registration_number?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bulls_catalog_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          company_name: string | null
           created_at: string
           email: string | null
           id: string
@@ -139,9 +163,17 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          qbo_customer_id: string | null
+          qbo_synced_at: string | null
+          state: string | null
+          zip: string | null
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -149,9 +181,17 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          qbo_customer_id?: string | null
+          qbo_synced_at?: string | null
+          state?: string | null
+          zip?: string | null
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -159,6 +199,10 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          qbo_customer_id?: string | null
+          qbo_synced_at?: string | null
+          state?: string | null
+          zip?: string | null
         }
         Relationships: [
           {
@@ -232,6 +276,7 @@ export type Database = {
           reason: string | null
           shipment_id: string | null
           tank_id: string
+          tank_pack_id: string | null
           transaction_type: string
           units_change: number
         }
@@ -251,6 +296,7 @@ export type Database = {
           reason?: string | null
           shipment_id?: string | null
           tank_id: string
+          tank_pack_id?: string | null
           transaction_type: string
           units_change: number
         }
@@ -270,6 +316,7 @@ export type Database = {
           reason?: string | null
           shipment_id?: string | null
           tank_id?: string
+          tank_pack_id?: string | null
           transaction_type?: string
           units_change?: number
         }
@@ -328,6 +375,13 @@ export type Database = {
             columns: ["tank_id"]
             isOneToOne: false
             referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
             referencedColumns: ["id"]
           },
         ]
@@ -461,10 +515,14 @@ export type Database = {
       }
       project_billing: {
         Row: {
+          billing_completed_at: string | null
+          billing_completed_by: string | null
           catl_invoice_number: string | null
           created_at: string | null
           detection_type: string | null
           id: string
+          inventory_finalized_at: string | null
+          inventory_finalized_by: string | null
           mass_breed_head: number | null
           notes: string | null
           organization_id: string
@@ -474,12 +532,17 @@ export type Database = {
           select_sires_invoice_number: string | null
           status: string
           updated_at: string | null
+          zoho_project_id: string | null
         }
         Insert: {
+          billing_completed_at?: string | null
+          billing_completed_by?: string | null
           catl_invoice_number?: string | null
           created_at?: string | null
           detection_type?: string | null
           id?: string
+          inventory_finalized_at?: string | null
+          inventory_finalized_by?: string | null
           mass_breed_head?: number | null
           notes?: string | null
           organization_id: string
@@ -489,12 +552,17 @@ export type Database = {
           select_sires_invoice_number?: string | null
           status?: string
           updated_at?: string | null
+          zoho_project_id?: string | null
         }
         Update: {
+          billing_completed_at?: string | null
+          billing_completed_by?: string | null
           catl_invoice_number?: string | null
           created_at?: string | null
           detection_type?: string | null
           id?: string
+          inventory_finalized_at?: string | null
+          inventory_finalized_by?: string | null
           mass_breed_head?: number | null
           notes?: string | null
           organization_id?: string
@@ -504,6 +572,7 @@ export type Database = {
           select_sires_invoice_number?: string | null
           status?: string
           updated_at?: string | null
+          zoho_project_id?: string | null
         }
         Relationships: [
           {
@@ -529,7 +598,13 @@ export type Database = {
           created_at: string | null
           description: string
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           labor_dates: string | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
           sort_order: number | null
         }
         Insert: {
@@ -538,7 +613,13 @@ export type Database = {
           created_at?: string | null
           description: string
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           labor_dates?: string | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
         }
         Update: {
@@ -547,7 +628,13 @@ export type Database = {
           created_at?: string | null
           description?: string
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           labor_dates?: string | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
         }
         Relationships: [
@@ -569,10 +656,16 @@ export type Database = {
           doses_per_unit: number | null
           event_date: string | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           line_total: number | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_reason: string | null
           product_category: string | null
           product_name: string
           protocol_event_label: string | null
+          session_id: string | null
           sort_order: number | null
           unit_label: string | null
           unit_price: number | null
@@ -588,10 +681,16 @@ export type Database = {
           doses_per_unit?: number | null
           event_date?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_reason?: string | null
           product_category?: string | null
           product_name: string
           protocol_event_label?: string | null
+          session_id?: string | null
           sort_order?: number | null
           unit_label?: string | null
           unit_price?: number | null
@@ -607,10 +706,16 @@ export type Database = {
           doses_per_unit?: number | null
           event_date?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_reason?: string | null
           product_category?: string | null
           product_name?: string
           protocol_event_label?: string | null
+          session_id?: string | null
           sort_order?: number | null
           unit_label?: string | null
           unit_price?: number | null
@@ -633,6 +738,13 @@ export type Database = {
             referencedRelation: "billing_products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "project_billing_products_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing_sessions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       project_billing_semen: {
@@ -643,7 +755,13 @@ export type Database = {
           bull_name: string
           created_at: string | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           line_total: number | null
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
           sort_order: number | null
           unit_price: number | null
           units_billable: number | null
@@ -658,7 +776,13 @@ export type Database = {
           bull_name: string
           created_at?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
           unit_price?: number | null
           units_billable?: number | null
@@ -673,7 +797,13 @@ export type Database = {
           bull_name?: string
           created_at?: string | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           line_total?: number | null
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
           sort_order?: number | null
           unit_price?: number | null
           units_billable?: number | null
@@ -698,6 +828,82 @@ export type Database = {
           },
         ]
       }
+      project_billing_session_inventory: {
+        Row: {
+          billing_id: string
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string
+          canister: string
+          created_at: string
+          end_units: number | null
+          id: string
+          overridden_at: string | null
+          overridden_by_user_id: string | null
+          override_quantity: number | null
+          override_reason: string | null
+          session_id: string
+          sort_order: number | null
+          start_units: number | null
+        }
+        Insert: {
+          billing_id: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name: string
+          canister?: string
+          created_at?: string
+          end_units?: number | null
+          id?: string
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
+          session_id: string
+          sort_order?: number | null
+          start_units?: number | null
+        }
+        Update: {
+          billing_id?: string
+          bull_catalog_id?: string | null
+          bull_code?: string | null
+          bull_name?: string
+          canister?: string
+          created_at?: string
+          end_units?: number | null
+          id?: string
+          overridden_at?: string | null
+          overridden_by_user_id?: string | null
+          override_quantity?: number | null
+          override_reason?: string | null
+          session_id?: string
+          sort_order?: number | null
+          start_units?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_billing_session_inventory_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_session_inventory_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_session_inventory_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "project_billing_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_billing_sessions: {
         Row: {
           billing_id: string
@@ -705,9 +911,12 @@ export type Database = {
           crew: string | null
           head_count: number | null
           id: string
+          invoiced: boolean
+          invoiced_at: string | null
           notes: string | null
           session_date: string
           session_label: string | null
+          session_type: string
           sort_order: number | null
           time_of_day: string | null
         }
@@ -717,9 +926,12 @@ export type Database = {
           crew?: string | null
           head_count?: number | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           notes?: string | null
           session_date: string
           session_label?: string | null
+          session_type?: string
           sort_order?: number | null
           time_of_day?: string | null
         }
@@ -729,9 +941,12 @@ export type Database = {
           crew?: string | null
           head_count?: number | null
           id?: string
+          invoiced?: boolean
+          invoiced_at?: string | null
           notes?: string | null
           session_date?: string
           session_label?: string | null
+          session_type?: string
           sort_order?: number | null
           time_of_day?: string | null
         }
@@ -920,22 +1135,78 @@ export type Database = {
           },
         ]
       }
+      receiving_report_audit_log: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          organization_id: string
+          reason: string | null
+          shipment_id: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id: string
+          reason?: string | null
+          shipment_id: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id?: string
+          reason?: string | null
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receiving_report_audit_log_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       semen_companies: {
         Row: {
+          active: boolean
+          can_own_inventory: boolean
           created_at: string
           id: string
+          is_internal: boolean
+          is_placeholder: boolean
           name: string
           organization_id: string
         }
         Insert: {
+          active?: boolean
+          can_own_inventory?: boolean
           created_at?: string
           id?: string
+          is_internal?: boolean
+          is_placeholder?: boolean
           name: string
           organization_id: string
         }
         Update: {
+          active?: boolean
+          can_own_inventory?: boolean
           created_at?: string
           id?: string
+          is_internal?: boolean
+          is_placeholder?: boolean
           name?: string
           organization_id?: string
         }
@@ -993,9 +1264,7 @@ export type Database = {
           billing_status: string
           created_at: string
           created_by: string | null
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
+          customer_id: string | null
           fulfillment_status: string
           id: string
           notes: string | null
@@ -1010,9 +1279,7 @@ export type Database = {
           billing_status?: string
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
+          customer_id?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
@@ -1027,9 +1294,7 @@ export type Database = {
           billing_status?: string
           created_at?: string
           created_by?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
+          customer_id?: string | null
           fulfillment_status?: string
           id?: string
           notes?: string | null
@@ -1041,6 +1306,13 @@ export type Database = {
           semen_company_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "semen_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "semen_orders_organization_id_fkey"
             columns: ["organization_id"]
@@ -1066,6 +1338,8 @@ export type Database = {
       }
       shipments: {
         Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -1075,12 +1349,15 @@ export type Database = {
           organization_id: string
           received_by: string | null
           received_date: string
-          received_from: string | null
+          reconciliation_snapshot: Json | null
           semen_company_id: string | null
           semen_order_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1090,12 +1367,15 @@ export type Database = {
           organization_id: string
           received_by?: string | null
           received_date?: string
-          received_from?: string | null
+          reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -1105,9 +1385,10 @@ export type Database = {
           organization_id?: string
           received_by?: string | null
           received_date?: string
-          received_from?: string | null
+          reconciliation_snapshot?: Json | null
           semen_company_id?: string | null
           semen_order_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -1123,6 +1404,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
             referencedColumns: ["id"]
           },
           {
@@ -1410,6 +1698,42 @@ export type Database = {
           },
         ]
       }
+      tank_pack_orders: {
+        Row: {
+          created_at: string
+          id: string
+          semen_order_id: string
+          tank_pack_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          semen_order_id: string
+          tank_pack_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          semen_order_id?: string
+          tank_pack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_pack_orders_semen_order_id_fkey"
+            columns: ["semen_order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_orders_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tank_pack_projects: {
         Row: {
           created_at: string
@@ -1448,7 +1772,10 @@ export type Database = {
       }
       tank_packs: {
         Row: {
+          closed_at: string | null
+          closed_by: string | null
           created_at: string
+          customer_id: string | null
           destination_address: string | null
           destination_name: string | null
           field_tank_id: string
@@ -1467,7 +1794,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
+          customer_id?: string | null
           destination_address?: string | null
           destination_name?: string | null
           field_tank_id: string
@@ -1486,7 +1816,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
+          customer_id?: string | null
           destination_address?: string | null
           destination_name?: string | null
           field_tank_id?: string
@@ -1505,6 +1838,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tank_packs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tank_packs_field_tank_id_fkey"
             columns: ["field_tank_id"]
@@ -1649,6 +1989,9 @@ export type Database = {
         Returns: Json
       }
       cleanup_anonymous_projects: { Args: never; Returns: undefined }
+      export_auth_identities: { Args: never; Returns: Json[] }
+      export_auth_users: { Args: never; Returns: Json[] }
+      finalize_billing_inventory: { Args: { _input: Json }; Returns: Json }
       get_org_members: {
         Args: { _organization_id: string }
         Returns: {

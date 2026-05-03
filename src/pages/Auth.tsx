@@ -19,16 +19,31 @@ import {
   FormMessage } from
 "@/components/ui/form";
 
+// ── Error mapping ────────────────────────────────────────────────────────
+function mapAuthError(error: any): string {
+  const message = error?.message || "";
+  if (message.includes("User already registered")) {
+    return "An account with this email already exists";
+  }
+  if (message.includes("Invalid login credentials")) {
+    return "Incorrect email or password";
+  }
+  if (message.includes("Email not confirmed")) {
+    return "Please check your email to confirm your account";
+  }
+  return "Something went wrong. Please try again.";
+}
+
 // ── Schemas ────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters")
+  password: z.string().min(8, "Password must be at least 8 characters")
 });
 
 const signupSchema = z.
 object({
   email: z.string().trim().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string()
 }).
 refine((d) => d.password === d.confirmPassword, {
@@ -88,9 +103,18 @@ const Auth = () => {
       // If already signed in as a non-anonymous user, redirect away
       // and let ProtectedRoute handle onboarding vs dashboard routing
       if (user && !user.is_anonymous && !isConvert) {
-        navigate("/dashboard", { replace: true });
+        navigate("/operations?tab=projects", { replace: true });
       }
     });
+
+    // Listen for cross-tab login detection
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session && !session.user.is_anonymous) {
+        navigate("/operations?tab=projects", { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate, isConvert]);
 
   // Login form
@@ -119,7 +143,7 @@ const Auth = () => {
     if (error) {
       toast({ title: "Guest sign in failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
     }
   };
 
@@ -131,9 +155,9 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
+      toast({ title: "Sign in failed", description: mapAuthError(error), variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
     }
   };
 
@@ -148,7 +172,7 @@ const Auth = () => {
       });
       if (error) {
         setLoading(false);
-        toast({ title: "Account conversion failed", description: error.message, variant: "destructive" });
+        toast({ title: "Account conversion failed", description: mapAuthError(error), variant: "destructive" });
         return;
       }
 
@@ -190,7 +214,7 @@ const Auth = () => {
         title: "Account created!",
         description: "All your projects have been saved.",
       });
-      navigate("/dashboard");
+      navigate("/operations?tab=projects");
       return;
     }
 
@@ -202,7 +226,7 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+      toast({ title: "Sign up failed", description: mapAuthError(error), variant: "destructive" });
     } else {
       toast({
         title: "Check your email",
@@ -220,7 +244,7 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: mapAuthError(error), variant: "destructive" });
     } else {
       toast({
         title: "Reset email sent",
@@ -237,7 +261,7 @@ const Auth = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex flex-col items-center justify-center p-4"
       style={{
         background: "linear-gradient(135deg, #0D0F35 0%, #1F1B6B 50%, #0B7B6E 100%)",
         backgroundAttachment: "fixed"
@@ -464,12 +488,13 @@ const Auth = () => {
         }
       </div>
 
-      <div className="mt-8 flex justify-center gap-1 text-xs text-white/40">
+      <div className="mt-auto pt-8 pb-4 flex flex-col items-center gap-1 text-xs text-white/40">
         <span>BeefSynch by Chuteside Resources</span>
-        <span>·</span>
-        <a href="/privacy" className="hover:text-white/60 transition-colors underline">Privacy Policy</a>
-        <span>·</span>
-        <a href="/terms" className="hover:text-white/60 transition-colors underline">Terms of Service</a>
+        <div className="flex gap-1">
+          <a href="/privacy" className="hover:text-white/60 transition-colors underline">Privacy Policy</a>
+          <span>·</span>
+          <a href="/terms" className="hover:text-white/60 transition-colors underline">Terms of Service</a>
+        </div>
       </div>
     </div>);
 

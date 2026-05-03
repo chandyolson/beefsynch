@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQueryClient } from "@tanstack/react-query";
 import BullCombobox from "@/components/BullCombobox";
+import BullsRowManager from "@/components/BullsRowManager";
+import CustomerPicker from "@/components/CustomerPicker";
+import TeamMemberSelect from "@/components/TeamMemberSelect";
 
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -27,14 +30,12 @@ interface BullRow {
   name: string;
   catalogId: string | null;
   naabCode: string | null;
-  units: number;
+  units: number | "";
 }
 
 export interface EditOrderData {
   id: string;
-  customer_name: string;
-  customer_phone: string | null;
-  customer_email: string | null;
+  customer_id: string | null;
   order_date: string;
   fulfillment_status: string;
   billing_status: string;
@@ -43,6 +44,8 @@ export interface EditOrderData {
   notes: string | null;
   placed_by: string | null;
   order_type: string;
+  inventory_owner: string | null;
+  needed_by: string | null;
   bulls: BullRow[];
 }
 
@@ -50,27 +53,32 @@ interface NewOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editData?: EditOrderData | null;
+  initialOrderType?: "customer" | "inventory";
 }
 
-const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) => {
+const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewOrderDialogProps) => {
   const { orgId } = useOrgRole();
   const queryClient = useQueryClient();
   const isEditing = !!editData;
   const [saving, setSaving] = useState(false);
 
   // Form state
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [orderDate, setOrderDate] = useState<Date>(new Date());
+  const [neededBy, setNeededBy] = useState<Date | null>(null);
+  const [neededByOpen, setNeededByOpen] = useState(false);
   const [fulfillmentStatus, setFulfillmentStatus] = useState("pending");
   const [billingStatus, setBillingStatus] = useState("unbilled");
-  const [projectId, setProjectId] = useState<string>("none");
+  const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
-  const [orderType, setOrderType] = useState<"customer" | "inventory">("customer");
-  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+  const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
+  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
+
+  // Supplies state
+  const [supplyLines, setSupplyLines] = useState<{ productId: string; productName: string; quantity: number | ""; unitPrice: number; unitLabel: string; lineTotal: number }[]>([]);
+  const [supplyProducts, setSupplyProducts] = useState<{ id: string; product_name: string; product_category: string; default_price: number; unit_label: string }[]>([]);
 
   // Semen company state
   const [semenCompanyId, setSemenCompanyId] = useState("none");
@@ -78,65 +86,83 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
   const [addingCompany, setAddingCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
 
-  // Org projects for linking
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-
   useEffect(() => {
     if (!open || !orgId) return;
-    supabase
-      .from("projects")
-      .select("id, name")
-      .eq("organization_id", orgId)
-      .order("name")
-      .then(({ data }) => setProjects(data ?? []));
-    supabase
+    (supabase as any)
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
+      .eq("active", true)
       .order("name")
-      .then(({ data }) => setCompanies(data ?? []));
+      .then(({ data }: any) => setCompanies(data ?? []));
+    (supabase as any)
+      .from("billing_products")
+      .select("id, product_name, product_category, default_price, unit_label")
+      .eq("organization_id", orgId)
+      .eq("active", true)
+      .in("product_category", ["breeding_supply", "sheath", "glove", "gun_warmer", "ai_gun", "heat_detection", "nutritional", "patch"])
+      .order("sort_order")
+      .then(({ data }: { data: any }) => setSupplyProducts(data ?? []));
   }, [open, orgId]);
 
   // Reset / prefill on open
   useEffect(() => {
     if (!open) return;
     if (editData) {
-      setCustomerName(editData.customer_name);
-      setCustomerPhone(editData.customer_phone ?? "");
-      setCustomerEmail(editData.customer_email ?? "");
+      setCustomerId(editData.customer_id ?? null);
       setOrderDate(new Date(editData.order_date + "T12:00:00"));
+      setNeededBy((editData as any).needed_by ? new Date((editData as any).needed_by + "T12:00:00") : null);
       setFulfillmentStatus(editData.fulfillment_status);
       setBillingStatus(editData.billing_status);
-      setProjectId(editData.project_id ?? "none");
+      setInventoryOwner((editData.inventory_owner as "Select" | "CATL" | null) ?? null);
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
       setPlacedBy(editData.placed_by ?? "");
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
-      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      // Fetch existing supply lines for edit
+      if (editData.id) {
+        (supabase as any)
+          .from("order_supply_items")
+          .select("*")
+          .eq("semen_order_id", editData.id)
+          .then(({ data }: { data: any }) => {
+            setSupplyLines((data ?? []).map((d: any) => ({
+              productId: d.billing_product_id || "",
+              productName: d.product_name,
+              quantity: d.quantity,
+              unitPrice: d.unit_price || 0,
+              unitLabel: d.unit_label || "",
+              lineTotal: d.line_total || 0,
+            })));
+          });
+      } else {
+        setSupplyLines([]);
+      }
     } else {
-      setCustomerName("");
-      setCustomerPhone("");
-      setCustomerEmail("");
+      setCustomerId(null);
       setOrderDate(new Date());
+      setNeededBy(null);
       setFulfillmentStatus("pending");
       setBillingStatus("unbilled");
-      setProjectId("none");
+      setInventoryOwner(null);
       setSemenCompanyId("none");
       setNotes("");
       setPlacedBy("");
-      setOrderType("customer");
-      setBulls([{ name: "", catalogId: null, naabCode: null, units: 1 }]);
+      setOrderType(initialOrderType ?? "customer");
+      setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      setSupplyLines([]);
       setAddingCompany(false);
       setNewCompanyName("");
     }
   }, [open, editData]);
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: 1 }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "" }]);
   const removeBullRow = (i: number) => setBulls((prev) => prev.filter((_, idx) => idx !== i));
   const updateBull = (i: number, name: string, catalogId: string | null, naabCode?: string | null) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId, naabCode: naabCode ?? null } : b)));
-  const updateUnits = (i: number, units: number) =>
-    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units } : b)));
+  const updateUnits = (i: number, val: string) =>
+    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units: val === "" ? "" : parseInt(val) || 0 } : b)));
 
   const handleSave = async () => {
     if (!orgId) {
@@ -144,17 +170,45 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
       return;
     }
 
+    if (orderType === "inventory" && !inventoryOwner) {
+      toast({
+        title: "Inventory owner required",
+        description: "Select 'Select Sires' or 'CATL Resources' for inventory orders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Block save if any bull row has typed text but isn't linked to the catalog.
+    // The database now requires every order line to have a real bull_catalog_id,
+    // so we catch this here with a clear message instead of letting it fail at the DB.
+    const unlinkedBulls = bulls.filter(
+      (b) => b.name?.trim().length > 0 && !b.catalogId
+    );
+    if (unlinkedBulls.length > 0) {
+      const names = unlinkedBulls.map((b) => `"${b.name.trim()}"`).join(", ");
+      toast({
+        title: "Bull not in catalog",
+        description:
+          unlinkedBulls.length === 1
+            ? `${names} isn't linked to your catalog. Click that bull row, then either pick from the dropdown or use "Add custom bull" to create it.`
+            : `${unlinkedBulls.length} bull rows aren't linked: ${names}. Click each one and either pick from the dropdown or use "Add custom bull" to create it.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      const orderPayload = {
+      const orderPayload: any = {
         organization_id: orgId,
-        customer_name: customerName.trim() || "",
-        customer_phone: customerPhone.trim() || null,
-        customer_email: customerEmail.trim() || null,
+        customer_id: customerId || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
+        needed_by: neededBy ? format(neededBy, "yyyy-MM-dd") : null,
         fulfillment_status: fulfillmentStatus,
         billing_status: billingStatus,
-        project_id: projectId === "none" ? null : projectId,
+        project_id: null,
+        inventory_owner: orderType === "inventory" ? inventoryOwner : null,
         semen_company_id: semenCompanyId === "none" ? null : semenCompanyId,
         notes: notes.trim() || null,
         placed_by: placedBy.trim() || null,
@@ -171,7 +225,6 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         if (error) throw error;
         orderId = editData.id;
 
-        // Delete existing items, re-insert
         const { error: delErr } = await supabase
           .from("semen_order_items")
           .delete()
@@ -187,17 +240,42 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
         orderId = data.id;
       }
 
-      // Insert bull items
       const validBulls = bulls.filter((b) => b.name.trim());
       if (validBulls.length > 0) {
         const rows = validBulls.map((b) => ({
           semen_order_id: orderId,
           bull_catalog_id: b.catalogId,
           custom_bull_name: b.catalogId ? null : b.name.trim(),
-          units: b.units,
+          units: typeof b.units === "number" ? b.units : parseInt(String(b.units)) || 0,
         }));
         const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
+      }
+
+      // Supplies — delete existing and re-insert
+      if (isEditing) {
+        const { error: delSupErr } = await (supabase as any)
+          .from("order_supply_items")
+          .delete()
+          .eq("semen_order_id", orderId);
+        if (delSupErr) throw delSupErr;
+      }
+      const validSupplies = supplyLines.filter((s) => s.productName.trim() && s.quantity);
+      if (validSupplies.length > 0) {
+        const supplyRows = validSupplies.map((s) => {
+          const qty = typeof s.quantity === "number" ? s.quantity : parseInt(String(s.quantity)) || 0;
+          return {
+            semen_order_id: orderId,
+            billing_product_id: s.productId || null,
+            product_name: s.productName,
+            quantity: qty,
+            unit_price: s.unitPrice,
+            unit_label: s.unitLabel || null,
+            line_total: qty * s.unitPrice,
+          };
+        });
+        const { error: supplyErr } = await (supabase as any).from("order_supply_items").insert(supplyRows);
+        if (supplyErr) throw supplyErr;
       }
 
       toast({ title: isEditing ? "Order updated" : "Order created" });
@@ -221,9 +299,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
 
         <div className="space-y-5">
           {/* Order Type Toggle */}
-          <div>
-            <Label>Order Type</Label>
-            <div className="flex mt-1.5 rounded-md overflow-hidden border border-border">
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Order Type</Label>
+            <div className="flex rounded-md overflow-hidden border border-border">
               <button
                 type="button"
                 className={cn(
@@ -251,88 +329,80 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             </div>
           </div>
 
-          {/* Semen Company */}
-          <div>
-            <Label>Semen Company</Label>
-            <Select
-              value={semenCompanyId}
-              onValueChange={(val) => {
-                if (val === "add_new") {
-                  setAddingCompany(true);
-                  setNewCompanyName("");
-                } else {
-                  setSemenCompanyId(val);
-                  setAddingCompany(false);
-                }
-              }}
-            >
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-                <SelectItem value="add_new">+ Add New Company...</SelectItem>
-              </SelectContent>
-            </Select>
-            {addingCompany && (
-              <div className="flex items-center gap-2 mt-2">
-                <Input
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.target.value)}
-                  placeholder="Company name"
-                  className="flex-1"
-                />
-                <Button
-                  size="sm"
-                  disabled={!newCompanyName.trim() || !orgId}
-                  onClick={async () => {
-                    if (!orgId) return;
-                    const { data, error } = await supabase
-                      .from("semen_companies")
-                      .insert({ name: newCompanyName.trim(), organization_id: orgId })
-                      .select("id, name")
-                      .single();
-                    if (error) {
-                      toast({ title: "Error", description: error.message, variant: "destructive" });
-                      return;
-                    }
-                    setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-                    setSemenCompanyId(data.id);
-                    setAddingCompany(false);
-                    setNewCompanyName("");
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Customer Name / Description */}
-          <div>
-            <Label>{orderType === "inventory" ? "Notes / Description" : "Customer Name"}</Label>
-            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={orderType === "inventory" ? "e.g. Spring 2026 restock" : "e.g. Smith Ranch"} className="mt-1.5" />
-          </div>
-
-          {/* Phone & Email */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Customer Phone</Label>
-              <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Optional" className="mt-1.5" />
+          {/* Customer Picker */}
+          {orderType === "customer" && orgId && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Customer</Label>
+              <CustomerPicker value={customerId} onChange={setCustomerId} orgId={orgId} />
             </div>
+          )}
+
+          {/* Semen Company */}
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Company</Label>
             <div>
-              <Label>Customer Email</Label>
-              <Input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="Optional" className="mt-1.5" />
+              <Select
+                value={semenCompanyId}
+                onValueChange={(val) => {
+                  if (val === "add_new") {
+                    setAddingCompany(true);
+                    setNewCompanyName("");
+                  } else {
+                    setSemenCompanyId(val);
+                    setAddingCompany(false);
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                  <SelectItem value="add_new">+ Add New Company...</SelectItem>
+                </SelectContent>
+              </Select>
+              {addingCompany && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder="Company name"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!newCompanyName.trim() || !orgId}
+                    onClick={async () => {
+                      if (!orgId) return;
+                      const { data, error } = await supabase
+                        .from("semen_companies")
+                        .insert({ name: newCompanyName.trim(), organization_id: orgId })
+                        .select("id, name")
+                        .single();
+                      if (error) {
+                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                        return;
+                      }
+                      setCompanies((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+                      setSemenCompanyId(data.id);
+                      setAddingCompany(false);
+                      setNewCompanyName("");
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Order Date */}
-          <div>
-            <Label>Order Date</Label>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Order Date</Label>
             <Popover open={dateOpen} onOpenChange={setDateOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full mt-1.5 justify-start text-left font-normal")}>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
                   {format(orderDate, "PPP")}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                 </Button>
@@ -348,89 +418,215 @@ const NewOrderDialog = ({ open, onOpenChange, editData }: NewOrderDialogProps) =
             </Popover>
           </div>
 
+          {/* Needed By (optional) */}
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Needed By</Label>
+            <div className="flex gap-2">
+              <Popover open={neededByOpen} onOpenChange={setNeededByOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("flex-1 justify-start text-left font-normal", !neededBy && "text-muted-foreground")}>
+                    {neededBy ? format(neededBy, "PPP") : "No date set"}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={neededBy ?? undefined}
+                    onSelect={(d) => { setNeededBy(d ?? null); setNeededByOpen(false); }}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              {neededBy && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setNeededBy(null)}
+                  className="text-xs text-muted-foreground"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Placed By */}
-          <div>
-            <Label>Placed By</Label>
-            <Input value={placedBy} onChange={(e) => setPlacedBy(e.target.value)} placeholder="Who placed this order?" className="mt-1.5" />
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Placed By</Label>
+            <TeamMemberSelect value={placedBy} onValueChange={setPlacedBy} placeholder="Who placed this order?" />
           </div>
 
           {/* Status dropdowns */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Fulfillment Status</Label>
-              <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="backordered">Backordered</SelectItem>
-                  <SelectItem value="partially filled">Partially Filled</SelectItem>
-                  <SelectItem value="ordered">Ordered</SelectItem>
-                  <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Billing Status</Label>
-              <Select value={billingStatus} onValueChange={setBillingStatus}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unbilled">Unbilled</SelectItem>
-                  <SelectItem value="invoiced">Invoiced</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Link to Project */}
-          <div>
-            <Label>Link to Project</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Fulfillment</Label>
+            <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="backordered">Backordered</SelectItem>
+                <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="fulfilled">Fulfilled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+            <Label className="text-right text-sm">Billing</Label>
+            <Select value={billingStatus} onValueChange={setBillingStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unbilled">Unbilled</SelectItem>
+                <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Inventory Owner toggle — only for inventory-type orders */}
+          {orderType === "inventory" && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Owner</Label>
+              <div className="flex rounded-md overflow-hidden border border-border">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                    inventoryOwner === "Select"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  )}
+                  onClick={() => setInventoryOwner("Select")}
+                >
+                  Select Sires
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex-1 px-4 py-2 text-sm font-medium transition-colors",
+                    inventoryOwner === "CATL"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  )}
+                  onClick={() => setInventoryOwner("CATL")}
+                >
+                  CATL Resources
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Bulls */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-[100px_1fr] items-start gap-x-4">
+            <div />
+            <BullsRowManager
+              bulls={bulls.map((b) => ({
+                bull_name: b.name,
+                bull_catalog_id: b.catalogId,
+                units: typeof b.units === "number" ? b.units : 0,
+              }))}
+              onAdd={addBullRow}
+              onRemove={removeBullRow}
+              onUpdateBull={(i, name, catId) =>
+                updateBull(i, name, catId)
+              }
+              onUpdateUnits={(i, units) => updateUnits(i, units.toString())}
+              showUnits={true}
+              emptyMessage="No bulls added yet. Click 'Add Bull' to add semen."
+              showInventory={true}
+              orgId={orgId}
+            />
+          </div>
+
+          {/* Supplies */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground font-display">Bulls & Units</h3>
-              <Button type="button" variant="outline" size="sm" onClick={addBullRow} className="gap-1">
-                <Plus className="h-3.5 w-3.5" /> Add Bull
+              <Label className="text-sm font-medium">Supplies</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSupplyLines((prev) => [
+                    ...prev,
+                    { productId: "", productName: "", quantity: "", unitPrice: 0, unitLabel: "", lineTotal: 0 },
+                  ])
+                }
+              >
+                + Add Supply
               </Button>
             </div>
-            {bulls.map((bull, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <BullCombobox
-                  value={bull.name}
-                  catalogId={bull.catalogId}
-                  onChange={(name, catId, naabCode) => updateBull(i, name, catId, naabCode)}
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  value={bull.units}
-                  onChange={(e) => updateUnits(i, parseInt(e.target.value) || 0)}
-                  className="w-20"
-                  placeholder="Units"
-                />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeBullRow(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+            {supplyLines.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No supplies added.</p>
+            ) : (
+              supplyLines.map((line, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Select
+                    value={line.productId || undefined}
+                    onValueChange={(v) => {
+                      const prod = supplyProducts.find((p) => p.id === v);
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx
+                            ? {
+                                ...s,
+                                productId: prod ? prod.id : "",
+                                productName: prod ? prod.product_name : s.productName,
+                                unitPrice: prod ? Number(prod.default_price) || 0 : s.unitPrice,
+                                unitLabel: prod ? prod.unit_label || "" : s.unitLabel,
+                              }
+                            : s,
+                        ),
+                      );
+                    }}
+                  >
+                    <SelectTrigger className="flex-1 min-w-[200px]">
+                      <SelectValue placeholder="Select product…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supplyProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.product_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    className="w-[80px]"
+                    placeholder="Qty"
+                    value={line.quantity}
+                    onChange={(e) =>
+                      setSupplyLines((prev) =>
+                        prev.map((s, i) =>
+                          i === idx ? { ...s, quantity: e.target.value === "" ? "" : parseInt(e.target.value) || 0 } : s,
+                        ),
+                      )
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground w-[60px] text-right">
+                    ${line.unitPrice.toFixed(2)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setSupplyLines((prev) => prev.filter((_, i) => i !== idx))}
+                  >
+                    <span className="text-lg">×</span>
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Notes */}
-          <div>
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." rows={3} className="mt-1.5" />
+          <div className="grid grid-cols-[100px_1fr] items-start gap-x-4">
+            <Label className="text-right text-sm pt-2">Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." rows={3} />
           </div>
 
           {/* Actions */}
