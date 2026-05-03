@@ -41,6 +41,7 @@ interface PlanningRow {
   naab_code: string | null;
   company: string | null;
   on_hand: number;
+  customer_supply: number;
   incoming: number;
   customer_orders: number;
   project_needs: number;
@@ -232,6 +233,8 @@ export default function Planning({ embedded = false }: { embedded?: boolean }) {
       { label: "Company", value: (r) => r.company ?? "" },
       { label: "NAAB Code", value: (r) => r.naab_code ?? "" },
       { label: "Bull Name", value: (r) => r.bull_name ?? "" },
+      { label: "On Hand", value: (r) => r.on_hand },
+      { label: "Customer Supply", value: (r) => r.customer_supply },
       { label: "Units Needed", value: (r) => Math.abs(r.net_position) },
       { label: "Needed By", value: (r) => (r.needed_by ? r.needed_by : "") },
     ];
@@ -323,7 +326,7 @@ export default function Planning({ embedded = false }: { embedded?: boolean }) {
           }}
         >
           {/* Desktop layout */}
-          <div className="hidden md:grid grid-cols-[2fr_repeat(4,_minmax(0,_1fr))_1.6fr_1.2fr] gap-3 items-center px-4 py-3 text-sm">
+          <div className="hidden md:grid grid-cols-[2fr_repeat(5,_minmax(0,_1fr))_1.6fr_1.2fr] gap-3 items-center px-4 py-3 text-sm">
             <div className="min-w-0">
               <div className="font-medium text-foreground truncate">{r.bull_name}</div>
               <div className="text-xs text-muted-foreground truncate">
@@ -334,6 +337,14 @@ export default function Planning({ embedded = false }: { embedded?: boolean }) {
             <div className="text-center">
               <div className="text-foreground font-medium">{r.on_hand}</div>
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">on hand</div>
+            </div>
+            <div className="text-center">
+              {r.customer_supply > 0 ? (
+                <div className="text-emerald-600 dark:text-emerald-400 font-medium">{r.customer_supply}</div>
+              ) : (
+                <div className="text-muted-foreground">—</div>
+              )}
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">customer</div>
             </div>
             <div className="text-center">
               <div className="text-foreground font-medium">{r.incoming}</div>
@@ -378,6 +389,14 @@ export default function Planning({ embedded = false }: { embedded?: boolean }) {
               <div>
                 <span className="text-muted-foreground">On hand: </span>
                 <span className="text-foreground font-medium">{r.on_hand}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Customer: </span>
+                {r.customer_supply > 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">{r.customer_supply}</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground">Incoming: </span>
