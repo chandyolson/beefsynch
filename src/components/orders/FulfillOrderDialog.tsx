@@ -36,14 +36,24 @@ interface LineState {
   tankId: string;
   canister: string;
   billable: boolean;
+  deliveryMethod: string;
 }
 
-interface TankOption {
-  id: string;
+interface InventoryLocation {
+  tank_id: string;
   tank_number: string | number;
   tank_name: string | null;
+  canister: string | null;
+  units: number;
   customer_id: string | null;
+  owner: string | null;
 }
+
+const DELIVERY_METHODS = [
+  { value: "pickup", label: "Customer pickup" },
+  { value: "drop_off", label: "We dropped off" },
+  { value: "shipped", label: "Shipped" },
+] as const;
 
 export const FulfillOrderDialog = ({
   orderId,
@@ -56,39 +66,91 @@ export const FulfillOrderDialog = ({
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [tanks, setTanks] = useState<TankOption[]>([]);
   const [lineStates, setLineStates] = useState<LineState[]>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      const { data } = await supabase
-        .from("tanks")
-        .select("id, tank_number, tank_name, customer_id")
-        .eq("organization_id", organizationId)
-        .order("tank_number", { ascending: true });
-      setTanks((data ?? []) as TankOption[]);
-    })();
-  }, [open, organizationId]);
-
-  useEffect(() => {
-    if (!open) return;
-    setLineStates(
-      lines
-        .filter((l) => l.ordered - l.fulfilled > 0)
-        .map((l) => ({
-          units: String(l.ordered - l.fulfilled),
-          tankId: "",
-          canister: "",
-          billable: true,
-        }))
-    );
-  }, [open, lines]);
+  const [inventoryByBull, setInventoryByBull] = useState<Record<string, InventoryLocation[]>>({});
+  const [inventoryLoading, setInventoryLoading] = useState(false);
 
   const activeBulls = useMemo(
     () => lines.filter((l) => l.ordered - l.fulfilled > 0),
     [lines]
   );
+
+  // Reset line states when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    setLineStates(
+      activeBulls.map((l) => ({
+        units: String(l.ordered - l.fulfilled),
+        tankId: "",
+        canister: "",
+        billable: true,
+        deliveryMethod: "pickup",
+      }))
+    );
+    setInventoryByBull({});
+  }, [open, lines]);
+
+  // Fetch inventory locations for each bull when dialog opens
+  useEffect(() => {
+    if (!open || activeBulls.length === 0) return;
+    setInventoryLoading(true);
+
+    const bullIds = activeBulls
+      .map((b) => b.bull_catalog_id)
+      .filter((id): id is string => !!id);
+
+    if (bullIds.length === 0) {
+      setInventoryLoading(false);
+      return;
+    }
+
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("tank_inventory")
+        .select("tank_id, bull_catalog_id, canister, units, customer_id, owner, tanks!tank_inventory_tank_id_fkey(tank_number, tank_name)")
+        .in("bull_catalog_id", bullIds)
+        .gt("units", 0);
+
+      const byBull: Record<string, InventoryLocation[]> = {};
+      for (const row of (data ?? []) as any[]) {
+        const bullId = row.bull_catalog_id;
+        if (!byBull[bullId]) byBull[bullId] = [];
+        byBull[bullId].push({
+          tank_id: row.tank_id,
+          tank_number: row.tanks?.tank_number ?? "?",
+          tank_name: row.tanks?.tank_name ?? null,
+          canister: row.canister,
+          units: row.units,
+          customer_id: row.customer_id,
+          owner: row.owner,
+        });
+      }
+      setInventoryByBull(byBull);
+      setInventoryLoading(false);
+
+      // Auto-select tank + canister when only one location exists
+      setLineStates((prev) => {
+        const next = [...prev];
+        for (let i = 0; i < activeBulls.length; i++) {
+          const bullId = activeBulls[i].bull_catalog_id;
+          if (!bullId || !byBull[bullId]) continue;
+          const locs = byBull[bullId];
+          if (locs.length === 1 && next[i] && !next[i].tankId) {
+            const loc = locs[0];
+            const isCompanyTank = !loc.customer_id;
+            next[i] = {
+              ...next[i],
+              tankId: loc.tank_id,
+              canister: loc.canister || "",
+              billable: isCompanyTank,
+            };
+          }
+        }
+        return next;
+      });
+    })();
+  }, [open, activeBulls]);
 
   const updateLine = (idx: number, field: keyof LineState, value: string | boolean) => {
     setLineStates((prev) => {
@@ -98,12 +160,16 @@ export const FulfillOrderDialog = ({
     });
   };
 
-  const handleTankChange = (idx: number, tankId: string) => {
-    const tank = tanks.find((t) => t.id === tankId);
-    const isCompanyTank = tank ? !tank.customer_id : true;
+  const handleLocationSelect = (idx: number, locationKey: string) => {
+    const [tankId, canister] = locationKey.split("|");
+    const bullId = activeBulls[idx]?.bull_catalog_id;
+    const locs = bullId ? inventoryByBull[bullId] : [];
+    const loc = locs?.find((l) => l.tank_id === tankId && (l.canister || "") === (canister || ""));
+    const isCompanyTank = loc ? !loc.customer_id : true;
+
     setLineStates((prev) => {
       const next = [...prev];
-      next[idx] = { ...next[idx], tankId, billable: isCompanyTank };
+      next[idx] = { ...next[idx], tankId, canister: canister || "", billable: isCompanyTank };
       return next;
     });
   };
@@ -125,6 +191,8 @@ export const FulfillOrderDialog = ({
       const units = parseInt(ls.units);
       if (!ls.tankId || !units || units <= 0) continue;
 
+      const deliveryLabel = DELIVERY_METHODS.find((d) => d.value === ls.deliveryMethod)?.label || ls.deliveryMethod;
+
       const { error } = await (supabase as any).rpc("record_direct_sale", {
         _input: {
           order_id: orderId,
@@ -135,7 +203,7 @@ export const FulfillOrderDialog = ({
           bull_name: bull.bull_name || null,
           source_canister: ls.canister || null,
           is_billable: ls.billable,
-          notes: null,
+          notes: deliveryLabel,
         },
       });
 
@@ -164,12 +232,13 @@ export const FulfillOrderDialog = ({
     }
   };
 
-  const tankLabel = (t: TankOption) => {
-    const num = t.tank_number;
-    const name = t.tank_name ? ` — ${t.tank_name}` : "";
-    const owner = t.customer_id ? " (customer)" : " (company)";
-    return `${num}${name}${owner}`;
+  const locationLabel = (loc: InventoryLocation) => {
+    const tank = loc.tank_name ? `${loc.tank_number} — ${loc.tank_name}` : String(loc.tank_number);
+    const can = loc.canister ? `, can ${loc.canister}` : "";
+    return `${tank}${can} (${loc.units}u${loc.owner ? " · " + loc.owner : ""})`;
   };
+
+  const locationKey = (loc: InventoryLocation) => `${loc.tank_id}|${loc.canister || ""}`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -178,7 +247,7 @@ export const FulfillOrderDialog = ({
         <DialogHeader>
           <DialogTitle>Fulfill Order — {customerName}</DialogTitle>
           <DialogDescription>
-            Select a source tank, units, and whether each line is billable.
+            Select where the semen is coming from and how it's being delivered.
           </DialogDescription>
         </DialogHeader>
 
@@ -192,6 +261,10 @@ export const FulfillOrderDialog = ({
               const remaining = bull.ordered - bull.fulfilled;
               const ls = lineStates[idx];
               if (!ls) return null;
+
+              const bullId = bull.bull_catalog_id;
+              const locations = bullId ? (inventoryByBull[bullId] || []) : [];
+              const selectedKey = ls.tankId ? `${ls.tankId}|${ls.canister || ""}` : "";
 
               return (
                 <div key={`${bull.bull_catalog_id || bull.bull_name}-${idx}`} className="border border-border/40 rounded-lg p-3 space-y-3">
@@ -207,23 +280,33 @@ export const FulfillOrderDialog = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                    <div className="sm:col-span-5 space-y-1">
-                      <Label className="text-xs">Source Tank</Label>
-                      <Select value={ls.tankId} onValueChange={(v) => handleTankChange(idx, v)}>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Source</Label>
+                    {inventoryLoading ? (
+                      <p className="text-xs text-muted-foreground">Loading inventory...</p>
+                    ) : locations.length === 0 ? (
+                      <p className="text-xs text-destructive">Not found in inventory</p>
+                    ) : locations.length === 1 ? (
+                      <div className="text-sm border rounded-md px-3 py-2 bg-muted/30">
+                        {locationLabel(locations[0])}
+                      </div>
+                    ) : (
+                      <Select value={selectedKey} onValueChange={(v) => handleLocationSelect(idx, v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select tank" />
+                          <SelectValue placeholder="Select location" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tanks.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {tankLabel(t)}
+                          {locations.map((loc) => (
+                            <SelectItem key={locationKey(loc)} value={locationKey(loc)}>
+                              {locationLabel(loc)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    )}
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                     <div className="sm:col-span-2 space-y-1">
                       <Label className="text-xs">Units</Label>
                       <Input
@@ -234,16 +317,30 @@ export const FulfillOrderDialog = ({
                       />
                     </div>
 
+                    <div className="sm:col-span-4 space-y-1">
+                      <Label className="text-xs">Delivery</Label>
+                      <Select value={ls.deliveryMethod} onValueChange={(v) => updateLine(idx, "deliveryMethod", v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DELIVERY_METHODS.map((d) => (
+                            <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="sm:col-span-3 space-y-1">
                       <Label className="text-xs">Canister</Label>
                       <Input
                         value={ls.canister}
                         onChange={(e) => updateLine(idx, "canister", e.target.value)}
-                        placeholder="Optional"
+                        placeholder="Auto-filled"
                       />
                     </div>
 
-                    <div className="sm:col-span-2 flex items-center gap-2 pb-2">
+                    <div className="sm:col-span-3 flex items-center gap-2 pb-2">
                       <Checkbox
                         id={`billable-${idx}`}
                         checked={ls.billable}
