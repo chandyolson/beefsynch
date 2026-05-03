@@ -121,11 +121,12 @@ const ProjectBilling = () => {
   }, [projectId, orgId]);
 
   async function loadBillingChildren(bId: string) {
-    const [prodRes, sessRes, semRes, invRes] = await Promise.all([
-      supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
+    const [prodRes, sessRes, semRes, invRes, laborRes] = await Promise.all([
+      supabase.from("project_billing_products").select("*, delivery_method").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
       (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
+      (supabase.from as any)("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
@@ -135,6 +136,7 @@ const ProjectBilling = () => {
       bulls_catalog: undefined,
     })) as SemenLine[]);
     setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
+    setLaborLines((laborRes?.data ?? []) as LaborLine[]);
     return {
       sessions: (sessRes.data ?? []) as SessionLine[],
       inventory: (invRes.data ?? []) as SessionInventoryLine[],
