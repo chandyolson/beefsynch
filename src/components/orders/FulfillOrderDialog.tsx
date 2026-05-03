@@ -125,7 +125,7 @@ export const FulfillOrderDialog = ({
       const units = parseInt(ls.units);
       if (!ls.tankId || !units || units <= 0) continue;
 
-      const { error } = await (supabase as any).rpc("record_direct_sale", {
+      const { error } = await supabase.rpc("record_direct_sale", {
         _input: {
           order_id: orderId,
           source_tank_id: ls.tankId,

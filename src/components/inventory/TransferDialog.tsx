@@ -5,6 +5,7 @@ import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,8 +74,7 @@ export default function TransferDialog({
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
   const [isBillable, setIsBillable] = useState(false);
 
-  const bullName =
-    sourceRow?.bulls_catalog?.bull_name || sourceRow?.custom_bull_name || "—";
+  const bullName = getBullDisplayName(sourceRow);
   const bullCode = sourceRow?.bull_code || sourceRow?.bulls_catalog?.naab_code;
   const available = sourceRow?.units ?? 0;
 
@@ -168,7 +168,7 @@ export default function TransferDialog({
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("transfer_inventory" as any, {
+      const { error } = await supabase.rpc("transfer_inventory", {
         _source_inventory_id: sourceRow.id,
         _dest_tank_id: destTankId,
         _dest_canister: canister.trim(),

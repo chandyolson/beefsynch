@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatTime12, isNoTimeEvent } from "@/lib/formatting";
+import { PROJECT_STATUS_COLORS } from "@/lib/constants";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
@@ -61,8 +63,6 @@ import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
 import { useBullFavorites } from "@/hooks/useBullFavorites";
-import { formatTime12, isNoTimeEvent } from "@/lib/formatUtils";
-import { statusColor } from "@/lib/badgeStyles";
 
 interface ProjectRow {
   id: string;
@@ -176,7 +176,7 @@ const ProjectDetail = () => {
     if (!id) return;
     const { data } = await supabase
       .from("project_contacts")
-      .select("*")
+      .select("*") // TODO: narrow select columns
       .eq("project_id", id)
       .order("contact_date", { ascending: false });
     setContacts(data ?? []);
@@ -744,7 +744,7 @@ const ProjectDetail = () => {
             </Badge>
             <Badge
               className={
-                statusColor[project.status] ??
+                PROJECT_STATUS_COLORS[project.status] ??
                 "bg-muted text-muted-foreground"
               }
             >

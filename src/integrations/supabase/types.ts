@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      bull_company_offerings: {
+        Row: {
+          id: string
+          organization_id: string
+          bull_id: string
+          company_id: string
+          company_naab_code: string | null
+          is_primary: boolean | null
+          active: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          bull_id: string
+          company_id: string
+          company_naab_code?: string | null
+          is_primary?: boolean | null
+          active?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          bull_id?: string
+          company_id?: string
+          company_naab_code?: string | null
+          is_primary?: boolean | null
+          active?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       billing_products: {
         Row: {
           active: boolean | null
@@ -382,6 +415,47 @@ export type Database = {
             columns: ["tank_pack_id"]
             isOneToOne: false
             referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_supply_items: {
+        Row: {
+          id: string
+          semen_order_id: string
+          billing_product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+          unit_label: string | null
+          line_total: number
+        }
+        Insert: {
+          id?: string
+          semen_order_id: string
+          billing_product_id?: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+          unit_label?: string | null
+          line_total: number
+        }
+        Update: {
+          id?: string
+          semen_order_id?: string
+          billing_product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price?: number
+          unit_label?: string | null
+          line_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_supply_items_semen_order_id_fkey"
+            columns: ["semen_order_id"]
+            isOneToOne: false
+            referencedRelation: "semen_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -1571,6 +1645,7 @@ export type Database = {
           created_at: string
           customer_id: string | null
           id: string
+          location_status_after: string | null
           movement_date: string
           movement_type: string
           notes: string | null
@@ -1578,12 +1653,12 @@ export type Database = {
           performed_by: string | null
           project_id: string | null
           tank_id: string
-          tank_status_after: string
         }
         Insert: {
           created_at?: string
           customer_id?: string | null
           id?: string
+          location_status_after?: string | null
           movement_date: string
           movement_type: string
           notes?: string | null
@@ -1591,12 +1666,12 @@ export type Database = {
           performed_by?: string | null
           project_id?: string | null
           tank_id: string
-          tank_status_after?: string
         }
         Update: {
           created_at?: string
           customer_id?: string | null
           id?: string
+          location_status_after?: string | null
           movement_date?: string
           movement_type?: string
           notes?: string | null
@@ -1604,7 +1679,6 @@ export type Database = {
           performed_by?: string | null
           project_id?: string | null
           tank_id?: string
-          tank_status_after?: string
         }
         Relationships: [
           {
@@ -1926,41 +2000,53 @@ export type Database = {
           description: string | null
           eid: string | null
           id: string
+          canister_capacity: number | null
+          location_status: string | null
           model: string | null
+          nitrogen_status: string | null
           organization_id: string
           serial_number: string | null
           status: string
           tank_name: string | null
           tank_number: string
           tank_type: string
+          total_canisters: number | null
         }
         Insert: {
+          canister_capacity?: number | null
           created_at?: string
           customer_id?: string | null
           description?: string | null
           eid?: string | null
           id?: string
+          location_status?: string | null
           model?: string | null
+          nitrogen_status?: string | null
           organization_id: string
           serial_number?: string | null
           status?: string
           tank_name?: string | null
           tank_number: string
           tank_type?: string
+          total_canisters?: number | null
         }
         Update: {
+          canister_capacity?: number | null
           created_at?: string
           customer_id?: string | null
           description?: string | null
           eid?: string | null
           id?: string
+          location_status?: string | null
           model?: string | null
+          nitrogen_status?: string | null
           organization_id?: string
           serial_number?: string | null
           status?: string
           tank_name?: string | null
           tank_number?: string
           tank_type?: string
+          total_canisters?: number | null
         }
         Relationships: [
           {
@@ -1981,7 +2067,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      view_bull_planning: {
+        Row: {
+          bull_catalog_id: string
+          bull_name: string
+          naab_code: string | null
+          company: string | null
+          on_hand: number
+          incoming: number
+          customer_orders: number
+          project_needs: number
+          net_position: number
+          needed_by: string | null
+          active_projects: number
+          customer_order_count: number
+        }
+      }
     }
     Functions: {
       accept_org_invite: {
@@ -2027,6 +2128,111 @@ export type Database = {
         }[]
       }
       user_org_ids: { Args: { _user_id: string }; Returns: string[] }
+      add_pack_line: {
+        Args: { _input: Json }
+        Returns: { ok: boolean } | null
+      }
+      close_customer_order_as_fulfilled: {
+        Args: { _input: { order_id: string; reason: string } }
+        Returns: undefined
+      }
+      close_out_tank_pack: {
+        Args: { _pack_id: string; _closed_at: string }
+        Returns: { ok: boolean } | null
+      }
+      delete_pack_line: {
+        Args: { _input: { line_id: string } }
+        Returns: { ok: boolean } | null
+      }
+      delete_tank_pack: {
+        Args: { _pack_id: string }
+        Returns: { ok: boolean; lines_processed: number } | null
+      }
+      edit_tank_pack: {
+        Args: { _input: Json }
+        Returns: { ok: boolean; field_tank_changed: boolean } | null
+      }
+      update_pack_line: {
+        Args: { _input: Json }
+        Returns: { ok: boolean } | null
+      }
+      bulk_delete_projects: {
+        Args: { _project_ids: string[] }
+        Returns: { deleted_count: number } | null
+      }
+      confirm_shipment: {
+        Args: { _input: { shipment_id: string } }
+        Returns: { total_units: number } | null
+      }
+      customer_pickup: {
+        Args: {
+          _source_inventory_id: string
+          _units: number
+          _customer_id: string
+          _notes: string | null
+          _performed_by: string
+        }
+        Returns: undefined
+      }
+      delete_received_line: {
+        Args: { _input: { transaction_id: string; reason: string | null } }
+        Returns: undefined
+      }
+      edit_received_line: {
+        Args: { _input: { transaction_id: string; new_units: number; reason: string | null } }
+        Returns: undefined
+      }
+      get_billable_units_for_order: {
+        Args: { _order_id: string }
+        Returns: { units: number; [key: string]: unknown }[]
+      }
+      mark_order_invoiced: {
+        Args: { _input: Json }
+        Returns: undefined
+      }
+      move_received_units: {
+        Args: {
+          _input: {
+            transaction_id: string
+            dest_tank_id: string
+            dest_canister: string
+            dest_sub_canister: string | null
+            reason: string | null
+          }
+        }
+        Returns: undefined
+      }
+      pack_tank: {
+        Args: { _input: Json }
+        Returns: { ok: boolean; pack_id: string; lines_processed: number } | null
+      }
+      record_direct_sale: {
+        Args: { _input: Json }
+        Returns: undefined
+      }
+      save_reinventory: {
+        Args: { _input: Json }
+        Returns: undefined
+      }
+      unpack_tank: {
+        Args: { _input: Json }
+        Returns: { ok: boolean; pack_id: string; lines_processed: number } | null
+      }
+      transfer_inventory: {
+        Args: {
+          _source_inventory_id: string
+          _dest_tank_id: string
+          _dest_canister: string
+          _dest_sub_canister: string | null
+          _units: number
+          _new_customer_id: string | null
+          _order_id: string | null
+          _notes: string | null
+          _performed_by: string
+          _is_billable: boolean | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

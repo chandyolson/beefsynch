@@ -82,7 +82,7 @@ const Companies = () => {
     queryKey: ["semen_companies_all", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("semen_companies")
         .select("id, name, active, can_own_inventory, is_internal, is_placeholder, created_at")
         .eq("organization_id", orgId)
@@ -98,17 +98,17 @@ const Companies = () => {
     enabled: !!orgId,
     queryFn: async () => {
       const [ordersRes, shipmentsRes, offeringsRes] = await Promise.all([
-        (supabase as any)
+        supabase
           .from("semen_orders")
           .select("semen_company_id")
           .eq("organization_id", orgId)
           .not("semen_company_id", "is", null),
-        (supabase as any)
+        supabase
           .from("shipments")
           .select("semen_company_id")
           .eq("organization_id", orgId)
           .not("semen_company_id", "is", null),
-        (supabase as any)
+        supabase
           .from("bull_company_offerings")
           .select("company_id")
           .eq("organization_id", orgId),
@@ -163,14 +163,14 @@ const Companies = () => {
     setSaving(true);
     try {
       if (editingId) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from("semen_companies")
           .update({ name })
           .eq("id", editingId);
         if (error) throw error;
         toast({ title: "Company updated" });
       } else {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from("semen_companies")
           .insert({ name, organization_id: orgId });
         if (error) throw error;
@@ -187,7 +187,7 @@ const Companies = () => {
 
   const toggleActive = async (row: CompanyRow) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("semen_companies")
         .update({ active: !row.active })
         .eq("id", row.id);
@@ -203,7 +203,7 @@ const Companies = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("semen_companies")
         .delete()
         .eq("id", deleteTarget.id);

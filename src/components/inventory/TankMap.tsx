@@ -15,6 +15,7 @@ import { MapPin, Printer } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import {
   generateTankInventorySheetPdf,
   generateBulkTankInventoryPdf,
@@ -55,7 +56,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
       // Tanks: company-owned inventory + communal only.
       // Cast to any because the generated types.ts doesn't yet know about
       // total_canisters / canister_capacity columns (added server-side).
-      const { data: tanks, error: tErr } = await (supabase as any)
+      const { data: tanks, error: tErr } = await supabase
         .from("tanks")
         .select(
           "id, tank_name, tank_number, tank_type, nitrogen_status, location_status, total_canisters, canister_capacity"
@@ -115,11 +116,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
         c.units += units;
         totalUnits += units;
 
-        const bullName =
-          row.custom_bull_name ||
-          row.bulls_catalog?.bull_name ||
-          row.bull_code ||
-          "Unknown";
+        const bullName = getBullDisplayName(row);
         if (!c.bulls.includes(bullName)) c.bulls.push(bullName);
       }
 
@@ -172,11 +169,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
           for (const r of origRows) {
             rows.push({
               canister: canKey,
-              bullName:
-                r.custom_bull_name ||
-                r.bulls_catalog?.bull_name ||
-                r.bull_code ||
-                "Unknown",
+              bullName: getBullDisplayName(r),
               bullCode: r.bull_code || "",
               units: r.units || 0,
             });
@@ -318,11 +311,7 @@ function TankCard({
 
       const rows: TankSheetRow[] = (data ?? []).map((r: any) => ({
         canister: r.canister ?? "—",
-        bullName:
-          r.custom_bull_name ||
-          r.bulls_catalog?.bull_name ||
-          r.bull_code ||
-          "Unknown",
+        bullName: getBullDisplayName(r),
         bullCode: r.bull_code || "",
         units: r.units || 0,
       }));

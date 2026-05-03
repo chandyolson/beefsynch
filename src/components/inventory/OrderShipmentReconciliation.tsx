@@ -193,8 +193,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   };
 
   const loadAvailableTanks = async () => {
-    const query = supabase.from("tanks").select("id, tank_number, tank_name") as any;
-    const { data } = await query.eq("location_status", "here").eq("nitrogen_status", "wet").order("tank_number");
+    const { data } = await supabase.from("tanks").select("id, tank_number, tank_name").eq("location_status", "here").eq("nitrogen_status", "wet").order("tank_number");
     setAvailableTanks((data || []) as TankOption[]);
   };
 
@@ -235,9 +234,9 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
       return;
     }
     setEditSubmitting(true);
-    const { error } = await supabase.rpc("edit_received_line" as any, {
+    const { error } = await supabase.rpc("edit_received_line", {
       _input: { transaction_id: editingLine.id, new_units: newUnits, reason: editReason || null },
-    } as any);
+    });
     setEditSubmitting(false);
     if (error) {
       toast({ title: "Edit failed", description: error.message, variant: "destructive" });
@@ -255,7 +254,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
       return;
     }
     setMoveSubmitting(true);
-    const { error } = await supabase.rpc("move_received_units" as any, {
+    const { error } = await supabase.rpc("move_received_units", {
       _input: {
         transaction_id: movingLine.id,
         dest_tank_id: moveDestTankId,
@@ -263,7 +262,7 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
         dest_sub_canister: moveDestSubCanister.trim() || null,
         reason: moveReason || null,
       },
-    } as any);
+    });
     setMoveSubmitting(false);
     if (error) {
       toast({ title: "Move failed", description: error.message, variant: "destructive" });
@@ -277,9 +276,9 @@ export const OrderShipmentReconciliation = ({ orderId }: Props) => {
   const submitDelete = async () => {
     if (!deletingLine) return;
     setDeleteSubmitting(true);
-    const { error } = await supabase.rpc("delete_received_line" as any, {
+    const { error } = await supabase.rpc("delete_received_line", {
       _input: { transaction_id: deletingLine.id, reason: deleteReason || null },
-    } as any);
+    });
     setDeleteSubmitting(false);
     if (error) {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });

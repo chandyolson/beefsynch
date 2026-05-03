@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -187,7 +188,7 @@ export default function CustomerTankCard({
                   <TableCell>{item.canister}</TableCell>
                   <TableCell>{item.sub_canister || "—"}</TableCell>
                   <TableCell>
-                    {item.bulls_catalog?.bull_name || item.custom_bull_name || "—"}
+                    {getBullDisplayName(item)}
                     {item.item_type === "embryo" && (
                       <Badge
                         variant="outline"
@@ -307,7 +308,7 @@ export default function CustomerTankCard({
                         {(txn.transaction_type || "").replace(/_/g, " ")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {txn.bulls_catalog?.bull_name || txn.custom_bull_name || "—"}
+                        {getBullDisplayName(txn)}
                       </TableCell>
                       <TableCell
                         className={cn(

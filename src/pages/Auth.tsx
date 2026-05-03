@@ -188,18 +188,24 @@ const Auth = () => {
 
         if (org) {
           // Add user as owner
-          await supabase.from("organization_members").insert({
+          const { error: memberErr } = await supabase.from("organization_members").insert({
             user_id: user.id,
             organization_id: org.id,
             role: "owner",
             accepted: true,
           });
-
-          // Migrate all existing guest projects to the new org
-          await supabase
-            .from("projects")
-            .update({ organization_id: org.id })
-            .eq("user_id", user.id);
+          if (memberErr) {
+            toast({ title: "Account created but org setup failed", description: memberErr.message, variant: "destructive" });
+          } else {
+            // Migrate all existing guest projects to the new org
+            const { error: migrateErr } = await supabase
+              .from("projects")
+              .update({ organization_id: org.id })
+              .eq("user_id", user.id);
+            if (migrateErr) {
+              toast({ title: "Account created but project migration failed", description: migrateErr.message, variant: "destructive" });
+            }
+          }
         }
       }
 

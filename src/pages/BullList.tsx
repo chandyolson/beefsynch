@@ -242,7 +242,7 @@ const BullList = () => {
   // Load active companies for the dialog
   useEffect(() => {
     if (!orgId) return;
-    (supabase as any)
+    supabase
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
@@ -259,7 +259,7 @@ const BullList = () => {
 
   const openEditBull = async (bull: CatalogBull) => {
     setEditingBull(bull);
-    const { data: offerings } = await (supabase as any)
+    const { data: offerings } = await supabase
       .from("bull_company_offerings")
       .select("company_id, company_naab_code, is_primary, semen_companies!inner(name)")
       .eq("bull_id", bull.id)
@@ -354,7 +354,7 @@ const BullList = () => {
 
       // Sync bull_company_offerings
       // 1. Load existing offerings for this bull
-      const { data: existingRaw, error: exErr } = await (supabase as any)
+      const { data: existingRaw, error: exErr } = await supabase
         .from("bull_company_offerings")
         .select("id, company_id")
         .eq("bull_id", bullId);
@@ -365,7 +365,7 @@ const BullList = () => {
       // 2. Delete offerings for unchecked companies
       const toDelete = existing.filter((e) => !desiredIds.has(e.company_id)).map((e) => e.id);
       if (toDelete.length > 0) {
-        const { error: delErr } = await (supabase as any)
+        const { error: delErr } = await supabase
           .from("bull_company_offerings")
           .delete()
           .in("id", toDelete);
@@ -374,7 +374,7 @@ const BullList = () => {
 
       // 3. Clear is_primary on ALL remaining offerings to avoid partial-unique-index conflict
       if (offerings.length > 0) {
-        const { error: clrErr } = await (supabase as any)
+        const { error: clrErr } = await supabase
           .from("bull_company_offerings")
           .update({ is_primary: false })
           .eq("bull_id", bullId);
@@ -385,7 +385,7 @@ const BullList = () => {
       for (const o of offerings) {
         const existingRow = existing.find((e) => e.company_id === o.company_id);
         if (existingRow) {
-          const { error: upErr } = await (supabase as any)
+          const { error: upErr } = await supabase
             .from("bull_company_offerings")
             .update({
               company_naab_code: o.company_naab_code.trim() || null,
@@ -395,7 +395,7 @@ const BullList = () => {
             .eq("id", existingRow.id);
           if (upErr) throw upErr;
         } else {
-          const { error: insErr } = await (supabase as any)
+          const { error: insErr } = await supabase
             .from("bull_company_offerings")
             .insert({
               organization_id: orgId,

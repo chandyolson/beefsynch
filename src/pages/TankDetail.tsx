@@ -117,7 +117,7 @@ const PackHistorySection = ({ tankId, navigate }: { tankId: string; navigate: (p
         .eq("field_tank_id", tankId)
         .order("packed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -204,7 +204,7 @@ function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel 
     }
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any).rpc("customer_pickup", {
+      const { error } = await supabase.rpc("customer_pickup", {
         _source_inventory_id: row.id,
         _units: units,
         _customer_id: row.customer_id,
@@ -323,9 +323,9 @@ const TankDetail = () => {
     queryKey: ["tank_detail", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks").select("*").eq("id", id!).single();
+      const { data, error } = await supabase.from("tanks").select("*").eq("id", id!).single(); // TODO: narrow select columns
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -342,7 +342,7 @@ const TankDetail = () => {
         .order("sub_canister", { ascending: true })
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -364,11 +364,11 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tank_fills")
-        .select("*")
+        .select("*") // TODO: narrow select columns
         .eq("tank_id", id!)
         .order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -383,7 +383,7 @@ const TankDetail = () => {
         .eq("tank_id", id!)
         .order("movement_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -399,7 +399,7 @@ const TankDetail = () => {
         .order("created_at", { ascending: false })
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -410,7 +410,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("customers").select("id, name").eq("organization_id", orgId!).order("name");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -420,7 +420,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("projects").select("id, name").eq("organization_id", orgId!).order("name");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -512,7 +512,7 @@ const TankDetail = () => {
       model: eTankModel.trim() || null,
       serial_number: eTankSerial.trim() || null,
       description: eTankDesc.trim() || null,
-    } as any).eq("id", id);
+    }).eq("id", id);
     setESaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not update tank.", variant: "destructive" });
@@ -554,7 +554,7 @@ const TankDetail = () => {
       fill_date: format(fillDate, "yyyy-MM-dd"),
       filled_by: userId,
       notes: fillNotes.trim() || null,
-    } as any);
+    });
     setFillSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not record fill.", variant: "destructive" });
@@ -585,14 +585,14 @@ const TankDetail = () => {
       project_id: projId,
       performed_by: userId,
       notes: moveNotes.trim() || null,
-    } as any);
+    });
     if (moveErr) {
       setMoveSaving(false);
       toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
       return;
     }
     // Update the tank's location status to match the movement
-    await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", id);
+    await supabase.from("tanks").update({ location_status: locationAfter }).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });

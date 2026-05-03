@@ -252,7 +252,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
 
       if (isEditing && editData) {
         // Update existing project
-        const { error } = await supabase.from("projects").update(projectPayload as any).eq("id", editData.id);
+        const { error } = await supabase.from("projects").update(projectPayload).eq("id", editData.id);
         if (error) throw error;
         projectId = editData.id;
 
@@ -267,7 +267,7 @@ const NewProjectDialog = ({ open, onOpenChange, onProjectCreated, editData }: Ne
         if (delBullErr) throw delBullErr;
       } else {
         // Insert new project
-        const { data: project, error } = await supabase.from("projects").insert(projectPayload as any).select("id").single();
+        const { data: project, error } = await supabase.from("projects").insert(projectPayload).select("id").single();
         if (error) throw error;
         projectId = project.id;
       }

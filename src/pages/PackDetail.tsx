@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 import { generatePackingSlipPdf } from "@/lib/generatePackingSlipPdf";
 import { generatePackingLabelPdf } from "@/lib/generatePackingLabelPdf";
@@ -171,7 +172,7 @@ const PackDetail = () => {
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -186,7 +187,7 @@ const PackDetail = () => {
         .eq("tank_pack_id", id!)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -200,7 +201,7 @@ const PackDetail = () => {
         .select("*, projects!tank_pack_projects_project_id_fkey(name)")
         .eq("tank_pack_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -228,7 +229,7 @@ const PackDetail = () => {
         .select("*, tanks!tank_unpack_lines_destination_tank_id_fkey(tank_name, tank_number)")
         .eq("tank_pack_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -430,7 +431,7 @@ const PackDetail = () => {
     if (!pack || !orgId) return;
     setClosingOut(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("close_out_tank_pack", {
+      const { data, error } = await supabase.rpc("close_out_tank_pack", {
         _pack_id: pack.id,
         _closed_at: closeOutDate.toISOString(),
         _closed_by: closeOutBy.trim() || null,
@@ -548,7 +549,7 @@ const PackDetail = () => {
         payload.field_tank_id = editFieldTankId;
       }
 
-      const { data, error } = await (supabase.rpc as any)("edit_tank_pack", { _input: payload });
+      const { data, error } = await supabase.rpc("edit_tank_pack", { _input: payload });
       if (error) throw error;
 
       const result = data as { ok?: boolean; field_tank_changed?: boolean } | null;
@@ -622,13 +623,13 @@ const PackDetail = () => {
 
       if (lineDialogMode === "add") {
         payload.pack_id = pack.id;
-        const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: payload });
+        const { data, error } = await supabase.rpc("add_pack_line", { _input: payload });
         if (error) throw error;
         if (!data?.ok) throw new Error("Add failed");
         toast({ title: "Line added" });
       } else {
         payload.line_id = editingLineId;
-        const { data, error } = await (supabase.rpc as any)("update_pack_line", { _input: payload });
+        const { data, error } = await supabase.rpc("update_pack_line", { _input: payload });
         if (error) throw error;
         if (!data?.ok) throw new Error("Update failed");
         toast({ title: "Line updated" });
@@ -648,7 +649,7 @@ const PackDetail = () => {
     if (!lineDeleteId || !pack) return;
     setLineDeleting(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("delete_pack_line", { _input: { line_id: lineDeleteId } });
+      const { data, error } = await supabase.rpc("delete_pack_line", { _input: { line_id: lineDeleteId } });
       if (error) throw error;
       if (!data?.ok) throw new Error("Delete failed");
       toast({ title: "Line removed", description: "Inventory restored to source tank." });
@@ -677,7 +678,7 @@ const PackDetail = () => {
     if (!id || !pack) return;
     setDeleting(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("delete_tank_pack", {
+      const { data, error } = await supabase.rpc("delete_tank_pack", {
         _pack_id: id,
       });
       if (error) throw error;
@@ -1365,7 +1366,7 @@ const PackDetail = () => {
                             return name.includes(q) || code.includes(q);
                           })
                           .map((inv: any) => {
-                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            const displayName = getBullDisplayName(inv);
                             return (
                               <button
                                 key={inv.id}

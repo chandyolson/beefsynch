@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 interface TankMapDialogProps {
   open: boolean;
@@ -68,7 +69,7 @@ export default function TankMapDialog({
       const can = row.canister || "?";
       if (!tank.canisters.has(can)) tank.canisters.set(can, { bulls: [] });
       tank.canisters.get(can)!.bulls.push({
-        name: row.bulls_catalog?.bull_name || "Unknown",
+        name: getBullDisplayName(row),
         units: row.units || 0,
         catalogId: row.bull_catalog_id,
       });
