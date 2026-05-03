@@ -86,6 +86,17 @@ export interface SemenLine {
   semen_owner?: string | null;
 }
 
+export interface LaborLine {
+  id?: string;
+  billing_id: string;
+  description: string | null;
+  labor_dates: string | null;
+  amount: number | null;
+  sort_order: number | null;
+  invoiced?: boolean;
+  invoiced_at?: string | null;
+}
+
 /* ── Constants ── */
 
 export const STATUS_COLORS: Record<string, string> = {
