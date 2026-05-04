@@ -148,12 +148,13 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         s + (o.semen_order_items || []).reduce((s2: number, i: any) => s2 + (i.units || 0), 0), 0);
 
       // Ready to invoice: customer orders, unbilled, fulfilled or partially_fulfilled
-      const { data: invoiceableOrders } = await supabase
+      const { data: invoiceableOrders } = await (supabase as any)
         .from("semen_orders")
         .select(`
           id,
           order_date,
           fulfillment_status,
+          invoicing_company_id,
           customers!semen_orders_customer_id_fkey(name),
           semen_order_items(units, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)),
           tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units, bull_catalog_id)))
