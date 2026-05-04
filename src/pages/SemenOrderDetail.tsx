@@ -143,7 +143,7 @@ const SemenOrderDetail = () => {
           setCompanyName(null);
         }
       }
-      if (iRes.data) setItems(iRes.data as ItemRow[]);
+      if (iRes.data) setItems(iRes.data as unknown as ItemRow[]);
 
       // Fetch linked packs (for customer orders filled from inventory)
       const { data: packLinks } = await supabase
