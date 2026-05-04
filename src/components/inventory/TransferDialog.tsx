@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,8 +76,7 @@ export default function TransferDialog({
   const [mode, setMode] = useState<"transfer" | "withdraw">("transfer");
   const [reason, setReason] = useState("");
 
-  const bullName =
-    sourceRow?.bulls_catalog?.bull_name || sourceRow?.custom_bull_name || "—";
+  const bullName = getBullDisplayName(sourceRow);
   const bullCode = sourceRow?.bull_code || sourceRow?.bulls_catalog?.naab_code;
   const available = sourceRow?.units ?? 0;
 

@@ -12,6 +12,7 @@ import {
 import { ChevronDown, ChevronRight, Droplets, Sun } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 const STATUS_COLORS: Record<string, string> = {
   wet: "bg-green-600/20 text-green-400 border-green-600/30",
@@ -187,7 +188,7 @@ export default function CustomerTankCard({
                   <TableCell>{item.canister}</TableCell>
                   <TableCell>{item.sub_canister || "—"}</TableCell>
                   <TableCell>
-                    {item.bulls_catalog?.bull_name || item.custom_bull_name || "—"}
+                    {getBullDisplayName(item)}
                     {item.item_type === "embryo" && (
                       <Badge
                         variant="outline"
@@ -307,7 +308,7 @@ export default function CustomerTankCard({
                         {(txn.transaction_type || "").replace(/_/g, " ")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {txn.bulls_catalog?.bull_name || txn.custom_bull_name || "—"}
+                        {getBullDisplayName(txn)}
                       </TableCell>
                       <TableCell
                         className={cn(

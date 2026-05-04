@@ -6,6 +6,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { FulfillOrderDialog } from "@/components/orders/FulfillOrderDialog";
 import NewOrderDialog, { EditOrderData } from "@/components/NewOrderDialog";
 import { generateOrderPdf } from "@/lib/generateOrderPdf";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -482,7 +483,7 @@ const SemenOrderDetail = () => {
               const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
               return {
                 bull_catalog_id: it.bull_catalog_id,
-                bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown bull",
+                bull_name: getBullDisplayName(it),
                 bull_code: it.bulls_catalog?.naab_code || null,
                 ordered: it.units || 0,
                 fulfilled: fulfilledByBull.get(k) || 0,
@@ -695,7 +696,7 @@ const SemenOrderDetail = () => {
                         <div className="col-span-3">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm">
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "Unknown"}
+                              {getBullDisplayName(item)}
                             </span>
                             {item.bull_catalog_id && (
                               <button

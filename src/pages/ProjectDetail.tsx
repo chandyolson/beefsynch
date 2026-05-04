@@ -8,6 +8,7 @@ import NewProjectDialog from "@/components/NewProjectDialog";
 import CustomerPicker from "@/components/CustomerPicker";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
 import {
   pushEventsToGoogleCalendar,
@@ -408,7 +409,7 @@ const ProjectDetail = () => {
     if (bulls.length > 0) {
       desc += "\n\nBulls:";
       for (const b of bulls) {
-        const name = b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown";
+        const name = getBullDisplayName(b);
         desc += `\n  ${name} — ${b.units} units`;
       }
     }
@@ -589,7 +590,7 @@ const ProjectDetail = () => {
                   className="cursor-pointer gap-2"
                   onClick={() => {
                     const bullsForIcs = bulls.map((b) => ({
-                      bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                      bull_name: getBullDisplayName(b),
                       registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
                       units: b.units,
                     }));
@@ -634,7 +635,7 @@ const ProjectDetail = () => {
                   className="cursor-pointer gap-2"
                   onClick={() => {
                     const bullsForIcs = bulls.map((b) => ({
-                      bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                      bull_name: getBullDisplayName(b),
                       registration_number: b.bulls_catalog ? b.bulls_catalog.registration_number : "",
                       units: b.units,
                     }));

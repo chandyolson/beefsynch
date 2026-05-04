@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, parseISO } from "date-fns";
 import { getStandardHeadStylesDark, PDF_FONTS } from "./pdfUtils";
+import { getBullDisplayName } from "./bullDisplay";
 
 interface TankData {
   id: string;
@@ -197,7 +198,7 @@ export function generateCustomerInventoryPdf(
       const tableBody = items.map((item) => [
         item.canister,
         item.sub_canister || "",
-        item.bulls_catalog?.bull_name || item.custom_bull_name || "",
+        getBullDisplayName(item),
         item.bull_code || "",
         item.bulls_catalog?.company || "",
         String(item.units),

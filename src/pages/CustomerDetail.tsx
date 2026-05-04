@@ -10,6 +10,7 @@ import StatCard from "@/components/StatCard";
 import BullCombobox from "@/components/BullCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { generateCustomerInventoryPdf } from "@/lib/generateCustomerInventoryPdf";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -929,7 +930,7 @@ const CustomerDetail = () => {
                             <TableCell>{item.canister}</TableCell>
                             <TableCell>{item.sub_canister || "—"}</TableCell>
                             <TableCell>
-                              {item.bulls_catalog?.bull_name || item.custom_bull_name || "—"}
+                              {getBullDisplayName(item)}
                               {item.item_type === "embryo" && (
                                 <Badge variant="outline" className="ml-2 bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">Embryo</Badge>
                               )}
@@ -1045,7 +1046,7 @@ const CustomerDetail = () => {
                               <TableRow key={txn.id}>
                                 <TableCell className="text-sm">{format(new Date(txn.created_at), "MMM d, yyyy")}</TableCell>
                                 <TableCell className="text-sm capitalize">{(txn.transaction_type || "").replace(/_/g, " ")}</TableCell>
-                                <TableCell className="text-sm">{txn.bulls_catalog?.bull_name || txn.custom_bull_name || "—"}</TableCell>
+                                <TableCell className="text-sm">{getBullDisplayName(txn)}</TableCell>
                                 <TableCell className={cn("text-right text-sm font-medium", txn.units_change > 0 ? "text-primary" : "text-destructive")}>
                                   {txn.units_change > 0 ? "+" : ""}{txn.units_change}
                                 </TableCell>

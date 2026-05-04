@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -187,7 +188,7 @@ const ReceiveShipmentPreview = () => {
     const orderedMap = new Map<string, { bullName: string; bullCatalogId: string | null; units: number }>();
     for (const oi of orderItems) {
       const catId = oi.bull_catalog_id;
-      const name = oi.bulls_catalog?.bull_name ?? oi.custom_bull_name ?? "";
+      const name = getBullDisplayName(oi);
       const key = catId || name;
       const existing = orderedMap.get(key);
       if (existing) {

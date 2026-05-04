@@ -7,6 +7,7 @@ import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ExportConfig } from "@/lib/exports";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { Plus, Loader2 } from "lucide-react";
 
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -190,7 +191,7 @@ function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel 
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const bullName = row.bulls_catalog?.bull_name || row.custom_bull_name || row.bull_code || "Unknown";
+  const bullName = getBullDisplayName(row);
   const customerName = row.customers?.name || row.owner || "Customer";
 
   const handleSubmit = async () => {
@@ -861,7 +862,7 @@ const TankDetail = () => {
                   columns: [
                     { label: "Canister", value: (r: any) => r.canister },
                     { label: "Sub-can", value: (r: any) => r.sub_canister || "" },
-                    { label: "Bull", value: (r: any) => r.bulls_catalog?.bull_name || r.custom_bull_name || "" },
+                    { label: "Bull", value: (r: any) => getBullDisplayName(r) },
                     { label: "Bull Code", value: (r: any) => r.bull_code || "" },
                     { label: "Company", value: (r: any) => r.bulls_catalog?.company || "" },
                     { label: "Owner", value: (r: any) => r.owner || r.customers?.name || "" },
@@ -890,7 +891,7 @@ const TankDetail = () => {
                           <TableCell>{inv.sub_canister || "—"}</TableCell>
                           <TableCell>
                             <span className="inline-flex items-center gap-1">
-                              <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                              <span>{getBullDisplayName(inv)}</span>
                               {inv.bull_catalog_id && (
                                 <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
                                   <Pencil className="h-3 w-3" />
@@ -929,7 +930,7 @@ const TankDetail = () => {
                             <TableCell>{inv.sub_canister || "—"}</TableCell>
                             <TableCell>
                               <span className="inline-flex items-center gap-1">
-                                <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                <span>{getBullDisplayName(inv)}</span>
                                 {inv.bull_catalog_id && (
                                   <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
                                     <Pencil className="h-3 w-3" />
@@ -1009,7 +1010,7 @@ const TankDetail = () => {
                               <TableCell>{inv.sub_canister || "—"}</TableCell>
                               <TableCell>
                                 <span className="inline-flex items-center gap-1">
-                                  <span>{inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—"}</span>
+                                  <span>{getBullDisplayName(inv)}</span>
                                   {inv.bull_catalog_id && (
                                     <button onClick={(e) => { e.stopPropagation(); setEditBullId(inv.bull_catalog_id); }} className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title="Edit bull info">
                                       <Pencil className="h-3 w-3" />
@@ -1109,7 +1110,7 @@ const TankDetail = () => {
                 {transactions.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No transactions recorded</TableCell></TableRow>
                 ) : transactions.map((t: any) => {
-                  const bullName = t.bulls_catalog?.bull_name || t.custom_bull_name || "—";
+                  const bullName = getBullDisplayName(t);
                   const projOrder = t.projects?.name || t.semen_orders?.customers?.name || "—";
                   return (
                     <TableRow key={t.id}>

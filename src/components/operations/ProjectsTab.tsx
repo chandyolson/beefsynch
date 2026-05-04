@@ -14,6 +14,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
 import PackingTab from "@/components/inventory/PackingTab";
 import { cn } from "@/lib/utils";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 
 interface DbProject {
   id: string;
@@ -103,7 +104,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
           for (const b of bullsData as any[]) {
             const pid = b.project_id;
             if (!map[pid]) map[pid] = [];
-            const name = b.bulls_catalog?.bull_name || b.custom_bull_name || "Unknown";
+            const name = getBullDisplayName(b);
             const regNum = b.bulls_catalog?.registration_number || undefined;
             const breed = b.bulls_catalog?.breed || undefined;
             map[pid].push({ name, units: b.units, registrationNumber: regNum, breed });

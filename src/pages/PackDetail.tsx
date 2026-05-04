@@ -10,6 +10,7 @@ import {
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import TeamMemberSelect from "@/components/TeamMemberSelect";
 import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import { toast } from "@/hooks/use-toast";
@@ -1397,7 +1398,7 @@ const PackDetail = () => {
                             return name.includes(q) || code.includes(q);
                           })
                           .map((inv: any) => {
-                            const displayName = inv.bulls_catalog?.bull_name || inv.custom_bull_name || "—";
+                            const displayName = getBullDisplayName(inv);
                             return (
                               <button
                                 key={inv.id}

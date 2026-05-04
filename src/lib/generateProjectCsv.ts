@@ -1,5 +1,6 @@
 import { format, parseISO, addDays } from "date-fns";
 import { formatTime12, isNoTimeEvent, escapeCSV } from "./formatUtils";
+import { getBullDisplayName } from "./bullDisplay";
 
 interface ProjectData {
   name: string;
@@ -81,7 +82,7 @@ export function generateProjectCsv(
 
   // Bull rows
   for (const b of bulls) {
-    const bullName = b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown";
+    const bullName = getBullDisplayName(b);
     const regNum = b.bulls_catalog ? b.bulls_catalog.registration_number : "";
     const company = b.bulls_catalog ? b.bulls_catalog.company : "";
     const bullFields = [bullName, regNum, company, b.units];

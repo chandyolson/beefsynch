@@ -5,6 +5,7 @@ import { Search, ClipboardList, BarChart3, PackageCheck, ChevronRight, ChevronDo
 import StatCard from "@/components/StatCard";
 import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -237,7 +238,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
     const receivedNoShipment: Map<string, number> = new Map();
     for (const r of allRows) {
       if (r.transaction_type !== "received") continue;
-      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      const bullName = getBullDisplayName(r);
       if (r.shipment_id) {
         if (!receivedByShipment.has(r.shipment_id)) receivedByShipment.set(r.shipment_id, { bulls: new Map() });
         const entry = receivedByShipment.get(r.shipment_id)!;
@@ -262,7 +263,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
       if (r.transaction_type !== "pack_out" || !r.tank_pack_id) continue;
       if (!packsByPack.has(r.tank_pack_id)) packsByPack.set(r.tank_pack_id, { bulls: new Map() });
       const entry = packsByPack.get(r.tank_pack_id)!;
-      const bullName = r.bulls_catalog?.bull_name || r.custom_bull_name || "Unknown";
+      const bullName = getBullDisplayName(r);
       entry.bulls.set(bullName, (entry.bulls.get(bullName) || 0) + Math.abs(r.units_change));
     }
     for (const [packId, entry] of packsByPack) {
@@ -465,7 +466,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
                                       {getTypeLabel(r.transaction_type)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="truncate">{r.bulls_catalog?.bull_name || r.custom_bull_name || "—"}</TableCell>
+                                  <TableCell className="truncate">{getBullDisplayName(r)}</TableCell>
                                   <TableCell className="text-xs text-muted-foreground">{r.bull_code || "—"}</TableCell>
                                   <TableCell className={cn("text-right font-medium tabular-nums", r.units_change > 0 ? "text-green-400" : r.units_change < 0 ? "text-red-400" : "")}>
                                     {r.units_change > 0 ? `+${r.units_change}` : r.units_change}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,7 +135,7 @@ const MasterCalendar = () => {
               const pid = b.project_id;
               if (!bMap.has(pid)) bMap.set(pid, []);
               bMap.get(pid)!.push({
-                bull_name: b.bulls_catalog ? b.bulls_catalog.bull_name : b.custom_bull_name ?? "Unknown",
+                bull_name: getBullDisplayName(b),
                 registration_number: b.bulls_catalog ? (b.bulls_catalog.registration_number || "") : "",
                 units: b.units,
               });

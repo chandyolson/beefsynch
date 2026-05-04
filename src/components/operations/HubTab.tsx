@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getBullDisplayName } from "@/lib/bullDisplay";
 import { format, parseISO, addDays, startOfDay } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +115,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .in("project_id", projIds);
           if (projBullsData) {
             for (const pb of projBullsData as any[]) {
-              const name = pb.bulls_catalog?.bull_name || pb.custom_bull_name || "Unknown";
+              const name = getBullDisplayName(pb);
               const existing = bullNameMap.get(pb.project_id) || [];
               if (!existing.includes(name)) existing.push(name);
               bullNameMap.set(pb.project_id, existing);
@@ -182,7 +183,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         // The RPC already correctly counts packs + direct sales + withdrawals.
         const filled = billableTotalById.get(o.id) ?? 0;
         const bullSummary = items
-          .map((i: any) => `${i.units} ${i.bulls_catalog?.bull_name || i.custom_bull_name || "?"}`)
+          .map((i: any) => `${i.units} ${getBullDisplayName(i)}`)
           .join(" + ");
         return {
           id: o.id,
