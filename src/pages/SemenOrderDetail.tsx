@@ -108,10 +108,10 @@ const SemenOrderDetail = () => {
     setLoading(true);
     try {
       const [oRes, iRes] = await Promise.all([
-        supabase.from("semen_orders").select("*, customers!semen_orders_customer_id_fkey(name, phone, email)").eq("id", id).single(),
-        supabase
+        (supabase as any).from("semen_orders").select("*, customers!semen_orders_customer_id_fkey(name, phone, email), semen_companies_invoicing:semen_companies!semen_orders_invoicing_company_id_fkey(name)").eq("id", id).single(),
+        (supabase as any)
           .from("semen_order_items")
-          .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed)")
+          .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed), semen_companies!semen_order_items_invoicing_company_id_fkey(name)")
           .eq("semen_order_id", id),
       ]);
 
