@@ -560,6 +560,14 @@ const SemenOrderDetail = () => {
               <span className="font-medium">{companyName || "—"}</span>
             </div>
             <div className="flex items-baseline gap-2">
+              <span className="text-muted-foreground shrink-0">Bills Through</span>
+              <span className="font-medium">
+                {order.invoicing_company_id
+                  ? (order.semen_companies_invoicing?.name || "—")
+                  : items.some((i: any) => i.invoicing_company_id) ? "Mixed" : "—"}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2">
               <span className="text-muted-foreground shrink-0">Project</span>
               <span className="font-medium">
                 {project ? (
