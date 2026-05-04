@@ -97,6 +97,7 @@ const SemenOrderDetail = () => {
   const [editBullId, setEditBullId] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
+  const [directSaleTxns, setDirectSaleTxns] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
   const [availability, setAvailability] = useState<
     Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }>
@@ -163,6 +164,14 @@ const SemenOrderDetail = () => {
         `)
         .eq("semen_order_id", id);
       setPackData(packLinks || []);
+
+      // Fetch direct sale / withdrawal transactions linked to this order
+      const { data: directTxns } = await supabase
+        .from("inventory_transactions")
+        .select("bull_catalog_id, custom_bull_name, units_change, transaction_type")
+        .eq("order_id", id)
+        .in("transaction_type", ["direct_sale", "withdrawal"]);
+      setDirectSaleTxns(directTxns || []);
 
       // Fetch supply items for this order
       const { data: supplyData } = await (supabase as any)
@@ -462,6 +471,12 @@ const SemenOrderDetail = () => {
                 fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
               }
             }
+            // Also count direct sales and withdrawals as fulfilled
+            for (const txn of directSaleTxns) {
+              const k = txn.bull_catalog_id || txn.custom_bull_name || "";
+              const used = Math.abs(txn.units_change || 0);
+              fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
+            }
             const directSaleLines = items.map((it) => {
               const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
               return {
@@ -484,10 +499,13 @@ const SemenOrderDetail = () => {
                     orderId={order.id}
                     customerName={customerName}
                     unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
-                    unitsFilled={packData.reduce((s: number, link: any) => {
-                      const lines = link.tank_packs?.tank_pack_lines || [];
-                      return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-                    }, 0)}
+                    unitsFilled={
+                      packData.reduce((s: number, link: any) => {
+                        const lines = link.tank_packs?.tank_pack_lines || [];
+                        return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+                      }, 0) +
+                      directSaleTxns.reduce((s: number, txn: any) => s + Math.abs(txn.units_change || 0), 0)
+                    }
                     trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
                     onSuccess={() => load()}
                   />
@@ -607,7 +625,7 @@ const SemenOrderDetail = () => {
                   <div className="col-span-3">Bull</div>
                   <div className="col-span-2 text-right">Ordered</div>
                   <div className="col-span-2 text-right">On Hand</div>
-                  <div className="col-span-2 text-right">Packed</div>
+                  <div className="col-span-2 text-right">Fulfilled</div>
                   <div className="col-span-1 text-center">Billed</div>
                   <div className="col-span-2 text-right">Status</div>
                 </div>
@@ -740,13 +758,26 @@ const SemenOrderDetail = () => {
                           )}
                         </div>
 
-                        {/* Packed */}
+                        {/* Fulfilled */}
                         <div className="col-span-2 text-right">
-                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Packed:</span>
-                          <span className="font-medium">{totalPacked > 0 ? totalPacked : "—"}</span>
-                          {totalReturned > 0 && (
-                            <div className="text-xs text-muted-foreground">({totalReturned} returned)</div>
-                          )}
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Fulfilled:</span>
+                          {(() => {
+                            const directUnits = directSaleTxns
+                              .filter((t) => (t.bull_catalog_id || t.custom_bull_name || "") === bullKey)
+                              .reduce((s, t) => s + Math.abs(t.units_change || 0), 0);
+                            const fulfilledTotal = Math.max(0, totalPacked - totalReturned) + directUnits;
+                            return (
+                              <>
+                                <span className="font-medium">{fulfilledTotal > 0 ? fulfilledTotal : "—"}</span>
+                                {totalReturned > 0 && (
+                                  <div className="text-xs text-muted-foreground">({totalPacked} packed · {totalReturned} returned)</div>
+                                )}
+                                {directUnits > 0 && totalPacked === 0 && (
+                                  <div className="text-xs text-muted-foreground">direct sale</div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* Billed */}
