@@ -13,14 +13,7 @@ import { ChevronDown, ChevronRight, Droplets, Sun } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getBullDisplayName } from "@/lib/bullDisplay";
-
-const STATUS_COLORS: Record<string, string> = {
-  wet: "bg-green-600/20 text-green-400 border-green-600/30",
-  dry: "bg-yellow-600/20 text-yellow-400 border-yellow-600/30",
-  out: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-  "bad tank": "bg-destructive/20 text-destructive border-destructive/30",
-  inactive: "bg-muted text-muted-foreground border-border",
-};
+import { getBadgeClass } from "@/lib/badgeStyles";
 
 interface TankData {
   id: string;
@@ -97,8 +90,7 @@ export default function CustomerTankCard({
     : false;
 
   const statusBadge = (status: string) => {
-    const key = status.toLowerCase();
-    const cls = STATUS_COLORS[key] || "bg-muted text-muted-foreground border-border";
+    const cls = getBadgeClass("tankStatus", status.toLowerCase());
     return <Badge variant="outline" className={cls}>{status}</Badge>;
   };
 
