@@ -176,85 +176,6 @@ export default function BillingTab({
 
   return (
     <div className="space-y-8">
-      {/* ═══ PRODUCTS ═══ */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Products</h2>
-
-        <div className="grid grid-cols-[1fr_110px_70px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          <div>Product</div>
-          <div>Delivery</div>
-          <div className="text-right">Qty</div>
-          <div className="text-right">Price</div>
-          <div className="text-right">Total</div>
-        </div>
-
-        {protocolLines.map(({ line, idx }) => renderProductRow(line, idx, { showStep: true, showDelete: false }))}
-        {additionalLines.map(({ line, idx }) => renderProductRow(line, idx, { showStep: false, showDelete: true }))}
-
-        {!readOnly && (
-          <div className="pt-3">
-            <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add product
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[340px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search products..." />
-                  <CommandList>
-                    <CommandEmpty>No products found.</CommandEmpty>
-                    {Object.entries(productsByCategory).map(([cat, products]) => (
-                      <CommandGroup key={cat} heading={categoryLabels[cat] || cat}>
-                        {products.map((p: any) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.product_name} ${cat}`}
-                            onSelect={() => {
-                              onAddProduct(p);
-                              setProductPickerOpen(false);
-                            }}
-                          >
-                            <div className="flex justify-between items-center w-full gap-2">
-                              <span className="truncate">{p.product_name}</span>
-                              {p.default_price > 0 && (
-                                <span className="text-xs text-muted-foreground shrink-0">
-                                  ${Number(p.default_price).toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    ))}
-                    <CommandSeparator />
-                    <CommandGroup>
-                      <CommandItem
-                        value="custom product blank"
-                        onSelect={() => {
-                          onAddProduct();
-                          setProductPickerOpen(false);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-2" /> Custom product
-                      </CommandItem>
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-
-        <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-border">
-          <span className="text-sm font-medium text-muted-foreground">Products</span>
-          <span className="text-sm font-semibold">{formatCurrency(productsTotal)}</span>
-        </div>
-      </section>
-
       {/* ═══ SEMEN ═══ */}
       {semenLines.length > 0 && (
         <section>
@@ -338,6 +259,85 @@ export default function BillingTab({
           </div>
         </section>
       )}
+
+      {/* ═══ PRODUCTS ═══ */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3">Products</h2>
+
+        <div className="grid grid-cols-[1fr_110px_70px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div>Product</div>
+          <div>Delivery</div>
+          <div className="text-right">Qty</div>
+          <div className="text-right">Price</div>
+          <div className="text-right">Total</div>
+        </div>
+
+        {protocolLines.map(({ line, idx }) => renderProductRow(line, idx, { showStep: true, showDelete: false }))}
+        {additionalLines.map(({ line, idx }) => renderProductRow(line, idx, { showStep: false, showDelete: true }))}
+
+        {!readOnly && (
+          <div className="pt-3">
+            <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add product
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search products..." />
+                  <CommandList>
+                    <CommandEmpty>No products found.</CommandEmpty>
+                    {Object.entries(productsByCategory).map(([cat, products]) => (
+                      <CommandGroup key={cat} heading={categoryLabels[cat] || cat}>
+                        {products.map((p: any) => (
+                          <CommandItem
+                            key={p.id}
+                            value={`${p.product_name} ${cat}`}
+                            onSelect={() => {
+                              onAddProduct(p);
+                              setProductPickerOpen(false);
+                            }}
+                          >
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span className="truncate">{p.product_name}</span>
+                              {p.default_price > 0 && (
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  ${Number(p.default_price).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ))}
+                    <CommandSeparator />
+                    <CommandGroup>
+                      <CommandItem
+                        value="custom product blank"
+                        onSelect={() => {
+                          onAddProduct();
+                          setProductPickerOpen(false);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-2" /> Custom product
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-border">
+          <span className="text-sm font-medium text-muted-foreground">Products</span>
+          <span className="text-sm font-semibold">{formatCurrency(productsTotal)}</span>
+        </div>
+      </section>
 
       {/* ═══ LABOR & SERVICES ═══ */}
       <section>

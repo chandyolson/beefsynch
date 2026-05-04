@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Check, Package, PackageOpen } from "lucide-react";
+import { ArrowLeft, Printer, Check, Package, PackageOpen, Trash2, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
 import BillingTab from "@/components/billing/BillingTab";
-import BreedingSection from "@/components/billing/BreedingSection";
+
 import {
   BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine, LaborLine,
   STATUS_COLORS, BILLING_STATUSES, STATUS_LABELS, calcUnits, formatTime12,
@@ -470,6 +471,27 @@ const ProjectBilling = () => {
     packedSyncDone.current = true;
     syncPackedFromPacks();
   }, [projectPacks, semenLines]);
+
+  /* ── Auto-fill Arm Service qty from breeding head total ── */
+  useEffect(() => {
+    if (project?.status === "Invoiced") return;
+    const breedingSessions = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+    });
+    const headTotal = breedingSessions.reduce((sum, s) => sum + (s.head_count || 0), 0);
+    if (headTotal === 0) return;
+
+    const armIdx = productLines.findIndex(p =>
+      (p.product_name || "").toLowerCase().includes("arm service")
+    );
+    if (armIdx === -1) return;
+
+    const current = productLines[armIdx];
+    if ((current.doses || 0) !== headTotal) {
+      saveProductLine(armIdx, { doses: headTotal });
+    }
+  }, [sessions, productLines, project?.status]);
 
   async function syncPackedFromPacks() {
     const packIds = projectPacks.map((p) => p.id);
@@ -1003,39 +1025,107 @@ const ProjectBilling = () => {
         </div>
 
         {/* ── Breeding Sessions ── */}
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Breeding Sessions</h2>
-          <BreedingSection
-            sessions={sessions.filter(s => {
-              const label = (s.session_label || "").toLowerCase();
-              return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
-            })}
-            allSessions={sessions}
-            productLines={productLines}
-            sessionInventory={sessionInventory}
-            semenLines={semenLines}
-            billingProducts={billingProducts}
-            readOnly={readOnly}
-            onSaveSession={saveSessionLine}
-            onSaveProduct={saveProductLine}
-            onSwapProduct={swapProduct}
-            onRemoveProduct={deleteAdditionalProductLine}
-            onAddProductToSession={addProductToSession}
-            onAddBreedingSession={addBreedingSession}
-            onRemoveSession={removeSession}
-            onSaveWorksheetCell={saveWorksheetCell}
-            onSetSessionInventory={setSessionInventory}
-            onTotalUsedChanged={(totalUsed, bullUsed, bullBlown) => {
-              setSemenLines(prev => prev.map(sl => {
-                const key = sl.bull_catalog_id || sl.bull_name;
-                const used = bullUsed.get(key) ?? 0;
-                const blown = bullBlown.get(key) ?? 0;
-                const billable = used - blown;
-                return { ...sl, units_used: used, units_blown: blown, units_billable: billable };
-              }));
-            }}
-          />
-        </div>
+        {(() => {
+          const breedingSessions = sessions.filter(s => {
+            const label = (s.session_label || "").toLowerCase();
+            return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+          });
+          const headTotal = breedingSessions.reduce((sum, s) => sum + (s.head_count || 0), 0);
+
+          return (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold">Breeding sessions</h2>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium w-[110px]">Date</th>
+                      <th className="text-left px-3 py-2 font-medium w-[120px]">Session</th>
+                      <th className="text-right px-3 py-2 font-medium w-[80px]">Head</th>
+                      <th className="text-left px-3 py-2 font-medium">Notes</th>
+                      {!readOnly && <th className="w-[40px]" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {breedingSessions.length === 0 ? (
+                      <tr>
+                        <td colSpan={readOnly ? 4 : 5} className="px-3 py-4 text-center text-muted-foreground">
+                          No breeding sessions yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      breedingSessions.map((s) => {
+                        const sessionIdx = sessions.findIndex(x => x.id === s.id);
+                        return (
+                          <tr key={s.id} className="border-t border-border/40">
+                            <td className="px-3 py-2">
+                              {s.session_date ? format(parseISO(s.session_date), "MMM d") : "—"}
+                            </td>
+                            <td className="px-3 py-2">Breeding</td>
+                            <td className="px-3 py-2 text-right">
+                              {readOnly ? (
+                                <span>{s.head_count || "—"}</span>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  className="h-7 w-[64px] text-right text-sm ml-auto"
+                                  key={`head-${s.id}-${s.head_count}`}
+                                  defaultValue={s.head_count ?? ""}
+                                  onBlur={(e) => saveSessionLine(sessionIdx, { head_count: e.target.value === "" ? null : Number(e.target.value) })}
+                                />
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {readOnly ? (
+                                <span className="text-muted-foreground">{s.notes || "—"}</span>
+                              ) : (
+                                <Input
+                                  className="h-7 text-sm"
+                                  key={`notes-${s.id}`}
+                                  defaultValue={s.notes ?? ""}
+                                  placeholder="Notes…"
+                                  onBlur={(e) => saveSessionLine(sessionIdx, { notes: e.target.value || null })}
+                                />
+                              )}
+                            </td>
+                            {!readOnly && (
+                              <td className="px-3 py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removeSession(sessionIdx)}
+                                  className="text-muted-foreground hover:text-destructive transition-colors"
+                                  aria-label="Remove session"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                    {breedingSessions.length > 0 && (
+                      <tr className="border-t border-border bg-muted/20 font-medium">
+                        <td className="px-3 py-2" colSpan={2}>Total</td>
+                        <td className="px-3 py-2 text-right">{headTotal}</td>
+                        <td className="px-3 py-2" colSpan={readOnly ? 1 : 2} />
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={addBreedingSession}
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add session
+                </button>
+              )}
+            </section>
+          );
+        })()}
 
         {/* ── Billing sheet ── */}
         <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
