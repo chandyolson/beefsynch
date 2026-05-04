@@ -625,7 +625,7 @@ const SemenOrderDetail = () => {
                   <div className="col-span-3">Bull</div>
                   <div className="col-span-2 text-right">Ordered</div>
                   <div className="col-span-2 text-right">On Hand</div>
-                  <div className="col-span-2 text-right">Packed</div>
+                  <div className="col-span-2 text-right">Fulfilled</div>
                   <div className="col-span-1 text-center">Billed</div>
                   <div className="col-span-2 text-right">Status</div>
                 </div>
