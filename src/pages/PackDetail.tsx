@@ -145,6 +145,7 @@ const PackDetail = () => {
   const [lineSubmitting, setLineSubmitting] = useState(false);
   const [lineDeleteId, setLineDeleteId] = useState<string | null>(null);
   const [lineDeleting, setLineDeleting] = useState(false);
+  const [crossCustomerConfirm, setCrossCustomerConfirm] = useState<Record<string, any> | null>(null);
 
   const [lineSourceTankId, setLineSourceTankId] = useState<string>("");
   const [lineSourceTankOpen, setLineSourceTankOpen] = useState(false);
