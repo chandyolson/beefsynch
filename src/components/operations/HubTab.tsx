@@ -533,27 +533,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             </Card>
           )}
 
-          {actions.unbilledProjects > 0 && (
-            <Card
-              className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
-              onClick={() => onSwitchTab("projects")}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-sm">
-                      {actions.unbilledProjects} project{actions.unbilledProjects !== 1 ? "s" : ""} need billing
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {actions.unbilledNames.join(", ")}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {actions.pendingInventoryOrders > 0 && (
             <Card
