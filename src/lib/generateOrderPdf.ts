@@ -81,6 +81,7 @@ export function generateOrderPdf(
     ["Billing", order.billing_status.charAt(0).toUpperCase() + order.billing_status.slice(1)],
   ];
 
+  if (order.bills_through) infoRows.push(["Bills Through", order.bills_through]);
   if (order.project_name) infoRows.push(["Linked Project", order.project_name]);
 
   doc.setFontSize(PDF_FONTS.sizeBodyTiny);
