@@ -558,7 +558,7 @@ export default function TransferDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Transfer
+            {mode === "transfer" ? "Transfer" : "Withdraw"}
           </Button>
         </DialogFooter>
       </DialogContent>
