@@ -499,10 +499,13 @@ const SemenOrderDetail = () => {
                     orderId={order.id}
                     customerName={customerName}
                     unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
-                    unitsFilled={packData.reduce((s: number, link: any) => {
-                      const lines = link.tank_packs?.tank_pack_lines || [];
-                      return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-                    }, 0)}
+                    unitsFilled={
+                      packData.reduce((s: number, link: any) => {
+                        const lines = link.tank_packs?.tank_pack_lines || [];
+                        return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+                      }, 0) +
+                      directSaleTxns.reduce((s: number, txn: any) => s + Math.abs(txn.units_change || 0), 0)
+                    }
                     trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
                     onSuccess={() => load()}
                   />
