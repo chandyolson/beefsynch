@@ -72,6 +72,8 @@ export default function TransferDialog({
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
   const [isBillable, setIsBillable] = useState(false);
+  const [mode, setMode] = useState<"transfer" | "withdraw">("transfer");
+  const [reason, setReason] = useState("");
 
   const bullName =
     sourceRow?.bulls_catalog?.bull_name || sourceRow?.custom_bull_name || "—";
