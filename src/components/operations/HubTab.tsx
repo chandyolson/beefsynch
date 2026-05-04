@@ -66,6 +66,8 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     unitsOrdered: number;
     unitsFilled: number;
     unitsBillable: number;
+    invoicingCompany: string | null;
+    type: "order" | "project";
   }>>([]);
   const [loading, setLoading] = useState(true);
 
