@@ -472,6 +472,27 @@ const ProjectBilling = () => {
     syncPackedFromPacks();
   }, [projectPacks, semenLines]);
 
+  /* ── Auto-fill Arm Service qty from breeding head total ── */
+  useEffect(() => {
+    if (readOnly) return;
+    const breedingSessions = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+    });
+    const headTotal = breedingSessions.reduce((sum, s) => sum + (s.head_count || 0), 0);
+    if (headTotal === 0) return;
+
+    const armIdx = productLines.findIndex(p =>
+      (p.product_name || "").toLowerCase().includes("arm service")
+    );
+    if (armIdx === -1) return;
+
+    const current = productLines[armIdx];
+    if ((current.doses || 0) !== headTotal) {
+      saveProductLine(armIdx, { doses: headTotal });
+    }
+  }, [sessions, productLines, readOnly]);
+
   async function syncPackedFromPacks() {
     const packIds = projectPacks.map((p) => p.id);
     const { data: packLines } = await supabase
