@@ -471,6 +471,12 @@ const SemenOrderDetail = () => {
                 fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
               }
             }
+            // Also count direct sales and withdrawals as fulfilled
+            for (const txn of directSaleTxns) {
+              const k = txn.bull_catalog_id || txn.custom_bull_name || "";
+              const used = Math.abs(txn.units_change || 0);
+              fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
+            }
             const directSaleLines = items.map((it) => {
               const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
               return {
