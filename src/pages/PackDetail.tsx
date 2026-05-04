@@ -610,16 +610,16 @@ const PackDetail = () => {
     if (isNaN(unitsNum) || unitsNum <= 0) { toast({ title: "Units must be a positive number", variant: "destructive" }); return; }
 
     setLineSubmitting(true);
+    const payload: Record<string, any> = {
+      source_tank_id: lineSourceTankId,
+      bull_catalog_id: lineBullCatalogId || null,
+      bull_name: lineBullName.trim(),
+      bull_code: lineBullCode.trim() || null,
+      units: unitsNum,
+      source_canister: lineSourceCanister.trim() || null,
+      field_canister: lineFieldCanister.trim() || null,
+    };
     try {
-      const payload: Record<string, any> = {
-        source_tank_id: lineSourceTankId,
-        bull_catalog_id: lineBullCatalogId || null,
-        bull_name: lineBullName.trim(),
-        bull_code: lineBullCode.trim() || null,
-        units: unitsNum,
-        source_canister: lineSourceCanister.trim() || null,
-        field_canister: lineFieldCanister.trim() || null,
-      };
 
       if (lineDialogMode === "add") {
         payload.pack_id = pack.id;
