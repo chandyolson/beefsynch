@@ -165,6 +165,14 @@ const SemenOrderDetail = () => {
         .eq("semen_order_id", id);
       setPackData(packLinks || []);
 
+      // Fetch direct sale / withdrawal transactions linked to this order
+      const { data: directTxns } = await supabase
+        .from("inventory_transactions")
+        .select("bull_catalog_id, custom_bull_name, units_change, transaction_type")
+        .eq("order_id", id)
+        .in("transaction_type", ["direct_sale", "withdrawal"]);
+      setDirectSaleTxns(directTxns || []);
+
       // Fetch supply items for this order
       const { data: supplyData } = await (supabase as any)
         .from("order_supply_items")
