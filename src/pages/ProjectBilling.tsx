@@ -126,8 +126,8 @@ const ProjectBilling = () => {
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
-      (supabase.from as any)("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
-      (supabase.from as any)("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
     setProductLines((prodRes.data ?? []) as ProductLine[]);
     setSessions((sessRes.data ?? []) as SessionLine[]);
@@ -186,7 +186,7 @@ const ProjectBilling = () => {
       a.session_date.localeCompare(b.session_date) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
     // Fetch existing session inventory rows
-    const { data: existingRows } = await (supabase.from as any)("project_billing_session_inventory")
+    const { data: existingRows } = await supabase.from("project_billing_session_inventory")
       .select("*").eq("billing_id", bId);
     const existingMap = new Map<string, any>();
     for (const row of (existingRows ?? [])) {
@@ -212,7 +212,7 @@ const ProjectBilling = () => {
         if (existing) {
           // Row exists — update start_units if packed total changed (only for first session)
           if (sessIdx === 0 && existing.start_units !== combo.packed_units) {
-            await (supabase.from as any)("project_billing_session_inventory")
+            await supabase.from("project_billing_session_inventory")
               .update({ start_units: combo.packed_units })
               .eq("id", existing.id);
           }
@@ -236,7 +236,7 @@ const ProjectBilling = () => {
 
     // Insert any new rows
     if (toInsert.length > 0) {
-      await (supabase.from as any)("project_billing_session_inventory")
+      await supabase.from("project_billing_session_inventory")
         .insert(toInsert);
     }
 
@@ -246,7 +246,7 @@ const ProjectBilling = () => {
       const combo = combos.find(c => (c.bull_catalog_id || `name:${c.bull_name}`) === bullKey && c.canister === r.canister);
       return combo && r.start_units !== combo.packed_units;
     })) {
-      const { data: refreshed } = await (supabase.from as any)("project_billing_session_inventory")
+      const { data: refreshed } = await supabase.from("project_billing_session_inventory")
         .select("*").eq("billing_id", bId).order("sort_order");
       setSessionInventory((refreshed ?? []) as SessionInventoryLine[]);
     }
@@ -565,13 +565,13 @@ const ProjectBilling = () => {
     if (line.id) {
       const { id, ...rest } = line;
       debouncedSave(`labor-${id}`, () =>
-        (supabase.from as any)("project_billing_labor").update(rest as any).eq("id", id));
+        supabase.from("project_billing_labor").update(rest as any).eq("id", id));
     }
   }
 
   async function addLaborLine() {
     if (!billingId) return;
-    const { data } = await (supabase.from as any)("project_billing_labor").insert({
+    const { data } = await supabase.from("project_billing_labor").insert({
       billing_id: billingId,
       description: "",
       labor_dates: null,
@@ -584,7 +584,7 @@ const ProjectBilling = () => {
   async function deleteLaborLine(idx: number) {
     const line = laborLines[idx];
     if (line?.id) {
-      await (supabase.from as any)("project_billing_labor").delete().eq("id", line.id);
+      await supabase.from("project_billing_labor").delete().eq("id", line.id);
     }
     setLaborLines(prev => prev.filter((_, i) => i !== idx));
   }
@@ -647,7 +647,7 @@ const ProjectBilling = () => {
 
   async function saveWorksheetCell(rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) {
     setSessionInventory(prev => prev.map(r => r.id === rowId ? { ...r, [field]: value } : r));
-    const { error } = await (supabase.from as any)("project_billing_session_inventory")
+    const { error } = await supabase.from("project_billing_session_inventory")
       .update({ [field]: value }).eq("id", rowId);
     if (error) toast({ title: "Failed to save", description: error.message, variant: "destructive" });
   }
@@ -842,7 +842,7 @@ const ProjectBilling = () => {
       const { error: projErr } = await supabase.from("projects").update({ status: "Work Complete" }).eq("id", projectId);
       if (projErr) throw projErr;
       const userId = (await supabase.auth.getUser()).data.user?.id || null;
-      const { error: billErr } = await (supabase.from("project_billing") as any)
+      const { error: billErr } = await supabase.from("project_billing")
         .update({ billing_completed_at: new Date().toISOString(), billing_completed_by: userId })
         .eq("id", billingId);
       if (billErr) throw billErr;

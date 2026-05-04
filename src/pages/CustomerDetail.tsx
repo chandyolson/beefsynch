@@ -162,7 +162,7 @@ const CustomerDetail = () => {
         .eq("organization_id", orgId!)
         .eq("customer_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -181,7 +181,7 @@ const CustomerDetail = () => {
         .eq("customer_id", id!)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -205,7 +205,7 @@ const CustomerDetail = () => {
         .select("*")
         .in("id", communalTankIds);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -230,7 +230,7 @@ const CustomerDetail = () => {
         .eq("owner_customer_id", id)
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -328,7 +328,7 @@ const CustomerDetail = () => {
         .eq("customer_id", id!)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

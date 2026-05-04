@@ -188,7 +188,7 @@ const PackDetail = () => {
         .eq("tank_pack_id", id!)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -202,7 +202,7 @@ const PackDetail = () => {
         .select("*, projects!tank_pack_projects_project_id_fkey(name)")
         .eq("tank_pack_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -216,7 +216,7 @@ const PackDetail = () => {
         .select("semen_order_id, semen_orders(id, order_date, fulfillment_status, customers!semen_orders_customer_id_fkey(name))")
         .eq("tank_pack_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -230,7 +230,7 @@ const PackDetail = () => {
         .select("*, tanks!tank_unpack_lines_destination_tank_id_fkey(tank_name, tank_number)")
         .eq("tank_pack_id", id!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

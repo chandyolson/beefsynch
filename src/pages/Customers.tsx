@@ -56,7 +56,7 @@ const Customers = () => {
         .eq("organization_id", orgId!)
         .order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -70,7 +70,7 @@ const Customers = () => {
         .select("id, customer_id")
         .eq("organization_id", orgId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -84,7 +84,7 @@ const Customers = () => {
         .select("customer_id, units, inventoried_at")
         .eq("organization_id", orgId!);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

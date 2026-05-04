@@ -206,7 +206,7 @@ const ReceiveShipment = () => {
         .eq("organization_id", orgId)
         .order("order_date", { ascending: false })
         .limit(100);
-      return (data ?? []) as any[];
+      return data ?? [];
     },
     enabled: !!orgId,
   });

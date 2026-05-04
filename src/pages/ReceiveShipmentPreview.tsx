@@ -87,7 +87,7 @@ const ReceiveShipmentPreview = () => {
         .from("semen_order_items")
         .select("bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name)")
         .eq("semen_order_id", orderId);
-      return (data ?? []) as any[];
+      return data ?? [];
     },
     enabled: !!orderId,
   });

@@ -29,7 +29,7 @@ const TeamMemberSelect = ({
     queryKey: ["team_member_select", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase.from("organization_members") as any)
+      const { data, error } = await supabase.from("organization_members")
         .select("display_name")
         .eq("organization_id", orgId!)
         .eq("accepted", true)

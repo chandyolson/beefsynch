@@ -115,7 +115,7 @@ const ReInventory = () => {
       query = query.order("canister", { ascending: true }).order("sub_canister", { ascending: true }).limit(10000);
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

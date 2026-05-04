@@ -155,7 +155,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("billing_completed_at", endIso)
         .order("billing_completed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -173,7 +173,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("invoiced_at", endIso)
         .order("invoiced_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -189,7 +189,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("completed_at", endIso)
         .order("completed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -207,7 +207,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("created_at", endIso)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -225,7 +225,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("created_at", endIso)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -246,7 +246,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("packed_at", endIso)
         .order("packed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -265,7 +265,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
           `and(unpacked_at.gte.${startIso},unpacked_at.lte.${endIso}),and(closed_at.gte.${startIso},closed_at.lte.${endIso})`,
         );
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -284,7 +284,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("fill_date", endDate)
         .order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -306,7 +306,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         .lte("received_date", endDate)
         .order("received_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

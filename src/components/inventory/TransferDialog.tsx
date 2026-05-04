@@ -107,7 +107,7 @@ export default function TransferDialog({
         .eq("organization_id", orgId!)
         .order("tank_name");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -121,7 +121,7 @@ export default function TransferDialog({
         .eq("organization_id", orgId!)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -136,7 +136,7 @@ export default function TransferDialog({
         .not("fulfillment_status", "in", "(fulfilled,cancelled)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 

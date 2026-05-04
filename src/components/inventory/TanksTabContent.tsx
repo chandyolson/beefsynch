@@ -123,7 +123,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase.from("customers" as any).select("*").eq("organization_id", orgId).order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: tanks = [] } = useQuery({
@@ -132,7 +132,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase.from("tanks" as any).select("id, customer_id").eq("organization_id", orgId);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: inventory = [] } = useQuery({
@@ -369,7 +369,7 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
     queryFn: async () => {
       const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: customers = [] } = useQuery({
@@ -378,7 +378,7 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
     queryFn: async () => {
       const { data, error } = await supabase.from("customers").select("id, name").eq("organization_id", orgId).order("name", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: fills = [] } = useQuery({
@@ -387,7 +387,7 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
     queryFn: async () => {
       const { data, error } = await supabase.from("tank_fills").select("tank_id, fill_date").eq("organization_id", orgId).order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: inventory = [] } = useQuery({
@@ -756,7 +756,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
     queryFn: async () => {
       const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).order("tank_number", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
   const { data: fills = [] } = useQuery({
@@ -765,7 +765,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
     queryFn: async () => {
       const { data, error } = await supabase.from("tank_fills").select("tank_id, fill_date").eq("organization_id", orgId).order("fill_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -1016,7 +1016,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryFn: async () => {
       const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -1027,7 +1027,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryFn: async () => {
       const { data, error } = await supabase.from("tank_movements").select("tank_id, movement_date, movement_type, notes, customers(name)").in("tank_id", outTankIds).in("movement_type", ["picked_up", "shipped_out"]).order("movement_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
@@ -1038,7 +1038,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryFn: async () => {
       const { data, error } = await supabase.from("tank_movements").select("id").eq("organization_id", orgId).in("movement_type", ["returned", "received_back"]).gte("movement_date", monthStart);
       if (error) throw error;
-      return (data ?? []) as any[];
+      return data ?? [];
     },
   });
 
