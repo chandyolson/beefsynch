@@ -45,6 +45,8 @@ interface OrderRow {
   manually_closed_by: string | null;
   manually_closed_reason: string | null;
   customers: { name: string; phone: string | null; email: string | null } | null;
+  invoicing_company_id: string | null;
+  semen_companies_invoicing?: { name: string } | null;
 }
 
 interface ItemRow {
@@ -52,6 +54,7 @@ interface ItemRow {
   units: number;
   custom_bull_name: string | null;
   bull_catalog_id: string | null;
+  invoicing_company_id: string | null;
   bulls_catalog: {
     bull_name: string;
     company: string;
@@ -59,6 +62,7 @@ interface ItemRow {
     naab_code: string | null;
     breed: string;
   } | null;
+  semen_companies?: { name: string } | null;
 }
 
 interface ProjectRef {
