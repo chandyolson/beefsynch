@@ -92,6 +92,8 @@ export default function TransferDialog({
       setNote("");
       // Auto-billable when company stock → customer (no source customer, customer assigned)
       setIsBillable(!!initialCustomer && !sourceRow.customer_id);
+      setMode("transfer");
+      setReason("");
     }
   }, [open, sourceRow, defaultCustomerId]);
 
