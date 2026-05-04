@@ -235,14 +235,37 @@ export default function TransferDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Transfer Semen</DialogTitle>
+          <DialogTitle>{mode === "transfer" ? "Transfer Semen" : "Withdraw Semen"}</DialogTitle>
           <DialogDescription>
-            Move semen from this tank to another, optionally assigning ownership.
+            {mode === "transfer"
+              ? `Move ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`
+              : `Remove ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`}
           </DialogDescription>
         </DialogHeader>
 
         {sourceRow && (
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={mode === "transfer" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setMode("transfer")}
+              >
+                Transfer
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "withdraw" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setMode("withdraw")}
+              >
+                Withdraw
+              </Button>
+            </div>
+
             <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
               <div>
                 <span className="text-muted-foreground">Bull: </span>
@@ -264,88 +287,102 @@ export default function TransferDialog({
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Destination
-              </div>
-
-              <div>
-                <Label htmlFor="transfer-units">Units to transfer</Label>
-                <Input
-                  id="transfer-units"
-                  type="number"
-                  min={1}
-                  max={available}
-                  value={units}
-                  onChange={(e) => setUnits(Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <Label>Destination tank</Label>
-                <Popover open={tankPopoverOpen} onOpenChange={setTankPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between font-normal"
-                    >
-                      {selectedTank ? tankLabel(selectedTank) : "Select tank…"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search tanks…" />
-                      <CommandList>
-                        <CommandEmpty>No tanks found.</CommandEmpty>
-                        <CommandGroup>
-                          {destTanks.map((t) => (
-                            <CommandItem
-                              key={t.id}
-                              value={tankLabel(t)}
-                              onSelect={() => {
-                                setDestTankId(t.id);
-                                setTankPopoverOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  destTankId === t.id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              {tankLabel(t)}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="transfer-canister">Canister</Label>
-                  <Input
-                    id="transfer-canister"
-                    value={canister}
-                    onChange={(e) => setCanister(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="transfer-subcan">Sub-canister</Label>
-                  <Input
-                    id="transfer-subcan"
-                    value={subCanister}
-                    onChange={(e) => setSubCanister(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-              </div>
+            <div>
+              <Label htmlFor="transfer-units">Units to {mode}</Label>
+              <Input
+                id="transfer-units"
+                type="number"
+                min={1}
+                max={available}
+                value={units}
+                onChange={(e) => setUnits(Number(e.target.value))}
+              />
             </div>
 
+            {mode === "transfer" && (
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  Destination
+                </div>
+
+                <div>
+                  <Label>Destination tank</Label>
+                  <Popover open={tankPopoverOpen} onOpenChange={setTankPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedTank ? tankLabel(selectedTank) : "Select tank…"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search tanks…" />
+                        <CommandList>
+                          <CommandEmpty>No tanks found.</CommandEmpty>
+                          <CommandGroup>
+                            {destTanks.map((t) => (
+                              <CommandItem
+                                key={t.id}
+                                value={tankLabel(t)}
+                                onSelect={() => {
+                                  setDestTankId(t.id);
+                                  setTankPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    destTankId === t.id ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                {tankLabel(t)}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="transfer-canister">Canister</Label>
+                    <Input
+                      id="transfer-canister"
+                      value={canister}
+                      onChange={(e) => setCanister(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="transfer-subcan">Sub-canister</Label>
+                    <Input
+                      id="transfer-subcan"
+                      value={subCanister}
+                      onChange={(e) => setSubCanister(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {mode === "withdraw" && (
+              <div>
+                <Label htmlFor="withdraw-reason">Reason *</Label>
+                <Textarea
+                  id="withdraw-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Customer picked up in their own tank"
+                  rows={2}
+                />
+              </div>
+            )}
             <div className="space-y-3">
               <div className="text-xs font-semibold uppercase text-muted-foreground">
                 Ownership (optional)
