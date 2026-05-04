@@ -88,14 +88,14 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
 
   useEffect(() => {
     if (!open || !orgId) return;
-    (supabase as any)
+    supabase
       .from("semen_companies")
       .select("id, name")
       .eq("organization_id", orgId)
       .eq("active", true)
       .order("name")
       .then(({ data }: any) => setCompanies(data ?? []));
-    (supabase as any)
+    supabase
       .from("billing_products")
       .select("id, product_name, product_category, default_price, unit_label")
       .eq("organization_id", orgId)
@@ -122,7 +122,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
       // Fetch existing supply lines for edit
       if (editData.id) {
-        (supabase as any)
+        supabase
           .from("order_supply_items")
           .select("*")
           .eq("semen_order_id", editData.id)
@@ -254,13 +254,13 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
             ? "630b12de-74bc-407a-8ee5-1ea17df18881"
             : "0c0df8b2-4f66-419f-8e3b-0970e3facad4",
         }));
-        const { error: itemErr } = await (supabase as any).from("semen_order_items").insert(rows);
+        const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
       }
 
       // Supplies — delete existing and re-insert
       if (isEditing) {
-        const { error: delSupErr } = await (supabase as any)
+        const { error: delSupErr } = await supabase
           .from("order_supply_items")
           .delete()
           .eq("semen_order_id", orderId);
@@ -280,7 +280,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
             line_total: qty * s.unitPrice,
           };
         });
-        const { error: supplyErr } = await (supabase as any).from("order_supply_items").insert(supplyRows);
+        const { error: supplyErr } = await supabase.from("order_supply_items").insert(supplyRows);
         if (supplyErr) throw supplyErr;
       }
 

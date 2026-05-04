@@ -54,7 +54,7 @@ export default function TankMapDialog({
 
   const tankGroups = useMemo(() => {
     const map = new Map<string, TankEntry>();
-    for (const row of inventory as any[]) {
+    for (const row of inventory) {
       const tid = row.tank_id;
       if (!map.has(tid)) {
         map.set(tid, {

@@ -122,7 +122,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
 
   const onHandMap = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of rawOnHand as any[]) {
+    for (const r of rawOnHand) {
       if (!r.bull_catalog_id) continue;
       map.set(r.bull_catalog_id, (map.get(r.bull_catalog_id) || 0) + (r.units || 0));
     }
@@ -148,13 +148,13 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       if (txnErr) throw txnErr;
 
       const receivedMap = new Map<string, number>();
-      for (const t of (receivedTxns ?? []) as any[]) {
+      for (const t of receivedTxns ?? []) {
         const key = `${t.order_id}|${t.bull_catalog_id}`;
         receivedMap.set(key, (receivedMap.get(key) || 0) + Math.abs(t.units_change));
       }
 
       const result = new Map<string, number>();
-      for (const item of (lineItems ?? []) as any[]) {
+      for (const item of lineItems ?? []) {
         const so = (item as any).semen_orders;
         if (so?.order_type !== "inventory") continue;
         if (!["pending", "partially_fulfilled", "partially_filled"].includes(so?.fulfillment_status)) continue;

@@ -97,7 +97,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
         const packMap = new Map<string, { pack_id: string; pack_status: string; packed_units: number }>();
         if (packLinks) {
-          for (const link of packLinks as any[]) {
+          for (const link of packLinks) {
             const tp = link.tank_packs;
             if (tp) {
               const units = (tp.tank_pack_lines || []).reduce((s: number, l: any) => s + (l.units || 0), 0);
@@ -114,7 +114,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .select("project_id, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)")
             .in("project_id", projIds);
           if (projBullsData) {
-            for (const pb of projBullsData as any[]) {
+            for (const pb of projBullsData) {
               const name = getBullDisplayName(pb);
               const existing = bullNameMap.get(pb.project_id) || [];
               if (!existing.includes(name)) existing.push(name);
@@ -123,7 +123,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           }
         }
 
-        for (const p of projData as any[]) {
+        for (const p of projData) {
           const pack = packMap.get(p.id);
           projectsWithPacks.push({
             ...p,
@@ -149,7 +149,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         s + (o.semen_order_items || []).reduce((s2: number, i: any) => s2 + (i.units || 0), 0), 0);
 
       // Ready to invoice: customer orders, unbilled, fulfilled or partially_fulfilled
-      const { data: invoiceableOrders } = await (supabase as any)
+      const { data: invoiceableOrders } = await supabase
         .from("semen_orders")
         .select(`
           id,
@@ -170,7 +170,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const billableTotalById = new Map<string, number>();
       await Promise.all(
         (invoiceableOrders || []).map(async (o: any) => {
-          const { data } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: o.id });
+          const { data } = await supabase.rpc("get_billable_units_for_order", { _order_id: o.id });
           const total = (data ?? []).reduce((s: number, r: any) => s + (r.units || 0), 0);
           billableTotalById.set(o.id, total);
         })
@@ -271,7 +271,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             .filter(Boolean);
 
           // Sum available inventory per bull from tanks that are here
-          const { data: hereTanks } = await (supabase as any)
+          const { data: hereTanks } = await supabase
             .from("tanks")
             .select("id")
             .eq("organization_id", orgId)

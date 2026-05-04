@@ -133,7 +133,7 @@ const PackTank = () => {
     queryKey: ["all_active_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tanks")
         .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status, customer_id")
         .eq("organization_id", orgId!)
@@ -165,7 +165,7 @@ const PackTank = () => {
     queryKey: ["shipper_tanks", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tanks")
         .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
         .eq("organization_id", orgId!)
@@ -528,7 +528,7 @@ const PackTank = () => {
       if (!items || items.length === 0) return;
 
       const bullMap = new Map<string, { bullName: string; bullCatalogId: string | null; bullCode: string | null; orderCount: number }>();
-      for (const item of items as any[]) {
+      for (const item of items) {
         const key = item.bull_catalog_id ?? `custom:${item.custom_bull_name}`;
         const existing = bullMap.get(key);
         if (existing) {
@@ -589,7 +589,7 @@ const PackTank = () => {
       if (!items || items.length === 0) return;
 
       const bullMap = new Map<string, { bullName: string; bullCatalogId: string | null; bullCode: string | null; totalUnits: number }>();
-      for (const item of items as any[]) {
+      for (const item of items) {
         const key = item.bull_catalog_id ?? `custom:${item.custom_bull_name}`;
         const existing = bullMap.get(key);
         if (existing) {
@@ -768,7 +768,7 @@ const PackTank = () => {
         })),
       };
 
-      const { data, error } = await (supabase.rpc as any)("pack_tank", { _input: payload });
+      const { data, error } = await supabase.rpc("pack_tank", { _input: payload });
       if (error) throw error;
 
       const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;

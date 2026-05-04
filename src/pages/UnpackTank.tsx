@@ -197,7 +197,7 @@ const UnpackTank = () => {
         })),
       };
 
-      const { data, error } = await (supabase.rpc as any)("unpack_tank", { _input: payload });
+      const { data, error } = await supabase.rpc("unpack_tank", { _input: payload });
       if (error) throw error;
 
       const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;

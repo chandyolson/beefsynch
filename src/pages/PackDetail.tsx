@@ -432,7 +432,7 @@ const PackDetail = () => {
     if (!pack || !orgId) return;
     setClosingOut(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("close_out_tank_pack", {
+      const { data, error } = await supabase.rpc("close_out_tank_pack", {
         _pack_id: pack.id,
         _closed_at: closeOutDate.toISOString(),
         _closed_by: closeOutBy.trim() || null,
@@ -550,7 +550,7 @@ const PackDetail = () => {
         payload.field_tank_id = editFieldTankId;
       }
 
-      const { data, error } = await (supabase.rpc as any)("edit_tank_pack", { _input: payload });
+      const { data, error } = await supabase.rpc("edit_tank_pack", { _input: payload });
       if (error) throw error;
 
       const result = data as { ok?: boolean; field_tank_changed?: boolean } | null;
@@ -624,13 +624,13 @@ const PackDetail = () => {
 
       if (lineDialogMode === "add") {
         payload.pack_id = pack.id;
-        const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: payload });
+        const { data, error } = await supabase.rpc("add_pack_line", { _input: payload });
         if (error) throw error;
         if (!data?.ok) throw new Error("Add failed");
         toast({ title: "Line added" });
       } else {
         payload.line_id = editingLineId;
-        const { data, error } = await (supabase.rpc as any)("update_pack_line", { _input: payload });
+        const { data, error } = await supabase.rpc("update_pack_line", { _input: payload });
         if (error) throw error;
         if (!data?.ok) throw new Error("Update failed");
         toast({ title: "Line updated" });
@@ -656,7 +656,7 @@ const PackDetail = () => {
     setLineSubmitting(true);
     try {
       const overridePayload = { ...crossCustomerConfirm, allow_cross_customer: true };
-      const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: overridePayload });
+      const { data, error } = await supabase.rpc("add_pack_line", { _input: overridePayload });
       if (error) throw error;
       if (!data?.ok) throw new Error("Add failed");
       toast({ title: "Line added", description: "Cross-customer override applied." });
@@ -675,7 +675,7 @@ const PackDetail = () => {
     if (!lineDeleteId || !pack) return;
     setLineDeleting(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("delete_pack_line", { _input: { line_id: lineDeleteId } });
+      const { data, error } = await supabase.rpc("delete_pack_line", { _input: { line_id: lineDeleteId } });
       if (error) throw error;
       if (!data?.ok) throw new Error("Delete failed");
       toast({ title: "Line removed", description: "Inventory restored to source tank." });
@@ -704,7 +704,7 @@ const PackDetail = () => {
     if (!id || !pack) return;
     setDeleting(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("delete_tank_pack", {
+      const { data, error } = await supabase.rpc("delete_tank_pack", {
         _pack_id: id,
       });
       if (error) throw error;

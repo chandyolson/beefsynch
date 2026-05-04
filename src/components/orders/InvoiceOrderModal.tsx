@@ -51,7 +51,7 @@ export const InvoiceOrderModal = ({ orderId, customerName, trigger, onSuccess }:
     setBillableLoading(true);
     setBillableError(null);
     (async () => {
-      const { data, error } = await (supabase as any).rpc("get_billable_units_for_order", { _order_id: orderId });
+      const { data, error } = await supabase.rpc("get_billable_units_for_order", { _order_id: orderId });
       if (cancelled) return;
       if (error) {
         setBillableError(error.message || "Could not load billable units");
@@ -73,7 +73,7 @@ export const InvoiceOrderModal = ({ orderId, customerName, trigger, onSuccess }:
       return;
     }
     setSubmitting(true);
-    const { error } = await (supabase.rpc as any)("mark_order_invoiced", {
+    const { error } = await supabase.rpc("mark_order_invoiced", {
       _input: {
         order_id: orderId,
         invoice_number: invoiceNumber.trim(),

@@ -131,7 +131,7 @@ const MasterCalendar = () => {
 
           if (bullData) {
             const bMap = new Map<string, { bull_name: string; registration_number: string; units: number }[]>();
-            for (const b of bullData as any[]) {
+            for (const b of bullData) {
               const pid = b.project_id;
               if (!bMap.has(pid)) bMap.set(pid, []);
               bMap.get(pid)!.push({

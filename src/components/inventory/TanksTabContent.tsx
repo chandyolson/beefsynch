@@ -1014,7 +1014,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     queryKey: ["tanks_out", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
+      const { data, error } = await supabase.from("tanks").select("*, customers!tanks_customer_id_fkey(name)").eq("organization_id", orgId).eq("location_status", "out").order("tank_number");
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -1066,7 +1066,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
     setReturnSaving(true);
     const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), location_status_after: "here", performed_by: userId, notes: returnNotes.trim() || null } as any);
     if (moveErr) { setReturnSaving(false); toast({ title: "Error", description: "Could not record return.", variant: "destructive" }); return; }
-    await (supabase as any).from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
+    await supabase.from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tanks_out"] });
     queryClient.invalidateQueries({ queryKey: ["returns_this_month"] });

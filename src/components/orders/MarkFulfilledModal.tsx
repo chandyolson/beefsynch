@@ -47,7 +47,7 @@ export const MarkFulfilledModal = ({
       return;
     }
     setSubmitting(true);
-    const { error } = await (supabase.rpc as any)("close_customer_order_as_fulfilled", {
+    const { error } = await supabase.rpc("close_customer_order_as_fulfilled", {
       _input: { order_id: orderId, reason: reason.trim() },
     });
     setSubmitting(false);

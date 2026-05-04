@@ -101,7 +101,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
 
         if (bullsData) {
           const map: Record<string, { name: string; units: number; registrationNumber?: string; breed?: string }[]> = {};
-          for (const b of bullsData as any[]) {
+          for (const b of bullsData) {
             const pid = b.project_id;
             if (!map[pid]) map[pid] = [];
             const name = getBullDisplayName(b);

@@ -106,14 +106,14 @@ export const FulfillOrderDialog = ({
     }
 
     (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("tank_inventory")
         .select("tank_id, bull_catalog_id, canister, units, customer_id, owner, tanks!tank_inventory_tank_id_fkey(tank_number, tank_name)")
         .in("bull_catalog_id", bullIds)
         .gt("units", 0);
 
       const byBull: Record<string, InventoryLocation[]> = {};
-      for (const row of (data ?? []) as any[]) {
+      for (const row of data ?? []) {
         const bullId = row.bull_catalog_id;
         if (!byBull[bullId]) byBull[bullId] = [];
         byBull[bullId].push({
@@ -193,7 +193,7 @@ export const FulfillOrderDialog = ({
 
       const deliveryLabel = DELIVERY_METHODS.find((d) => d.value === ls.deliveryMethod)?.label || ls.deliveryMethod;
 
-      const { error } = await (supabase as any).rpc("record_direct_sale", {
+      const { error } = await supabase.rpc("record_direct_sale", {
         _input: {
           order_id: orderId,
           source_tank_id: ls.tankId,

@@ -141,7 +141,7 @@ export default function Planning({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("view_bull_planning")
         .select("*");
       if (error) {

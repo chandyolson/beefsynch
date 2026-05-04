@@ -145,7 +145,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_invoiced_projects", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("project_billing")
         .select(
           "id, billing_completed_at, catl_invoice_number, select_sires_invoice_number, projects(id, name)",
@@ -163,7 +163,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_invoiced_orders", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("semen_orders")
         .select(
           "id, invoiced_at, order_type, placed_by, customers!semen_orders_customer_id_fkey(name), semen_companies!semen_orders_semen_company_id_fkey(name)",
@@ -181,7 +181,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_completed_projects", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("projects")
         .select("id, name, cattle_type, head_count, completed_at")
         .eq("organization_id", orgId)
@@ -197,7 +197,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_new_projects", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("projects")
         .select(
           "id, name, status, cattle_type, head_count, breeding_date, created_at",
@@ -215,7 +215,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_new_orders", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("semen_orders")
         .select(
           "id, order_type, needed_by, created_at, customers!semen_orders_customer_id_fkey(name), semen_companies!semen_orders_semen_company_id_fkey(name), semen_order_items(units)",
@@ -233,7 +233,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_packs_packed", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tank_packs")
         .select(
           `id, pack_type, destination_name, status, packed_at,
@@ -254,7 +254,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_packs_touched", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tank_packs")
         .select(
           `id, unpacked_at, closed_at,
@@ -273,7 +273,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_tank_fills", orgId, startDate, endDate],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("tank_fills")
         .select(
           `id, fill_date, fill_type, notes,
@@ -292,7 +292,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_shipments", orgId, startDate, endDate],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("shipments")
         .select(
           `id, received_date, received_by, notes,
@@ -314,7 +314,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_inv_events_count", orgId, startIso, endIso],
     enabled: !!orgId,
     queryFn: async () => {
-      const { count, error } = await (supabase as any)
+      const { count, error } = await supabase
         .from("inventory_transactions")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", orgId)
@@ -329,7 +329,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
     queryKey: ["ws_org_members", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_org_members", {
+      const { data, error } = await supabase.rpc("get_org_members", {
         _organization_id: orgId,
       });
       if (error) throw error;
@@ -342,7 +342,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const memberLabelById = useMemo(() => {
     const m = new Map<string, string>();
-    for (const row of orgMembers as any[]) m.set(row.id, row.label);
+    for (const row of orgMembers) m.set(row.id, row.label);
     return m;
   }, [orgMembers]);
 
@@ -432,14 +432,14 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
       if (!byProject.has(key)) byProject.set(key, new Set());
       byProject.get(key)!.add(activity);
     };
-    for (const p of packsPacked as any[]) {
+    for (const p of packsPacked) {
       for (const tpp of p.tank_pack_projects ?? []) {
         if (tpp.projects?.id) {
           addActivity(tpp.projects.id, tpp.projects.name, "packed");
         }
       }
     }
-    for (const p of packsTouched as any[]) {
+    for (const p of packsTouched) {
       for (const tpp of p.tank_pack_projects ?? []) {
         if (tpp.projects?.id) {
           if (p.unpacked_at) addActivity(tpp.projects.id, tpp.projects.name, "unpacked");

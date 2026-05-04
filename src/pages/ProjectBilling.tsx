@@ -820,7 +820,7 @@ const ProjectBilling = () => {
     if (!billingId || !orgId) return;
     setFinalizing(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("finalize_billing_inventory", {
+      const { data, error } = await supabase.rpc("finalize_billing_inventory", {
         _input: { organization_id: orgId, billing_id: billingId }
       });
       if (error) throw error;

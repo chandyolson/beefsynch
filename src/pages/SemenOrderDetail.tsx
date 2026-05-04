@@ -110,8 +110,8 @@ const SemenOrderDetail = () => {
     setLoading(true);
     try {
       const [oRes, iRes] = await Promise.all([
-        (supabase as any).from("semen_orders").select("*, customers!semen_orders_customer_id_fkey(name, phone, email), semen_companies_invoicing:semen_companies!semen_orders_invoicing_company_id_fkey(name)").eq("id", id).single(),
-        (supabase as any)
+        supabase.from("semen_orders").select("*, customers!semen_orders_customer_id_fkey(name, phone, email), semen_companies_invoicing:semen_companies!semen_orders_invoicing_company_id_fkey(name)").eq("id", id).single(),
+        supabase
           .from("semen_order_items")
           .select("*, bulls_catalog(bull_name, company, registration_number, naab_code, breed), semen_companies!semen_order_items_invoicing_company_id_fkey(name)")
           .eq("semen_order_id", id),
@@ -175,7 +175,7 @@ const SemenOrderDetail = () => {
       setDirectSaleTxns(directTxns || []);
 
       // Fetch supply items for this order
-      const { data: supplyData } = await (supabase as any)
+      const { data: supplyData } = await supabase
         .from("order_supply_items")
         .select("*")
         .eq("semen_order_id", id)

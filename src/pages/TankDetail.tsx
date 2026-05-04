@@ -205,7 +205,7 @@ function PickupForm({ row, tankName, orgId, userId, tankId, onSuccess, onCancel 
     }
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any).rpc("customer_pickup", {
+      const { error } = await supabase.rpc("customer_pickup", {
         _source_inventory_id: row.id,
         _units: units,
         _customer_id: row.customer_id,
@@ -350,7 +350,7 @@ const TankDetail = () => {
   const lastInventoried = useMemo(() => {
     if (!inventory || inventory.length === 0) return null;
     let latest: string | null = null;
-    for (const row of inventory as any[]) {
+    for (const row of inventory) {
       if (row.inventoried_at && (!latest || row.inventoried_at > latest)) {
         latest = row.inventoried_at;
       }

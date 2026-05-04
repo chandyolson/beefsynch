@@ -122,7 +122,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
         .select("id, semen_companies!shipments_semen_company_id_fkey(name), customers!shipments_customer_id_fkey(name)")
         .in("id", shipmentIds);
       if (shipData) {
-        for (const s of shipData as any[]) {
+        for (const s of shipData) {
           const co = s.semen_companies?.name || "";
           const cust = s.customers?.name || "";
           const parts: string[] = [];
@@ -139,7 +139,7 @@ const LogTab = ({ orgId }: { orgId: string }) => {
         .select("id, tank_pack_projects(projects(name))")
         .in("id", packIds);
       if (packData) {
-        for (const p of packData as any[]) {
+        for (const p of packData) {
           const projNames = (p.tank_pack_projects || [])
             .map((tpp: any) => tpp.projects?.name)
             .filter(Boolean);

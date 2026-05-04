@@ -63,7 +63,7 @@ const BullsRowManager = ({
       // Build two lookup maps: one keyed by catalog_id, one by lowercased display name.
       const byCatalogId = new Map<string, number>();
       const byName = new Map<string, number>();
-      for (const r of all as any[]) {
+      for (const r of all) {
         const units = r.units || 0;
         if (r.bull_catalog_id) {
           byCatalogId.set(r.bull_catalog_id, (byCatalogId.get(r.bull_catalog_id) || 0) + units);
