@@ -215,9 +215,37 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           unitsOrdered: ordered,
           unitsFilled: filled,
           unitsBillable: billableTotalById.get(o.id) ?? 0,
+          invoicingCompany: o.invoicing_company_id === "630b12de-74bc-407a-8ee5-1ea17df18881" ? "Select" : "CATL",
+          type: "order" as const,
         };
       });
-      setReadyToInvoice(invoiceList);
+
+      // Unbilled projects — merge into Ready to Invoice
+      const { data: unbilled } = await supabase
+        .from("projects")
+        .select("id, name, status, breeding_date, project_billing(billing_completed_at)")
+        .eq("organization_id", orgId)
+        .in("status", ["Work Complete", "Invoiced"]);
+
+      const unbilledProjects = (unbilled || []).filter((p: any) => {
+        const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
+        return !billing?.billing_completed_at;
+      });
+
+      const projectRows = unbilledProjects.map((p: any) => ({
+        id: p.id,
+        customerName: p.name,
+        orderDate: p.breeding_date || "",
+        bullSummary: "",
+        fulfillmentStatus: p.status === "Invoiced" ? "invoiced" : "work_complete",
+        unitsOrdered: 0,
+        unitsFilled: 0,
+        unitsBillable: 0,
+        invoicingCompany: null as string | null,
+        type: "project" as const,
+      }));
+
+      setReadyToInvoice([...invoiceList, ...projectRows]);
 
       const { data: invOrders } = await supabase
         .from("semen_orders")
