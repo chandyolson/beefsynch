@@ -872,7 +872,7 @@ const PackTank = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
+                      <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                         <CommandInput placeholder="Search tanks…" />
                         <CommandList>
                           <CommandEmpty>No tanks found.</CommandEmpty>
@@ -1186,7 +1186,7 @@ const PackTank = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                        <Command>
+                        <Command shouldFilter={false}>
                           <CommandInput
                             placeholder="Search customers…"
                             value={pickupCustomerSearch}
@@ -1447,7 +1447,7 @@ const PackTank = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                        <Command>
+                        <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                           <CommandInput placeholder="Search tanks…" />
                           <CommandList>
                             <CommandEmpty>No tanks found.</CommandEmpty>

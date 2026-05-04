@@ -45,7 +45,10 @@ const OperationsDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const activeTab = (searchParams.get("tab") as TabKey) || "hub";
   const inventoryOwnerFilter = (searchParams.get("owner") as "all" | "company" | "customer") || "company";
-  const [inventoryView, setInventoryView] = useState<"bull" | "tank" | "planning">("bull");
+  const viewParam = searchParams.get("view");
+  const [inventoryView, setInventoryView] = useState<"bull" | "tank" | "planning">(
+    viewParam === "tank" ? "tank" : viewParam === "planning" ? "planning" : "bull"
+  );
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
     setSearchParams({ tab, ...extra }, { replace: true });
@@ -133,7 +136,7 @@ const OperationsDashboard = () => {
                 <InventoryTab orgId={orgId} initialOwnerFilter={inventoryOwnerFilter} onFilterReset={() => setSearchParams({ tab: "inventory" }, { replace: true })} />
               )}
               {inventoryView === "tank" && (
-                <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} companyOnly />
+                <TanksTabContent orgId={orgId} orgName={orgName ?? null} userId={userId ?? null} companyOnly initialSubTab={searchParams.get("subTab") || undefined} />
               )}
               {inventoryView === "planning" && (
                 <Planning embedded />

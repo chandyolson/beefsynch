@@ -101,7 +101,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [customerFilter, setCustomerFilter] = useState<"all" | "has_tanks" | "has_units">("has_tanks");
+  const [customerFilter, setCustomerFilter] = useState<"all" | "has_tanks" | "has_units">("all");
   const [sortKey, setSortKey] = useState<string>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -846,7 +846,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+                <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                   <CommandInput placeholder="Search by number or name…" />
                   <CommandList>
                     <CommandEmpty>No tanks found.</CommandEmpty>
@@ -1143,8 +1143,10 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
    ═══════════════════════════════════════════════════ */
 type SubTabKey = "tanks" | "fills" | "out";
 
-const TanksTabContent = ({ orgId, orgName, userId, companyOnly = false }: { orgId: string; orgName: string | null; userId: string | null; companyOnly?: boolean }) => {
-  const [subTab, setSubTab] = useState<SubTabKey>("tanks");
+const TanksTabContent = ({ orgId, orgName, userId, companyOnly = false, initialSubTab }: { orgId: string; orgName: string | null; userId: string | null; companyOnly?: boolean; initialSubTab?: string }) => {
+  const [subTab, setSubTab] = useState<SubTabKey>(
+    initialSubTab === "fills" ? "fills" : initialSubTab === "out" ? "out" : "tanks"
+  );
 
   const subTabs: { key: SubTabKey; label: string }[] = [
     { key: "tanks", label: "Tanks" },
