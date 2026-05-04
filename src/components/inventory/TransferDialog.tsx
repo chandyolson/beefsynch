@@ -319,7 +319,7 @@ export default function TransferDialog({
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
+                      <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                         <CommandInput placeholder="Search tanks…" />
                         <CommandList>
                           <CommandEmpty>No tanks found.</CommandEmpty>
@@ -402,7 +402,7 @@ export default function TransferDialog({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
+                    <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
                       <CommandInput placeholder="Search customers…" />
                       <CommandList>
                         <CommandEmpty>No customers found.</CommandEmpty>
