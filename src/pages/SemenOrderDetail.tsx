@@ -97,6 +97,7 @@ const SemenOrderDetail = () => {
   const [editBullId, setEditBullId] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
+  const [directSaleTxns, setDirectSaleTxns] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
   const [availability, setAvailability] = useState<
     Record<string, { total: number; locations: Array<{ tank: string; canister: string; units: number; owner: string }> }>
