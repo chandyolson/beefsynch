@@ -66,6 +66,8 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     unitsOrdered: number;
     unitsFilled: number;
     unitsBillable: number;
+    invoicingCompany: string | null;
+    type: "order" | "project";
   }>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -146,12 +148,13 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         s + (o.semen_order_items || []).reduce((s2: number, i: any) => s2 + (i.units || 0), 0), 0);
 
       // Ready to invoice: customer orders, unbilled, fulfilled or partially_fulfilled
-      const { data: invoiceableOrders } = await supabase
+      const { data: invoiceableOrders } = await (supabase as any)
         .from("semen_orders")
         .select(`
           id,
           order_date,
           fulfillment_status,
+          invoicing_company_id,
           customers!semen_orders_customer_id_fkey(name),
           semen_order_items(units, bull_catalog_id, custom_bull_name, bulls_catalog(bull_name)),
           tank_pack_orders(tank_pack_id, tank_packs(tank_pack_lines(units, bull_catalog_id)))
@@ -212,9 +215,37 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           unitsOrdered: ordered,
           unitsFilled: filled,
           unitsBillable: billableTotalById.get(o.id) ?? 0,
+          invoicingCompany: o.invoicing_company_id === "630b12de-74bc-407a-8ee5-1ea17df18881" ? "Select" : "CATL",
+          type: "order" as const,
         };
       });
-      setReadyToInvoice(invoiceList);
+
+      // Unbilled projects — merge into Ready to Invoice
+      const { data: unbilled } = await supabase
+        .from("projects")
+        .select("id, name, status, breeding_date, project_billing(billing_completed_at)")
+        .eq("organization_id", orgId)
+        .in("status", ["Work Complete", "Invoiced"]);
+
+      const unbilledProjects = (unbilled || []).filter((p: any) => {
+        const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
+        return !billing?.billing_completed_at;
+      });
+
+      const projectRows = unbilledProjects.map((p: any) => ({
+        id: p.id,
+        customerName: p.name,
+        orderDate: p.breeding_date || "",
+        bullSummary: "",
+        fulfillmentStatus: p.status === "Invoiced" ? "invoiced" : "work_complete",
+        unitsOrdered: 0,
+        unitsFilled: 0,
+        unitsBillable: 0,
+        invoicingCompany: null as string | null,
+        type: "project" as const,
+      }));
+
+      setReadyToInvoice([...invoiceList, ...projectRows]);
 
       const { data: invOrders } = await supabase
         .from("semen_orders")
@@ -232,17 +263,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
       const tankNames = (tanksOutData || []).map((t: any) => {
         const tank = t.tanks;
         return tank ? `${tank.tank_number}${tank.tank_name ? " " + tank.tank_name : ""}` : "Unknown";
-      });
-
-      const { data: unbilled } = await supabase
-        .from("projects")
-        .select("id, name, project_billing(billing_completed_at)")
-        .eq("organization_id", orgId)
-        .in("status", ["Work Complete", "Invoiced"]);
-
-      const unbilledList = (unbilled || []).filter((p: any) => {
-        const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
-        return !billing?.billing_completed_at;
       });
 
       // Tanks on site (location_status = 'here', not out with customer)
@@ -331,8 +351,8 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         pendingInventoryOrders: invOrders?.length || 0,
         tanksOut: tanksOutData?.length || 0,
         tankNames,
-        unbilledProjects: unbilledList.length,
-        unbilledNames: unbilledList.map((p: any) => p.name),
+        unbilledProjects: 0,
+        unbilledNames: [],
         tanksDueForFill: wetHere,
         shippedNotReceived: 0,
         inventoryShortages: shortages,
@@ -513,27 +533,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
             </Card>
           )}
 
-          {actions.unbilledProjects > 0 && (
-            <Card
-              className="cursor-pointer border-amber-500/40 bg-amber-500/5 transition-colors hover:bg-amber-500/10"
-              onClick={() => onSwitchTab("projects")}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-sm">
-                      {actions.unbilledProjects} project{actions.unbilledProjects !== 1 ? "s" : ""} need billing
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {actions.unbilledNames.join(", ")}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {actions.pendingInventoryOrders > 0 && (
             <Card
@@ -596,7 +595,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold font-display">Ready to invoice</h2>
             <span className="text-sm text-muted-foreground">
-              {readyToInvoice.length} order{readyToInvoice.length !== 1 ? "s" : ""}
+              {readyToInvoice.length} item{readyToInvoice.length !== 1 ? "s" : ""}
             </span>
           </div>
           <Card>
@@ -609,29 +608,51 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                   >
                     <div className="min-w-0">
                       <Link
-                        to={`/semen-orders/${o.id}`}
+                        to={o.type === "project" ? `/project/${o.id}/billing` : `/semen-orders/${o.id}`}
                         className="font-medium text-sm hover:text-primary block truncate"
                       >
                         {o.customerName}
                       </Link>
-                      <p className="text-xs text-muted-foreground">
-                        Order · {format(parseISO(o.orderDate), "MMM d")}
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          {o.type === "project" ? "Project" : "Order"}{o.orderDate ? ` · ${format(parseISO(o.orderDate), "MMM d")}` : ""}
+                        </p>
+                        {o.invoicingCompany === "Select" && (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0 text-[10px] font-medium leading-4">Select</span>
+                        )}
+                        {o.invoicingCompany === "CATL" && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0 text-[10px] font-medium leading-4">CATL</span>
+                        )}
+                      </div>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm truncate">{o.bullSummary}</p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered} · billable {o.unitsBillable}
-                      </p>
+                      {o.type === "order" ? (
+                        <>
+                          <p className="text-sm truncate">{o.bullSummary}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered} · billable {o.unitsBillable}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {o.fulfillmentStatus.replace(/_/g, " ")}
+                        </p>
+                      )}
                     </div>
-                    <InvoiceOrderModal
-                      orderId={o.id}
-                      customerName={o.customerName}
-                      trigger={<Button size="sm">Invoice</Button>}
-                      onSuccess={() =>
-                        setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
-                      }
-                    />
+                    {o.type === "order" ? (
+                      <InvoiceOrderModal
+                        orderId={o.id}
+                        customerName={o.customerName}
+                        trigger={<Button size="sm">Invoice</Button>}
+                        onSuccess={() =>
+                          setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
+                        }
+                      />
+                    ) : (
+                      <Button size="sm" onClick={() => navigate(`/project/${o.id}/billing`)}>
+                        Bill
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
