@@ -649,8 +649,8 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                         }
                       />
                     ) : (
-                      <Button size="sm" onClick={() => navigate(`/project/${o.id}/billing`)}>
-                        Bill
+                       <Button size="sm" onClick={() => navigate(`/project/${o.id}/billing`)}>
+                        Invoice
                       </Button>
                     )}
                   </div>
