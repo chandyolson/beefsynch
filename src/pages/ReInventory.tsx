@@ -72,7 +72,7 @@ const ReInventory = () => {
   const [initialized, setInitialized] = useState(false);
 
   // Fetch tank
-  const { data: tank } = useQuery({
+  const { data: tank, isLoading: tankLoading, error: tankError } = useQuery({
     queryKey: ["tank_detail", tankId],
     enabled: !!tankId,
     queryFn: async () => {
@@ -313,6 +313,22 @@ const ReInventory = () => {
   // Breadcrumb
   const customerName = tank?.customers?.name;
   const tankLabel = tank?.tank_name ? `${tank.tank_name} — ${tank.tank_number}` : tank?.tank_number || "Tank";
+
+  if (tankLoading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (tankError || !tank) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Failed to load tank. Please refresh.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
