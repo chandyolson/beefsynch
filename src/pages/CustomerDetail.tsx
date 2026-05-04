@@ -485,14 +485,15 @@ const CustomerDetail = () => {
         tank_name: tankName.trim() || null,
         eid: tankEid.trim() || null,
         tank_type: tankType,
-        status: tankStatus,
+        nitrogen_status: tankStatus,
+        location_status: "here",
         model: tankModel.trim() || null,
         serial_number: tankSerial.trim() || null,
         description: tankDesc.trim() || null,
       } as any);
     setTankSaving(false);
     if (error) {
-      toast({ title: "Error", description: "Could not add tank.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Could not add tank.", variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
