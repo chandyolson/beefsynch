@@ -72,6 +72,8 @@ export default function TransferDialog({
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
   const [isBillable, setIsBillable] = useState(false);
+  const [mode, setMode] = useState<"transfer" | "withdraw">("transfer");
+  const [reason, setReason] = useState("");
 
   const bullName =
     sourceRow?.bulls_catalog?.bull_name || sourceRow?.custom_bull_name || "—";
@@ -90,6 +92,8 @@ export default function TransferDialog({
       setNote("");
       // Auto-billable when company stock → customer (no source customer, customer assigned)
       setIsBillable(!!initialCustomer && !sourceRow.customer_id);
+      setMode("transfer");
+      setReason("");
     }
   }, [open, sourceRow, defaultCustomerId]);
 
@@ -152,50 +156,73 @@ export default function TransferDialog({
     if (!sourceRow) return "No source row selected";
     if (!units || units <= 0) return "Units must be greater than 0";
     if (units > available)
-      return `Cannot transfer ${units} units — only ${available} available`;
-    if (!destTankId) return "Destination tank is required";
-    if (destTankId === tankId)
-      return "Destination tank cannot be the source tank";
-    if (!canister.trim()) return "Canister is required";
+      return `Cannot ${mode} ${units} units — only ${available} available`;
+    if (mode === "transfer") {
+      if (!destTankId) return "Destination tank is required";
+      if (destTankId === tankId) return "Destination tank cannot be the source tank";
+      if (!canister.trim()) return "Canister is required";
+    }
+    if (mode === "withdraw") {
+      if (!reason.trim()) return "Reason is required for withdrawals";
+    }
     return null;
   };
 
   const handleSubmit = async () => {
     const err = validate();
     if (err) {
-      toast({ title: "Cannot transfer", description: err, variant: "destructive" });
+      toast({ title: mode === "transfer" ? "Cannot transfer" : "Cannot withdraw", description: err, variant: "destructive" });
       return;
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("transfer_inventory" as any, {
-        _source_inventory_id: sourceRow.id,
-        _dest_tank_id: destTankId,
-        _dest_canister: canister.trim(),
-        _dest_sub_canister: subCanister.trim() || null,
-        _units: units,
-        _new_customer_id: customerId || null,
-        _order_id: orderId || null,
-        _notes: note.trim() || null,
-        _performed_by: userId,
-        _is_billable: customerId ? isBillable : null,
-      });
-      if (error) throw error;
-      toast({
-        title: "Transfer complete",
-        description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
-      });
+      if (mode === "transfer") {
+        const { error } = await supabase.rpc("transfer_inventory" as any, {
+          _source_inventory_id: sourceRow.id,
+          _dest_tank_id: destTankId,
+          _dest_canister: canister.trim(),
+          _dest_sub_canister: subCanister.trim() || null,
+          _units: units,
+          _new_customer_id: customerId || null,
+          _order_id: orderId || null,
+          _notes: note.trim() || null,
+          _performed_by: userId,
+          _is_billable: customerId ? isBillable : null,
+        });
+        if (error) throw error;
+        toast({
+          title: "Transfer complete",
+          description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
+        });
+      } else {
+        const { error } = await supabase.rpc("withdraw_inventory" as any, {
+          _source_inventory_id: sourceRow.id,
+          _units: units,
+          _reason: reason.trim(),
+          _customer_id: customerId || null,
+          _order_id: orderId || null,
+          _is_billable: customerId ? isBillable : null,
+          _performed_by: userId,
+        });
+        if (error) throw error;
+        toast({
+          title: "Withdrawal complete",
+          description: `Withdrew ${units} units of ${bullName}`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", tankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", tankId] });
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      if (mode === "transfer" && destTankId) {
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
       onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {
       toast({
-        title: "Transfer failed",
+        title: mode === "transfer" ? "Transfer failed" : "Withdrawal failed",
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
@@ -208,14 +235,37 @@ export default function TransferDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Transfer Semen</DialogTitle>
+          <DialogTitle>{mode === "transfer" ? "Transfer Semen" : "Withdraw Semen"}</DialogTitle>
           <DialogDescription>
-            Move semen from this tank to another, optionally assigning ownership.
+            {mode === "transfer"
+              ? `Move ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`
+              : `Remove ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`}
           </DialogDescription>
         </DialogHeader>
 
         {sourceRow && (
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={mode === "transfer" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setMode("transfer")}
+              >
+                Transfer
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "withdraw" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setMode("withdraw")}
+              >
+                Withdraw
+              </Button>
+            </div>
+
             <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
               <div>
                 <span className="text-muted-foreground">Bull: </span>
@@ -237,88 +287,102 @@ export default function TransferDialog({
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Destination
-              </div>
-
-              <div>
-                <Label htmlFor="transfer-units">Units to transfer</Label>
-                <Input
-                  id="transfer-units"
-                  type="number"
-                  min={1}
-                  max={available}
-                  value={units}
-                  onChange={(e) => setUnits(Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <Label>Destination tank</Label>
-                <Popover open={tankPopoverOpen} onOpenChange={setTankPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between font-normal"
-                    >
-                      {selectedTank ? tankLabel(selectedTank) : "Select tank…"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search tanks…" />
-                      <CommandList>
-                        <CommandEmpty>No tanks found.</CommandEmpty>
-                        <CommandGroup>
-                          {destTanks.map((t) => (
-                            <CommandItem
-                              key={t.id}
-                              value={tankLabel(t)}
-                              onSelect={() => {
-                                setDestTankId(t.id);
-                                setTankPopoverOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  destTankId === t.id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              {tankLabel(t)}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="transfer-canister">Canister</Label>
-                  <Input
-                    id="transfer-canister"
-                    value={canister}
-                    onChange={(e) => setCanister(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="transfer-subcan">Sub-canister</Label>
-                  <Input
-                    id="transfer-subcan"
-                    value={subCanister}
-                    onChange={(e) => setSubCanister(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-              </div>
+            <div>
+              <Label htmlFor="transfer-units">Units to {mode}</Label>
+              <Input
+                id="transfer-units"
+                type="number"
+                min={1}
+                max={available}
+                value={units}
+                onChange={(e) => setUnits(Number(e.target.value))}
+              />
             </div>
 
+            {mode === "transfer" && (
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  Destination
+                </div>
+
+                <div>
+                  <Label>Destination tank</Label>
+                  <Popover open={tankPopoverOpen} onOpenChange={setTankPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedTank ? tankLabel(selectedTank) : "Select tank…"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search tanks…" />
+                        <CommandList>
+                          <CommandEmpty>No tanks found.</CommandEmpty>
+                          <CommandGroup>
+                            {destTanks.map((t) => (
+                              <CommandItem
+                                key={t.id}
+                                value={tankLabel(t)}
+                                onSelect={() => {
+                                  setDestTankId(t.id);
+                                  setTankPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    destTankId === t.id ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                {tankLabel(t)}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="transfer-canister">Canister</Label>
+                    <Input
+                      id="transfer-canister"
+                      value={canister}
+                      onChange={(e) => setCanister(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="transfer-subcan">Sub-canister</Label>
+                    <Input
+                      id="transfer-subcan"
+                      value={subCanister}
+                      onChange={(e) => setSubCanister(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {mode === "withdraw" && (
+              <div>
+                <Label htmlFor="withdraw-reason">Reason *</Label>
+                <Textarea
+                  id="withdraw-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Customer picked up in their own tank"
+                  rows={2}
+                />
+              </div>
+            )}
             <div className="space-y-3">
               <div className="text-xs font-semibold uppercase text-muted-foreground">
                 Ownership (optional)
@@ -494,7 +558,7 @@ export default function TransferDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Transfer
+            {mode === "transfer" ? "Transfer" : "Withdraw"}
           </Button>
         </DialogFooter>
       </DialogContent>
