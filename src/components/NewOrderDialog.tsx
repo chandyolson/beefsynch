@@ -213,6 +213,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
         notes: notes.trim() || null,
         placed_by: placedBy.trim() || null,
         order_type: orderType,
+        invoicing_company_id: semenCompanyId === "630b12de-74bc-407a-8ee5-1ea17df18881"
+          ? "630b12de-74bc-407a-8ee5-1ea17df18881"
+          : "0c0df8b2-4f66-419f-8e3b-0970e3facad4",
       };
 
       let orderId: string;
@@ -247,8 +250,11 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
           bull_catalog_id: b.catalogId,
           custom_bull_name: b.catalogId ? null : b.name.trim(),
           units: typeof b.units === "number" ? b.units : parseInt(String(b.units)) || 0,
+          invoicing_company_id: semenCompanyId === "630b12de-74bc-407a-8ee5-1ea17df18881"
+            ? "630b12de-74bc-407a-8ee5-1ea17df18881"
+            : "0c0df8b2-4f66-419f-8e3b-0970e3facad4",
         }));
-        const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
+        const { error: itemErr } = await (supabase as any).from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
       }
 
