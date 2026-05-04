@@ -758,13 +758,26 @@ const SemenOrderDetail = () => {
                           )}
                         </div>
 
-                        {/* Packed */}
+                        {/* Fulfilled */}
                         <div className="col-span-2 text-right">
-                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Packed:</span>
-                          <span className="font-medium">{totalPacked > 0 ? totalPacked : "—"}</span>
-                          {totalReturned > 0 && (
-                            <div className="text-xs text-muted-foreground">({totalReturned} returned)</div>
-                          )}
+                          <span className="sm:hidden text-xs text-muted-foreground mr-1">Fulfilled:</span>
+                          {(() => {
+                            const directUnits = directSaleTxns
+                              .filter((t) => (t.bull_catalog_id || t.custom_bull_name || "") === bullKey)
+                              .reduce((s, t) => s + Math.abs(t.units_change || 0), 0);
+                            const fulfilledTotal = Math.max(0, totalPacked - totalReturned) + directUnits;
+                            return (
+                              <>
+                                <span className="font-medium">{fulfilledTotal > 0 ? fulfilledTotal : "—"}</span>
+                                {totalReturned > 0 && (
+                                  <div className="text-xs text-muted-foreground">({totalPacked} packed · {totalReturned} returned)</div>
+                                )}
+                                {directUnits > 0 && totalPacked === 0 && (
+                                  <div className="text-xs text-muted-foreground">direct sale</div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* Billed */}
