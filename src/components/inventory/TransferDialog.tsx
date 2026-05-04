@@ -156,50 +156,73 @@ export default function TransferDialog({
     if (!sourceRow) return "No source row selected";
     if (!units || units <= 0) return "Units must be greater than 0";
     if (units > available)
-      return `Cannot transfer ${units} units — only ${available} available`;
-    if (!destTankId) return "Destination tank is required";
-    if (destTankId === tankId)
-      return "Destination tank cannot be the source tank";
-    if (!canister.trim()) return "Canister is required";
+      return `Cannot ${mode} ${units} units — only ${available} available`;
+    if (mode === "transfer") {
+      if (!destTankId) return "Destination tank is required";
+      if (destTankId === tankId) return "Destination tank cannot be the source tank";
+      if (!canister.trim()) return "Canister is required";
+    }
+    if (mode === "withdraw") {
+      if (!reason.trim()) return "Reason is required for withdrawals";
+    }
     return null;
   };
 
   const handleSubmit = async () => {
     const err = validate();
     if (err) {
-      toast({ title: "Cannot transfer", description: err, variant: "destructive" });
+      toast({ title: mode === "transfer" ? "Cannot transfer" : "Cannot withdraw", description: err, variant: "destructive" });
       return;
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc("transfer_inventory" as any, {
-        _source_inventory_id: sourceRow.id,
-        _dest_tank_id: destTankId,
-        _dest_canister: canister.trim(),
-        _dest_sub_canister: subCanister.trim() || null,
-        _units: units,
-        _new_customer_id: customerId || null,
-        _order_id: orderId || null,
-        _notes: note.trim() || null,
-        _performed_by: userId,
-        _is_billable: customerId ? isBillable : null,
-      });
-      if (error) throw error;
-      toast({
-        title: "Transfer complete",
-        description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
-      });
+      if (mode === "transfer") {
+        const { error } = await supabase.rpc("transfer_inventory" as any, {
+          _source_inventory_id: sourceRow.id,
+          _dest_tank_id: destTankId,
+          _dest_canister: canister.trim(),
+          _dest_sub_canister: subCanister.trim() || null,
+          _units: units,
+          _new_customer_id: customerId || null,
+          _order_id: orderId || null,
+          _notes: note.trim() || null,
+          _performed_by: userId,
+          _is_billable: customerId ? isBillable : null,
+        });
+        if (error) throw error;
+        toast({
+          title: "Transfer complete",
+          description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
+        });
+      } else {
+        const { error } = await supabase.rpc("withdraw_inventory" as any, {
+          _source_inventory_id: sourceRow.id,
+          _units: units,
+          _reason: reason.trim(),
+          _customer_id: customerId || null,
+          _order_id: orderId || null,
+          _is_billable: customerId ? isBillable : null,
+          _performed_by: userId,
+        });
+        if (error) throw error;
+        toast({
+          title: "Withdrawal complete",
+          description: `Withdrew ${units} units of ${bullName}`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", tankId] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", tankId] });
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      if (mode === "transfer" && destTankId) {
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
       onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {
       toast({
-        title: "Transfer failed",
+        title: mode === "transfer" ? "Transfer failed" : "Withdrawal failed",
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
