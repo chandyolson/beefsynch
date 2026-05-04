@@ -265,17 +265,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         return tank ? `${tank.tank_number}${tank.tank_name ? " " + tank.tank_name : ""}` : "Unknown";
       });
 
-      const { data: unbilled } = await supabase
-        .from("projects")
-        .select("id, name, project_billing(billing_completed_at)")
-        .eq("organization_id", orgId)
-        .in("status", ["Work Complete", "Invoiced"]);
-
-      const unbilledList = (unbilled || []).filter((p: any) => {
-        const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
-        return !billing?.billing_completed_at;
-      });
-
       // Tanks on site (location_status = 'here', not out with customer)
       const { data: fillData } = await supabase
         .from("tanks")
