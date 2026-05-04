@@ -639,6 +639,31 @@ const PackDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
     } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("belongs to a different customer") && lineDialogMode === "add") {
+        setCrossCustomerConfirm(payload);
+      } else {
+        toast({ title: "Error", description: msg || "Unknown error", variant: "destructive" });
+      }
+    } finally {
+      setLineSubmitting(false);
+    }
+  };
+
+  const handleCrossCustomerConfirm = async () => {
+    if (!crossCustomerConfirm) return;
+    setLineSubmitting(true);
+    try {
+      const overridePayload = { ...crossCustomerConfirm, allow_cross_customer: true };
+      const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: overridePayload });
+      if (error) throw error;
+      if (!data?.ok) throw new Error("Add failed");
+      toast({ title: "Line added", description: "Cross-customer override applied." });
+      setCrossCustomerConfirm(null);
+      setLineDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
       setLineSubmitting(false);
