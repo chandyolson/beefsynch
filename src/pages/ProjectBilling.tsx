@@ -474,7 +474,7 @@ const ProjectBilling = () => {
 
   /* ── Auto-fill Arm Service qty from breeding head total ── */
   useEffect(() => {
-    if (readOnly) return;
+    if (project?.status === "Invoiced") return;
     const breedingSessions = sessions.filter(s => {
       const label = (s.session_label || "").toLowerCase();
       return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
@@ -491,7 +491,7 @@ const ProjectBilling = () => {
     if ((current.doses || 0) !== headTotal) {
       saveProductLine(armIdx, { doses: headTotal });
     }
-  }, [sessions, productLines, readOnly]);
+  }, [sessions, productLines, project?.status]);
 
   async function syncPackedFromPacks() {
     const packIds = projectPacks.map((p) => p.id);
