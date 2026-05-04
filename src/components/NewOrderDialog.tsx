@@ -254,7 +254,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
             ? "630b12de-74bc-407a-8ee5-1ea17df18881"
             : "0c0df8b2-4f66-419f-8e3b-0970e3facad4",
         }));
-        const { error: itemErr } = await supabase.from("semen_order_items").insert(rows);
+        const { error: itemErr } = await (supabase as any).from("semen_order_items").insert(rows);
         if (itemErr) throw itemErr;
       }
 
