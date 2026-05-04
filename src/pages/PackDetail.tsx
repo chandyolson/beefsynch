@@ -1017,16 +1017,16 @@ const PackDetail = () => {
             <TableBody>
               {packLines.map((l: any) => {
                 const billable = l.is_billable ?? false;
-                const dim = billable ? "" : "opacity-50";
+                const dim = "";
                 return (
                 <TableRow key={l.id} className="hover:bg-muted/20">
                   <TableCell className={dim}>{l.tanks?.tank_name || l.tanks?.tank_number || "—"}</TableCell>
                   <TableCell className="font-medium">
                     <span className="inline-flex items-center gap-2">
-                      <Checkbox
-                        checked={billable}
-                        onCheckedChange={async (checked) => {
-                          const next = !!checked;
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const next = !billable;
                           const { error: lineErr } = await (supabase
                             .from("tank_pack_lines") as any)
                             .update({ is_billable: next })
@@ -1050,9 +1050,15 @@ const PackDetail = () => {
                           queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
                           toast({ title: next ? "Marked billable" : "Marked not billable" });
                         }}
-                        className="data-[state=checked]:bg-[#55BAAA] data-[state=checked]:border-[#55BAAA]"
-                        title={billable ? "Billable" : "Not billable"}
-                      />
+                        className="shrink-0"
+                        title="Click to toggle billable status"
+                      >
+                        {billable ? (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-[10px] font-medium">Billable</span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 text-[10px] font-medium">Not billable</span>
+                        )}
+                      </button>
                       <span className={cn("inline-flex items-center gap-1", dim)}>
                         <span>{l.bull_name}</span>
                         {l.bull_catalog_id && (
@@ -1437,7 +1443,7 @@ const PackDetail = () => {
 
               {/* Source canister */}
               <div className="space-y-1.5">
-                <Label htmlFor="line-src-can">Source canister (optional)</Label>
+                <Label htmlFor="line-src-can">Source canister {lineSourceCanister ? "" : "(auto-fills when you pick a bull)"}</Label>
                 <Input id="line-src-can" value={lineSourceCanister} onChange={(e) => setLineSourceCanister(e.target.value)} placeholder="e.g. 1" />
               </div>
 
