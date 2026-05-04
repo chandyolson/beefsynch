@@ -82,7 +82,7 @@ const ReInventory = () => {
         .eq("id", tankId!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 

@@ -177,7 +177,7 @@ export default function TransferDialog({
     setSubmitting(true);
     try {
       if (mode === "transfer") {
-        const { error } = await supabase.rpc("transfer_inventory" as any, {
+        const { error } = await supabase.rpc("transfer_inventory", {
           _source_inventory_id: sourceRow.id,
           _dest_tank_id: destTankId,
           _dest_canister: canister.trim(),
@@ -195,7 +195,7 @@ export default function TransferDialog({
           description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
         });
       } else {
-        const { error } = await supabase.rpc("withdraw_inventory" as any, {
+        const { error } = await supabase.rpc("withdraw_inventory", {
           _source_inventory_id: sourceRow.id,
           _units: units,
           _reason: reason.trim(),

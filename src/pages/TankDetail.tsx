@@ -326,7 +326,7 @@ const TankDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("tanks").select("*").eq("id", id!).single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -513,7 +513,7 @@ const TankDetail = () => {
       model: eTankModel.trim() || null,
       serial_number: eTankSerial.trim() || null,
       description: eTankDesc.trim() || null,
-    } as any).eq("id", id);
+    }).eq("id", id);
     setESaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not update tank.", variant: "destructive" });
@@ -530,7 +530,7 @@ const TankDetail = () => {
     const newNitrogen = tank.nitrogen_status === "dry" ? "wet" : "dry";
     const { data, error } = await supabase
       .from("tanks")
-      .update({ nitrogen_status: newNitrogen } as any)
+      .update({ nitrogen_status: newNitrogen })
       .eq("id", id)
       .select();
     if (error) {
@@ -555,7 +555,7 @@ const TankDetail = () => {
       fill_date: format(fillDate, "yyyy-MM-dd"),
       filled_by: userId,
       notes: fillNotes.trim() || null,
-    } as any);
+    });
     setFillSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not record fill.", variant: "destructive" });
@@ -586,14 +586,14 @@ const TankDetail = () => {
       project_id: projId,
       performed_by: userId,
       notes: moveNotes.trim() || null,
-    } as any);
+    });
     if (moveErr) {
       setMoveSaving(false);
       toast({ title: "Error", description: "Could not record movement.", variant: "destructive" });
       return;
     }
     // Update the tank's location status to match the movement
-    await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", id);
+    await supabase.from("tanks").update({ location_status: locationAfter }).eq("id", id);
     setMoveSaving(false);
     queryClient.invalidateQueries({ queryKey: ["tank_detail", id] });
     queryClient.invalidateQueries({ queryKey: ["tank_detail_movements", id] });

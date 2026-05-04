@@ -271,7 +271,7 @@ const ProjectBilling = () => {
         const key = sl.bull_catalog_id || sl.bull_name;
         const packed = packedByBull.get(key);
         if (packed != null && sl.id) {
-          await supabase.from("project_billing_semen").update({ units_packed: packed } as any).eq("id", sl.id);
+          await supabase.from("project_billing_semen").update({ units_packed: packed }).eq("id", sl.id);
         }
       }
     }
@@ -538,7 +538,7 @@ const ProjectBilling = () => {
   function saveBillingField(field: string, value: any) {
     if (!billingId) return;
     debouncedSave(`billing-${field}`, () =>
-      supabase.from("project_billing").update({ [field]: value } as any).eq("id", billingId)
+      supabase.from("project_billing").update({ [field]: value }).eq("id", billingId)
     );
     setBillingRecord((prev: any) => ({ ...prev, [field]: value }));
   }
@@ -604,7 +604,7 @@ const ProjectBilling = () => {
       line_total: 0,
       sort_order: productLines.length,
       delivery_method: "not_yet",
-    } as any).select().single();
+    }).select().single();
     if (data) setProductLines(prev => [...prev, data as ProductLine]);
   }
 
@@ -661,7 +661,7 @@ const ProjectBilling = () => {
       session_label: "Timed Breeding", session_type: "field_session",
       time_of_day: null, head_count: null, crew: null, notes: null,
       sort_order: sessions.length,
-    } as any).select().single();
+    }).select().single();
     if (data) setSessions(prev => [...prev, data as SessionLine]);
   }
 
@@ -673,7 +673,7 @@ const ProjectBilling = () => {
       session_label: "Customer Pickup", session_type: "customer_pickup",
       time_of_day: null, head_count: null, crew: null, notes: null,
       sort_order: -1,
-    } as any).select().single();
+    }).select().single();
     if (sessErr || !sess) { toast({ title: "Error", description: sessErr?.message, variant: "destructive" }); return; }
     setSessions(prev => [...prev, sess as SessionLine]);
 
@@ -806,7 +806,7 @@ const ProjectBilling = () => {
       if (s.id && !s.invoiced) {
         await supabase.from("project_billing_sessions").update({
           invoiced: true, invoiced_at: now,
-        } as any).eq("id", s.id);
+        }).eq("id", s.id);
       }
     }
     for (let i = 0; i < laborLines.length; i++) {
@@ -904,7 +904,7 @@ const ProjectBilling = () => {
               units_returned: (sl.units_packed ?? 0) - used,
               units_blown: blown,
               units_billable: billable, line_total,
-            } as any).eq("id", sl.id));
+            }).eq("id", sl.id));
         }
         return { ...sl, units_returned: (sl.units_packed ?? 0) - used, units_blown: blown, units_billable: billable, line_total };
       }

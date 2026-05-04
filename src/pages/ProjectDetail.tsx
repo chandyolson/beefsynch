@@ -316,7 +316,7 @@ const ProjectDetail = () => {
     if (!newCustomerId || !project) return;
     const { error } = await supabase
       .from("projects")
-      .update({ customer_id: newCustomerId } as any)
+      .update({ customer_id: newCustomerId })
       .eq("id", project.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

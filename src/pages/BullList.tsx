@@ -316,7 +316,7 @@ const BullList = () => {
             breed: formData.breed.trim() || "Unknown",
             is_custom: isCustom,
             notes: formData.notes.trim() || null,
-          } as any)
+          })
           .eq("id", editingBull.id);
         if (error) throw error;
         bullId = editingBull.id;
@@ -345,7 +345,7 @@ const BullList = () => {
             created_by: userId,
             organization_id: orgId,
             notes: formData.notes.trim() || null,
-          } as any)
+          })
           .select("id")
           .single();
         if (error) throw error;

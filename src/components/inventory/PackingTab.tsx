@@ -100,7 +100,7 @@ const getOutboundPill = (row: any): OutboundPill | null => {
 
 /* Build "Customer — MMM d" labels from linked semen_orders. */
 const getOrderLabels = (row: any): string => {
-  const orders = (row.tank_pack_orders as any[]) || [];
+  const orders = (row.tank_pack_orders || []);
   if (orders.length === 0) return "";
   const labels: string[] = [];
   for (const o of orders) {
@@ -170,9 +170,9 @@ const PacksList = ({ orgId }: { orgId: string }) => {
       const tankLabel = (fieldTank?.tank_name || fieldTank?.tank_number || "").toLowerCase();
       const dest = (row.destination_name || "").toLowerCase();
       const packedBy = (row.packed_by || "").toLowerCase();
-      const projects = (row.tank_pack_projects as any[]) || [];
+      const projects = (row.tank_pack_projects || []);
       const projNames = projects.map((p: any) => (p.projects?.name || "").toLowerCase()).join(" ");
-      const orders = (row.tank_pack_orders as any[]) || [];
+      const orders = (row.tank_pack_orders || []);
       const orderNames = orders.map((o: any) => (o.semen_orders?.customers?.name || "").toLowerCase()).join(" ");
       return tankLabel.includes(q) || dest.includes(q) || packedBy.includes(q) || projNames.includes(q) || orderNames.includes(q);
     });
@@ -221,19 +221,19 @@ const PacksList = ({ orgId }: { orgId: string }) => {
     }
     if (row.pack_type === "shipment") return row.destination_name ? `Ship to: ${row.destination_name}` : "—";
     if (row.pack_type === "order") {
-      const orders = (row.tank_pack_orders as any[]) || [];
+      const orders = (row.tank_pack_orders || []);
       if (orders.length === 0) return "—";
       const first = orders[0]?.semen_orders?.customers?.name || "—";
       return orders.length > 1 ? `${first} (+${orders.length - 1} more)` : first;
     }
-    const projects = (row.tank_pack_projects as any[]) || [];
+    const projects = (row.tank_pack_projects || []);
     if (projects.length === 0) return "—";
     const first = projects[0]?.projects?.name || "—";
     return projects.length > 1 ? `${first} (+${projects.length - 1} more)` : first;
   };
 
   const getLineStats = (row: any) => {
-    const lines = (row.tank_pack_lines as any[]) || [];
+    const lines = (row.tank_pack_lines || []);
     return {
       count: lines.length,
       units: lines.reduce((s: number, l: any) => s + (l.units || 0), 0),
@@ -532,7 +532,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
     return unpacks.filter((row: any) => {
       const fieldTank = row.tanks as any;
       const tankLabel = (fieldTank?.tank_name || fieldTank?.tank_number || "").toLowerCase();
-      const projects = (row.tank_pack_projects as any[]) || [];
+      const projects = (row.tank_pack_projects || []);
       const projNames = projects.map((p: any) => (p.projects?.name || "").toLowerCase()).join(" ");
       const unpackedBy = (row.unpacked_by || "").toLowerCase();
       return tankLabel.includes(q) || projNames.includes(q) || unpackedBy.includes(q);
@@ -540,7 +540,7 @@ const UnpacksList = ({ orgId }: { orgId: string }) => {
   }, [unpacks, search]);
 
   const getRowStats = (row: any) => {
-    const lines = (row.tank_unpack_lines as any[]) || [];
+    const lines = (row.tank_unpack_lines || []);
     const totalReturned = lines.reduce((s: number, l: any) => s + (l.units_returned || 0), 0);
     const destTanks = new Set<string>();
     for (const l of lines) {

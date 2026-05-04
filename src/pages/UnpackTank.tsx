@@ -59,7 +59,7 @@ const UnpackTank = () => {
         .eq("id", packId!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 

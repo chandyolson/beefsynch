@@ -173,7 +173,7 @@ const PackDetail = () => {
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -331,7 +331,7 @@ const PackDetail = () => {
       await supabase.from("tank_packs").update({
         return_carrier: editReturnCarrier || null,
         return_tracking_number: editReturnTrackingNumber.trim() || null,
-      } as any).eq("id", pack.id);
+      }).eq("id", pack.id);
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       setEditingReturnTracking(false);
       toast({ title: "Return tracking updated" });
@@ -488,7 +488,7 @@ const PackDetail = () => {
       if (advanceTarget === "tank_returned" && pack.field_tank_id) {
         const { error: tankErr } = await supabase
           .from("tanks")
-          .update({ location_status: "here" } as any)
+          .update({ location_status: "here" })
           .eq("id", pack.field_tank_id);
         if (tankErr) throw new Error(`Pack updated but field tank location not reset: ${tankErr.message}`);
       }

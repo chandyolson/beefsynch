@@ -139,7 +139,7 @@ const BullCombobox = ({ value, catalogId, onChange }: BullComboboxProps) => {
           created_by: userId,
           organization_id: orgId,
           notes: customForm.notes.trim() || null,
-        } as any)
+        })
         .select("id, bull_name, company, naab_code, is_custom")
         .single();
       if (error) throw error;

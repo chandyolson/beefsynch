@@ -147,7 +147,7 @@ const CustomerDetail = () => {
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 
@@ -452,7 +452,7 @@ const CustomerDetail = () => {
         state: formState.trim() || null,
         zip: formZip.trim() || null,
         notes: formNotes.trim() || null,
-      } as any)
+      })
       .eq("id", id);
     setSaving(false);
     if (error) {
@@ -483,7 +483,7 @@ const CustomerDetail = () => {
         model: tankModel.trim() || null,
         serial_number: tankSerial.trim() || null,
         description: tankDesc.trim() || null,
-      } as any);
+      });
     setTankSaving(false);
     if (error) {
       toast({ title: "Error", description: error.message || "Could not add tank.", variant: "destructive" });
@@ -539,7 +539,7 @@ const CustomerDetail = () => {
         units: units,
         storage_type: semenStorageType,
         notes: semenNotes.trim() || null,
-      } as any);
+      });
     setSemenSaving(false);
     if (error) {
       toast({ title: "Error", description: "Could not add semen.", variant: "destructive" });
@@ -562,7 +562,7 @@ const CustomerDetail = () => {
     const newStatus = currentStatus === "dry" ? "wet" : "dry";
     const { data, error } = await supabase
       .from("tanks")
-      .update({ nitrogen_status: newStatus } as any)
+      .update({ nitrogen_status: newStatus })
       .eq("id", tankId)
       .select();
     if (error) {
@@ -592,7 +592,7 @@ const CustomerDetail = () => {
       customer_id: id,
       performed_by: user?.id || null,
       notes: custMoveNotes.trim() || null,
-    } as any);
+    });
 
     if (moveErr) {
       setCustMoveSaving(false);
@@ -600,7 +600,7 @@ const CustomerDetail = () => {
       return;
     }
 
-    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter } as any).eq("id", custMoveTankId).select();
+    const { data, error } = await supabase.from("tanks").update({ location_status: locationAfter }).eq("id", custMoveTankId).select();
     if (error || !data || data.length === 0) {
       setCustMoveSaving(false);
       toast({ title: "Error", description: "Movement recorded but tank status update failed.", variant: "destructive" });
@@ -622,7 +622,7 @@ const CustomerDetail = () => {
       tank_id: tankId,
       fill_date: format(new Date(), "yyyy-MM-dd"),
       filled_by: user?.id ?? null,
-    } as any);
+    });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {

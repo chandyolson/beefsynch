@@ -90,7 +90,7 @@ const CustomerPicker = ({ value, onChange, orgId, className }: CustomerPickerPro
         city: newCity.trim() || null,
         state: newState.trim() || null,
         zip: newZip.trim() || null,
-      } as any)
+      })
       .select("id, name")
       .single();
     setSaving(false);

@@ -713,7 +713,7 @@ const PackTank = () => {
           tank_name: newTankName.trim() || null,
           tank_type: newTankType,
           nitrogen_status: "wet",
-        } as any)
+        })
         .select()
         .single();
       if (error) throw error;

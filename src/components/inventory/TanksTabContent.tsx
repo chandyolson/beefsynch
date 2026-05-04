@@ -121,7 +121,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryKey: ["customers", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers" as any).select("*").eq("organization_id", orgId).order("name", { ascending: true });
+      const { data, error } = await supabase.from("customers").select("*").eq("organization_id", orgId).order("name", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
@@ -130,7 +130,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
     queryKey: ["tanks_for_customers", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tanks" as any).select("id, customer_id").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("tanks").select("id, customer_id").eq("organization_id", orgId);
       if (error) throw error;
       return data ?? [];
     },
@@ -143,7 +143,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
       const allRows: any[] = [];
       let from = 0;
       while (true) {
-        const { data, error } = await supabase.from("tank_inventory" as any).select("customer_id, units, inventoried_at").eq("organization_id", orgId).range(from, from + PAGE - 1);
+        const { data, error } = await supabase.from("tank_inventory").select("customer_id, units, inventoried_at").eq("organization_id", orgId).range(from, from + PAGE - 1);
         if (error) throw error;
         const rows = data ?? [];
         allRows.push(...rows);
@@ -223,7 +223,7 @@ export const CustomersTab = ({ orgId }: { orgId: string }) => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("customers" as any).insert({ organization_id: orgId, name: formName.trim(), phone: formPhone.trim() || null, email: formEmail.trim() || null, address: formAddress.trim() || null, notes: formNotes.trim() || null } as any);
+      const { error } = await supabase.from("customers").insert({ organization_id: orgId, name: formName.trim(), phone: formPhone.trim() || null, email: formEmail.trim() || null, address: formAddress.trim() || null, notes: formNotes.trim() || null });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["customers"] }); toast({ title: "Customer added" }); setDialogOpen(false); resetForm(); },
@@ -458,7 +458,7 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
       tank_type: tankType, nitrogen_status: tankNitrogenStatus, location_status: tankLocationStatus,
       model: tankModel.trim() || null,
       serial_number: tankSerial.trim() || null, description: tankDesc.trim() || null,
-    } as any);
+    });
     setSaving(false);
     if (error) { toast({ title: "Error", description: "Could not add tank.", variant: "destructive" }); }
     else { queryClient.invalidateQueries({ queryKey: ["all_tanks"] }); toast({ title: "Tank added" }); setDialogOpen(false); resetForm(); }
@@ -785,7 +785,7 @@ const FillsTab = ({ orgId, userId }: { orgId: string; userId: string | null }) =
   const handleRecordFill = async () => {
     if (!selectedTankId || !orgId) return;
     setFillSaving(true);
-    const { error } = await supabase.from("tank_fills").insert({ organization_id: orgId, tank_id: selectedTankId, fill_date: format(fillDate, "yyyy-MM-dd"), filled_by: userId, fill_type: fillType, notes: fillNotes.trim() || null } as any);
+    const { error } = await supabase.from("tank_fills").insert({ organization_id: orgId, tank_id: selectedTankId, fill_date: format(fillDate, "yyyy-MM-dd"), filled_by: userId, fill_type: fillType, notes: fillNotes.trim() || null });
     setFillSaving(false);
     if (error) { toast({ title: "Error", description: "Could not record fill.", variant: "destructive" }); }
     else { const tank = tanks.find((t: any) => t.id === selectedTankId); toast({ title: "Fill recorded", description: tank ? `${tank.tank_number} ${tank.tank_name || ""}` : "" }); queryClient.invalidateQueries({ queryKey: ["all_tank_fills"] }); setSelectedTankId(""); setFillNotes(""); }
@@ -1064,7 +1064,7 @@ const TanksOutTab = ({ orgId, userId }: { orgId: string; userId: string | null }
   const handleReturn = async () => {
     if (!returnTankId || !orgId) return;
     setReturnSaving(true);
-    const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), location_status_after: "here", performed_by: userId, notes: returnNotes.trim() || null } as any);
+    const { error: moveErr } = await supabase.from("tank_movements").insert({ organization_id: orgId, tank_id: returnTankId, movement_type: "returned", movement_date: format(returnDate, "yyyy-MM-dd"), location_status_after: "here", performed_by: userId, notes: returnNotes.trim() || null });
     if (moveErr) { setReturnSaving(false); toast({ title: "Error", description: "Could not record return.", variant: "destructive" }); return; }
     await supabase.from("tanks").update({ location_status: "here", nitrogen_status: returnStatus }).eq("id", returnTankId);
     setReturnSaving(false);
