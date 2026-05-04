@@ -1002,6 +1002,41 @@ const ProjectBilling = () => {
           </div>
         </div>
 
+        {/* ── Breeding Sessions ── */}
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Breeding Sessions</h2>
+          <BreedingSection
+            sessions={sessions.filter(s => {
+              const label = (s.session_label || "").toLowerCase();
+              return label.includes("breed") || label.includes("ai ") || label === "ai" || label.includes("tai");
+            })}
+            allSessions={sessions}
+            productLines={productLines}
+            sessionInventory={sessionInventory}
+            semenLines={semenLines}
+            billingProducts={billingProducts}
+            readOnly={readOnly}
+            onSaveSession={saveSessionLine}
+            onSaveProduct={saveProductLine}
+            onSwapProduct={swapProduct}
+            onRemoveProduct={deleteAdditionalProductLine}
+            onAddProductToSession={addProductToSession}
+            onAddBreedingSession={addBreedingSession}
+            onRemoveSession={removeSession}
+            onSaveWorksheetCell={saveWorksheetCell}
+            onSetSessionInventory={setSessionInventory}
+            onTotalUsedChanged={(totalUsed, bullUsed, bullBlown) => {
+              setSemenLines(prev => prev.map(sl => {
+                const key = sl.bull_catalog_id || sl.bull_name;
+                const used = bullUsed.get(key) ?? 0;
+                const blown = bullBlown.get(key) ?? 0;
+                const billable = used - blown;
+                return { ...sl, units_used: used, units_blown: blown, units_billable: billable };
+              }));
+            }}
+          />
+        </div>
+
         {/* ── Billing sheet ── */}
         <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
           <BillingTab
