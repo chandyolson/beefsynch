@@ -702,6 +702,21 @@ const SemenOrderDetail = () => {
                               />
                             </div>
                           )}
+                          {/* Bills Through badge */}
+                          <div className="mt-0.5">
+                            {(() => {
+                              const invCompany = (item as any).semen_companies;
+                              const companyName = invCompany?.name as string | undefined;
+                              if (companyName === 'Select Sires') {
+                                return <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-[10px] font-medium">Billable · Select</span>;
+                              } else if (companyName === 'CATL Resources, PC' || companyName?.includes('CATL')) {
+                                return <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-medium">Billable · CATL</span>;
+                              } else if (!item.invoicing_company_id) {
+                                return <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 text-[10px] font-medium">Customer Owned</span>;
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </div>
 
                         {/* Ordered */}
