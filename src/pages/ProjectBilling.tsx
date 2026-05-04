@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
-// SessionsTab no longer rendered — kept in repo for reference
 import BillingTab from "@/components/billing/BillingTab";
+import BreedingSection from "@/components/billing/BreedingSection";
 import {
   BillingProduct, ProductLine, SessionLine, SessionInventoryLine, SemenLine, LaborLine,
   STATUS_COLORS, BILLING_STATUSES, STATUS_LABELS, calcUnits, formatTime12,
