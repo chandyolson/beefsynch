@@ -595,7 +595,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold font-display">Ready to invoice</h2>
             <span className="text-sm text-muted-foreground">
-              {readyToInvoice.length} order{readyToInvoice.length !== 1 ? "s" : ""}
+              {readyToInvoice.length} item{readyToInvoice.length !== 1 ? "s" : ""}
             </span>
           </div>
           <Card>
@@ -608,29 +608,51 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                   >
                     <div className="min-w-0">
                       <Link
-                        to={`/semen-orders/${o.id}`}
+                        to={o.type === "project" ? `/project/${o.id}/billing` : `/semen-orders/${o.id}`}
                         className="font-medium text-sm hover:text-primary block truncate"
                       >
                         {o.customerName}
                       </Link>
-                      <p className="text-xs text-muted-foreground">
-                        Order · {format(parseISO(o.orderDate), "MMM d")}
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          {o.type === "project" ? "Project" : "Order"}{o.orderDate ? ` · ${format(parseISO(o.orderDate), "MMM d")}` : ""}
+                        </p>
+                        {o.invoicingCompany === "Select" && (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0 text-[10px] font-medium leading-4">Select</span>
+                        )}
+                        {o.invoicingCompany === "CATL" && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0 text-[10px] font-medium leading-4">CATL</span>
+                        )}
+                      </div>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm truncate">{o.bullSummary}</p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered} · billable {o.unitsBillable}
-                      </p>
+                      {o.type === "order" ? (
+                        <>
+                          <p className="text-sm truncate">{o.bullSummary}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {o.fulfillmentStatus.replace(/_/g, " ")} · {o.unitsFilled} of {o.unitsOrdered} · billable {o.unitsBillable}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {o.fulfillmentStatus.replace(/_/g, " ")}
+                        </p>
+                      )}
                     </div>
-                    <InvoiceOrderModal
-                      orderId={o.id}
-                      customerName={o.customerName}
-                      trigger={<Button size="sm">Invoice</Button>}
-                      onSuccess={() =>
-                        setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
-                      }
-                    />
+                    {o.type === "order" ? (
+                      <InvoiceOrderModal
+                        orderId={o.id}
+                        customerName={o.customerName}
+                        trigger={<Button size="sm">Invoice</Button>}
+                        onSuccess={() =>
+                          setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
+                        }
+                      />
+                    ) : (
+                      <Button size="sm" onClick={() => navigate(`/project/${o.id}/billing`)}>
+                        Bill
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
