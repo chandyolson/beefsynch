@@ -145,6 +145,7 @@ const PackDetail = () => {
   const [lineSubmitting, setLineSubmitting] = useState(false);
   const [lineDeleteId, setLineDeleteId] = useState<string | null>(null);
   const [lineDeleting, setLineDeleting] = useState(false);
+  const [crossCustomerConfirm, setCrossCustomerConfirm] = useState<Record<string, any> | null>(null);
 
   const [lineSourceTankId, setLineSourceTankId] = useState<string>("");
   const [lineSourceTankOpen, setLineSourceTankOpen] = useState(false);
@@ -609,16 +610,16 @@ const PackDetail = () => {
     if (isNaN(unitsNum) || unitsNum <= 0) { toast({ title: "Units must be a positive number", variant: "destructive" }); return; }
 
     setLineSubmitting(true);
+    const payload: Record<string, any> = {
+      source_tank_id: lineSourceTankId,
+      bull_catalog_id: lineBullCatalogId || null,
+      bull_name: lineBullName.trim(),
+      bull_code: lineBullCode.trim() || null,
+      units: unitsNum,
+      source_canister: lineSourceCanister.trim() || null,
+      field_canister: lineFieldCanister.trim() || null,
+    };
     try {
-      const payload: Record<string, any> = {
-        source_tank_id: lineSourceTankId,
-        bull_catalog_id: lineBullCatalogId || null,
-        bull_name: lineBullName.trim(),
-        bull_code: lineBullCode.trim() || null,
-        units: unitsNum,
-        source_canister: lineSourceCanister.trim() || null,
-        field_canister: lineFieldCanister.trim() || null,
-      };
 
       if (lineDialogMode === "add") {
         payload.pack_id = pack.id;
@@ -634,6 +635,31 @@ const PackDetail = () => {
         toast({ title: "Line updated" });
       }
 
+      setLineDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("belongs to a different customer") && lineDialogMode === "add") {
+        setCrossCustomerConfirm(payload);
+      } else {
+        toast({ title: "Error", description: msg || "Unknown error", variant: "destructive" });
+      }
+    } finally {
+      setLineSubmitting(false);
+    }
+  };
+
+  const handleCrossCustomerConfirm = async () => {
+    if (!crossCustomerConfirm) return;
+    setLineSubmitting(true);
+    try {
+      const overridePayload = { ...crossCustomerConfirm, allow_cross_customer: true };
+      const { data, error } = await (supabase.rpc as any)("add_pack_line", { _input: overridePayload });
+      if (error) throw error;
+      if (!data?.ok) throw new Error("Add failed");
+      toast({ title: "Line added", description: "Cross-customer override applied." });
+      setCrossCustomerConfirm(null);
       setLineDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
@@ -1625,6 +1651,22 @@ const PackDetail = () => {
           bullCatalogId={editBullId}
         />
       )}
+      <AlertDialog open={!!crossCustomerConfirm} onOpenChange={(open) => { if (!open) setCrossCustomerConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Different customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              This semen belongs to a different customer than this pack. This can happen with family members or ranch partnerships sharing communal storage. Pack it anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCrossCustomerConfirm(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCrossCustomerConfirm} disabled={lineSubmitting}>
+              {lineSubmitting ? "Packing..." : "Yes, pack it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AppFooter />
     </div>
   );
