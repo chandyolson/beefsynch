@@ -51,7 +51,7 @@ const ProjectsTab = ({ orgId }: { orgId: string }) => {
 
     if (data) {
       setDbProjects(data as DbProject[]);
-      const mapped: BreedingProject[] = (data as any[]).map((p) => ({
+      const mapped: BreedingProject[] = (data || []).map((p) => ({
         id: p.id,
         name: p.name,
         animalType: p.cattle_type === "Cows" ? "Cow" : "Heifer",

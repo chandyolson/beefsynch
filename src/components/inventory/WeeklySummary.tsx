@@ -351,7 +351,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
      ────────────────────────────────────────────────────────── */
 
   const invoicedRows: InvoicedRow[] = useMemo(() => {
-    const projectRows: InvoicedRow[] = (invoicedProjects as any[]).map((pb) => {
+    const projectRows: InvoicedRow[] = (invoicedProjects || []).map((pb) => {
       const inv = [
         pb.catl_invoice_number ? `CATL ${pb.catl_invoice_number}` : null,
         pb.select_sires_invoice_number ? `Select ${pb.select_sires_invoice_number}` : null,
@@ -366,7 +366,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
         date: pb.billing_completed_at,
       };
     });
-    const orderRows: InvoicedRow[] = (invoicedOrders as any[]).map((o) => ({
+    const orderRows: InvoicedRow[] = (invoicedOrders || []).map((o) => ({
       id: `ord_${o.id}`,
       kind: "Order" as const,
       subject: `${o.customers?.name ?? "(no customer)"} — ${o.semen_companies?.name ?? "(no company)"}`,
@@ -380,7 +380,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const completedProjectRows: CompletedProjectRow[] = useMemo(
     () =>
-      (completedProjects as any[]).map((p) => ({
+      (completedProjects || []).map((p) => ({
         id: p.id,
         name: p.name,
         cattle_type: p.cattle_type,
@@ -392,7 +392,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const newProjectRows: NewProjectRow[] = useMemo(
     () =>
-      (newProjects as any[]).map((p) => ({
+      (newProjects || []).map((p) => ({
         id: p.id,
         name: p.name,
         status: p.status,
@@ -406,7 +406,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const newOrderRows: NewOrderRow[] = useMemo(
     () =>
-      (newOrders as any[]).map((o) => {
+      (newOrders || []).map((o) => {
         const units = (o.semen_order_items ?? []).reduce(
           (sum: number, it: any) => sum + (it.units ?? 0),
           0,
@@ -461,7 +461,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const packRows: PackRow[] = useMemo(
     () =>
-      (packsPacked as any[]).map((p) => {
+      (packsPacked || []).map((p) => {
         const ft = p.field_tank;
         const fieldTankLabel = ft
           ? ft.tank_name
@@ -498,7 +498,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const fillRows: FillRow[] = useMemo(
     () =>
-      (tankFills as any[]).map((f) => ({
+      (tankFills || []).map((f) => ({
         id: f.id,
         tank: f.tanks
           ? f.tanks.tank_name
@@ -514,7 +514,7 @@ const WeeklySummary = ({ orgId, onNavigateToTimeline }: Props) => {
 
   const shipmentRows: ShipmentRow[] = useMemo(
     () =>
-      (shipments as any[]).map((s) => {
+      (shipments || []).map((s) => {
         const customerFromOrder = s.semen_orders?.customers?.name ?? null;
         const directCustomer = s.customers?.name ?? null;
         return {

@@ -154,7 +154,7 @@ const PackTank = () => {
     if (!selectedTankId) return;
     if (pickupCustomerId) return;
 
-    const tank = (allActiveTanks as any[]).find((t: any) => t.id === selectedTankId);
+    const tank = (allActiveTanks).find((t: any) => t.id === selectedTankId);
     if (tank?.customer_id) {
       setPickupCustomerId(tank.customer_id);
     }
@@ -505,7 +505,7 @@ const PackTank = () => {
         canister: data[0].canister,
         units: data[0].units,
       },
-      allLocations: (data as any[]).map((r) => ({
+      allLocations: (data || []).map((r) => ({
         tank_id: r.tank_id,
         tank_name: r.tanks?.tank_name || r.tanks?.tank_number || "—",
         canister: r.canister,

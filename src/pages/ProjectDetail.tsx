@@ -141,7 +141,7 @@ const ProjectDetail = () => {
     const { data } = await supabase.rpc("get_org_members", { _organization_id: orgId });
     if (data) {
       setOrgMembers(
-        (data as any[])
+        (data)
           .filter((m: any) => m.accepted && m.user_id)
           .map((m: any) => ({ id: m.id, user_id: m.user_id, email: m.email }))
       );

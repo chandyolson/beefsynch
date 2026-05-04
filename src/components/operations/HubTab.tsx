@@ -89,7 +89,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
       const projectsWithPacks: UpcomingProject[] = [];
       if (projData) {
-        const projIds = (projData as any[]).map((p) => p.id);
+        const projIds = (projData || []).map((p) => p.id);
         const { data: packLinks } = await supabase
           .from("tank_pack_projects")
           .select("project_id, tank_pack_id, tank_packs(id, status, tank_pack_lines(units))")
@@ -266,7 +266,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
         if (projBulls && projBulls.length > 0) {
           // Get all bull_catalog_ids we need to check
-          const catalogIds = (projBulls as any[])
+          const catalogIds = (projBulls)
             .map(pb => pb.bull_catalog_id)
             .filter(Boolean);
 
@@ -301,7 +301,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
           // Check each project
           for (const proj of unpackedProjects) {
-            const bulls = (projBulls as any[]).filter(pb => pb.project_id === proj.id);
+            const bulls = (projBulls).filter(pb => pb.project_id === proj.id);
             const shortBulls: { bullName: string; needed: number; available: number }[] = [];
 
             for (const pb of bulls) {
@@ -348,7 +348,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
       if (eventData) {
         const excludeEvents = ["Return Heat", "Estimated Calving", "Timed Breeding", "Bulls In"];
-        const filtered = (eventData as any[]).filter(
+        const filtered = (eventData).filter(
           (e) =>
             e.projects &&
             ["Confirmed", "Tentative"].includes(e.projects.status) &&
