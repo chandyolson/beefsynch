@@ -1651,6 +1651,22 @@ const PackDetail = () => {
           bullCatalogId={editBullId}
         />
       )}
+      <AlertDialog open={!!crossCustomerConfirm} onOpenChange={(open) => { if (!open) setCrossCustomerConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Different customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              This semen belongs to a different customer than this pack. This can happen with family members or ranch partnerships sharing communal storage. Pack it anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCrossCustomerConfirm(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCrossCustomerConfirm} disabled={lineSubmitting}>
+              {lineSubmitting ? "Packing..." : "Yes, pack it"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AppFooter />
     </div>
   );
