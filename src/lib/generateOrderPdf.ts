@@ -20,6 +20,7 @@ interface OrderData {
   billing_status: string;
   notes: string | null;
   project_name?: string | null;
+  bills_through?: string | null;
 }
 
 interface OrderItemData {
