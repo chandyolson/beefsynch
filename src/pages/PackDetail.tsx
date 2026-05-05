@@ -447,6 +447,7 @@ const PackDetail = () => {
           : "Pack marked as unpacked. All semen recorded as used in field.",
       });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       setCloseOutOpen(false);
     } catch (err: any) {
       toast({
@@ -566,6 +567,7 @@ const PackDetail = () => {
       flashSaved("edit_pack");
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       toast({
         title: "Failed to update pack",
@@ -639,6 +641,7 @@ const PackDetail = () => {
       setLineDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("belongs to a different customer") && lineDialogMode === "add") {
@@ -664,6 +667,7 @@ const PackDetail = () => {
       setLineDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
@@ -682,6 +686,7 @@ const PackDetail = () => {
       setLineDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["pack_lines", id] });
       queryClient.invalidateQueries({ queryKey: ["pack_detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
@@ -715,6 +720,7 @@ const PackDetail = () => {
           ? `Pack removed and ${result.lines_processed} inventory line(s) restored to source tank.`
           : "Pack removed and inventory restored.",
       });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       navigate("/operations?tab=packing");
     } catch (err: any) {
       toast({

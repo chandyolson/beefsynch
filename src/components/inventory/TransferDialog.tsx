@@ -220,6 +220,7 @@ export default function TransferDialog({
       }
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {

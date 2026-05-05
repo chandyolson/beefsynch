@@ -51,6 +51,7 @@ export default function TankMap({ orgId }: { orgId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["tank_map", orgId],
     enabled: !!orgId,
+    staleTime: 30_000,
     queryFn: async () => {
       // Tanks: company-owned inventory + communal only.
       // Cast to any because the generated types.ts doesn't yet know about

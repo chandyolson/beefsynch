@@ -679,6 +679,7 @@ const TankDetail = () => {
       setManualErrors({});
       queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", id] });
       queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       setManualErrors({ submit: err.message || "Failed to add bull" });
       toast({ title: "Failed to add bull", description: err.message, variant: "destructive" });
@@ -1407,6 +1408,7 @@ const TankDetail = () => {
                 queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", id] });
                 queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
                 queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+                queryClient.invalidateQueries({ queryKey: ["tank_map"] });
               }}
             />
           )}

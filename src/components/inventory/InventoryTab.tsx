@@ -332,6 +332,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         if (error) throw error;
         toast.success("Inventory row updated");
         queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["tank_map"] });
         setEditRow(null);
         return;
       }
@@ -366,6 +367,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       if (error) throw error;
       toast.success("Inventory row updated");
       queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       setEditRow(null);
     } catch (err: any) {
       toast.error(err.message);
@@ -395,6 +397,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
 
       toast.success(`Merged into canister ${mergeTarget.targetCanister} (${newTotal} units total)`);
       queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       setMergeTarget(null);
       setPendingUpdates(null);
       setEditRow(null);
@@ -418,6 +421,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
       if (error) throw error;
       toast.success("Inventory row deleted");
       queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -1015,6 +1019,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         initialMode={transferMode}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
+          queryClient.invalidateQueries({ queryKey: ["tank_map"] });
         }}
       />
     </div>

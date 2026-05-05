@@ -301,6 +301,7 @@ const ReInventory = () => {
       queryClient.invalidateQueries({ queryKey: ["tank_inventory"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       toast({ title: "Inventory saved" });
       navigate(-1);
     } catch (e: any) {

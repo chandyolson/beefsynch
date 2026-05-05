@@ -81,6 +81,7 @@ export default function QuickBullEditDialog({
     queryClient.invalidateQueries({ queryKey: ["order_detail"] });
     queryClient.invalidateQueries({ queryKey: ["bull_catalog"] });
     queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    queryClient.invalidateQueries({ queryKey: ["tank_map"] });
     onOpenChange(false);
   };
 
