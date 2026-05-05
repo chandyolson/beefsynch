@@ -67,7 +67,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
     unitsOrdered: number;
     unitsFilled: number;
     unitsBillable: number;
-    invoicingCompany: string | null;
     type: "order" | "project";
   }>>([]);
   const [loading, setLoading] = useState(true);
@@ -194,7 +193,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
           unitsOrdered: ordered,
           unitsFilled: filled,
           unitsBillable: billableTotalById.get(o.id) ?? 0,
-          invoicingCompany: o.invoicing_company_id === "630b12de-74bc-407a-8ee5-1ea17df18881" ? "Select" : "CATL",
           type: "order" as const,
         };
       });
@@ -220,7 +218,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
         unitsOrdered: 0,
         unitsFilled: 0,
         unitsBillable: 0,
-        invoicingCompany: null as string | null,
         type: "project" as const,
       }));
 
@@ -596,12 +593,6 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                         <p className="text-xs text-muted-foreground">
                           {o.type === "project" ? "Project" : "Order"}{o.orderDate ? ` · ${format(parseISO(o.orderDate), "MMM d")}` : ""}
                         </p>
-                        {o.invoicingCompany === "Select" && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0 text-[10px] font-medium leading-4">Select</span>
-                        )}
-                        {o.invoicingCompany === "CATL" && (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0 text-[10px] font-medium leading-4">CATL</span>
-                        )}
                       </div>
                     </div>
                     <div className="min-w-0">
