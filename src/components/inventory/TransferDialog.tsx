@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Check,
+  ChevronsUpDown,
+  HandCoins,
+  Loader2,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -33,6 +41,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type Mode = "transfer" | "order" | "pickup" | "withdraw";
 
 interface TransferDialogProps {
   open: boolean;
@@ -41,12 +58,45 @@ interface TransferDialogProps {
   sourceTankName: string;
   orgId: string | null | undefined;
   userId: string | null | undefined;
-  tankId: string;
+  tankId?: string;
   defaultCustomerId?: string;
   defaultCustomerName?: string;
-  initialMode?: "transfer" | "withdraw";
+  initialMode?: Mode;
   onSuccess?: () => void;
 }
+
+const MODE_CARDS: Array<{ value: Mode; title: string; desc: string; Icon: typeof ArrowRightLeft }> = [
+  {
+    value: "transfer",
+    title: "Transfer",
+    desc: "Move semen from one tank to another",
+    Icon: ArrowRightLeft,
+  },
+  {
+    value: "order",
+    title: "Fill Order / Sale",
+    desc: "Customer is buying this semen",
+    Icon: ShoppingCart,
+  },
+  {
+    value: "pickup",
+    title: "Customer Pickup",
+    desc: "Customer is taking their own stored semen",
+    Icon: HandCoins,
+  },
+  {
+    value: "withdraw",
+    title: "Withdraw",
+    desc: "Damaged, expired, count correction, or other removal",
+    Icon: Trash2,
+  },
+];
+
+const DELIVERY_METHODS = [
+  { value: "pickup", label: "Customer pickup" },
+  { value: "drop_off", label: "We dropped off" },
+  { value: "shipped", label: "Shipped" },
+] as const;
 
 export default function TransferDialog({
   open,
@@ -58,25 +108,28 @@ export default function TransferDialog({
   tankId,
   defaultCustomerId,
   defaultCustomerName,
-  initialMode = "transfer",
+  initialMode,
   onSuccess,
 }: TransferDialogProps) {
   const queryClient = useQueryClient();
+  const effectiveTankId = tankId || sourceRow?.tank_id || "";
+
+  const [mode, setMode] = useState<Mode>("transfer");
   const [units, setUnits] = useState<number>(0);
   const [destTankId, setDestTankId] = useState<string>("");
   const [canister, setCanister] = useState("");
   const [subCanister, setSubCanister] = useState("");
   const [customerId, setCustomerId] = useState<string>("");
   const [orderId, setOrderId] = useState<string>("");
+  const [deliveryMethod, setDeliveryMethod] = useState<string>("pickup");
   const [note, setNote] = useState("");
+  const [reason, setReason] = useState("");
+  const [isBillable, setIsBillable] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [tankPopoverOpen, setTankPopoverOpen] = useState(false);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
-  const [isBillable, setIsBillable] = useState(false);
-  const [mode, setMode] = useState<"transfer" | "withdraw">("transfer");
-  const [reason, setReason] = useState("");
 
   const bullName = getBullDisplayName(sourceRow);
   const bullCode = sourceRow?.bull_code || sourceRow?.bulls_catalog?.naab_code;
@@ -84,20 +137,38 @@ export default function TransferDialog({
 
   useEffect(() => {
     if (open && sourceRow) {
+      const initialCustomer = sourceRow.customer_id || defaultCustomerId || "";
+      const defaultMode: Mode =
+        initialMode ?? (sourceRow.customer_id ? "pickup" : "transfer");
+
+      setMode(defaultMode);
       setUnits(sourceRow.units || 0);
       setDestTankId("");
       setCanister("");
       setSubCanister("");
-      const initialCustomer = sourceRow.customer_id || defaultCustomerId || "";
       setCustomerId(initialCustomer);
       setOrderId("");
+      setDeliveryMethod("pickup");
       setNote("");
-      // Auto-billable when company stock → customer (no source customer, customer assigned)
-      setIsBillable(!!initialCustomer && !sourceRow.customer_id);
-      setMode(initialMode);
       setReason("");
+      // Transfer: auto-billable when company stock → customer
+      setIsBillable(
+        defaultMode === "order"
+          ? true
+          : !!initialCustomer && !sourceRow.customer_id,
+      );
     }
   }, [open, sourceRow, defaultCustomerId, initialMode]);
+
+  // When mode changes mid-dialog, reset billable to the right default for the mode.
+  useEffect(() => {
+    if (!open) return;
+    if (mode === "order") setIsBillable(true);
+    else if (mode === "pickup" || mode === "withdraw") setIsBillable(false);
+    else if (mode === "transfer") {
+      setIsBillable(!!customerId && !sourceRow?.customer_id);
+    }
+  }, [mode, open, customerId, sourceRow]);
 
   const { data: tanks = [] } = useQuery({
     queryKey: ["transfer_dialog_tanks", orgId],
@@ -143,8 +214,8 @@ export default function TransferDialog({
   });
 
   const destTanks = useMemo(
-    () => tanks.filter((t) => t.id !== tankId),
-    [tanks, tankId],
+    () => tanks.filter((t) => t.id !== effectiveTankId),
+    [tanks, effectiveTankId],
   );
 
   const selectedTank = destTanks.find((t) => t.id === destTankId);
@@ -161,8 +232,16 @@ export default function TransferDialog({
       return `Cannot ${mode} ${units} units — only ${available} available`;
     if (mode === "transfer") {
       if (!destTankId) return "Destination tank is required";
-      if (destTankId === tankId) return "Destination tank cannot be the source tank";
+      if (destTankId === effectiveTankId)
+        return "Destination tank cannot be the source tank";
       if (!canister.trim()) return "Canister is required";
+    }
+    if (mode === "order") {
+      if (!customerId) return "Customer is required";
+      if (!orderId) return "Order is required";
+    }
+    if (mode === "pickup") {
+      if (!customerId) return "Customer is required for pickup";
     }
     if (mode === "withdraw") {
       if (!reason.trim()) return "Reason is required for withdrawals";
@@ -170,10 +249,12 @@ export default function TransferDialog({
     return null;
   };
 
+  const modeLabel = (m: Mode) => MODE_CARDS.find((c) => c.value === m)?.title ?? m;
+
   const handleSubmit = async () => {
     const err = validate();
     if (err) {
-      toast({ title: mode === "transfer" ? "Cannot transfer" : "Cannot withdraw", description: err, variant: "destructive" });
+      toast({ title: `Cannot ${modeLabel(mode).toLowerCase()}`, description: err, variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -186,7 +267,7 @@ export default function TransferDialog({
           _dest_sub_canister: subCanister.trim() || null,
           _units: units,
           _new_customer_id: customerId || null,
-          _order_id: orderId || null,
+          _order_id: null,
           _notes: note.trim() || null,
           _performed_by: userId,
           _is_billable: customerId ? isBillable : null,
@@ -195,6 +276,41 @@ export default function TransferDialog({
         toast({
           title: "Transfer complete",
           description: `Transferred ${units} units to ${selectedTank ? tankLabel(selectedTank) : "destination tank"}`,
+        });
+      } else if (mode === "order") {
+        const deliveryLabel =
+          DELIVERY_METHODS.find((d) => d.value === deliveryMethod)?.label || deliveryMethod;
+        const noteParts = [deliveryLabel, note.trim()].filter(Boolean);
+        const { error } = await supabase.rpc("record_direct_sale", {
+          _input: {
+            order_id: orderId,
+            source_tank_id: effectiveTankId,
+            source_canister: sourceRow.canister || null,
+            bull_catalog_id: sourceRow.bull_catalog_id || null,
+            bull_code: bullCode || null,
+            bull_name: bullName || null,
+            units,
+            is_billable: true,
+            notes: noteParts.join(" — "),
+          },
+        });
+        if (error) throw error;
+        toast({
+          title: "Sale recorded",
+          description: `${units} units of ${bullName} recorded against order`,
+        });
+      } else if (mode === "pickup") {
+        const { error } = await supabase.rpc("customer_pickup", {
+          _source_inventory_id: sourceRow.id,
+          _units: units,
+          _customer_id: customerId,
+          _notes: note.trim() || null,
+          _performed_by: userId,
+        });
+        if (error) throw error;
+        toast({
+          title: "Pickup recorded",
+          description: `${units} units of ${bullName} picked up by ${selectedCustomer?.name || "customer"}`,
         });
       } else {
         const { error } = await supabase.rpc("withdraw_inventory", {
@@ -212,20 +328,24 @@ export default function TransferDialog({
           description: `Withdrew ${units} units of ${bullName}`,
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", tankId] });
-      queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", tankId] });
+
+      if (effectiveTankId) {
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", effectiveTankId] });
+        queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", effectiveTankId] });
+      }
       if (mode === "transfer" && destTankId) {
         queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
         queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
       }
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["semen-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       onSuccess?.();
       onOpenChange(false);
     } catch (e: any) {
       toast({
-        title: mode === "transfer" ? "Transfer failed" : "Withdrawal failed",
+        title: `${modeLabel(mode)} failed`,
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
@@ -234,39 +354,54 @@ export default function TransferDialog({
     }
   };
 
+  const submitLabel =
+    mode === "transfer"
+      ? "Transfer"
+      : mode === "order"
+        ? "Record Sale"
+        : mode === "pickup"
+          ? "Record Pickup"
+          : "Withdraw";
+
+  const orderEmpty = mode === "order" && !!customerId && orders.length === 0;
+  const submitDisabled = submitting || orderEmpty;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "transfer" ? "Transfer Semen" : "Withdraw Semen"}</DialogTitle>
+          <DialogTitle>Move Semen</DialogTitle>
           <DialogDescription>
-            {mode === "transfer"
-              ? `Move ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`
-              : `Remove ${bullName}${bullCode ? ` (${bullCode})` : ""} from ${sourceTankName}. ${available} units available.`}
+            {bullName}
+            {bullCode ? ` (${bullCode})` : ""} from {sourceTankName} — {available} units available.
           </DialogDescription>
         </DialogHeader>
 
         {sourceRow && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={mode === "transfer" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setMode("transfer")}
-              >
-                Transfer
-              </Button>
-              <Button
-                type="button"
-                variant={mode === "withdraw" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setMode("withdraw")}
-              >
-                Withdraw
-              </Button>
+            <div className="grid grid-cols-2 gap-2">
+              {MODE_CARDS.map(({ value, title, desc, Icon }) => {
+                const active = mode === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setMode(value)}
+                    className={cn(
+                      "text-left rounded-md border p-3 transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 ring-1 ring-primary"
+                        : "border-border hover:bg-muted/40",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
+                      <span className="font-medium text-sm">{title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
@@ -291,7 +426,7 @@ export default function TransferDialog({
             </div>
 
             <div>
-              <Label htmlFor="transfer-units">Units to {mode}</Label>
+              <Label htmlFor="transfer-units">Units to {modeLabel(mode).toLowerCase()}</Label>
               <Input
                 id="transfer-units"
                 type="number"
@@ -381,132 +516,83 @@ export default function TransferDialog({
                   id="withdraw-reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Customer picked up in their own tank"
+                  placeholder="e.g. Damaged in transit, expired, count correction"
                   rows={2}
                 />
               </div>
             )}
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Ownership (optional)
-              </div>
 
-              <div>
-                <Label>Assign to customer</Label>
-                <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between font-normal"
-                    >
-                      {selectedCustomer ? selectedCustomer.name : "Company stock (no customer)"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
-                      <CommandInput placeholder="Search customers…" />
-                      <CommandList>
-                        <CommandEmpty>No customers found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="__none__"
-                            onSelect={() => {
-                              setCustomerId("");
-                              setOrderId("");
-                              setIsBillable(false);
-                              setCustomerPopoverOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                !customerId ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                            Company stock (no customer)
-                          </CommandItem>
-                          {customers.map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              value={c.name}
-                              onSelect={() => {
-                                setCustomerId(c.id);
-                                setOrderId("");
-                                setIsBillable(!sourceRow?.customer_id);
-                                setCustomerPopoverOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  customerId === c.id ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              {c.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+            {(mode === "transfer" || mode === "order" || mode === "pickup" || (mode === "withdraw")) && (
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  {mode === "transfer"
+                    ? "Ownership (optional)"
+                    : mode === "withdraw"
+                      ? "Customer (optional)"
+                      : "Customer"}
+                </div>
 
-              {customerId && (
                 <div>
-                  <Label>Link to order</Label>
-                  <Popover open={orderPopoverOpen} onOpenChange={setOrderPopoverOpen}>
+                  <Label>
+                    {mode === "order" || mode === "pickup" ? "Customer *" : "Assign to customer"}
+                  </Label>
+                  <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         className="w-full justify-between font-normal"
                       >
-                        {selectedOrder
-                          ? `Order from ${format(new Date(selectedOrder.created_at), "MMM d, yyyy")} — ${selectedOrder.fulfillment_status}`
-                          : "No order linked"}
+                        {selectedCustomer
+                          ? selectedCustomer.name
+                          : mode === "order" || mode === "pickup"
+                            ? "Select customer…"
+                            : "Company stock (no customer)"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search orders…" />
+                      <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                        <CommandInput placeholder="Search customers…" />
                         <CommandList>
-                          <CommandEmpty>No unfulfilled orders.</CommandEmpty>
+                          <CommandEmpty>No customers found.</CommandEmpty>
                           <CommandGroup>
-                            <CommandItem
-                              value="__none__"
-                              onSelect={() => {
-                                setOrderId("");
-                                setOrderPopoverOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  !orderId ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                              No order
-                            </CommandItem>
-                            {orders.map((o) => (
+                            {mode !== "order" && mode !== "pickup" && (
                               <CommandItem
-                                key={o.id}
-                                value={o.id}
+                                value="__none__"
                                 onSelect={() => {
-                                  setOrderId(o.id);
-                                  setOrderPopoverOpen(false);
+                                  setCustomerId("");
+                                  setOrderId("");
+                                  setIsBillable(false);
+                                  setCustomerPopoverOpen(false);
                                 }}
                               >
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    orderId === o.id ? "opacity-100" : "opacity-0",
+                                    !customerId ? "opacity-100" : "opacity-0",
                                   )}
                                 />
-                                Order from {format(new Date(o.created_at), "MMM d, yyyy")} — {o.fulfillment_status}
+                                Company stock (no customer)
+                              </CommandItem>
+                            )}
+                            {customers.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  setCustomerId(c.id);
+                                  setOrderId("");
+                                  setCustomerPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    customerId === c.id ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                {c.name}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -515,29 +601,113 @@ export default function TransferDialog({
                     </PopoverContent>
                   </Popover>
                 </div>
-              )}
-            </div>
 
-            {customerId && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase text-muted-foreground">
-                  Billing
-                </div>
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    id="transfer-billable"
-                    checked={isBillable}
-                    onCheckedChange={(v) => setIsBillable(v === true)}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-0.5">
-                    <Label htmlFor="transfer-billable" className="cursor-pointer">
-                      Billable to customer
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Check this if the customer is being charged for this semen.
-                    </p>
+                {(mode === "order" || (customerId && mode !== "pickup")) && (
+                  <div>
+                    <Label>{mode === "order" ? "Order *" : "Link to order"}</Label>
+                    <Popover open={orderPopoverOpen} onOpenChange={setOrderPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                          disabled={mode === "order" && !customerId}
+                        >
+                          {selectedOrder
+                            ? `Order from ${format(new Date(selectedOrder.created_at), "MMM d, yyyy")} — ${selectedOrder.fulfillment_status}`
+                            : mode === "order"
+                              ? "Select an open order…"
+                              : "No order linked"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search orders…" />
+                          <CommandList>
+                            <CommandEmpty>No unfulfilled orders.</CommandEmpty>
+                            <CommandGroup>
+                              {mode !== "order" && (
+                                <CommandItem
+                                  value="__none__"
+                                  onSelect={() => {
+                                    setOrderId("");
+                                    setOrderPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      !orderId ? "opacity-100" : "opacity-0",
+                                    )}
+                                  />
+                                  No order
+                                </CommandItem>
+                              )}
+                              {orders.map((o) => (
+                                <CommandItem
+                                  key={o.id}
+                                  value={o.id}
+                                  onSelect={() => {
+                                    setOrderId(o.id);
+                                    setOrderPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      orderId === o.id ? "opacity-100" : "opacity-0",
+                                    )}
+                                  />
+                                  Order from {format(new Date(o.created_at), "MMM d, yyyy")} — {o.fulfillment_status}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {orderEmpty && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        No open orders for this customer — create one from the Orders page first.
+                      </p>
+                    )}
                   </div>
+                )}
+              </div>
+            )}
+
+            {mode === "order" && (
+              <div>
+                <Label>Delivery</Label>
+                <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DELIVERY_METHODS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {mode === "transfer" && customerId && (
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="transfer-billable"
+                  checked={isBillable}
+                  onCheckedChange={(v) => setIsBillable(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="transfer-billable" className="cursor-pointer">
+                    Billable to customer
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Check this if the customer is being charged for this semen.
+                  </p>
                 </div>
               </div>
             )}
@@ -559,9 +729,9 @@ export default function TransferDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button onClick={handleSubmit} disabled={submitDisabled}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === "transfer" ? "Transfer" : "Withdraw"}
+            {submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
