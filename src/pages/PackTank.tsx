@@ -776,6 +776,7 @@ const PackTank = () => {
         throw new Error("Pack failed: invalid response from server");
       }
 
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       toast({ title: "Tank packed", description: "Packing slip ready to print." });
       navigate(`/pack/${result.pack_id}`);
     } catch (err: any) {

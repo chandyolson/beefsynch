@@ -491,6 +491,7 @@ const CustomerDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["customer_tanks"] });
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       toast({ title: "Tank added" });
       setTankDialogOpen(false);
       resetTankForm();
@@ -546,6 +547,7 @@ const CustomerDetail = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
       queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       toast({ title: "Semen added" });
       setSemenDialogOpen(false);
       resetSemenForm();
@@ -1389,6 +1391,7 @@ const CustomerDetail = () => {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["tank_inventory_all"] });
             queryClient.invalidateQueries({ queryKey: ["customer_inventory"] });
+            queryClient.invalidateQueries({ queryKey: ["tank_map"] });
           }}
         />
       )}

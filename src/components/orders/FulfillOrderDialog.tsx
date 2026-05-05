@@ -307,7 +307,7 @@ export const FulfillOrderDialog = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                    <div className="sm:col-span-2 space-y-1">
+                    <div className="sm:col-span-3 space-y-1">
                       <Label className="text-xs">Units</Label>
                       <Input
                         type="number"
@@ -317,7 +317,7 @@ export const FulfillOrderDialog = ({
                       />
                     </div>
 
-                    <div className="sm:col-span-4 space-y-1">
+                    <div className="sm:col-span-5 space-y-1">
                       <Label className="text-xs">Delivery</Label>
                       <Select value={ls.deliveryMethod} onValueChange={(v) => updateLine(idx, "deliveryMethod", v)}>
                         <SelectTrigger>
@@ -331,16 +331,7 @@ export const FulfillOrderDialog = ({
                       </Select>
                     </div>
 
-                    <div className="sm:col-span-3 space-y-1">
-                      <Label className="text-xs">Canister</Label>
-                      <Input
-                        value={ls.canister}
-                        onChange={(e) => updateLine(idx, "canister", e.target.value)}
-                        placeholder="Auto-filled"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-3 flex items-center gap-2 pb-2">
+                    <div className="sm:col-span-4 flex items-center gap-2 pb-2">
                       <Checkbox
                         id={`billable-${idx}`}
                         checked={ls.billable}

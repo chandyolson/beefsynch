@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getBullDisplayName } from "@/lib/bullDisplay";
 import { useOrgRole } from "@/hooks/useOrgRole";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -56,6 +56,7 @@ interface Totals {
 const ReceiveShipmentPreview = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { orgId, role } = useOrgRole();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -280,6 +281,7 @@ const ReceiveShipmentPreview = () => {
         title: "Shipment confirmed",
         description: `${result?.total_units ?? 0} units added to inventory`,
       });
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       // Note: we intentionally do NOT setConfirming(false) on success —
       // the page is about to navigate away, and leaving it disabled prevents
       // any straggler click from firing during the navigation transition.

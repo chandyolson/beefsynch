@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageOpen, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,6 +39,7 @@ interface ReturnLine {
 const UnpackTank = () => {
   const { packId } = useParams<{ packId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { orgId } = useOrgRole();
 
   const [returnLines, setReturnLines] = useState<ReturnLine[]>([]);
@@ -203,6 +204,7 @@ const UnpackTank = () => {
       const result = data as { ok?: boolean; pack_id?: string; lines_processed?: number } | null;
       if (!result?.ok) throw new Error("Unpack failed: invalid response from server");
 
+      queryClient.invalidateQueries({ queryKey: ["tank_map"] });
       toast.success("Tank unpacked", { description: "Return slip ready to print." });
       navigate(backPath);
     } catch (err: any) {
