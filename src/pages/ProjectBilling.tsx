@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, Check, Package, PackageOpen, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Printer, ClipboardList, Check, Package, PackageOpen, Trash2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateBillingSheetPdf } from "@/lib/generateBillingSheetPdf";
+import { generateWorksheetPdf } from "@/lib/generateWorksheetPdf";
 import { getBullDisplayName } from "@/lib/bullDisplay";
 import BillingTab from "@/components/billing/BillingTab";
 
@@ -866,6 +867,13 @@ const ProjectBilling = () => {
     toast({ title: "PDF downloaded" });
   }
 
+  function handlePrintWorksheet() {
+    if (!project) return;
+    const firstPack = projectPacks[0] || null;
+    generateWorksheetPdf(project, events, projectBulls, productLines, firstPack);
+    toast({ title: "Worksheet downloaded" });
+  }
+
   /* ── Auto-update AI Service qty + semen line used values from breeding ── */
   const lastTotalUsedRef = useRef<number>(0);
   function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) {
@@ -984,6 +992,9 @@ const ProjectBilling = () => {
             <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
               {STATUS_LABELS[currentStatus] || currentStatus}
             </span>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrintWorksheet} title="Print Worksheet">
+              <ClipboardList className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
               <Printer className="h-4 w-4" />
             </Button>

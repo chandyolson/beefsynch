@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Calendar, FileDown, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
+import { ArrowLeft, Calendar, FileDown, FileText, Download, Pencil, MoreVertical, Star, Trash2, UserCheck, ExternalLink, Loader2, Plus, Package, ClipboardList } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import NewProjectDialog from "@/components/NewProjectDialog";
 import CustomerPicker from "@/components/CustomerPicker";
 import { generateProjectPdf } from "@/lib/generateProjectPdf";
 import { generateProjectCsv } from "@/lib/generateProjectCsv";
+import { generateWorksheetPdf } from "@/lib/generateWorksheetPdf";
 import { getBullDisplayName } from "@/lib/bullDisplay";
 import { buildProjectIcsEvents, generateIcsFile, downloadIcsFile } from "@/lib/generateIcs";
 import {
@@ -689,6 +690,40 @@ const ProjectDetail = () => {
             </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" title="Pack Tank" onClick={() => navigate(`/pack-tank?projectId=${project.id}`)}>
               <Package className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              title="Print Worksheet"
+              onClick={async () => {
+                if (!project) return;
+                const billingRes = await supabase
+                  .from("project_billing")
+                  .select("id")
+                  .eq("project_id", project.id)
+                  .maybeSingle();
+                let products: any[] = [];
+                if (billingRes.data?.id) {
+                  const { data } = await supabase
+                    .from("project_billing_products")
+                    .select("*")
+                    .eq("billing_id", billingRes.data.id)
+                    .order("sort_order");
+                  products = data ?? [];
+                }
+                const { data: packLinks } = await supabase
+                  .from("tank_pack_projects")
+                  .select("tank_packs(id, status, pack_type, field_tank_id, tanks:field_tank_id(id, tank_number, tank_name))")
+                  .eq("project_id", project.id);
+                const firstPack = (packLinks ?? [])
+                  .map((pl: any) => pl.tank_packs)
+                  .find(Boolean) || null;
+                generateWorksheetPdf(project, events, bulls, products, firstPack);
+                toast({ title: "Worksheet downloaded" });
+              }}
+            >
+              <FileText className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" title="Billing Sheet" onClick={() => navigate(`/project/${project.id}/billing`)}>
               <ClipboardList className="h-4 w-4" />
