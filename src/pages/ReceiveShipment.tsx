@@ -599,7 +599,7 @@ const ReceiveShipment = () => {
             groupId: crypto.randomUUID(),
             bullName: item.bulls_catalog?.bull_name ?? item.custom_bull_name ?? "",
             bullCatalogId: item.bull_catalog_id,
-            units: item.units,
+            units: "",
             tankId: "",
             canister: "",
             itemType: "semen" as const,
@@ -742,6 +742,25 @@ const ReceiveShipment = () => {
       return copy;
     });
   };
+
+  const clearUnallocated = () => {
+    const keysToRemove = new Set<string>();
+    for (const group of groups) {
+      const totalUnits = group.items.reduce((s, l) => s + getLineUnits(l.units), 0);
+      if (totalUnits === 0) {
+        for (const item of group.items) keysToRemove.add(item.key);
+      }
+    }
+    if (keysToRemove.size === 0) return;
+    setLines((prev) => {
+      const remaining = prev.filter((l) => !keysToRemove.has(l.key));
+      return remaining.length > 0 ? remaining : [emptyLine()];
+    });
+  };
+
+  const hasUnallocatedGroups = groups.some(
+    (g) => g.bullName && g.items.every((l) => getLineUnits(l.units) === 0)
+  );
 
   const fillFromExistingLocation = (group: BullGroup, loc: ExistingLocation) => {
     const groupLines = group.items;
@@ -903,6 +922,13 @@ const ReceiveShipment = () => {
 
   const getLineIndex = (key: string) => lines.findIndex((l) => l.key === key);
 
+  const getOrderedPlaceholder = (line: LineItem): string => {
+    const key = line.bullCatalogId || line.bullName;
+    if (!key) return "";
+    const qty = orderedQtyMap.get(key);
+    return qty != null ? `of ${qty}` : "";
+  };
+
   const renderAllocationBadge = (group: BullGroup) => {
     const totalAllocated = group.items.reduce((s, l) => s + (typeof l.units === "number" ? l.units : parseInt(String(l.units)) || 0), 0);
     const orderedKey = group.bullCatalogId || group.bullName;
@@ -1062,7 +1088,7 @@ const ReceiveShipment = () => {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Units *</Label>
-                    <Input type="number" min={1} value={line.units} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
+                    <Input type="number" min={1} value={line.units} placeholder={getOrderedPlaceholder(line)} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
                     {errors[`line_${idx}_units`] && <p className="text-xs text-destructive">{errors[`line_${idx}_units`]}</p>}
                   </div>
                 </div>
@@ -1087,7 +1113,7 @@ const ReceiveShipment = () => {
                   {errors[`line_${idx}_canister`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_canister`]}</p>}
                 </div>
                 <div className="w-20">
-                  <Input type="number" min={1} value={line.units} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
+                  <Input type="number" min={1} value={line.units} placeholder={getOrderedPlaceholder(line)} onChange={(e) => updateLine(line.key, { units: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })} />
                   {errors[`line_${idx}_units`] && <p className="text-xs text-destructive mt-1">{errors[`line_${idx}_units`]}</p>}
                 </div>
                 <div className="w-28">
@@ -1459,9 +1485,16 @@ const ReceiveShipment = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Inventory Items</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, emptyLine()])}>
-              <Plus className="h-4 w-4 mr-1" /> Add Bull
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedOrderId && hasUnallocatedGroups && (
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={clearUnallocated}>
+                  <X className="h-4 w-4 mr-1" /> Clear unreceived
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, emptyLine()])}>
+                <Plus className="h-4 w-4 mr-1" /> Add Bull
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {errors.lines && <p className="text-xs text-destructive mb-2">{errors.lines}</p>}
