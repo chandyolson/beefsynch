@@ -1,3 +1,4 @@
+// Deploy pipeline test - Claude Code only - May 5 2026
 import React, { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
