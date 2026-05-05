@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 interface BullRow {
   name: string;
@@ -75,6 +76,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
   const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
+  const [showFulfillmentOverride, setShowFulfillmentOverride] = useState(false);
 
   // Supplies state
   const [supplyLines, setSupplyLines] = useState<{ productId: string; productName: string; quantity: number | ""; unitPrice: number; unitLabel: string; lineTotal: number }[]>([]);
@@ -155,6 +157,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
       setAddingCompany(false);
       setNewCompanyName("");
     }
+    setShowFulfillmentOverride(false);
   }, [open, editData]);
 
   const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "" }]);
@@ -205,7 +208,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
         customer_id: customerId || null,
         order_date: format(orderDate, "yyyy-MM-dd"),
         needed_by: neededBy ? format(neededBy, "yyyy-MM-dd") : null,
-        fulfillment_status: fulfillmentStatus,
+        fulfillment_status: isEditing ? fulfillmentStatus : "pending",
         billing_status: billingStatus,
         project_id: null,
         inventory_owner: orderType === "inventory" ? inventoryOwner : null,
@@ -465,20 +468,41 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType }: NewO
           </div>
 
           {/* Status dropdowns */}
-          <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
-            <Label className="text-right text-sm">Fulfillment</Label>
-            <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="backordered">Backordered</SelectItem>
-                <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
-                <SelectItem value="ordered">Ordered</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="fulfilled">Fulfilled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {isEditing && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Fulfillment</Label>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize text-sm font-medium">
+                  {fulfillmentStatus.replace(/_/g, " ")}
+                </Badge>
+                {!showFulfillmentOverride && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFulfillmentOverride(true)}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Override
+                  </button>
+                )}
+                {showFulfillmentOverride && (
+                  <div className="flex flex-col gap-1 flex-1">
+                    <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="backordered">Backordered</SelectItem>
+                        <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
+                        <SelectItem value="ordered">Ordered</SelectItem>
+                        <SelectItem value="shipped">Shipped</SelectItem>
+                        <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-amber-600">Changing fulfillment status manually will NOT move inventory.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
             <Label className="text-right text-sm">Billing</Label>
             <Select value={billingStatus} onValueChange={setBillingStatus}>
