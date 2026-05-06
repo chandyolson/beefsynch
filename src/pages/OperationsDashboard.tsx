@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
@@ -49,6 +49,13 @@ const OperationsDashboard = () => {
   const [inventoryView, setInventoryView] = useState<"bull" | "tank" | "planning">(
     viewParam === "tank" ? "tank" : viewParam === "planning" ? "planning" : "bull"
   );
+
+  useEffect(() => {
+    const vp = searchParams.get("view");
+    if (vp === "tank") setInventoryView("tank");
+    else if (vp === "planning") setInventoryView("planning");
+    else if (vp === "bull") setInventoryView("bull");
+  }, [searchParams]);
 
   const setTab = (tab: TabKey, extra?: Record<string, string>) => {
     setSearchParams({ tab, ...extra }, { replace: true });
