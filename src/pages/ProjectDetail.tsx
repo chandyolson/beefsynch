@@ -695,7 +695,7 @@ const ProjectDetail = () => {
               variant="outline"
               size="icon"
               className="h-9 w-9"
-              title="Print Worksheet"
+              title="Breeding Worksheet"
               onClick={async () => {
                 if (!project) return;
                 const billingRes = await supabase
@@ -719,7 +719,7 @@ const ProjectDetail = () => {
                 const firstPack = (packLinks ?? [])
                   .map((pl: any) => pl.tank_packs)
                   .find(Boolean) || null;
-                generateWorksheetPdf(project, events, bulls, products, firstPack);
+                generateWorksheetPdf(project, events, bulls, products, firstPack, undefined);
                 toast({ title: "Worksheet downloaded" });
               }}
             >
