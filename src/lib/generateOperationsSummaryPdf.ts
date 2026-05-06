@@ -29,7 +29,7 @@ function deliveryLabel(dm: string | null): string {
 export async function generateOperationsSummaryPdf(orgId: string) {
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, breeding_date, head_count, status, cattle_type, protocol, customer_id, customers(name)")
+    .select("id, name, breeding_date, head_count, status, cattle_type, protocol, customer_id, customers!projects_customer_id_fkey(name)")
     .eq("organization_id", orgId)
     .not("status", "in", '("Work Complete","Invoiced")')
     .order("breeding_date");
