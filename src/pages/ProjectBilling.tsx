@@ -870,8 +870,77 @@ const ProjectBilling = () => {
   function handlePrintWorksheet() {
     if (!project) return;
     const firstPack = projectPacks[0] || null;
-    generateWorksheetPdf(project, events, projectBulls, productLines, firstPack);
-    toast({ title: "Worksheet downloaded" });
+
+    // Filter to breeding-only sessions for the session detail grid
+    const breedOnly = sessions.filter(s => {
+      const label = (s.session_label || "").toLowerCase();
+      return label.includes("breed") || label.includes("ai ") || label === "ai";
+    }).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.session_date.localeCompare(b.session_date));
+
+    // Build per-bull/canister session detail rows from sessionInventory
+    const bullCanisterMap = new Map<string, {
+      bull_name: string; bull_code: string | null; canister: string; packed: number;
+      sessions: Record<number, { start: number | null; end: number | null }>;
+      returned: number | null;
+    }>();
+
+    for (const inv of sessionInventory) {
+      const key = `${inv.bull_catalog_id || inv.bull_name}|${inv.canister}`;
+      if (!bullCanisterMap.has(key)) {
+        // Get packed from semenLines (aggregated) or from the inventory row
+        const semenLine = semenLines.find(sl =>
+          (sl.bull_catalog_id && sl.bull_catalog_id === inv.bull_catalog_id) ||
+          sl.bull_name === inv.bull_name
+        );
+        bullCanisterMap.set(key, {
+          bull_name: inv.bull_name,
+          bull_code: inv.bull_code,
+          canister: inv.canister,
+          packed: 0,
+          sessions: {},
+          returned: null,
+        });
+      }
+      const entry = bullCanisterMap.get(key)!;
+      // Map session_id to its index in breedOnly
+      const sessIdx = breedOnly.findIndex(s => s.id === inv.session_id);
+      if (sessIdx >= 0) {
+        entry.sessions[sessIdx] = { start: inv.start_units, end: inv.end_units };
+      }
+      // Take the max returned and packed we see
+      if (inv.returned_units != null) entry.returned = Math.max(entry.returned ?? 0, inv.returned_units);
+    }
+
+    // Fill packed from semenLines or pack_lines
+    for (const [, entry] of bullCanisterMap) {
+      const sl = semenLines.find(s =>
+        s.bull_name === entry.bull_name || (s.bull_catalog_id && s.bull_code === entry.bull_code)
+      );
+      if (sl?.units_packed) entry.packed = sl.units_packed;
+    }
+
+    const sessionDetailRows = Array.from(bullCanisterMap.values()).sort((a, b) =>
+      a.bull_name.localeCompare(b.bull_name) || a.canister.localeCompare(b.canister, undefined, { numeric: true })
+    );
+
+    generateWorksheetPdf(project, events, projectBulls, productLines, firstPack, {
+      semenLines: semenLines.map(sl => ({
+        bull_name: sl.bull_name,
+        bull_code: sl.bull_code,
+        units_packed: sl.units_packed,
+        units_blown: sl.units_blown,
+        units_billable: sl.units_billable,
+      })),
+      breedingSessions: breedOnly.map(s => ({
+        id: s.id,
+        session_label: s.session_label,
+        session_date: s.session_date,
+        time_of_day: s.time_of_day,
+        sort_order: s.sort_order,
+      })),
+      sessionDetails: sessionDetailRows,
+    });
+    toast({ title: "Breeding worksheet downloaded" });
   }
 
   /* ── Auto-update AI Service qty + semen line used values from breeding ── */
@@ -992,7 +1061,7 @@ const ProjectBilling = () => {
             <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[currentStatus] || "bg-muted text-muted-foreground"}`}>
               {STATUS_LABELS[currentStatus] || currentStatus}
             </span>
-            <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrintWorksheet} title="Print Worksheet">
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrintWorksheet} title="Breeding Worksheet">
               <ClipboardList className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrint} title="Print PDF">
