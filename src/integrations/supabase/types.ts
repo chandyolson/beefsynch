@@ -3027,6 +3027,7 @@ export type Database = {
           company: string | null
           customer_order_count: number | null
           customer_orders: number | null
+          customer_project_needs: number | null
           customer_supply: number | null
           incoming: number | null
           naab_code: string | null
