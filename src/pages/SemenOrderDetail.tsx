@@ -562,20 +562,14 @@ const SemenOrderDetail = () => {
                   />
                 )}
                 {canDirectSale && (
-                  <FulfillOrderDialog
-                    orderId={order.id}
-                    customerName={customerName}
-                    customerId={order.customer_id}
-                    organizationId={orgId!}
-                    lines={directSaleLines}
-                    trigger={
-                      <Button size="sm" variant="outline">
-                        <Package className="h-4 w-4 mr-2" />
-                        Fulfill Order
-                      </Button>
-                    }
-                    onSuccess={() => load()}
-                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/semen-orders/${order.id}/fulfill`)}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Fulfill Order
+                  </Button>
                 )}
                 {order.billing_status === "unbilled" &&
                   ["partially_fulfilled", "fulfilled"].includes(
