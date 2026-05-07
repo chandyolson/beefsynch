@@ -295,11 +295,12 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
 
       const unbilledProjects = (unbilled || []).filter((p: any) => {
         const billing = Array.isArray(p.project_billing) ? p.project_billing[0] : p.project_billing;
-        // Skip if billing is marked complete by ANY indicator
+        // Already stamped as complete
         if (billing?.billing_completed_at) return false;
+        // Billing record says invoiced/closed
         if (billing?.status === "invoiced_closed") return false;
-        // Skip if project is Invoiced AND has an invoice number entered
-        if (p.status === "Invoiced" && (billing?.catl_invoice_number || billing?.select_sires_invoice_number)) return false;
+        // Has invoice numbers — clearly already invoiced
+        if (billing?.catl_invoice_number || billing?.select_sires_invoice_number) return false;
         return true;
       });
 
