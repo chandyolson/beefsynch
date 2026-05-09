@@ -18,7 +18,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getBadgeClass } from "@/lib/badgeStyles";
-import { getBullDisplayName } from "@/lib/bullDisplay";
+import { getBullDisplayName, getBullDisplayLabel } from "@/lib/bullDisplay";
 import ReceivingTab from "@/components/inventory/ReceivingTab";
 
 type ChipFilter = "all" | "open" | "needs_invoice" | "done";
@@ -306,7 +306,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         {items.length > 0 && (
           <div className="space-y-1 pl-0.5">
             {items.map((item: any, idx: number) => {
-              const bullName = getBullDisplayName(item);
+              const bullName = getBullDisplayLabel(item);
               const units = item.units || 0;
               const shortage = isUnfulfilled ? getShortage(item.bull_catalog_id, units) : 0;
               return (

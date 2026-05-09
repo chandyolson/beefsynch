@@ -1,72 +1,65 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Plus, Trash2, CheckCircle2, AlertTriangle, Info, Loader2, Pencil } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle2, AlertTriangle, Lock, Loader2, Printer, Package, Truck,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { getBullDisplayLabel } from "@/lib/bullDisplay";
+import { generatePackingListPdf, type PackingListLine } from "@/lib/generatePackingListPdf";
 
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
-import BullCombobox from "@/components/BullCombobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+
+const SELECT_SIRES_ID = "630b12de-74bc-407a-8ee5-1ea17df18881";
+
+interface OrderRow {
+  id: string;
+  customer_id: string | null;
+  order_date: string | null;
+  order_status: "not_ordered" | "ordered" | "received";
+  fulfillment_status: string;
+  customers: { name: string } | null;
+}
 
 interface OrderItem {
   id: string;
   bull_catalog_id: string | null;
   custom_bull_name: string | null;
   units: number;
-  bulls_catalog: {
-    bull_name: string;
-    naab_code: string | null;
-  } | null;
+  bulls_catalog: { bull_name: string; naab_code: string | null } | null;
 }
 
-interface InventoryLocation {
+interface SourceLocation {
   tank_id: string;
   tank_number: string | number;
   tank_name: string | null;
-  canister: string | null;
+  canister: string;
   units: number;
-  customer_id: string | null;
-  customer_name: string | null;
+  owner_company_id: string | null;
 }
 
-interface PullLine {
-  key: string;
-  bullCatalogId: string | null;
+interface FulfilledHistory {
+  bullKey: string;
   bullName: string;
   bullCode: string | null;
-  sourceTankId: string;
-  sourceCanister: string;
-  sourceCustomerId: string | null;
-  units: string;
-  destinationTankId: string;
-  billable: boolean;
-}
-
-interface ReconciliationItem {
-  bullName: string;
-  bullCode: string | null;
-  ordered: number;
-  pulled: number;
+  units: number;
+  source_tank_label: string;
+  source_canister: string | null;
+  destination_canister: string | null;
+  fulfilled_at: string;
 }
 
 const FulfillOrder = () => {
@@ -77,25 +70,37 @@ const FulfillOrder = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [order, setOrder] = useState<{ id: string; customer_id: string | null; customer_name: string; order_date: string | null; fulfillment_status: string } | null>(null);
+  const [order, setOrder] = useState<OrderRow | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
-  // bullCatalogId (or custom_bull_name) → fulfilled units (from prior direct sales)
+  // bullCatalogId|custom_bull_name → already-fulfilled units
   const [fulfilledByBull, setFulfilledByBull] = useState<Map<string, number>>(new Map());
+  const [history, setHistory] = useState<FulfilledHistory[]>([]);
 
-  const [pullLines, setPullLines] = useState<PullLine[]>([]);
-  const [inventoryByBull, setInventoryByBull] = useState<Record<string, InventoryLocation[]>>({});
   const [customerTanks, setCustomerTanks] = useState<Array<{ id: string; tank_number: string | number; tank_name: string | null }>>([]);
+  const [destTankCanisters, setDestTankCanisters] = useState<string[]>([]);
+  const [destinationMode, setDestinationMode] = useState<"tank" | "pickup">("tank");
+  const [destTankId, setDestTankId] = useState<string>("");
 
-  const [reconciliation, setReconciliation] = useState<{ matched: ReconciliationItem[]; missing: ReconciliationItem[]; extra: ReconciliationItem[] } | null>(null);
-  const [confirmRemoveItemId, setConfirmRemoveItemId] = useState<string | null>(null);
+  // Per-item, per-source-location pull amount (string for raw input).
+  const [pulls, setPulls] = useState<Record<string, Record<string, string>>>({});
+  const [destCanisters, setDestCanisters] = useState<Record<string, string>>({});
+
+  const [inventoryByBull, setInventoryByBull] = useState<Record<string, SourceLocation[]>>({});
+
+  const [lastReceipt, setLastReceipt] = useState<PackingListLine[] | null>(null);
+
+  const sourceKey = (loc: SourceLocation) => `${loc.tank_id}|${loc.canister}`;
+
+  const itemBullKey = (it: OrderItem) => it.bull_catalog_id || `name:${it.custom_bull_name || ""}`;
 
   const load = async () => {
     if (!id) return;
     setLoading(true);
+
     const [{ data: o }, { data: i }, { data: txns }] = await Promise.all([
       supabase
         .from("semen_orders")
-        .select("id, customer_id, order_date, fulfillment_status, customers!semen_orders_customer_id_fkey(name)")
+        .select("id, customer_id, order_date, order_status, fulfillment_status, customers!semen_orders_customer_id_fkey(name)")
         .eq("id", id)
         .single(),
       supabase
@@ -104,9 +109,10 @@ const FulfillOrder = () => {
         .eq("semen_order_id", id),
       supabase
         .from("inventory_transactions")
-        .select("bull_catalog_id, custom_bull_name, units_change")
+        .select("bull_catalog_id, custom_bull_name, units_change, transaction_type, created_at, tank_id, source_canister, destination_canister, tanks!inventory_transactions_tank_id_fkey(tank_number, tank_name)")
         .eq("semen_order_id", id)
-        .eq("transaction_type", "direct_sale"),
+        .in("transaction_type", ["direct_sale", "customer_pickup"])
+        .order("created_at", { ascending: true }),
     ]);
 
     if (!o) {
@@ -115,22 +121,33 @@ const FulfillOrder = () => {
       return;
     }
 
-    setOrder({
-      id: o.id,
-      customer_id: o.customer_id,
-      customer_name: (o as any).customers?.name || "Unknown",
-      order_date: o.order_date,
-      fulfillment_status: o.fulfillment_status,
-    });
+    setOrder(o as unknown as OrderRow);
     setItems((i ?? []) as unknown as OrderItem[]);
 
+    // Walk transactions: only the negative (withdrawal) rows count toward
+    // "fulfilled units"; the positive deposit halves on the destination tank
+    // would double-count.
     const fb = new Map<string, number>();
-    for (const t of txns ?? []) {
-      const k = (t as any).bull_catalog_id || (t as any).custom_bull_name || "";
-      if (!k) continue;
-      fb.set(k, (fb.get(k) || 0) + Math.abs((t as any).units_change || 0));
+    const hist: FulfilledHistory[] = [];
+    for (const t of (txns ?? []) as any[]) {
+      if (t.units_change >= 0) continue;
+      const k = t.bull_catalog_id || `name:${t.custom_bull_name || ""}`;
+      fb.set(k, (fb.get(k) || 0) + Math.abs(t.units_change));
+      hist.push({
+        bullKey: k,
+        bullName: t.custom_bull_name || "",
+        bullCode: null,
+        units: Math.abs(t.units_change),
+        source_tank_label: t.tanks
+          ? (t.tanks.tank_name || `Tank ${t.tanks.tank_number}`)
+          : "Tank",
+        source_canister: t.source_canister,
+        destination_canister: t.destination_canister,
+        fulfilled_at: t.created_at,
+      });
     }
     setFulfilledByBull(fb);
+    setHistory(hist);
 
     if (o.customer_id) {
       const { data: tanks } = await supabase
@@ -138,267 +155,199 @@ const FulfillOrder = () => {
         .select("id, tank_number, tank_name")
         .eq("customer_id", o.customer_id)
         .order("tank_number");
-      setCustomerTanks((tanks ?? []) as Array<{ id: string; tank_number: string | number; tank_name: string | null }>);
+      const list = (tanks ?? []) as Array<{ id: string; tank_number: string | number; tank_name: string | null }>;
+      setCustomerTanks(list);
+      if (list.length > 0 && !destTankId) setDestTankId(list[0].id);
     }
 
     setLoading(false);
   };
 
+  useEffect(() => { load(); }, [id]);
+
+  // Look up company-stock locations for each ordered bull.
   useEffect(() => {
-    load();
-  }, [id]);
+    if (!orgId || items.length === 0) return;
+    (async () => {
+      const next: Record<string, SourceLocation[]> = {};
+      for (const it of items) {
+        if (!it.bull_catalog_id) {
+          next[itemBullKey(it)] = [];
+          continue;
+        }
+        const { data } = await supabase
+          .from("tank_inventory")
+          .select("tank_id, canister, units, owner_company_id, tanks!tank_inventory_tank_id_fkey(tank_number, tank_name)")
+          .eq("organization_id", orgId)
+          .is("customer_id", null)
+          .eq("bull_catalog_id", it.bull_catalog_id)
+          .gt("units", 0)
+          .order("units", { ascending: false });
+        next[itemBullKey(it)] = (data ?? []).map((r: any) => ({
+          tank_id: r.tank_id,
+          tank_number: r.tanks?.tank_number ?? "?",
+          tank_name: r.tanks?.tank_name ?? null,
+          canister: r.canister || "",
+          units: r.units,
+          owner_company_id: r.owner_company_id,
+        }));
+      }
+      setInventoryByBull(next);
+    })();
+  }, [orgId, items]);
 
-  // Fetch inventory for a bull on demand. Cached in inventoryByBull.
-  const ensureInventoryFor = async (bullCatalogId: string | null, bullName: string) => {
-    const key = bullCatalogId || `name:${bullName}`;
-    if (inventoryByBull[key]) return inventoryByBull[key];
-    if (!orgId) return [];
+  // Load existing canisters in the destination tank to suggest in the picker.
+  useEffect(() => {
+    if (!destTankId) { setDestTankCanisters([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("tank_inventory")
+        .select("canister")
+        .eq("tank_id", destTankId)
+        .gt("units", 0);
+      const set = new Set<string>();
+      for (const r of (data ?? []) as any[]) {
+        if (r.canister) set.add(String(r.canister));
+      }
+      const sorted = Array.from(set).sort((a, b) => {
+        const an = parseInt(a, 10); const bn = parseInt(b, 10);
+        return Number.isNaN(an) || Number.isNaN(bn) ? a.localeCompare(b) : an - bn;
+      });
+      setDestTankCanisters(sorted);
+    })();
+  }, [destTankId]);
 
-    let q = supabase
-      .from("tank_inventory")
-      .select("tank_id, canister, units, customer_id, tanks!tank_inventory_tank_id_fkey(tank_number, tank_name), customers!tank_inventory_customer_id_fkey(name)")
-      .eq("organization_id", orgId)
-      .gt("units", 0);
-    if (bullCatalogId) q = q.eq("bull_catalog_id", bullCatalogId);
-    else q = q.eq("custom_bull_name", bullName);
-
-    const { data } = await q;
-    const locs: InventoryLocation[] = (data ?? []).map((row: any) => ({
-      tank_id: row.tank_id,
-      tank_number: row.tanks?.tank_number ?? "?",
-      tank_name: row.tanks?.tank_name ?? null,
-      canister: row.canister,
-      units: row.units,
-      customer_id: row.customer_id,
-      customer_name: row.customers?.name ?? null,
-    }));
-    setInventoryByBull((prev) => ({ ...prev, [key]: locs }));
-    return locs;
+  const ownerLabel = (id: string | null): "Select" | "CATL" | "—" => {
+    if (!id) return "—";
+    return id === SELECT_SIRES_ID ? "Select" : "CATL";
   };
 
-  // ─── Pull line management ────────────────────────────────────────
-  const addPullLine = () => {
-    setPullLines((prev) => [
+  const lineLocked = (it: OrderItem): boolean => {
+    const fulfilled = fulfilledByBull.get(itemBullKey(it)) || 0;
+    return fulfilled >= it.units && it.units > 0;
+  };
+
+  const remainingForItem = (it: OrderItem): number => {
+    const fulfilled = fulfilledByBull.get(itemBullKey(it)) || 0;
+    return Math.max(0, it.units - fulfilled);
+  };
+
+  const sumPulls = (itemId: string): number => {
+    const map = pulls[itemId] || {};
+    let total = 0;
+    for (const v of Object.values(map)) {
+      const n = parseInt(v, 10);
+      if (!Number.isNaN(n) && n > 0) total += n;
+    }
+    return total;
+  };
+
+  const itemStatus = (it: OrderItem): "locked" | "matched" | "partial" | "untouched" => {
+    if (lineLocked(it)) return "locked";
+    const remaining = remainingForItem(it);
+    const sum = sumPulls(it.id);
+    if (sum === 0) return "untouched";
+    if (sum >= remaining) return "matched";
+    return "partial";
+  };
+
+  const hasAnyPulls = useMemo(() => {
+    return items.some((it) => sumPulls(it.id) > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pulls, items]);
+
+  const allMatched = useMemo(() => {
+    const editable = items.filter((it) => !lineLocked(it));
+    return editable.length > 0 && editable.every((it) => sumPulls(it.id) >= remainingForItem(it));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pulls, items, fulfilledByBull]);
+
+  const canFulfill = !saving && hasAnyPulls && (destinationMode === "pickup" || !!destTankId);
+
+  const updatePull = (itemId: string, sourceK: string, value: string) => {
+    setPulls((prev) => ({
       ...prev,
-      {
-        key: crypto.randomUUID(),
-        bullCatalogId: null,
-        bullName: "",
-        bullCode: null,
-        sourceTankId: "",
-        sourceCanister: "",
-        sourceCustomerId: null,
-        units: "",
-        destinationTankId: "",
-        billable: true,
-      },
-    ]);
+      [itemId]: { ...(prev[itemId] || {}), [sourceK]: value },
+    }));
   };
 
-  const removePullLine = (key: string) => {
-    setPullLines((prev) => prev.filter((l) => l.key !== key));
+  const updateDestCanister = (itemId: string, value: string) => {
+    setDestCanisters((prev) => ({ ...prev, [itemId]: value }));
   };
 
-  const updatePullLine = (key: string, patch: Partial<PullLine>) => {
-    setPullLines((prev) => prev.map((l) => l.key === key ? { ...l, ...patch } : l));
-  };
-
-  const handleBullSelect = async (key: string, name: string, catalogId: string | null, naabCode?: string | null) => {
-    updatePullLine(key, {
-      bullCatalogId: catalogId,
-      bullName: name,
-      bullCode: naabCode ?? null,
-      sourceTankId: "",
-      sourceCanister: "",
-      sourceCustomerId: null,
-      units: "",
-    });
-    if (name || catalogId) await ensureInventoryFor(catalogId, name);
-  };
-
-  const handleSourceSelect = (key: string, locKey: string) => {
-    const line = pullLines.find((l) => l.key === key);
-    if (!line) return;
-    const invKey = line.bullCatalogId || `name:${line.bullName}`;
-    const locs = inventoryByBull[invKey] || [];
-    const [tankId, canister] = locKey.split("|");
-    const loc = locs.find((l) => l.tank_id === tankId && (l.canister || "") === (canister || ""));
-    if (!loc) return;
-    const billable = !loc.customer_id; // company stock = billable, customer-owned = not
-    updatePullLine(key, {
-      sourceTankId: loc.tank_id,
-      sourceCanister: loc.canister || "",
-      sourceCustomerId: loc.customer_id,
-      billable,
-    });
-  };
-
-  // ─── Order item management (Section 1) ──────────────────────────
-  const handleEditItemUnits = async (itemId: string, newUnits: number) => {
-    const { error } = await supabase
-      .from("semen_order_items")
-      .update({ units: newUnits })
-      .eq("id", itemId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    setItems((prev) => prev.map((it) => it.id === itemId ? { ...it, units: newUnits } : it));
-    toast({ title: "Order item updated" });
-  };
-
-  const handleRemoveItem = async (itemId: string) => {
-    setConfirmRemoveItemId(null);
-    const { error } = await supabase.from("semen_order_items").delete().eq("id", itemId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    setItems((prev) => prev.filter((it) => it.id !== itemId));
-    toast({ title: "Item removed" });
-  };
-
-  const handleAddItem = async () => {
+  const saveOrderOnly = async () => {
+    // Order itself is unchanged here; this button is for the case where
+    // someone opened the page and changed nothing they wanted persisted.
+    // Just return to detail.
     if (!order) return;
-    const { data, error } = await supabase
-      .from("semen_order_items")
-      .insert({ semen_order_id: order.id, bull_catalog_id: null, custom_bull_name: "", units: 0 })
-      .select("id, bull_catalog_id, custom_bull_name, units, bulls_catalog(bull_name, naab_code)")
-      .single();
-    if (error || !data) {
-      toast({ title: "Error", description: error?.message ?? "Could not add item", variant: "destructive" });
-      return;
-    }
-    setItems((prev) => [...prev, data as unknown as OrderItem]);
+    navigate(`/semen-orders/${order.id}`);
   };
 
-  const handleEditItemBull = async (itemId: string, name: string, catalogId: string | null) => {
-    const update = catalogId
-      ? { bull_catalog_id: catalogId, custom_bull_name: null }
-      : { bull_catalog_id: null, custom_bull_name: name };
-    const { error } = await supabase
-      .from("semen_order_items")
-      .update(update)
-      .eq("id", itemId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    // Re-fetch to refresh the joined bulls_catalog row
-    await load();
-  };
-
-  // ─── Submit ──────────────────────────────────────────────────────
-  const canSubmit = pullLines.length > 0 && pullLines.every((l) =>
-    l.sourceTankId && parseInt(l.units) > 0
-  );
-
-  const handleSubmit = async () => {
+  const fulfill = async () => {
     if (!order) return;
     setSaving(true);
 
-    const successPulls: { bullCatalogId: string | null; bullName: string; bullCode: string | null; units: number }[] = [];
-    let errorCount = 0;
+    // Build the lines payload + receipt for the packing list.
+    const lines: any[] = [];
+    const receipt: PackingListLine[] = [];
 
-    for (const line of pullLines) {
-      const units = parseInt(line.units);
-      if (!line.sourceTankId || !units || units <= 0) continue;
-
-      const { error } = await supabase.rpc("record_direct_sale", {
-        _input: {
-          order_id: order.id,
-          source_tank_id: line.sourceTankId,
-          units,
-          bull_catalog_id: line.bullCatalogId || null,
-          bull_code: line.bullCode || null,
-          bull_name: line.bullName || null,
-          source_canister: line.sourceCanister || null,
-          is_billable: line.billable,
-          notes: "Fulfilled via Pull Ticket",
-          destination_tank_id: line.destinationTankId || null,
-        },
-      });
-
-      if (error) {
-        errorCount++;
-        toast({
-          title: `Error: ${line.bullName}`,
-          description: error.message,
-          variant: "destructive",
+    for (const it of items) {
+      if (lineLocked(it) || !it.bull_catalog_id) continue;
+      const map = pulls[it.id] || {};
+      const locs = inventoryByBull[itemBullKey(it)] || [];
+      for (const loc of locs) {
+        const raw = map[sourceKey(loc)];
+        const n = parseInt(raw || "", 10);
+        if (Number.isNaN(n) || n <= 0) continue;
+        const destCan = destinationMode === "tank"
+          ? (destCanisters[it.id]?.trim() || "1")
+          : null;
+        lines.push({
+          bull_catalog_id: it.bull_catalog_id,
+          source_tank_id: loc.tank_id,
+          source_canister: loc.canister || null,
+          pull_units: n,
+          dest_canister: destCan,
         });
-      } else {
-        successPulls.push({
-          bullCatalogId: line.bullCatalogId,
-          bullName: line.bullName,
-          bullCode: line.bullCode,
-          units,
+        receipt.push({
+          bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown",
+          bull_code: it.bulls_catalog?.naab_code || null,
+          units: n,
+          source_tank_label: loc.tank_name ? `${loc.tank_number} — ${loc.tank_name}` : String(loc.tank_number),
+          source_canister: loc.canister || null,
+          destination_canister: destinationMode === "tank" ? destCan : null,
+          bills_through: ownerLabel(loc.owner_company_id),
         });
       }
     }
 
-    setSaving(false);
-
-    if (successPulls.length === 0) {
-      return; // Nothing succeeded; user can fix and retry.
+    if (lines.length === 0) {
+      toast({ title: "Nothing to fulfill", description: "Enter pull amounts first." });
+      setSaving(false);
+      return;
     }
 
-    // Build reconciliation. Compare the order items to actual pulls + prior fulfilled.
+    const { data, error } = await supabase.rpc("fulfill_order_lines" as any, {
+      _order_id: order.id,
+      _lines: lines as any,
+      _dest_tank_id: destinationMode === "tank" ? destTankId : null,
+      _is_pickup: destinationMode === "pickup",
+    });
+
+    if (error) {
+      toast({ title: "Fulfillment failed", description: error.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
+
+    const result = data as { lines_processed?: number } | null;
+    toast({ title: "Order fulfilled", description: `${result?.lines_processed ?? lines.length} pull line(s) processed` });
+    setLastReceipt(receipt);
+    setPulls({});
     await load();
-    const pulledByKey = new Map<string, number>();
-    for (const p of successPulls) {
-      const k = p.bullCatalogId || p.bullName;
-      pulledByKey.set(k, (pulledByKey.get(k) || 0) + p.units);
-    }
-
-    // Re-read the latest fulfilledByBull (after reload)
-    const { data: txns } = await supabase
-      .from("inventory_transactions")
-      .select("bull_catalog_id, custom_bull_name, units_change")
-      .eq("semen_order_id", order.id)
-      .eq("transaction_type", "direct_sale");
-    const totalPulledByKey = new Map<string, number>();
-    for (const t of txns ?? []) {
-      const k = (t as any).bull_catalog_id || (t as any).custom_bull_name || "";
-      if (!k) continue;
-      totalPulledByKey.set(k, (totalPulledByKey.get(k) || 0) + Math.abs((t as any).units_change || 0));
-    }
-
-    const matched: ReconciliationItem[] = [];
-    const missing: ReconciliationItem[] = [];
-    const orderKeys = new Set<string>();
-    for (const it of items) {
-      const k = it.bull_catalog_id || it.custom_bull_name || "";
-      orderKeys.add(k);
-      const pulled = totalPulledByKey.get(k) || 0;
-      const recItem: ReconciliationItem = {
-        bullName: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown",
-        bullCode: it.bulls_catalog?.naab_code || null,
-        ordered: it.units,
-        pulled,
-      };
-      if (pulled >= it.units) matched.push(recItem);
-      else missing.push(recItem);
-    }
-    const extra: ReconciliationItem[] = [];
-    for (const [k, units] of totalPulledByKey.entries()) {
-      if (orderKeys.has(k)) continue;
-      const fromPulls = successPulls.find((p) => (p.bullCatalogId || p.bullName) === k);
-      extra.push({
-        bullName: fromPulls?.bullName || "Unknown bull",
-        bullCode: fromPulls?.bullCode || null,
-        ordered: 0,
-        pulled: units,
-      });
-    }
-
-    setReconciliation({ matched, missing, extra });
-    setPullLines([]);
-    if (errorCount === 0) {
-      toast({ title: `${successPulls.length} pull line(s) processed` });
-    }
+    setSaving(false);
   };
 
-  // ─── Render ──────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
@@ -414,6 +363,20 @@ const FulfillOrder = () => {
     );
   }
 
+  const customerName = order.customers?.name || "Unknown";
+  const orderedTotal = items.reduce((s, i) => s + (i.units || 0), 0);
+  const fulfilledTotal = items.reduce((s, i) => s + (fulfilledByBull.get(itemBullKey(i)) || 0), 0);
+  const lockedItems = items.filter(lineLocked).length;
+
+  const fulfillLabel = (() => {
+    if (saving) return "Fulfilling…";
+    if (!hasAnyPulls) return "Fulfill order — fill in pull amounts first";
+    if (allMatched) return "Fulfill order";
+    const editable = items.filter((it) => !lineLocked(it));
+    const filled = editable.filter((it) => sumPulls(it.id) > 0).length;
+    return `Fulfill available (${filled} of ${editable.length} bulls)`;
+  })();
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -425,311 +388,251 @@ const FulfillOrder = () => {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight">Fulfill Order — {order.customer_name}</h1>
+          <h1 className="text-2xl font-bold font-display tracking-tight">Fulfill Order — {customerName}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Order Date: {order.order_date ? format(parseISO(order.order_date), "MMMM d, yyyy") : "—"} · Status: {order.fulfillment_status.replace(/_/g, " ")}
           </p>
+          {orderedTotal > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {fulfilledTotal} of {orderedTotal} units already fulfilled
+              {lockedItems > 0 && ` · ${lockedItems} bull line(s) locked`}
+            </p>
+          )}
         </div>
 
-        {/* SECTION 1 — Order reference */}
+        {/* Destination */}
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">Order reference</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleAddItem}>
-              <Plus className="h-4 w-4 mr-1" /> Add item
-            </Button>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Destination</CardTitle>
           </CardHeader>
-          <CardContent>
-            {items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No items on this order.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bull</TableHead>
-                    <TableHead className="text-right w-32">Ordered</TableHead>
-                    <TableHead className="text-right w-32">Fulfilled</TableHead>
-                    <TableHead className="w-32">Status</TableHead>
-                    <TableHead className="w-20" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((it) => {
-                    const k = it.bull_catalog_id || it.custom_bull_name || "";
-                    const fulfilled = fulfilledByBull.get(k) || 0;
-                    const status = fulfilled >= it.units && it.units > 0
-                      ? "fulfilled"
-                      : fulfilled > 0
-                        ? "partial"
-                        : "pending";
-                    return (
-                      <TableRow key={it.id}>
-                        <TableCell>
-                          <div className="font-medium text-sm">{getBullDisplayLabel(it)}</div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            className="h-7 w-20 text-right text-sm ml-auto"
-                            defaultValue={it.units}
-                            onBlur={(e) => {
-                              const v = parseInt(e.target.value) || 0;
-                              if (v !== it.units) handleEditItemUnits(it.id, v);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
-                          {fulfilled}
-                        </TableCell>
-                        <TableCell>
-                          {status === "fulfilled" && (
-                            <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-xs">
-                              <CheckCircle2 className="h-3 w-3 mr-1" /> Fulfilled
-                            </Badge>
-                          )}
-                          {status === "partial" && (
-                            <Badge variant="outline" className="text-xs">
-                              {fulfilled} of {it.units}
-                            </Badge>
-                          )}
-                          {status === "pending" && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                              Pending
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setConfirmRemoveItemId(it.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+          <CardContent className="space-y-4">
+            <RadioGroup value={destinationMode} onValueChange={(v) => setDestinationMode(v as "tank" | "pickup")} className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="tank" id="dest-tank" />
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Pack into customer tank</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="pickup" id="dest-pickup" />
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Customer pickup (semen leaves inventory)</span>
+              </label>
+            </RadioGroup>
+
+            {destinationMode === "tank" && (
+              <div className="space-y-1 max-w-md">
+                <Label className="text-xs">Destination tank</Label>
+                {customerTanks.length === 0 ? (
+                  <p className="text-xs text-destructive">
+                    {customerName} has no tanks on file. Add one before packing.
+                  </p>
+                ) : (
+                  <Select value={destTankId} onValueChange={setDestTankId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {customerTanks.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.tank_name ? `${t.tank_number} — ${t.tank_name}` : String(t.tank_number)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* SECTION 2 — Pull ticket */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <div>
-              <CardTitle className="text-base">Pull ticket</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Add a line for each tank pull. Lines process independently; if one fails, the others still go through.
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={addPullLine}>
-              <Plus className="h-4 w-4 mr-1" /> Add pull line
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {pullLines.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                No pull lines yet. Click "Add pull line" to record what's actually being pulled.
-              </p>
-            ) : (
-              pullLines.map((line) => {
-                const invKey = line.bullCatalogId || `name:${line.bullName}`;
-                const locations = inventoryByBull[invKey] || [];
-                const orderItem = items.find((it) =>
-                  (it.bull_catalog_id && it.bull_catalog_id === line.bullCatalogId) ||
-                  (!it.bull_catalog_id && it.custom_bull_name === line.bullName)
-                );
-                const orderedUnits = orderItem?.units ?? null;
-                const fulfilledForThis = orderItem ? (fulfilledByBull.get(orderItem.bull_catalog_id || orderItem.custom_bull_name || "") || 0) : 0;
-                const selectedLocKey = line.sourceTankId ? `${line.sourceTankId}|${line.sourceCanister || ""}` : "";
-                const selectedLoc = locations.find((l) => l.tank_id === line.sourceTankId && (l.canister || "") === (line.sourceCanister || ""));
-                const otherCustomerWarning = !!(selectedLoc?.customer_id && order.customer_id && selectedLoc.customer_id !== order.customer_id);
-
-                return (
-                  <div key={line.key} className="border border-border/40 rounded-lg p-3 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 space-y-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Bull</Label>
-                          <BullCombobox
-                            value={line.bullName}
-                            catalogId={line.bullCatalogId}
-                            onChange={(n, c, code) => handleBullSelect(line.key, n, c, code)}
-                          />
-                          {(line.bullName || line.bullCatalogId) && (
-                            <div className="text-xs text-muted-foreground">
-                              {orderedUnits != null
-                                ? <>Order calls for {orderedUnits} · {fulfilledForThis} of {orderedUnits} fulfilled so far</>
-                                : <>Not on this order — will be added as an extra pull</>
-                              }
-                            </div>
-                          )}
-                        </div>
-
-                        {(line.bullName || line.bullCatalogId) && (
-                          <div className="space-y-1">
-                            <Label className="text-xs">Source tank</Label>
-                            {locations.length === 0 ? (
-                              <p className="text-xs text-destructive">No inventory found for this bull.</p>
-                            ) : (
-                              <Select value={selectedLocKey} onValueChange={(v) => handleSourceSelect(line.key, v)}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select source location" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {locations.map((loc) => {
-                                    const otherCust = !!(loc.customer_id && order.customer_id && loc.customer_id !== order.customer_id);
-                                    const lk = `${loc.tank_id}|${loc.canister || ""}`;
-                                    const tankLabel = loc.tank_name ? `${loc.tank_number} — ${loc.tank_name}` : String(loc.tank_number);
-                                    const ownerLabel = loc.customer_id
-                                      ? (loc.customer_id === order.customer_id ? "this customer" : loc.customer_name || "different customer")
-                                      : "company";
-                                    return (
-                                      <SelectItem key={lk} value={lk} disabled={otherCust}>
-                                        {tankLabel}{loc.canister ? ` · can ${loc.canister}` : ""} — {loc.units}u ({ownerLabel}{otherCust ? " — locked" : ""})
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            {otherCustomerWarning && (
-                              <p className="text-xs text-destructive">
-                                This tank belongs to a different customer. Pick another source.
-                              </p>
-                            )}
+        {/* Bull lines */}
+        {items.length === 0 ? (
+          <Card><CardContent className="py-6 text-sm text-muted-foreground text-center">No items on this order.</CardContent></Card>
+        ) : (
+          <div className="space-y-3">
+            {items.map((it) => {
+              const status = itemStatus(it);
+              const remaining = remainingForItem(it);
+              const fulfilled = fulfilledByBull.get(itemBullKey(it)) || 0;
+              const locs = inventoryByBull[itemBullKey(it)] || [];
+              const sum = sumPulls(it.id);
+              const cardBorder =
+                status === "matched" ? "border-emerald-500/50" :
+                status === "partial" ? "border-amber-500/50" :
+                status === "locked" ? "border-border/30" :
+                "border-border/40";
+              return (
+                <Card key={it.id} className={cardBorder + " border"}>
+                  <CardContent className="py-3 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {status === "matched" && <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />}
+                        {status === "partial" && <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}
+                        {status === "locked" && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        {status === "untouched" && <span className="h-5 w-5 rounded-full border-2 border-muted-foreground/40 inline-block shrink-0" />}
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{getBullDisplayLabel(it)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {status === "locked"
+                              ? `Fulfilled — ${fulfilled} of ${it.units}`
+                              : status === "matched"
+                                ? `Pulled ${sum} of ${remaining}`
+                                : status === "partial"
+                                  ? `Pulled ${sum} of ${remaining}`
+                                  : `Need ${remaining}`}
                           </div>
-                        )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        need {remaining}
+                      </Badge>
+                    </div>
 
-                        {line.sourceTankId && (
-                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                            <div className="sm:col-span-3 space-y-1">
-                              <Label className="text-xs">Units</Label>
+                    {status === "locked" ? (
+                      <p className="text-xs text-muted-foreground italic pl-7">
+                        This bull was already fulfilled in a previous fulfillment.
+                      </p>
+                    ) : !it.bull_catalog_id ? (
+                      <p className="text-xs text-muted-foreground italic pl-7">
+                        Custom bull (no catalog link) — pull from inventory not supported.
+                      </p>
+                    ) : locs.length === 0 ? (
+                      <p className="text-xs text-destructive pl-7">
+                        No company inventory found for this bull.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 pl-7">
+                        <Label className="text-xs text-muted-foreground">Pulling from</Label>
+                        {locs.map((loc) => {
+                          const k = sourceKey(loc);
+                          const value = pulls[it.id]?.[k] ?? "";
+                          const has = parseInt(value, 10) > 0;
+                          return (
+                            <div key={k} className={`flex items-center gap-3 text-sm ${has ? "bg-emerald-500/10 rounded-md px-2 py-1" : "px-2 py-1"}`}>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate">
+                                  {loc.tank_name ? `${loc.tank_number} — ${loc.tank_name}` : String(loc.tank_number)}
+                                  {loc.canister && <span className="text-muted-foreground"> · can {loc.canister}</span>}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {loc.units} available
+                                  {loc.owner_company_id && (
+                                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                                      {ownerLabel(loc.owner_company_id)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-muted-foreground">→</span>
                               <Input
-                                type="number"
-                                min={1}
-                                value={line.units}
-                                placeholder={selectedLoc ? `${selectedLoc.units} available` : ""}
-                                onChange={(e) => updatePullLine(line.key, { units: e.target.value })}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="h-8 w-20 text-right text-sm"
+                                placeholder="0"
+                                value={value}
+                                onChange={(e) => updatePull(it.id, k, e.target.value.replace(/[^0-9]/g, ""))}
                               />
                             </div>
-                            <div className="sm:col-span-6 space-y-1">
-                              <Label className="text-xs">Destination tank (optional)</Label>
-                              <Select
-                                value={line.destinationTankId || "none"}
-                                onValueChange={(v) => updatePullLine(line.key, { destinationTankId: v === "none" ? "" : v })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="None — don't track destination" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">None — don't track destination</SelectItem>
-                                  {customerTanks.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                      {t.tank_name ? `${t.tank_number} — ${t.tank_name}` : String(t.tank_number)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="sm:col-span-3 flex items-center gap-2 pb-2">
-                              <Checkbox
-                                id={`bill-${line.key}`}
-                                checked={line.billable}
-                                onCheckedChange={(c) => updatePullLine(line.key, { billable: !!c })}
-                              />
-                              <Label htmlFor={`bill-${line.key}`} className="text-xs cursor-pointer">
-                                Billable
-                              </Label>
-                            </div>
+                          );
+                        })}
+
+                        {destinationMode === "tank" && sumPulls(it.id) > 0 && (
+                          <div className="flex items-center gap-2 text-xs pt-1">
+                            <Label className="text-xs text-muted-foreground">Into canister</Label>
+                            <Input
+                              type="text"
+                              className="h-8 w-24 text-sm"
+                              placeholder={destTankCanisters[0] ?? "1"}
+                              list={`dest-cans-${it.id}`}
+                              value={destCanisters[it.id] ?? ""}
+                              onChange={(e) => updateDestCanister(it.id, e.target.value)}
+                            />
+                            <datalist id={`dest-cans-${it.id}`}>
+                              {destTankCanisters.map((c) => (
+                                <option key={c} value={c} />
+                              ))}
+                            </datalist>
+                            {destTankCanisters.length > 0 && (
+                              <span className="text-muted-foreground">
+                                existing: {destTankCanisters.join(", ")}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
-                        onClick={() => removePullLine(line.key)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => navigate(`/semen-orders/${order.id}`)}>
-            Done
+        {/* Action row */}
+        <div className="flex items-center justify-end gap-2 pb-4">
+          <Button variant="outline" onClick={saveOrderOnly} disabled={saving}>
+            Save order only
           </Button>
-          <Button onClick={handleSubmit} disabled={saving || !canSubmit}>
+          <Button onClick={fulfill} disabled={!canFulfill}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            Complete fulfillment
+            {fulfillLabel}
           </Button>
         </div>
 
-        {reconciliation && (
+        {lastReceipt && (
+          <Card className="border-emerald-500/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Packing list ready
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                {lastReceipt.length} pull line(s) recorded. Print or download the packing list for the customer.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => generatePackingListPdf({
+                    customerName,
+                    orderDate: order.order_date,
+                    fulfilledAt: new Date().toISOString(),
+                    destinationTank: destinationMode === "tank"
+                      ? customerTanks.find((t) => t.id === destTankId) ?? null
+                      : null,
+                    isPickup: destinationMode === "pickup",
+                    lines: lastReceipt,
+                  })}
+                >
+                  <Printer className="h-4 w-4 mr-1" /> Download PDF
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setLastReceipt(null)}>
+                  Done
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {history.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Reconciliation summary</CardTitle>
+              <CardTitle className="text-base text-muted-foreground">Previous fulfillments</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {reconciliation.matched.map((r, i) => (
-                <div key={`m-${i}`} className="flex items-center gap-2 text-sm text-emerald-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Matched: {r.bullName}{r.bullCode ? ` (${r.bullCode})` : ""} — ordered {r.ordered}, pulled {r.pulled}
+            <CardContent className="text-sm space-y-1">
+              {history.map((h, idx) => (
+                <div key={idx} className="text-xs text-muted-foreground">
+                  {format(parseISO(h.fulfilled_at), "MMM d, yyyy h:mm a")} ·
+                  {" "}{h.units} units from {h.source_tank_label}
+                  {h.source_canister && ` can ${h.source_canister}`}
+                  {h.destination_canister && ` → can ${h.destination_canister}`}
                 </div>
               ))}
-              {reconciliation.missing.map((r, i) => (
-                <div key={`x-${i}`} className="flex items-center gap-2 text-sm text-amber-700">
-                  <AlertTriangle className="h-4 w-4" />
-                  Not pulled: {r.bullName}{r.bullCode ? ` (${r.bullCode})` : ""} — ordered {r.ordered}, pulled {r.pulled}
-                </div>
-              ))}
-              {reconciliation.extra.map((r, i) => (
-                <div key={`e-${i}`} className="flex items-center gap-2 text-sm text-blue-700">
-                  <Info className="h-4 w-4" />
-                  Extra: {r.bullName}{r.bullCode ? ` (${r.bullCode})` : ""} — not on order, pulled {r.pulled}
-                </div>
-              ))}
-              {reconciliation.matched.length === 0 && reconciliation.missing.length === 0 && reconciliation.extra.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nothing pulled.</p>
-              )}
             </CardContent>
           </Card>
         )}
       </main>
-
-      <AlertDialog open={!!confirmRemoveItemId} onOpenChange={(o) => !o && setConfirmRemoveItemId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this item from the order?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This deletes the line from the order. Any units already pulled stay deducted from inventory.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => confirmRemoveItemId && handleRemoveItem(confirmRemoveItemId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AppFooter />
     </div>
   );
