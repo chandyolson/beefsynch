@@ -1268,7 +1268,10 @@ const SemenOrderDetail = () => {
           open={receiveOpen}
           onOpenChange={setReceiveOpen}
           orderId={id}
+          orderType={order.order_type}
+          semenCompanyId={order.semen_company_id}
           semenCompanyName={companyName}
+          customerId={order.customer_id}
           items={items.map((i) => ({
             id: i.id,
             units: i.units,
@@ -1276,6 +1279,7 @@ const SemenOrderDetail = () => {
             item_status: i.item_status ?? "pending",
             bull_name: getBullDisplayName(i),
             naab_code: i.bulls_catalog?.naab_code ?? null,
+            bull_catalog_id: i.bull_catalog_id,
           }))}
           onReceived={() => load()}
         />
