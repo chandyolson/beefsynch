@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
   Search, Archive, Users, Building2, Dna, FileText, FileSpreadsheet, ArrowUpDown,
   Truck, ChevronDown, ChevronUp, MoreHorizontal, Pencil, ClipboardList, Package,
+  ArrowUpRight, ArrowDownLeft,
 } from "lucide-react";
 import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 
@@ -200,42 +201,72 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
   // PostgREST's URL length cap can't take ~1k UUIDs and the request fails
   // silently. RLS + the org-scoped projects/orders embeds keep the result
   // size sane.
-  const { data: bullActivity = { projects: {}, orders: {}, projectUnits: {}, orderUnits: {} } } = useQuery({
-    queryKey: ["inventory_bull_activity", orgId],
+  // Three-category activity summary per catalog bull:
+  //  - customerOrders: outbound (order_type=customer)
+  //  - inventoryOrders: inbound POs (order_type=inventory) — "incoming"
+  //  - projects: bulls allocated to active synchronization projects
+  type Activity = {
+    customerOrders: Record<string, { count: number; units: number; headCount: number }>;
+    inventoryOrders: Record<string, { count: number; unitsPending: number }>;
+    projects: Record<string, { count: number; headCount: number; units: number }>;
+  };
+  const { data: bullActivity = {
+    customerOrders: {},
+    inventoryOrders: {},
+    projects: {},
+  } as Activity } = useQuery<Activity>({
+    queryKey: ["inventory_bull_activity_v2", orgId],
     enabled: !!orgId,
     queryFn: async () => {
-      const projects: Record<string, number> = {};
-      const orders: Record<string, number> = {};
-      const projectUnits: Record<string, number> = {};
-      const orderUnits: Record<string, number> = {};
+      const customerOrders: Activity["customerOrders"] = {};
+      const inventoryOrders: Activity["inventoryOrders"] = {};
+      const projects: Activity["projects"] = {};
       const [projRes, ordRes] = await Promise.all([
         supabase
           .from("project_bulls")
-          .select("bull_catalog_id, units, projects!inner(status, organization_id)")
+          .select("bull_catalog_id, units, projects!inner(status, head_count, organization_id)")
           .eq("projects.organization_id", orgId!)
           .not("bull_catalog_id", "is", null),
         supabase
           .from("semen_order_items")
-          .select("bull_catalog_id, units, units_received, item_status, semen_orders!inner(fulfillment_status, organization_id)")
+          .select("bull_catalog_id, units, units_received, item_status, semen_orders!inner(order_type, fulfillment_status, organization_id)")
           .eq("semen_orders.organization_id", orgId!)
           .not("bull_catalog_id", "is", null),
       ]);
+
       for (const r of (projRes.data ?? []) as any[]) {
         const status = r.projects?.status;
         if (status === "Work Complete" || status === "Invoiced") continue;
-        projects[r.bull_catalog_id] = (projects[r.bull_catalog_id] ?? 0) + 1;
-        projectUnits[r.bull_catalog_id] = (projectUnits[r.bull_catalog_id] ?? 0) + (r.units ?? 0);
+        const k = r.bull_catalog_id as string;
+        const cur = projects[k] ?? { count: 0, headCount: 0, units: 0 };
+        cur.count += 1;
+        cur.headCount += r.projects?.head_count ?? 0;
+        cur.units += r.units ?? 0;
+        projects[k] = cur;
       }
+
       const TERMINAL_ITEM = new Set(["cancelled", "fulfilled", "received"]);
-      const TERMINAL_ORDER = new Set(["cancelled", "fulfilled"]);
+      const TERMINAL_ORDER = new Set(["cancelled", "fulfilled", "delivered"]);
       for (const r of (ordRes.data ?? []) as any[]) {
         if (TERMINAL_ITEM.has(r.item_status)) continue;
-        if (TERMINAL_ORDER.has(r.semen_orders?.fulfillment_status)) continue;
-        orders[r.bull_catalog_id] = (orders[r.bull_catalog_id] ?? 0) + 1;
-        const remaining = Math.max(0, (r.units ?? 0) - (r.units_received ?? 0));
-        orderUnits[r.bull_catalog_id] = (orderUnits[r.bull_catalog_id] ?? 0) + remaining;
+        const fs = r.semen_orders?.fulfillment_status;
+        if (TERMINAL_ORDER.has(fs)) continue;
+        const k = r.bull_catalog_id as string;
+        const orderType = r.semen_orders?.order_type;
+        if (orderType === "customer") {
+          const cur = customerOrders[k] ?? { count: 0, units: 0, headCount: 0 };
+          cur.count += 1;
+          cur.units += r.units ?? 0;
+          customerOrders[k] = cur;
+        } else if (orderType === "inventory") {
+          const cur = inventoryOrders[k] ?? { count: 0, unitsPending: 0 };
+          cur.count += 1;
+          cur.unitsPending += Math.max(0, (r.units ?? 0) - (r.units_received ?? 0));
+          inventoryOrders[k] = cur;
+        }
       }
-      return { projects, orders, projectUnits, orderUnits };
+
+      return { customerOrders, inventoryOrders, projects };
     },
   });
 
@@ -259,7 +290,7 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
           .eq("bull_catalog_id", id),
         supabase
           .from("semen_order_items")
-          .select("units, units_received, item_status, semen_orders!inner(id, order_date, fulfillment_status, customers!semen_orders_customer_id_fkey(name))")
+          .select("units, units_received, item_status, semen_orders!inner(id, order_type, order_date, fulfillment_status, placed_by, semen_company_id, customers!semen_orders_customer_id_fkey(name), semen_companies!semen_orders_semen_company_id_fkey(name))")
           .eq("bull_catalog_id", id),
       ]);
       const projects = (projRes.data ?? []).filter((r: any) => {
@@ -267,11 +298,13 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
         return s !== "Work Complete" && s !== "Invoiced";
       });
       const TERMINAL_ITEM = new Set(["cancelled", "fulfilled", "received"]);
-      const TERMINAL_ORDER = new Set(["cancelled", "fulfilled"]);
-      const orders = (ordRes.data ?? []).filter((r: any) =>
+      const TERMINAL_ORDER = new Set(["cancelled", "fulfilled", "delivered"]);
+      const allOpenOrders = (ordRes.data ?? []).filter((r: any) =>
         !TERMINAL_ITEM.has(r.item_status) && !TERMINAL_ORDER.has(r.semen_orders?.fulfillment_status),
       );
-      return { projects, orders };
+      const customerOrders = allOpenOrders.filter((r: any) => r.semen_orders?.order_type === "customer");
+      const inventoryOrders = allOpenOrders.filter((r: any) => r.semen_orders?.order_type === "inventory");
+      return { projects, customerOrders, inventoryOrders };
     },
   });
 
@@ -694,21 +727,26 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                       const ownerDisplay = row.owner || row.customer;
                       const isZero = row.units === 0;
                       const subCanSuffix = row.subCanister && row.subCanister !== "—" ? ` / ${row.subCanister}` : "";
-                      const projCount = row.bullCatalogId ? bullActivity.projects[row.bullCatalogId] ?? 0 : 0;
-                      const ordCount = row.bullCatalogId ? bullActivity.orders[row.bullCatalogId] ?? 0 : 0;
-                      const pendingUnits = row.bullCatalogId
-                        ? (bullActivity.projectUnits[row.bullCatalogId] ?? 0) +
-                          (bullActivity.orderUnits[row.bullCatalogId] ?? 0)
-                        : 0;
-                      const isExpanded = !!expandedRow && expandedRow.startsWith(`${row.id}:`);
-                      const expandedSection = isExpanded ? expandedRow!.split(":")[1] : null;
-                      const togglePill = (section: "projects" | "orders") => {
-                        const key = `${row.id}:${section}`;
-                        setExpandedRow((cur) => (cur === key ? null : key));
+                      const cust = row.bullCatalogId ? bullActivity.customerOrders[row.bullCatalogId] : undefined;
+                      const inv = row.bullCatalogId ? bullActivity.inventoryOrders[row.bullCatalogId] : undefined;
+                      const proj = row.bullCatalogId ? bullActivity.projects[row.bullCatalogId] : undefined;
+                      const hasActivity = !!(cust || inv || proj);
+                      const pendingUnits = (proj?.units ?? 0) + (cust?.units ?? 0);
+                      const isExpanded = expandedRow === row.id;
+                      const toggleRow = () => {
+                        if (!hasActivity) return;
+                        setExpandedRow((cur) => (cur === row.id ? null : row.id));
                       };
                       return (
                         <Fragment key={row.id}>
-                        <TableRow className={cn("hover:bg-muted/20", isZero && "opacity-60")}>
+                        <TableRow
+                          className={cn(
+                            "hover:bg-muted/20",
+                            isZero && "opacity-60",
+                            hasActivity && "cursor-pointer",
+                          )}
+                          onClick={hasActivity ? toggleRow : undefined}
+                        >
                           <TableCell className="align-top">
                             <div className="font-medium truncate flex items-center gap-1" title={row.bullName}>
                               <span className="truncate">{row.bullName}</span>
@@ -721,39 +759,39 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                                   <Pencil className="h-3 w-3" />
                                 </button>
                               )}
+                              {hasActivity && (
+                                isExpanded
+                                  ? <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                              )}
                             </div>
                             <div className="text-xs font-mono text-muted-foreground truncate" title={row.bullCode}>{row.bullCode}</div>
-                            {(projCount > 0 || ordCount > 0) && (
-                              <div className="mt-1.5 flex gap-1.5 flex-wrap">
-                                {projCount > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); togglePill("projects"); }}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors",
-                                      "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/25",
-                                      isExpanded && expandedSection === "projects" && "ring-1 ring-blue-500",
-                                    )}
-                                  >
-                                    <ClipboardList className="h-3 w-3" />
-                                    {projCount} project{projCount === 1 ? "" : "s"}
-                                  </button>
+                            {hasActivity ? (
+                              <div className="mt-1 text-[11px] flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                {cust && (
+                                  <span style={{ color: "#D85A30" }}>
+                                    {cust.count} customer order{cust.count === 1 ? "" : "s"} ({cust.units} units)
+                                  </span>
                                 )}
-                                {ordCount > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); togglePill("orders"); }}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors",
-                                      "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25",
-                                      isExpanded && expandedSection === "orders" && "ring-1 ring-amber-500",
-                                    )}
-                                  >
-                                    <Package className="h-3 w-3" />
-                                    {ordCount} order{ordCount === 1 ? "" : "s"}
-                                  </button>
+                                {cust && (inv || proj) && <span className="text-muted-foreground/60">·</span>}
+                                {inv && (
+                                  <span className="text-info">
+                                    {inv.count} incoming ({inv.unitsPending} units pending)
+                                  </span>
+                                )}
+                                {inv && proj && <span className="text-muted-foreground/60">·</span>}
+                                {proj && (
+                                  <span style={{ color: "#639922" }}>
+                                    {proj.count} project{proj.count === 1 ? "" : "s"} ({proj.headCount} head)
+                                  </span>
                                 )}
                               </div>
+                            ) : (
+                              row.bullCatalogId && (
+                                <div className="mt-1 text-[11px] text-muted-foreground/70">
+                                  No orders or projects
+                                </div>
+                              )
                             )}
                           </TableCell>
                           <TableCell className="align-top text-sm text-muted-foreground">
@@ -817,73 +855,132 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                         </TableRow>
                         {isExpanded && (
                           <TableRow className="bg-muted/10 hover:bg-muted/10">
-                            <TableCell colSpan={7} className="py-3">
+                            <TableCell colSpan={7} className="py-3 space-y-3" onClick={(e) => e.stopPropagation()}>
                               {!bullDetail ? (
                                 <div className="text-xs text-muted-foreground">Loading…</div>
-                              ) : expandedSection === "projects" ? (
-                                bullDetail.projects.length === 0 ? (
-                                  <div className="text-xs text-muted-foreground">No active projects.</div>
-                                ) : (
-                                  <div className="space-y-1.5">
-                                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active projects</div>
-                                    {bullDetail.projects.map((pb: any, idx: number) => {
-                                      const p = pb.projects;
-                                      return (
-                                        <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 text-xs items-baseline">
-                                          <div className="truncate">
-                                            <span className="font-medium">{p.customers?.name ?? "—"}</span>
-                                            <span className="text-muted-foreground"> · {p.name}</span>
-                                          </div>
-                                          <div className="text-muted-foreground">{p.protocol || "—"}</div>
-                                          <div className="text-muted-foreground tabular-nums">{p.head_count ?? 0} hd</div>
-                                          <div className="font-medium tabular-nums">{pb.units ?? 0} units</div>
-                                          <div className="text-muted-foreground">
-                                            {p.breeding_date ? format(new Date(p.breeding_date), "MMM d, yyyy") : "—"}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )
                               ) : (
-                                bullDetail.orders.length === 0 ? (
-                                  <div className="text-xs text-muted-foreground">No active orders.</div>
-                                ) : (
-                                  <div className="space-y-1.5">
-                                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active orders</div>
-                                    {bullDetail.orders.map((oi: any, idx: number) => {
-                                      const o = oi.semen_orders;
-                                      const status = oi.item_status ?? "pending";
-                                      return (
-                                        <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-xs items-baseline">
-                                          <div className="truncate font-medium">{o?.customers?.name ?? "—"}</div>
-                                          <Badge
-                                            variant="outline"
-                                            className={cn(
-                                              "capitalize text-[10px]",
-                                              status === "received" && "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
-                                              status === "partially_received" && "bg-amber-500/15 text-amber-700 border-amber-500/30",
-                                              status === "fulfilled" && "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
-                                              status === "pending" && "bg-muted text-muted-foreground",
-                                            )}
+                                <>
+                                  {bullDetail.customerOrders.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <div className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: "#993C1D" }}>
+                                        <ArrowUpRight className="h-3.5 w-3.5" />
+                                        Going out — Customer orders
+                                      </div>
+                                      {bullDetail.customerOrders.map((oi: any, idx: number) => {
+                                        const o = oi.semen_orders;
+                                        const status = oi.item_status ?? "pending";
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => navigate(`/semen-orders/${o.id}`)}
+                                            className="w-full text-left rounded-md px-2.5 py-1.5 text-xs grid grid-cols-[1fr_auto_auto_auto] gap-3 items-baseline hover:opacity-90 transition-opacity"
+                                            style={{ backgroundColor: "#FAECE7", color: "#712B13" }}
                                           >
-                                            {status.replace(/_/g, " ")}
-                                          </Badge>
-                                          <div className="tabular-nums">
-                                            <span className="font-medium">{oi.units ?? 0}</span>
-                                            <span className="text-muted-foreground"> ord</span>
-                                            {oi.units_received > 0 && (
-                                              <span className="text-muted-foreground"> · {oi.units_received} recv</span>
-                                            )}
-                                          </div>
-                                          <div className="text-muted-foreground">
-                                            {o?.order_date ? format(new Date(o.order_date), "MMM d, yyyy") : "—"}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )
+                                            <div className="truncate font-medium" style={{ color: "#712B13" }}>{o?.customers?.name ?? "—"}</div>
+                                            <div style={{ color: "#993C1D" }}>{o?.order_date ? format(new Date(o.order_date), "MMM d, yyyy") : "—"}</div>
+                                            <div className="tabular-nums">
+                                              <span className="font-medium">{oi.units ?? 0}</span>
+                                              <span style={{ color: "#993C1D" }}> units</span>
+                                            </div>
+                                            <Badge
+                                              variant="outline"
+                                              className="capitalize text-[10px] border-current"
+                                              style={{ backgroundColor: "transparent", borderColor: "#993C1D", color: "#993C1D" }}
+                                            >
+                                              {status.replace(/_/g, " ")}
+                                            </Badge>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {bullDetail.inventoryOrders.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <div className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: "#185FA5" }}>
+                                        <ArrowDownLeft className="h-3.5 w-3.5" />
+                                        Coming in — Inventory orders
+                                      </div>
+                                      {bullDetail.inventoryOrders.map((oi: any, idx: number) => {
+                                        const o = oi.semen_orders;
+                                        const status = oi.item_status ?? "pending";
+                                        const company = o?.semen_companies?.name ?? "—";
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => navigate(`/semen-orders/${o.id}`)}
+                                            className="w-full text-left rounded-md px-2.5 py-1.5 text-xs grid grid-cols-[1fr_auto_auto_auto] gap-3 items-baseline hover:opacity-90 transition-opacity"
+                                            style={{ backgroundColor: "#E6F1FB", color: "#0C447C" }}
+                                          >
+                                            <div className="truncate font-medium" style={{ color: "#0C447C" }}>
+                                              {company}
+                                              {o?.placed_by ? <span style={{ color: "#185FA5" }}> — {o.placed_by}</span> : null}
+                                            </div>
+                                            <div style={{ color: "#185FA5" }}>{o?.order_date ? format(new Date(o.order_date), "MMM d, yyyy") : "—"}</div>
+                                            <div className="tabular-nums">
+                                              <span className="font-medium">{oi.units ?? 0}</span>
+                                              <span style={{ color: "#185FA5" }}> units</span>
+                                              {oi.units_received > 0 && <span style={{ color: "#185FA5" }}> · {oi.units_received} recv</span>}
+                                            </div>
+                                            <Badge
+                                              variant="outline"
+                                              className="capitalize text-[10px]"
+                                              style={{ backgroundColor: "transparent", borderColor: "#185FA5", color: "#185FA5" }}
+                                            >
+                                              {status.replace(/_/g, " ")}
+                                            </Badge>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {bullDetail.projects.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <div className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1" style={{ color: "#3B6D11" }}>
+                                        <ClipboardList className="h-3.5 w-3.5" />
+                                        Projects
+                                      </div>
+                                      {bullDetail.projects.map((pb: any, idx: number) => {
+                                        const p = pb.projects;
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => navigate(`/project/${p.id}`)}
+                                            className="w-full text-left rounded-md px-2.5 py-1.5 text-xs grid grid-cols-[1fr_auto_auto_auto] gap-3 items-baseline hover:opacity-90 transition-opacity"
+                                            style={{ backgroundColor: "#EAF3DE", color: "#27500A" }}
+                                          >
+                                            <div className="truncate font-medium" style={{ color: "#27500A" }}>{p.name}</div>
+                                            <div style={{ color: "#3B6D11" }}>
+                                              {p.breeding_date ? format(new Date(p.breeding_date), "MMM d, yyyy") : "—"}
+                                              {p.protocol ? ` · ${p.protocol}` : ""}
+                                            </div>
+                                            <div className="tabular-nums">
+                                              <span className="font-medium">{p.head_count ?? 0}</span>
+                                              <span style={{ color: "#3B6D11" }}> hd</span>
+                                            </div>
+                                            <Badge
+                                              variant="outline"
+                                              className="capitalize text-[10px]"
+                                              style={{ backgroundColor: "transparent", borderColor: "#3B6D11", color: "#3B6D11" }}
+                                            >
+                                              {p.status}
+                                            </Badge>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {bullDetail.customerOrders.length === 0 &&
+                                    bullDetail.inventoryOrders.length === 0 &&
+                                    bullDetail.projects.length === 0 && (
+                                      <div className="text-xs text-muted-foreground">No orders or projects.</div>
+                                    )}
+                                </>
                               )}
                             </TableCell>
                           </TableRow>
@@ -920,8 +1017,8 @@ const InventoryTab = ({ orgId, initialOwnerFilter = "company", onFilterReset }: 
                     const isZero = row.units === 0;
                     const subCanSuffix = row.subCanister && row.subCanister !== "—" ? ` / ${row.subCanister}` : "";
                     const mPendingUnits = row.bullCatalogId
-                      ? (bullActivity.projectUnits[row.bullCatalogId] ?? 0) +
-                        (bullActivity.orderUnits[row.bullCatalogId] ?? 0)
+                      ? (bullActivity.projects[row.bullCatalogId]?.units ?? 0) +
+                        (bullActivity.customerOrders[row.bullCatalogId]?.units ?? 0)
                       : 0;
                     return (
                       <div key={row.id} className={cn("p-4 space-y-3", isZero && "opacity-60")}>
