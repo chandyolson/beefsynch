@@ -15,13 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,7 +22,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 
 export interface ReceiveDialogItem {
   id: string;
@@ -38,13 +44,17 @@ export interface ReceiveDialogItem {
   item_status: string;
   bull_name: string;
   naab_code: string | null;
+  bull_catalog_id: string | null;
 }
 
 interface ReceiveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderId: string;
+  orderType: "inventory" | "customer" | string;
+  semenCompanyId: string | null;
   semenCompanyName: string | null;
+  customerId: string | null;
   items: ReceiveDialogItem[];
   onReceived: () => void;
 }
@@ -56,17 +66,91 @@ interface TankOption {
 }
 
 const tankLabel = (t: TankOption) =>
-  t.tank_name ? `${t.tank_number} — ${t.tank_name}` : String(t.tank_number);
+  t.tank_name ? `#${t.tank_number} — ${t.tank_name}` : `Tank #${t.tank_number}`;
+
+function TankCombobox({
+  value,
+  onChange,
+  tanks,
+  placeholder,
+  size = "default",
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  tanks: TankOption[];
+  placeholder: string;
+  size?: "default" | "sm";
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tanks;
+    return tanks.filter((t) => {
+      const num = String(t.tank_number).toLowerCase();
+      const name = (t.tank_name ?? "").toLowerCase();
+      return num.includes(q) || name.includes(q);
+    });
+  }, [search, tanks]);
+  const selected = tanks.find((t) => t.id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className={cn(
+            "w-full justify-between font-normal",
+            !value && "text-muted-foreground",
+            size === "sm" && "h-8 text-xs",
+          )}
+        >
+          <span className="truncate">{selected ? tankLabel(selected) : placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search tanks…"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty>No tanks found.</CommandEmpty>
+            {filtered.map((t) => (
+              <CommandItem
+                key={t.id}
+                value={t.id}
+                onSelect={() => {
+                  onChange(t.id);
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("mr-2 h-4 w-4", value === t.id ? "opacity-100" : "opacity-0")} />
+                <span>{tankLabel(t)}</span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function ReceiveDialog({
   open,
   onOpenChange,
   orderId,
+  orderType,
+  semenCompanyId,
   semenCompanyName,
+  customerId,
   items,
   onReceived,
 }: ReceiveDialogProps) {
-  const { orgId } = useOrgRole();
+  const { orgId, userId } = useOrgRole();
   const [defaultTankId, setDefaultTankId] = useState<string>("");
   const [perLineQty, setPerLineQty] = useState<Record<string, string>>({});
   const [perLineTank, setPerLineTank] = useState<Record<string, string>>({});
@@ -91,25 +175,48 @@ export default function ReceiveDialog({
     },
   });
 
-  // Reset state when dialog opens
+  // Resolve current user's organization_members.id for the shipments.received_by FK
+  const { data: memberId } = useQuery({
+    queryKey: ["current-org-member", orgId, userId],
+    enabled: !!orgId && !!userId && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organization_members")
+        .select("id")
+        .eq("organization_id", orgId!)
+        .eq("user_id", userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.id ?? null;
+    },
+  });
+
   useEffect(() => {
     if (open) {
       setPerLineQty({});
       setPerLineTank({});
-      // If exactly one tank, preselect; otherwise leave blank.
       if (tanks.length === 1) setDefaultTankId(tanks[0].id);
       else setDefaultTankId("");
     }
   }, [open, tanks.length]);
 
   const setQty = (id: string, v: string) => {
-    // Strip non-digits, keep blank
     const digits = v.replace(/[^0-9]/g, "");
     setPerLineQty((p) => ({ ...p, [id]: digits }));
   };
 
-  const validate = (): { ok: true; lines: { order_item_id: string; units: number; dest_tank_id: string }[] } | { ok: false; msg: string } => {
-    const lines: { order_item_id: string; units: number; dest_tank_id: string }[] = [];
+  type DraftLine = {
+    bullCatalogId: string | null;
+    bullName: string;
+    bullCode: string;
+    tankId: string;
+    canister: string;
+    units: number;
+    itemType: "semen";
+  };
+
+  const validate = (): { ok: true; draftLines: DraftLine[] } | { ok: false; msg: string } => {
+    const draftLines: DraftLine[] = [];
     for (const item of pending) {
       const raw = perLineQty[item.id] ?? "";
       if (raw === "") continue;
@@ -118,40 +225,94 @@ export default function ReceiveDialog({
         return { ok: false, msg: `Invalid quantity for ${item.bull_name}` };
       }
       if (units === 0) continue;
-      const remaining = item.units - item.units_received;
-      if (units > remaining) {
-        return { ok: false, msg: `${item.bull_name}: cannot receive ${units} (only ${remaining} remaining)` };
-      }
       const tankId = perLineTank[item.id] || defaultTankId;
       if (!tankId) {
         return { ok: false, msg: `${item.bull_name}: select a destination tank` };
       }
-      lines.push({ order_item_id: item.id, units, dest_tank_id: tankId });
+      draftLines.push({
+        bullCatalogId: item.bull_catalog_id,
+        bullName: item.bull_name,
+        bullCode: item.naab_code ?? "",
+        tankId,
+        canister: "1",
+        units,
+        itemType: "semen",
+      });
     }
-    if (lines.length === 0) {
+    if (draftLines.length === 0) {
       return { ok: false, msg: "Enter a quantity for at least one bull" };
     }
-    return { ok: true, lines };
+    return { ok: true, draftLines };
   };
 
   const handleSubmit = async () => {
+    if (!orgId) {
+      toast({ title: "Not signed in", variant: "destructive" });
+      return;
+    }
+    if (!memberId) {
+      toast({
+        title: "No membership found",
+        description: "Could not look up your organization membership.",
+        variant: "destructive",
+      });
+      return;
+    }
     const v = validate();
     if (!v.ok) {
       toast({ title: "Cannot receive", description: v.msg, variant: "destructive" });
       return;
     }
+
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("receive_shipment_items", {
-        _order_id: orderId,
-        _lines: v.lines,
+      const isInventory = orderType === "inventory";
+      const snapshot: Record<string, unknown> = {
+        version: 1,
+        draft_lines: v.draftLines,
+        inventory_owner: isInventory ? "CATL" : null,
+        semen_owner_id: !isInventory ? customerId : null,
+        supplier_invoice_number: null,
+      };
+
+      const shipmentId = crypto.randomUUID();
+      const { error: shipErr } = await supabase.from("shipments").insert({
+        id: shipmentId,
+        organization_id: orgId,
+        semen_order_id: orderId,
+        customer_id: !isInventory ? customerId : null,
+        semen_company_id: semenCompanyId,
+        received_by: memberId,
+        received_date: new Date().toISOString().slice(0, 10),
+        shipment_type: isInventory ? "inventory" : "customer",
+        status: "draft",
+        reconciliation_snapshot: snapshot as never,
       });
-      if (error) throw error;
-      const result = (data ?? {}) as { lines_received?: number; units_received?: number };
-      toast({
-        title: "Shipment received",
-        description: `Received ${result.lines_received ?? v.lines.length} bull${(result.lines_received ?? v.lines.length) === 1 ? "" : "s"}, ${result.units_received ?? v.lines.reduce((s, l) => s + l.units, 0)} total units`,
+      if (shipErr) throw shipErr;
+
+      const { data, error } = await supabase.rpc("confirm_shipment", {
+        _input: { shipment_id: shipmentId },
       });
+      if (error) {
+        // Roll back the draft shipment so the next attempt isn't tripped up
+        // by a leftover row.
+        await supabase.from("shipments").delete().eq("id", shipmentId);
+        throw error;
+      }
+
+      const result = (data ?? {}) as {
+        total_units?: number;
+        lines_short?: number;
+        lines_over?: number;
+        lines_added?: number;
+        lines_missing?: number;
+      };
+      const bits: string[] = [`${result.total_units ?? 0} units received`];
+      if (result.lines_short) bits.push(`${result.lines_short} short`);
+      if (result.lines_over) bits.push(`${result.lines_over} over`);
+      if (result.lines_added) bits.push(`${result.lines_added} added`);
+      toast({ title: "Shipment confirmed", description: bits.join(" · ") });
+
       onOpenChange(false);
       onReceived();
     } catch (err: any) {
@@ -168,24 +329,20 @@ export default function ReceiveDialog({
           <DialogTitle>Receive Shipment{semenCompanyName ? ` — ${semenCompanyName}` : ""}</DialogTitle>
           <DialogDescription>
             Enter how many units of each bull arrived. Leave blank or 0 to skip.
+            Units beyond the order quantity are fine — they'll be marked over in
+            reconciliation.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Default destination tank</Label>
-            <Select value={defaultTankId} onValueChange={setDefaultTankId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tank…" />
-              </SelectTrigger>
-              <SelectContent>
-                {tanks.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {tankLabel(t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <TankCombobox
+              value={defaultTankId}
+              onChange={setDefaultTankId}
+              tanks={tanks}
+              placeholder="Select tank…"
+            />
             <p className="text-xs text-muted-foreground">Override per line below if needed.</p>
           </div>
 
@@ -231,27 +388,19 @@ export default function ReceiveDialog({
                             aria-label={`Receive units for ${item.bull_name}`}
                           />
                           <div className="text-[10px] text-muted-foreground mt-0.5">
-                            max {remaining}
+                            {remaining} pending
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select
+                          <TankCombobox
                             value={perLineTank[item.id] ?? ""}
-                            onValueChange={(v) =>
-                              setPerLineTank((p) => ({ ...p, [item.id]: v }))
+                            onChange={(id) =>
+                              setPerLineTank((p) => ({ ...p, [item.id]: id }))
                             }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="(use default)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {tanks.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {tankLabel(t)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            tanks={tanks}
+                            placeholder="(use default)"
+                            size="sm"
+                          />
                         </TableCell>
                       </TableRow>
                     );
