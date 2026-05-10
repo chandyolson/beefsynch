@@ -152,8 +152,10 @@ export default function ReceiveDialog({
 }: ReceiveDialogProps) {
   const { orgId, userId } = useOrgRole();
   const [defaultTankId, setDefaultTankId] = useState<string>("");
+  const [defaultCanister, setDefaultCanister] = useState<string>("");
   const [perLineQty, setPerLineQty] = useState<Record<string, string>>({});
   const [perLineTank, setPerLineTank] = useState<Record<string, string>>({});
+  const [perLineCanister, setPerLineCanister] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const pending = useMemo(
@@ -195,6 +197,8 @@ export default function ReceiveDialog({
     if (open) {
       setPerLineQty({});
       setPerLineTank({});
+      setPerLineCanister({});
+      setDefaultCanister("");
       if (tanks.length === 1) setDefaultTankId(tanks[0].id);
       else setDefaultTankId("");
     }
@@ -229,12 +233,16 @@ export default function ReceiveDialog({
       if (!tankId) {
         return { ok: false, msg: `${item.bull_name}: select a destination tank` };
       }
+      const canister = (perLineCanister[item.id] || defaultCanister || "").trim();
+      if (!canister) {
+        return { ok: false, msg: `${item.bull_name}: enter a destination canister` };
+      }
       draftLines.push({
         bullCatalogId: item.bull_catalog_id,
         bullName: item.bull_name,
         bullCode: item.naab_code ?? "",
         tankId,
-        canister: "1",
+        canister,
         units,
         itemType: "semen",
       });
@@ -335,16 +343,27 @@ export default function ReceiveDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Default destination tank</Label>
-            <TankCombobox
-              value={defaultTankId}
-              onChange={setDefaultTankId}
-              tanks={tanks}
-              placeholder="Select tank…"
-            />
-            <p className="text-xs text-muted-foreground">Override per line below if needed.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
+            <div className="space-y-2">
+              <Label>Default destination tank</Label>
+              <TankCombobox
+                value={defaultTankId}
+                onChange={setDefaultTankId}
+                tanks={tanks}
+                placeholder="Select tank…"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Default canister</Label>
+              <Input
+                value={defaultCanister}
+                onChange={(e) => setDefaultCanister(e.target.value)}
+                placeholder="e.g. 1"
+                className="h-9"
+              />
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground -mt-2">Override per line below if needed.</p>
 
           <div className="rounded-lg border border-border/50 overflow-hidden">
             <Table>
@@ -356,12 +375,13 @@ export default function ReceiveDialog({
                   <TableHead className="text-right">Already</TableHead>
                   <TableHead className="text-right w-28">Receive Now</TableHead>
                   <TableHead className="w-56">Tank</TableHead>
+                  <TableHead className="w-24">Canister</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pending.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No pending lines on this order.
                     </TableCell>
                   </TableRow>
@@ -400,6 +420,17 @@ export default function ReceiveDialog({
                             tanks={tanks}
                             placeholder="(use default)"
                             size="sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={perLineCanister[item.id] ?? ""}
+                            onChange={(e) =>
+                              setPerLineCanister((p) => ({ ...p, [item.id]: e.target.value }))
+                            }
+                            placeholder={defaultCanister || "—"}
+                            className="h-8 text-sm"
+                            aria-label={`Canister for ${item.bull_name}`}
                           />
                         </TableCell>
                       </TableRow>
