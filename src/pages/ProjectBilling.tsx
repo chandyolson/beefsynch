@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Printer, ClipboardList, Check, Package, PackageOpen, Trash2, Plus, Pencil, MoreVertical, Settings, CheckCircle, Download, Edit, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, ClipboardList, Check, Package, Trash2, Plus, Pencil, MoreVertical, Settings, CheckCircle, Download, Edit, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
@@ -1177,36 +1177,13 @@ const ProjectBilling = () => {
         </AlertDialog>
 
         {/* ── Empty state (no pack yet) ── */}
-        {!hasPack ? (
+        {!hasPack && (
           <div className="rounded-lg border-2 border-dashed border-border/60 px-4 py-8 flex flex-col items-center justify-center gap-3 text-center">
             <Package className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">No tank packed for this project yet</p>
             <Button onClick={() => setPackDialogOpen(true)} className="gap-1.5">
               <Package className="h-4 w-4" /> Pack tank for this project
             </Button>
-          </div>
-        ) : (
-          /* ── Pack status bar ── */
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/50 rounded-lg flex-wrap">
-            <div className="flex items-center gap-2 text-sm">
-              {isUnpacked
-                ? <Check className="h-4 w-4 text-emerald-600" />
-                : <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />}
-              <span className="font-medium">{isUnpacked ? "Unpacked" : "Packed"}</span>
-              {packTankLabel && <span className="text-muted-foreground">— Tank #{packTankLabel}</span>}
-            </div>
-            <div className="flex gap-2">
-              {firstPack && (
-                <Button variant="outline" size="sm" className="h-8 text-xs"
-                  onClick={() => navigate(`/pack/${firstPack.id}`)}>View Pack</Button>
-              )}
-              {!isUnpacked && firstPack && (
-                <Button variant="outline" size="sm" className="h-8 text-xs"
-                  onClick={() => navigate(`/unpack/${firstPack.id}`)}>
-                  <PackageOpen className="h-3.5 w-3.5 mr-1" /> Unpack Tank
-                </Button>
-              )}
-            </div>
           </div>
         )}
 
