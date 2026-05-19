@@ -7,6 +7,7 @@ import {
   ChevronsUpDown,
   HandCoins,
   Loader2,
+  PackagePlus,
   ShoppingCart,
   Trash2,
 } from "lucide-react";
@@ -49,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Mode = "transfer" | "order" | "pickup" | "withdraw";
+type Mode = "transfer" | "order" | "pickup" | "withdraw" | "receive";
 
 interface TransferDialogProps {
   open: boolean;
@@ -89,6 +90,12 @@ const MODE_CARDS: Array<{ value: Mode; title: string; desc: string; Icon: typeof
     title: "Withdraw",
     desc: "Damaged, expired, count correction, or other removal",
     Icon: Trash2,
+  },
+  {
+    value: "receive",
+    title: "Receive / Add",
+    desc: "Add new units from a shipment or correction",
+    Icon: PackagePlus,
   },
 ];
 
@@ -131,6 +138,13 @@ export default function TransferDialog({
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [orderPopoverOpen, setOrderPopoverOpen] = useState(false);
 
+  // Receive / Add-only state. Kept as strings so the input renders empty
+  // (no spinner buttons, no default 0).
+  const [receiveAddUnits, setReceiveAddUnits] = useState<string>("");
+  const [receiveSameLocation, setReceiveSameLocation] = useState<boolean>(true);
+  const [receiveOwnerCompanyId, setReceiveOwnerCompanyId] = useState<string>("");
+  const [receiveSourceNote, setReceiveSourceNote] = useState<string>("");
+
   const bullName = getBullDisplayName(sourceRow);
   const bullCode = sourceRow?.bull_code || sourceRow?.bulls_catalog?.naab_code;
   const available = sourceRow?.units ?? 0;
@@ -157,6 +171,11 @@ export default function TransferDialog({
           ? true
           : !!initialCustomer && !sourceRow.customer_id,
       );
+      // Receive / Add defaults
+      setReceiveAddUnits("");
+      setReceiveSameLocation(true);
+      setReceiveOwnerCompanyId(sourceRow.owner_company_id || "");
+      setReceiveSourceNote("");
     }
   }, [open, sourceRow, defaultCustomerId, initialMode]);
 
@@ -198,6 +217,20 @@ export default function TransferDialog({
     },
   });
 
+  const { data: semenCompanies = [] } = useQuery({
+    queryKey: ["transfer_dialog_semen_companies", orgId],
+    enabled: !!orgId && open && mode === "receive",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("semen_companies")
+        .select("id, name")
+        .eq("organization_id", orgId!)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const { data: orders = [] } = useQuery({
     queryKey: ["transfer_dialog_orders", customerId],
     enabled: !!customerId && open,
@@ -227,6 +260,15 @@ export default function TransferDialog({
 
   const validate = (): string | null => {
     if (!sourceRow) return "No source row selected";
+    if (mode === "receive") {
+      const n = Number(receiveAddUnits);
+      if (!Number.isFinite(n) || n <= 0) return "Units to add must be greater than 0";
+      if (!receiveSameLocation) {
+        if (!destTankId) return "Destination tank is required";
+        if (!canister.trim()) return "Canister is required";
+      }
+      return null;
+    }
     if (!units || units <= 0) return "Units must be greater than 0";
     if (units > available)
       return `Cannot ${mode} ${units} units — only ${available} available`;
@@ -330,7 +372,7 @@ export default function TransferDialog({
           title: "Pickup recorded",
           description: `${units} units of ${bullName} picked up by ${selectedCustomer?.name || "customer"}`,
         });
-      } else {
+      } else if (mode === "withdraw") {
         const { error } = await supabase.rpc("withdraw_inventory", {
           _source_inventory_id: sourceRow.id,
           _units: units,
@@ -345,6 +387,96 @@ export default function TransferDialog({
           title: "Withdrawal complete",
           description: `Withdrew ${units} units of ${bullName}`,
         });
+      } else {
+        // mode === "receive": direct inventory add. No order, no shipment;
+        // just bump units on an existing row or create one, and log a
+        // `received` transaction for the audit trail.
+        const addUnits = Number(receiveAddUnits);
+        const resolvedBullCode = bullCode || sourceRow.bulls_catalog?.naab_code || "Unknown";
+        let landedTankId = effectiveTankId;
+        let landedInventoryId: string | null = sourceRow.id;
+
+        if (receiveSameLocation) {
+          const { error } = await supabase
+            .from("tank_inventory")
+            .update({ units: (sourceRow.units ?? 0) + addUnits })
+            .eq("id", sourceRow.id);
+          if (error) throw error;
+        } else {
+          const destCustomerId = customerId || null;
+          let destQuery = supabase
+            .from("tank_inventory")
+            .select("id, units")
+            .eq("tank_id", destTankId)
+            .eq("canister", canister.trim())
+            .limit(1);
+          if (sourceRow.bull_catalog_id) {
+            destQuery = destQuery.eq("bull_catalog_id", sourceRow.bull_catalog_id);
+          } else if (sourceRow.custom_bull_name) {
+            destQuery = destQuery.is("bull_catalog_id", null).eq("custom_bull_name", sourceRow.custom_bull_name);
+          }
+          destQuery = destCustomerId
+            ? destQuery.eq("customer_id", destCustomerId)
+            : destQuery.is("customer_id", null);
+
+          const { data: destRow, error: destErr } = await destQuery.maybeSingle();
+          if (destErr) throw destErr;
+
+          if (destRow) {
+            const { error } = await supabase
+              .from("tank_inventory")
+              .update({ units: (destRow.units ?? 0) + addUnits })
+              .eq("id", destRow.id);
+            if (error) throw error;
+            landedTankId = destTankId;
+            landedInventoryId = destRow.id;
+          } else {
+            const { data: created, error } = await supabase
+              .from("tank_inventory")
+              .insert({
+                tank_id: destTankId,
+                organization_id: orgId,
+                canister: canister.trim(),
+                sub_canister: subCanister.trim() || null,
+                units: addUnits,
+                item_type: "semen",
+                bull_catalog_id: sourceRow.bull_catalog_id || null,
+                custom_bull_name: sourceRow.custom_bull_name || null,
+                bull_code: resolvedBullCode,
+                owner_company_id: receiveOwnerCompanyId || null,
+                customer_id: destCustomerId,
+              })
+              .select("id")
+              .single();
+            if (error) throw error;
+            landedTankId = destTankId;
+            landedInventoryId = created?.id ?? null;
+          }
+        }
+
+        const { error: txnErr } = await supabase.from("inventory_transactions").insert({
+          organization_id: orgId,
+          tank_id: landedTankId,
+          inventory_item_id: landedInventoryId,
+          bull_catalog_id: sourceRow.bull_catalog_id || null,
+          bull_code: resolvedBullCode,
+          custom_bull_name: sourceRow.custom_bull_name || null,
+          units_change: addUnits,
+          transaction_type: "received",
+          performed_by: userId,
+          notes: receiveSourceNote.trim() || (receiveSameLocation ? "Manual receive / add" : "Manual receive / add (different location)"),
+        });
+        if (txnErr) throw txnErr;
+
+        toast({
+          title: "Inventory updated",
+          description: `Added ${addUnits} units of ${bullName}`,
+        });
+
+        if (!receiveSameLocation && destTankId) {
+          queryClient.invalidateQueries({ queryKey: ["tank_detail_inventory", destTankId] });
+          queryClient.invalidateQueries({ queryKey: ["tank_detail_transactions", destTankId] });
+        }
       }
 
       if (effectiveTankId) {
@@ -379,7 +511,9 @@ export default function TransferDialog({
         ? "Record Sale"
         : mode === "pickup"
           ? "Record Pickup"
-          : "Withdraw";
+          : mode === "withdraw"
+            ? "Withdraw"
+            : "Add to inventory";
 
   const orderEmpty = mode === "order" && !!customerId && orders.length === 0;
   const submitDisabled = submitting;
@@ -397,7 +531,7 @@ export default function TransferDialog({
 
         {sourceRow && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {MODE_CARDS.map(({ value, title, desc, Icon }) => {
                 const active = mode === value;
                 return (
@@ -443,17 +577,19 @@ export default function TransferDialog({
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="transfer-units">Units to {modeLabel(mode).toLowerCase()}</Label>
-              <Input
-                id="transfer-units"
-                type="number"
-                min={1}
-                max={available}
-                value={units}
-                onChange={(e) => setUnits(Number(e.target.value))}
-              />
-            </div>
+            {mode !== "receive" && (
+              <div>
+                <Label htmlFor="transfer-units">Units to {modeLabel(mode).toLowerCase()}</Label>
+                <Input
+                  id="transfer-units"
+                  type="number"
+                  min={1}
+                  max={available}
+                  value={units}
+                  onChange={(e) => setUnits(Number(e.target.value))}
+                />
+              </div>
+            )}
 
             {mode === "transfer" && (
               <div className="space-y-3">
@@ -540,7 +676,158 @@ export default function TransferDialog({
               </div>
             )}
 
-            {(mode === "transfer" || mode === "order" || mode === "pickup" || (mode === "withdraw")) && (
+            {mode === "receive" && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="receive-units">Units to add *</Label>
+                  <Input
+                    id="receive-units"
+                    type="text"
+                    inputMode="numeric"
+                    value={receiveAddUnits}
+                    onChange={(e) => setReceiveAddUnits(e.target.value.replace(/[^0-9]/g, ""))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="text-xs font-semibold uppercase text-muted-foreground">Destination</div>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={receiveSameLocation}
+                      onChange={() => setReceiveSameLocation(true)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">Same location</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Add to {sourceTankName} / Canister {sourceRow.canister}
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={!receiveSameLocation}
+                      onChange={() => setReceiveSameLocation(false)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">Different location</span>
+                      <span className="block text-xs text-muted-foreground">Pick a tank and canister</span>
+                    </span>
+                  </label>
+                </div>
+
+                {!receiveSameLocation && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Destination tank</Label>
+                      <Popover open={tankPopoverOpen} onOpenChange={setTankPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                            {selectedTank ? tankLabel(selectedTank) : "Select tank…"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                            <CommandInput placeholder="Search tanks…" />
+                            <CommandList>
+                              <CommandEmpty>No tanks found.</CommandEmpty>
+                              <CommandGroup>
+                                {tanks.map((t) => (
+                                  <CommandItem
+                                    key={t.id}
+                                    value={tankLabel(t)}
+                                    onSelect={() => { setDestTankId(t.id); setTankPopoverOpen(false); }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", destTankId === t.id ? "opacity-100" : "opacity-0")} />
+                                    {tankLabel(t)}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="receive-canister">Canister *</Label>
+                        <Input id="receive-canister" value={canister} onChange={(e) => setCanister(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label htmlFor="receive-subcan">Sub-canister</Label>
+                        <Input id="receive-subcan" value={subCanister} onChange={(e) => setSubCanister(e.target.value)} placeholder="Optional" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label>Owner company</Label>
+                  <Select
+                    value={receiveOwnerCompanyId || "__none__"}
+                    onValueChange={(v) => setReceiveOwnerCompanyId(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Company stock (none)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {semenCompanies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Assign to customer</Label>
+                  <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                        {selectedCustomer ? selectedCustomer.name : "Company stock (no customer)"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                        <CommandInput placeholder="Search customers…" />
+                        <CommandList>
+                          <CommandEmpty>No customers found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem value="__none__" onSelect={() => { setCustomerId(""); setCustomerPopoverOpen(false); }}>
+                              <Check className={cn("mr-2 h-4 w-4", !customerId ? "opacity-100" : "opacity-0")} />
+                              Company stock (no customer)
+                            </CommandItem>
+                            {customers.map((c) => (
+                              <CommandItem key={c.id} value={c.name} onSelect={() => { setCustomerId(c.id); setCustomerPopoverOpen(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", customerId === c.id ? "opacity-100" : "opacity-0")} />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <Label htmlFor="receive-source-note">Source note</Label>
+                  <Input
+                    id="receive-source-note"
+                    value={receiveSourceNote}
+                    onChange={(e) => setReceiveSourceNote(e.target.value)}
+                    placeholder="e.g., Shipment from Select, count correction, customer drop-off"
+                  />
+                </div>
+              </div>
+            )}
+
+            {mode !== "receive" && (mode === "transfer" || mode === "order" || mode === "pickup" || (mode === "withdraw")) && (
               <div className="space-y-3">
                 <div className="text-xs font-semibold uppercase text-muted-foreground">
                   {mode === "transfer"
@@ -784,16 +1071,18 @@ export default function TransferDialog({
               </div>
             )}
 
-            <div>
-              <Label htmlFor="transfer-note">Note</Label>
-              <Textarea
-                id="transfer-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Optional"
-                rows={2}
-              />
-            </div>
+            {mode !== "receive" && (
+              <div>
+                <Label htmlFor="transfer-note">Note</Label>
+                <Textarea
+                  id="transfer-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Optional"
+                  rows={2}
+                />
+              </div>
+            )}
           </div>
         )}
 
