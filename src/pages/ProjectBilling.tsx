@@ -554,18 +554,20 @@ const ProjectBilling = () => {
       packedByBull[key] = (packedByBull[key] || 0) + pl.units;
     }
 
-    const dbUpdates: Array<{ id: string; units_packed: number; units_returned: number; units_billable: number; line_total: number }> = [];
+    const dbUpdates: Array<{ id: string; units_packed: number; units_billable: number; line_total: number }> = [];
     const updated = semenLines.map((sl) => {
       const key = sl.bull_catalog_id || sl.bull_name;
       const packed = packedByBull[key] ?? 0;
       if (packed > 0 && sl.units_packed !== packed && sl.id) {
-        // Preserve the "used" amount and recalculate derived values
-        const used = (sl.units_packed ?? 0) - (sl.units_returned ?? 0);
-        const returned = Math.max(0, packed - used);
-        const billable = Math.max(0, used - (sl.units_blown ?? 0));
+        // Only touch units_packed and recompute the billable/total from it.
+        // units_returned is owned by the unpack flow (or manual edits) —
+        // never recalculate it from packed minus used or we wipe out the
+        // real returned count.
+        const returned = sl.units_returned ?? 0;
+        const billable = Math.max(0, packed - returned - (sl.units_blown ?? 0));
         const line_total = billable * (sl.unit_price ?? 0);
-        dbUpdates.push({ id: sl.id, units_packed: packed, units_returned: returned, units_billable: billable, line_total });
-        return { ...sl, units_packed: packed, units_returned: returned, units_billable: billable, line_total };
+        dbUpdates.push({ id: sl.id, units_packed: packed, units_billable: billable, line_total });
+        return { ...sl, units_packed: packed, units_billable: billable, line_total };
       }
       return sl;
     });
@@ -574,8 +576,9 @@ const ProjectBilling = () => {
     setSemenLines(updated);
     await Promise.all(dbUpdates.map((u) =>
       supabase.from("project_billing_semen").update({
-        units_packed: u.units_packed, units_returned: u.units_returned,
-        units_billable: u.units_billable, line_total: u.line_total,
+        units_packed: u.units_packed,
+        units_billable: u.units_billable,
+        line_total: u.line_total,
       }).eq("id", u.id)
     ));
   }
@@ -1312,9 +1315,16 @@ const ProjectBilling = () => {
                                   className="h-7 w-[130px] text-sm"
                                   key={`date-${s.id}-${s.session_date}`}
                                   defaultValue={s.session_date ?? ""}
-                                  onChange={(e) => {
-                                    if (!e.target.value) return;
-                                    saveSessionLine(sessionIdx, { session_date: e.target.value });
+                                  onBlur={(e) => {
+                                    const val = e.target.value;
+                                    if (!val) return;
+                                    // Guard against partial dates the date picker
+                                    // emits while the user is still typing the
+                                    // year (e.g. 0002-05-18).
+                                    const year = parseInt(val.split("-")[0], 10);
+                                    if (isNaN(year) || year < 2020 || year > 2099) return;
+                                    if (val === s.session_date) return;
+                                    saveSessionLine(sessionIdx, { session_date: val });
                                   }}
                                 />
                               )}
@@ -1327,7 +1337,18 @@ const ProjectBilling = () => {
                                   className="h-7 w-[120px] text-sm"
                                   key={`label-${s.id}-${s.session_label}`}
                                   defaultValue={s.session_label ?? "Breeding"}
-                                  onBlur={(e) => saveSessionLine(sessionIdx, { session_label: e.target.value || null })}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.trim();
+                                    const prev = s.session_label || "Breeding";
+                                    if (!val) {
+                                      // Empty restores the existing label instead
+                                      // of wiping the column.
+                                      e.target.value = prev;
+                                      return;
+                                    }
+                                    if (val === prev) return;
+                                    saveSessionLine(sessionIdx, { session_label: val });
+                                  }}
                                 />
                               )}
                             </td>
