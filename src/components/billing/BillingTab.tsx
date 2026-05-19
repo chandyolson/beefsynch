@@ -179,28 +179,30 @@ export default function BillingTab({
       {/* ═══ SEMEN ═══ */}
       {semenLines.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold mb-3">Semen</h2>
+          <h2 className="text-lg font-semibold mb-3">Semen — billable summary</h2>
 
-          <div className="grid grid-cols-[1fr_60px_60px_70px_80px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="grid grid-cols-[1fr_70px_70px_70px_80px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
             <div>Bull</div>
-            <div className="text-right">Pkd</div>
-            <div className="text-right">Ret</div>
+            <div className="text-right">Packed</div>
+            <div className="text-right">Returned</div>
             <div className="text-right">Blown</div>
-            <div className="text-right">Bill</div>
+            <div className="text-right text-emerald-600">Billable</div>
             <div className="text-right">Price</div>
             <div className="text-right">Total</div>
           </div>
 
           {semenLines.map((line, idx) => {
             return (
-              <div key={line.id || idx} className="grid grid-cols-[1fr_60px_60px_70px_80px_80px_90px] items-center gap-3 py-2 border-b border-border/40 last:border-b-0">
+              <div key={line.id || idx} className="grid grid-cols-[1fr_70px_70px_70px_80px_80px_90px] items-center gap-3 py-2 border-b border-border/40 last:border-b-0">
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">
                     {line.bull_name}
                     {line.bull_code && <span className="text-xs text-muted-foreground ml-1.5">{line.bull_code}</span>}
                   </div>
-                  {line.semen_owner && (
-                    <div className="text-xs text-amber-500 font-medium">{line.semen_owner}</div>
+                  {line.semen_owner ? (
+                    <div className="text-xs text-amber-400 font-medium">{line.semen_owner}</div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground italic">Customer provided</div>
                   )}
                 </div>
                 <div className="text-right">
@@ -232,9 +234,9 @@ export default function BillingTab({
                 </div>
                 <div className="text-right">
                   {readOnly ? (
-                    <span className="text-sm">{line.units_billable || "—"}</span>
+                    <span className="text-sm text-emerald-600 font-semibold">{line.units_billable || "—"}</span>
                   ) : (
-                    <Input type="number" step="any" className="h-7 w-[68px] text-right text-xs ml-auto"
+                    <Input type="number" step="any" className="h-7 w-[68px] text-right text-xs ml-auto text-emerald-600 font-semibold"
                       key={`billable-${line.id}-${line.units_billable}`} defaultValue={line.units_billable ?? ""} placeholder="—"
                       onBlur={(e) => onSaveSemen(idx, { units_billable: e.target.value === "" ? null : Number(e.target.value) })} />
                   )}
@@ -254,14 +256,19 @@ export default function BillingTab({
           })}
 
           <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-border">
-            <span className="text-sm font-medium text-muted-foreground">Semen</span>
+            <div>
+              <span className="text-sm font-medium text-muted-foreground">Semen</span>
+              <span className="text-xs text-muted-foreground ml-3">
+                {semenLines.reduce((s, l) => s + (l.units_billable ?? 0), 0)} billable units
+              </span>
+            </div>
             <span className="text-sm font-semibold">{formatCurrency(semenTotal)}</span>
           </div>
         </section>
       )}
 
       {/* ═══ PRODUCTS ═══ */}
-      <section>
+      <section className="pt-4 mt-4 border-t border-border">
         <h2 className="text-lg font-semibold mb-3">Products</h2>
 
         <div className="grid grid-cols-[1fr_110px_70px_80px_90px] gap-3 pb-2 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -340,7 +347,7 @@ export default function BillingTab({
       </section>
 
       {/* ═══ LABOR & SERVICES ═══ */}
-      <section>
+      <section className="pt-4 mt-4 border-t border-border">
         <h2 className="text-lg font-semibold mb-3">Labor &amp; services</h2>
 
         {laborLines.length === 0 && readOnly && (
@@ -403,7 +410,7 @@ export default function BillingTab({
       </section>
 
       {/* ═══ NOTES ═══ */}
-      <section>
+      <section className="pt-4 mt-4 border-t border-border">
         <h2 className="text-lg font-semibold mb-3">Notes</h2>
         {readOnly ? (
           <p className="text-sm">
