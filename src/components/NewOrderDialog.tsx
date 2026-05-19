@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 interface BullRow {
   name: string;
@@ -71,12 +72,14 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
   const [neededBy, setNeededBy] = useState<Date | null>(null);
   const [neededByOpen, setNeededByOpen] = useState(false);
   const [billingStatus, setBillingStatus] = useState("unbilled");
+  const [fulfillmentStatus, setFulfillmentStatus] = useState("pending");
   const [inventoryOwner, setInventoryOwner] = useState<"Select" | "CATL" | null>(null);
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
   const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
   const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
   const [dateOpen, setDateOpen] = useState(false);
+  const [showFulfillmentOverride, setShowFulfillmentOverride] = useState(false);
 
   // Supplies state
   const [supplyLines, setSupplyLines] = useState<{ productId: string; productName: string; quantity: number | ""; unitPrice: number; unitLabel: string; lineTotal: number }[]>([]);
@@ -116,6 +119,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       setOrderDate(editData.order_date ? new Date(editData.order_date + "T12:00:00") : null);
       setNeededBy((editData as any).needed_by ? new Date((editData as any).needed_by + "T12:00:00") : null);
       setBillingStatus(editData.billing_status);
+      setFulfillmentStatus(editData.fulfillment_status ?? "pending");
       setInventoryOwner((editData.inventory_owner as "Select" | "CATL" | null) ?? null);
       setSemenCompanyId(editData.semen_company_id ?? "none");
       setNotes(editData.notes ?? "");
@@ -147,6 +151,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       setOrderDate(null);
       setNeededBy(null);
       setBillingStatus("unbilled");
+      setFulfillmentStatus("pending");
       setInventoryOwner(null);
       setSemenCompanyId("none");
       setNotes("");
@@ -157,6 +162,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       setAddingCompany(false);
       setNewCompanyName("");
     }
+    setShowFulfillmentOverride(false);
   }, [open, editData, initialCustomerId]);
 
   const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "" }]);
@@ -219,7 +225,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
         order_status: orderStatus,
         order_date: orderStatus === "not_ordered" || !orderDate ? null : format(orderDate, "yyyy-MM-dd"),
         needed_by: neededBy ? format(neededBy, "yyyy-MM-dd") : null,
-        fulfillment_status: isEditing && editData ? editData.fulfillment_status : "pending",
+        fulfillment_status: isEditing ? fulfillmentStatus : "pending",
         billing_status: billingStatus,
         project_id: null,
         inventory_owner: orderType === "inventory" ? inventoryOwner : null,
@@ -513,6 +519,42 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
             <TeamMemberSelect value={placedBy} onValueChange={setPlacedBy} placeholder="Who placed this order?" />
           </div>
 
+          {/* Status dropdowns */}
+          {isEditing && (
+            <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
+              <Label className="text-right text-sm">Fulfillment</Label>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize text-sm font-medium">
+                  {fulfillmentStatus.replace(/_/g, " ")}
+                </Badge>
+                {!showFulfillmentOverride && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFulfillmentOverride(true)}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Override
+                  </button>
+                )}
+                {showFulfillmentOverride && (
+                  <div className="flex flex-col gap-1 flex-1">
+                    <Select value={fulfillmentStatus} onValueChange={setFulfillmentStatus}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="backordered">Backordered</SelectItem>
+                        <SelectItem value="partially_fulfilled">Partially Fulfilled</SelectItem>
+                        <SelectItem value="ordered">Ordered</SelectItem>
+                        <SelectItem value="shipped">Shipped</SelectItem>
+                        <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-amber-600">Changing fulfillment status manually will NOT move inventory.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-[100px_1fr] items-center gap-x-4">
             <Label className="text-right text-sm">Billing</Label>
             <Select value={billingStatus} onValueChange={setBillingStatus}>
