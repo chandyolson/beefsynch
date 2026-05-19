@@ -1138,6 +1138,16 @@ const ProjectBilling = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {hasPack && packStatus !== "unpacked" && packStatus !== "cancelled" && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-9"
+                  onClick={() => setUnpackDialogOpen(true)}
+                >
+                  <Package className="h-4 w-4 mr-1.5" /> Unpack tank
+                </Button>
+              )}
               {hasPack && (
                 <Button
                   size="sm"
@@ -1154,17 +1164,12 @@ const ProjectBilling = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  {hasPack && packStatus !== "unpacked" && packStatus !== "cancelled" && (
-                    <DropdownMenuItem onClick={() => setUnpackDialogOpen(true)}>
-                      <Package className="h-4 w-4 mr-2" /> Unpack tank
-                    </DropdownMenuItem>
-                  )}
                   {hasPack && packStatus === "packed" && (
                     <DropdownMenuItem onClick={() => setEditPackOpen(true)}>
                       <Edit className="h-4 w-4 mr-2" /> Edit pack
                     </DropdownMenuItem>
                   )}
-                  {hasPack && packStatus !== "cancelled" && <DropdownMenuSeparator />}
+                  {hasPack && packStatus === "packed" && <DropdownMenuSeparator />}
                   <DropdownMenuItem onClick={closeOutProject}>
                     <CheckCircle className="h-4 w-4 mr-2" /> Close out
                   </DropdownMenuItem>
@@ -1290,11 +1295,71 @@ const ProjectBilling = () => {
         <div className={hasPack ? "" : "opacity-40 pointer-events-none"}>
 
         {/* ── Breeding Sessions worksheet ── */}
+        {/* ── Protocol schedule ── */}
+        {(() => {
+          const protocolSessions = sessions.filter((s) => {
+            const label = (s.session_label || "").toLowerCase();
+            const isBreeding =
+              label.includes("breed") || label.includes("ai") || label.includes("tai") ||
+              label.includes(" am") || label.includes(" pm") || label.endsWith("am") || label.endsWith("pm");
+            return !isBreeding;
+          });
+          if (protocolSessions.length === 0) return null;
+          return (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold">Protocol schedule</h2>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium w-[110px]">Date</th>
+                      <th className="text-left px-3 py-2 font-medium w-[180px]">Event</th>
+                      <th className="text-left px-3 py-2 font-medium">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {protocolSessions
+                      .slice()
+                      .sort((a, b) => (a.session_date || "").localeCompare(b.session_date || ""))
+                      .map((s) => (
+                        <tr key={s.id} className="border-t border-border/40">
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {s.session_date ? format(parseISO(s.session_date), "MMM d") : "—"}
+                          </td>
+                          <td className="px-3 py-2 font-medium">{s.session_label || "—"}</td>
+                          <td className="px-3 py-2">
+                            {readOnly ? (
+                              <span className="text-muted-foreground">{s.notes || "—"}</span>
+                            ) : (
+                              <Input
+                                className="h-7 text-sm"
+                                key={`protocol-notes-${s.id}`}
+                                defaultValue={s.notes ?? ""}
+                                placeholder="Notes…"
+                                onBlur={(e) => {
+                                  const val = e.target.value || null;
+                                  if (val === s.notes) return;
+                                  if (s.id) saveSessionField(s.id, "notes", val);
+                                }}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        })()}
+
         <BreedingSection
           sessions={sessions.filter((s) => {
-            if (s.session_type === "field_session") return true;
             const label = (s.session_label || "").toLowerCase();
-            return label.includes("breed") || label.includes("ai") || label.includes("tai");
+            return (
+              label.includes("breed") || label.includes("ai") || label.includes("tai") ||
+              label.includes(" am") || label.includes(" pm") || label.endsWith("am") || label.endsWith("pm")
+            );
           })}
           allSessions={sessions}
           productLines={productLines}
@@ -1346,6 +1411,18 @@ const ProjectBilling = () => {
         <fieldset disabled={readOnly} className="contents [&_button]:disabled:pointer-events-auto">
           <BillingTab
             productLines={productLines} semenLines={semenLines}
+            usedByBull={(() => {
+              // Sum (start - end) per bull across all session inventory rows.
+              // Drives the read-only "Used" column on the Semen summary.
+              const m = new Map<string, number>();
+              for (const r of sessionInventory) {
+                const k = (r.bull_catalog_id as string) || r.bull_name || "";
+                if (!k) continue;
+                const used = Math.max(0, (r.start_units ?? 0) - (r.end_units ?? 0));
+                m.set(k, (m.get(k) ?? 0) + used);
+              }
+              return m;
+            })()}
             laborLines={laborLines}
             billingRecord={billingRecord} readOnly={readOnly}
             onSaveProduct={saveProductLine} onSaveSemen={saveSemenLine}

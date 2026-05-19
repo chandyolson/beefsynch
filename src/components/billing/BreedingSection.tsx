@@ -228,7 +228,10 @@ export default function BreedingSection({
       {sorted.map((s, si) => {
         const sessionIdx = allSessions.findIndex(x => x.id === s.id);
         const sessionId = s.id || "";
-        const isExpanded = expandedSessions.has(sessionId);
+        // Sessions render inline (always expanded) per the rebuild spec.
+        // The collapse toggle stays in case a future variant wants it back,
+        // but the grid is the default state so users can see counts at a glance.
+        const isExpanded = true;
         const isEditing = editingSessions.has(sessionId);
         const prods = productsBySession.get(sessionId) || [];
 
