@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer, MoreVertical, XCircle } from "lucide-react";
 import { OrderPrintSheet } from "@/components/orders/OrderPrintSheet";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { FulfillOrderDialog } from "@/components/orders/FulfillOrderDialog";
@@ -19,6 +19,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
@@ -104,6 +107,8 @@ const SemenOrderDetail = () => {
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [closingOrder, setClosingOrder] = useState(false);
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [directSaleTxns, setDirectSaleTxns] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
@@ -524,113 +529,107 @@ const SemenOrderDetail = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex items-center gap-2">
-            {!isInventory && (
+            {isInventory && !["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
               <Button
-                variant="outline"
                 size="sm"
-                onClick={() => navigate(`/receive-shipment?order=${id}`)}
+                disabled={!hasOpenItems}
+                onClick={() => setReceiveOpen(true)}
               >
                 <Package className="h-4 w-4 mr-1" /> Receive Shipment
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleExportPdf}>
-              <FileDown className="h-4 w-4 mr-1" /> Export PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-1" /> Print Bill
-            </Button>
-            {isInventory && !["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
-              <>
-                <Button
-                  size="sm"
-                  disabled={!hasOpenItems}
-                  onClick={() => setReceiveOpen(true)}
-                >
-                  <Package className="h-4 w-4 mr-1" /> Receive Shipment
-                </Button>
-                {hasOpenItems && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={closingOrder}>
-                        Close Order
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Close this order?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          All remaining pending or partially received lines will be cancelled.
-                          Units already received will not be affected.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCloseOrder} disabled={closingOrder}>
-                          {closingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Close Order
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </>
-            )}
-            {!isInventory && !["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
-              <Button
-                size="sm"
-                disabled={items.length === 0}
-                title={
-                  items.length === 0
-                    ? "Add items before fulfilling"
-                    : (order as any).order_status === "not_ordered"
-                      ? "This order has not been placed yet — fulfilling will record a direct sale"
-                      : undefined
-                }
-                variant={(order as any).order_status === "not_ordered" ? "outline" : "default"}
-                onClick={() => navigate(`/semen-orders/${order.id}/fulfill`)}
-              >
-                <Package className="h-4 w-4 mr-1" /> Fulfill Order
-              </Button>
-            )}
-            {!["fulfilled", "cancelled"].includes(order.fulfillment_status) ? (
-              <>
-                <Button variant="outline" size="sm" onClick={openEdit}>
-                  <Pencil className="h-4 w-4 mr-1" /> Edit Order
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="h-4 w-4 mr-1" /> Delete Order
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Order</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the order for {customerName}. This cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteOrder}
-                        disabled={deletingOrder}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        {deletingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            ) : (
+            {["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
               <span className="text-xs text-muted-foreground italic self-center">
                 {order.fulfillment_status === "fulfilled" ? "Fulfilled — locked" : "Cancelled — locked"}
               </span>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={handleExportPdf}>
+                  <FileDown className="h-4 w-4 mr-2" /> Export PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-2" /> Print Bill
+                </DropdownMenuItem>
+                {isInventory && hasOpenItems && !["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
+                  <DropdownMenuItem
+                    onClick={() => setCloseConfirmOpen(true)}
+                    disabled={closingOrder}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" /> Close Order
+                  </DropdownMenuItem>
+                )}
+                {!["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
+                  <>
+                    <DropdownMenuItem onClick={openEdit}>
+                      <Pencil className="h-4 w-4 mr-2" /> Edit Order
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete Order
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {/* Close Order confirmation */}
+        <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close this order?</AlertDialogTitle>
+              <AlertDialogDescription>
+                All remaining pending or partially received lines will be cancelled.
+                Units already received will not be affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  await handleCloseOrder();
+                  setCloseConfirmOpen(false);
+                }}
+                disabled={closingOrder}
+              >
+                {closingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Close Order
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Order confirmation */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Order</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the order for {customerName}. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteOrder}
+                disabled={deletingOrder}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Header */}
         <div>
