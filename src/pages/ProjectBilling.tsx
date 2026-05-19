@@ -158,7 +158,7 @@ const ProjectBilling = () => {
     const [prodRes, sessRes, semRes, invRes, laborRes] = await Promise.all([
       supabase.from("project_billing_products").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_sessions").select("*").eq("billing_id", bId).order("sort_order"),
-      supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company)").eq("billing_id", bId).order("sort_order"),
+      supabase.from("project_billing_semen").select("*, bulls_catalog!project_billing_semen_bull_catalog_id_fkey(company), semen_companies!project_billing_semen_invoicing_company_id_fkey(name)").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_session_inventory").select("*").eq("billing_id", bId).order("sort_order"),
       supabase.from("project_billing_labor").select("*").eq("billing_id", bId).order("sort_order"),
     ]);
@@ -166,8 +166,11 @@ const ProjectBilling = () => {
     setSessions((sessRes.data ?? []) as SessionLine[]);
     setSemenLines((semRes.data ?? []).map((sl: any) => ({
       ...sl,
-      semen_owner: sl.bulls_catalog?.company ?? null,
+      // Prefer the explicit invoicing company. Fall back to the catalog's
+      // company label (legacy rows without invoicing_company_id).
+      semen_owner: sl.semen_companies?.name ?? sl.bulls_catalog?.company ?? null,
       bulls_catalog: undefined,
+      semen_companies: undefined,
     })) as SemenLine[]);
     setSessionInventory((invRes.data ?? []) as SessionInventoryLine[]);
     setLaborLines((laborRes?.data ?? []) as LaborLine[]);
@@ -415,25 +418,36 @@ const ProjectBilling = () => {
     const { data: semenPackProjects } = await supabase
       .from("tank_pack_projects").select("tank_pack_id").eq("project_id", proj.id);
     const packedByBull: Record<string, number> = {};
+    const companyByBull: Map<string, { id: string; name: string | null }> = new Map();
     if (semenPackProjects && semenPackProjects.length > 0) {
       const { data: semenPackLines } = await supabase
-        .from("tank_pack_lines").select("bull_catalog_id, bull_name, units")
+        .from("tank_pack_lines")
+        .select("bull_catalog_id, bull_name, units, invoicing_company_id, semen_companies!invoicing_company_id(name)")
         .in("tank_pack_id", semenPackProjects.map(pp => pp.tank_pack_id));
-      for (const pl of semenPackLines ?? []) {
+      for (const pl of (semenPackLines as any[]) ?? []) {
         const key = pl.bull_catalog_id || pl.bull_name;
         packedByBull[key] = (packedByBull[key] || 0) + pl.units;
+        if (pl.invoicing_company_id && !companyByBull.has(key)) {
+          companyByBull.set(key, {
+            id: pl.invoicing_company_id,
+            name: pl.semen_companies?.name ?? null,
+          });
+        }
       }
     }
-    const newSemen: Omit<SemenLine, "id">[] = bulls.map((b, i) => {
+    const newSemen: Array<Omit<SemenLine, "id"> & { invoicing_company_id: string | null }> = bulls.map((b, i) => {
       const bullName = getBullDisplayName(b);
       const bullCode = b.bulls_catalog?.naab_code || null;
       const catalogId = b.bull_catalog_id;
-      const packed = packedByBull[catalogId || bullName] || 0;
+      const key = catalogId || bullName;
+      const packed = packedByBull[key] || 0;
+      const company = companyByBull.get(key) ?? null;
       return {
         billing_id: bId, bull_catalog_id: catalogId, bull_name: bullName, bull_code: bullCode,
         units_packed: packed, units_returned: 0, units_blown: 0, units_billable: packed,
         unit_price: 0, line_total: 0, sort_order: i,
-        semen_owner: b.bulls_catalog?.company ?? null,
+        invoicing_company_id: company?.id ?? null,
+        semen_owner: company?.name ?? b.bulls_catalog?.company ?? null,
       };
     });
     if (newSemen.length > 0) {
@@ -1290,9 +1304,33 @@ const ProjectBilling = () => {
                         return (
                           <tr key={s.id} className="border-t border-border/40">
                             <td className="px-3 py-2">
-                              {s.session_date ? format(parseISO(s.session_date), "MMM d") : "—"}
+                              {readOnly ? (
+                                <span>{s.session_date ? format(parseISO(s.session_date), "MMM d") : "—"}</span>
+                              ) : (
+                                <Input
+                                  type="date"
+                                  className="h-7 w-[130px] text-sm"
+                                  key={`date-${s.id}-${s.session_date}`}
+                                  defaultValue={s.session_date ?? ""}
+                                  onChange={(e) => {
+                                    if (!e.target.value) return;
+                                    saveSessionLine(sessionIdx, { session_date: e.target.value });
+                                  }}
+                                />
+                              )}
                             </td>
-                            <td className="px-3 py-2">Breeding</td>
+                            <td className="px-3 py-2">
+                              {readOnly ? (
+                                <span>{s.session_label || "Breeding"}</span>
+                              ) : (
+                                <Input
+                                  className="h-7 w-[120px] text-sm"
+                                  key={`label-${s.id}-${s.session_label}`}
+                                  defaultValue={s.session_label ?? "Breeding"}
+                                  onBlur={(e) => saveSessionLine(sessionIdx, { session_label: e.target.value || null })}
+                                />
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-right">
                               {readOnly ? (
                                 <span>{s.head_count || "—"}</span>
