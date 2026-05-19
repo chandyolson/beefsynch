@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -105,7 +105,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       .select("id, product_name, product_category, default_price, unit_label")
       .eq("organization_id", orgId)
       .eq("active", true)
-      .in("product_category", ["breeding_supply", "sheath", "glove", "gun_warmer", "ai_gun", "heat_detection", "nutritional", "patch"])
+      .order("product_category")
       .order("sort_order")
       .then(({ data }: { data: any }) => setSupplyProducts(data ?? []));
   }, [open, orgId]);
@@ -668,10 +668,24 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
                       <SelectValue placeholder="Select product…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {supplyProducts.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.product_name}
-                        </SelectItem>
+                      {Object.entries(
+                        supplyProducts.reduce((acc, p) => {
+                          const cat = p.product_category || "other";
+                          (acc[cat] ||= []).push(p);
+                          return acc;
+                        }, {} as Record<string, typeof supplyProducts>),
+                      ).map(([category, products]) => (
+                        <SelectGroup key={category}>
+                          <SelectLabel className="text-xs uppercase text-muted-foreground">
+                            {category.replace(/_/g, " ")}
+                          </SelectLabel>
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.product_name}
+                              {p.default_price ? ` — $${Number(p.default_price).toFixed(2)}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>
