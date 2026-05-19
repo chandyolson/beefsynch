@@ -678,6 +678,22 @@ const ProjectBilling = () => {
     }
   }
 
+  // Single-field session update. Use this from per-cell onBlur handlers so a
+  // save on one column doesn't ship the whole row (which was wiping siblings
+  // when React re-keyed and refired their onBlurs with stale defaults).
+  async function saveSessionField(sessionId: string, field: keyof SessionLine, value: any) {
+    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, [field]: value } : s)));
+    const { error } = await supabase
+      .from("project_billing_sessions")
+      .update({ [field]: value })
+      .eq("id", sessionId);
+    if (error) {
+      toast({ title: "Error saving", description: error.message, variant: "destructive" });
+    } else {
+      showSaved();
+    }
+  }
+
   function saveSemenLine(idx: number, updates: Partial<SemenLine>) {
     const line = { ...semenLines[idx], ...updates };
     // Only auto-calculate billable if the update did NOT explicitly set units_billable
@@ -708,7 +724,7 @@ const ProjectBilling = () => {
     if (!billingId) return;
     const { data } = await supabase.from("project_billing_sessions").insert({
       billing_id: billingId, session_date: format(new Date(), "yyyy-MM-dd"),
-      session_label: "Timed Breeding", session_type: "field_session",
+      session_label: "Breeding", session_type: "field_session",
       time_of_day: null, head_count: null, crew: null, notes: null,
       sort_order: sessions.length,
     }).select().single();
@@ -1313,7 +1329,7 @@ const ProjectBilling = () => {
                                 <Input
                                   type="date"
                                   className="h-7 w-[130px] text-sm"
-                                  key={`date-${s.id}-${s.session_date}`}
+                                  key={`date-${s.id}`}
                                   defaultValue={s.session_date ?? ""}
                                   onBlur={(e) => {
                                     const val = e.target.value;
@@ -1324,7 +1340,7 @@ const ProjectBilling = () => {
                                     const year = parseInt(val.split("-")[0], 10);
                                     if (isNaN(year) || year < 2020 || year > 2099) return;
                                     if (val === s.session_date) return;
-                                    saveSessionLine(sessionIdx, { session_date: val });
+                                    if (s.id) saveSessionField(s.id, "session_date", val);
                                   }}
                                 />
                               )}
@@ -1335,19 +1351,17 @@ const ProjectBilling = () => {
                               ) : (
                                 <Input
                                   className="h-7 w-[120px] text-sm"
-                                  key={`label-${s.id}-${s.session_label}`}
+                                  key={`label-${s.id}`}
                                   defaultValue={s.session_label ?? "Breeding"}
                                   onBlur={(e) => {
                                     const val = e.target.value.trim();
                                     const prev = s.session_label || "Breeding";
                                     if (!val) {
-                                      // Empty restores the existing label instead
-                                      // of wiping the column.
                                       e.target.value = prev;
                                       return;
                                     }
                                     if (val === prev) return;
-                                    saveSessionLine(sessionIdx, { session_label: val });
+                                    if (s.id) saveSessionField(s.id, "session_label", val);
                                   }}
                                 />
                               )}
@@ -1359,9 +1373,13 @@ const ProjectBilling = () => {
                                 <Input
                                   type="number"
                                   className="h-7 w-[64px] text-right text-sm ml-auto"
-                                  key={`head-${s.id}-${s.head_count}`}
+                                  key={`head-${s.id}`}
                                   defaultValue={s.head_count ?? ""}
-                                  onBlur={(e) => saveSessionLine(sessionIdx, { head_count: e.target.value === "" ? null : Number(e.target.value) })}
+                                  onBlur={(e) => {
+                                    const val = e.target.value === "" ? null : Number(e.target.value);
+                                    if (val === s.head_count) return;
+                                    if (s.id) saveSessionField(s.id, "head_count", val);
+                                  }}
                                 />
                               )}
                             </td>
@@ -1374,7 +1392,11 @@ const ProjectBilling = () => {
                                   key={`notes-${s.id}`}
                                   defaultValue={s.notes ?? ""}
                                   placeholder="Notes…"
-                                  onBlur={(e) => saveSessionLine(sessionIdx, { notes: e.target.value || null })}
+                                  onBlur={(e) => {
+                                    const val = e.target.value || null;
+                                    if (val === s.notes) return;
+                                    if (s.id) saveSessionField(s.id, "notes", val);
+                                  }}
                                 />
                               )}
                             </td>
