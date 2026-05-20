@@ -18,6 +18,7 @@ interface UnpackFromProjectDialogProps {
   fieldTankLabel?: string | null;
   organizationId: string;
   billingId: string | null;
+  projectId?: string | null;
   projectName?: string | null;
   onUnpackComplete: () => void;
 }
@@ -63,7 +64,7 @@ const tankOptionLabel = (t: TankOption) =>
   t.tank_name ? `${t.tank_name} (#${t.tank_number})` : `Tank #${t.tank_number}`;
 
 export default function UnpackFromProjectDialog({
-  open, onOpenChange, packId, fieldTankId, fieldTankLabel, organizationId, billingId, projectName, onUnpackComplete,
+  open, onOpenChange, packId, fieldTankId, fieldTankLabel, organizationId, billingId, projectId, projectName, onUnpackComplete,
 }: UnpackFromProjectDialogProps) {
   const { userId } = useOrgRole();
   const [loading, setLoading] = useState(false);
@@ -265,6 +266,27 @@ export default function UnpackFromProjectDialog({
       if (error) throw error;
       const result = data as { ok?: boolean; lines_processed?: number } | null;
       if (!result?.ok) throw new Error("Unpack failed: invalid response from server");
+
+      // Unpacking flips the project into Work Complete and stamps the
+      // billing record. We only advance Confirmed projects so an already-
+      // invoiced project doesn't get rolled back.
+      if (projectId) {
+        await supabase
+          .from("projects")
+          .update({ status: "Work Complete" })
+          .eq("id", projectId)
+          .eq("status", "Confirmed");
+      }
+      if (billingId) {
+        const userId = (await supabase.auth.getUser()).data.user?.id || null;
+        await supabase
+          .from("project_billing")
+          .update({
+            billing_completed_at: new Date().toISOString(),
+            billing_completed_by: userId,
+          })
+          .eq("id", billingId);
+      }
 
       toast({ title: "Tank unpacked", description: `${totals.units} units returned to storage.` });
       onUnpackComplete();
