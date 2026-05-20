@@ -434,7 +434,24 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
     if (typeFilter !== "all") list = list.filter((t: any) => t.tank_type === typeFilter);
     if (statusFilter !== "all") list = list.filter((t: any) => t.nitrogen_status === statusFilter || (statusFilter === "out" && t.location_status === "out"));
     if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => (t.tank_number || "").toLowerCase().includes(q) || (t.tank_name || "").toLowerCase().includes(q) || (t.customerName || "").toLowerCase().includes(q)); }
+    // When the user is looking at the "Out" set, group by tank type with
+    // rental + shipper at the top — those are the ones that have to come
+    // back. The user's selected sort still applies within each group.
+    const TYPE_SORT_PRIORITY: Record<string, number> = {
+      rental_tank: 0,
+      shipper: 1,
+      communal_tank: 2,
+      inventory_tank: 3,
+      mushroom: 4,
+      freeze_branding: 5,
+      customer_tank: 6,
+    };
     list = [...list].sort((a: any, b: any) => {
+      if (statusFilter === "out") {
+        const aPri = TYPE_SORT_PRIORITY[a.tank_type] ?? 99;
+        const bPri = TYPE_SORT_PRIORITY[b.tank_type] ?? 99;
+        if (aPri !== bPri) return aPri - bPri;
+      }
       let aVal: any, bVal: any;
       switch (sortKey) {
         case "tank_number": aVal = a.tank_number || ""; bVal = b.tank_number || ""; break;
@@ -579,12 +596,18 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
         </div>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((tank: any) => {
+          {filtered.map((tank: any, i: number) => {
             const customerLabel = tank.customerName || orgName || "Company Owned";
             const typeLabel = TYPE_LABELS[tank.tank_type] || tank.tank_type;
             const locLabel = tank.location_status === "here" ? "in shop" : "out";
             const subtitleParts = [customerLabel, typeLabel, tank.model].filter(Boolean);
-            return (
+            const showGroupHeader =
+              statusFilter === "out" &&
+              (i === 0 || filtered[i - 1].tank_type !== tank.tank_type);
+            const groupCount = showGroupHeader
+              ? filtered.filter((x: any) => x.tank_type === tank.tank_type).length
+              : 0;
+            const card = (
               <div
                 key={tank.id}
                 onClick={() => handleRowClick(tank)}
@@ -662,6 +685,16 @@ const TanksTab = ({ orgId, orgName, companyOnly = false }: { orgId: string; orgN
                     <span className="text-muted-foreground font-normal">Empty</span>
                   )}
                 </div>
+              </div>
+            );
+            if (!showGroupHeader) return card;
+            return (
+              <div key={`group-${tank.id}`} className="space-y-3">
+                <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted/40 rounded-md">
+                  {typeLabel}
+                  <span className="ml-2 font-normal">({groupCount})</span>
+                </div>
+                {card}
               </div>
             );
           })}
