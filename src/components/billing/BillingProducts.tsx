@@ -154,6 +154,95 @@ export default function BillingProducts({ billingId, orgId, isEditing, onToggleE
 
   const sectionTotal = lines.reduce((s, l) => s + (l.line_total ?? 0), 0);
 
+  // Split into pre-breeding protocol items (customer pickup stuff) and
+  // AI-day items (Arm Service + breed-day GnRH). The AI-day group is what
+  // gets billed last, so pinning it to the bottom mirrors how the user
+  // walks through the bill.
+  const isAiDay = (l: ProductRow) => {
+    const cat = (l.product_category || "").toLowerCase();
+    const name = (l.product_name || "").toLowerCase();
+    const label = (l.protocol_event_label || "").toLowerCase();
+    if (cat === "service" || name.includes("arm service") || name.includes("ai service")) return true;
+    if (cat === "gnrh" && (label.includes("breed") || label.includes("tai") || label.includes("mass"))) return true;
+    return false;
+  };
+  const topLines = lines.filter((l) => !isAiDay(l));
+  const bottomLines = lines.filter(isAiDay);
+
+  const renderRow = (l: ProductRow) => {
+    const delivery = DELIVERY_CYCLE.find((d) => d.value === (l.delivery_method || "not_yet")) ?? DELIVERY_CYCLE[0];
+    return (
+      <tr key={l.id} className="border-t border-border/40">
+        <td className="px-3 py-2">
+          <span className="font-medium">{l.product_name}</span>
+          {l.protocol_event_label && l.protocol_event_label !== "—" && (
+            <span className="ml-2 text-[10px] text-muted-foreground">{l.protocol_event_label}</span>
+          )}
+          {(l.doses_per_unit ?? 0) > 1 && (
+            <div className="text-[10px] text-muted-foreground/60">
+              {l.doses_per_unit} doses/{l.unit_label || "unit"}
+            </div>
+          )}
+        </td>
+        <td className="px-3 py-2 text-right">
+          <Input
+            inputMode="decimal"
+            disabled={!isEditing}
+            className="h-7 w-14 text-right text-[15px] font-medium text-emerald-500 ml-auto"
+            defaultValue={l.units_billed ?? ""}
+            placeholder="—"
+            onBlur={(e) => {
+              const v = e.target.value === "" ? null : Number(e.target.value);
+              if (v === l.units_billed) return;
+              saveField(l, { units_billed: v });
+            }}
+          />
+        </td>
+        <td className="px-3 py-2 text-right">
+          <Input
+            inputMode="decimal"
+            disabled={!isEditing}
+            className="h-7 w-[72px] text-right text-xs ml-auto"
+            defaultValue={l.unit_price ?? ""}
+            placeholder="—"
+            onBlur={(e) => {
+              const v = e.target.value === "" ? null : Number(e.target.value);
+              if (v === l.unit_price) return;
+              saveField(l, { unit_price: v });
+            }}
+          />
+        </td>
+        <td className="px-3 py-2">
+          <button
+            type="button"
+            disabled={!isEditing}
+            onClick={() => isEditing && saveField(l, { delivery_method: nextDelivery(l.delivery_method) })}
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${isEditing ? "cursor-pointer" : "cursor-default"} ${delivery.className}`}
+          >
+            {delivery.label}
+          </button>
+        </td>
+        <td className="px-3 py-2 text-right tabular-nums">
+          <span className={(l.line_total ?? 0) > 0 ? "text-emerald-500 font-medium text-[15px]" : "text-muted-foreground"}>
+            {formatCurrency(l.line_total)}
+          </span>
+        </td>
+        <td className="px-2 py-2 text-right">
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => removeLine(l.id)}
+              className="text-muted-foreground hover:text-destructive"
+              aria-label="Remove"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <section className={`rounded-xl border bg-card/50 p-4 space-y-3 ${isEditing ? "border-primary/40 ring-1 ring-primary/30" : "border-border"}`}>
       <SectionHeader
@@ -178,79 +267,19 @@ export default function BillingProducts({ billingId, orgId, isEditing, onToggleE
           <tbody>
             {lines.length === 0 ? (
               <tr><td colSpan={6} className="px-3 py-4 text-center text-muted-foreground">No products yet.</td></tr>
-            ) : lines.map((l) => {
-              const delivery = DELIVERY_CYCLE.find((d) => d.value === (l.delivery_method || "not_yet")) ?? DELIVERY_CYCLE[0];
-              return (
-                <tr key={l.id} className="border-t border-border/40">
-                  <td className="px-3 py-2">
-                    <span className="font-medium">{l.product_name}</span>
-                    {l.protocol_event_label && l.protocol_event_label !== "—" && (
-                      <span className="ml-2 text-[10px] text-muted-foreground">{l.protocol_event_label}</span>
-                    )}
-                    {(l.doses_per_unit ?? 0) > 1 && (
-                      <div className="text-[10px] text-muted-foreground/60">
-                        {l.doses_per_unit} doses/{l.unit_label || "unit"}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <Input
-                      inputMode="decimal"
-                      disabled={!isEditing}
-                      className="h-7 w-14 text-right text-[15px] font-medium text-emerald-500 ml-auto"
-                      defaultValue={l.units_billed ?? ""}
-                      placeholder="—"
-                      onBlur={(e) => {
-                        const v = e.target.value === "" ? null : Number(e.target.value);
-                        if (v === l.units_billed) return;
-                        saveField(l, { units_billed: v });
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <Input
-                      inputMode="decimal"
-                      disabled={!isEditing}
-                      className="h-7 w-[72px] text-right text-xs ml-auto"
-                      defaultValue={l.unit_price ?? ""}
-                      placeholder="—"
-                      onBlur={(e) => {
-                        const v = e.target.value === "" ? null : Number(e.target.value);
-                        if (v === l.unit_price) return;
-                        saveField(l, { unit_price: v });
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      disabled={!isEditing}
-                      onClick={() => isEditing && saveField(l, { delivery_method: nextDelivery(l.delivery_method) })}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${isEditing ? "cursor-pointer" : "cursor-default"} ${delivery.className}`}
-                    >
-                      {delivery.label}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    <span className={(l.line_total ?? 0) > 0 ? "text-emerald-500 font-medium text-[15px]" : "text-muted-foreground"}>
-                      {formatCurrency(l.line_total)}
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-right">
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={() => removeLine(l.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label="Remove"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+            ) : (
+              <>
+                {topLines.map(renderRow)}
+                {bottomLines.length > 0 && topLines.length > 0 && (
+                  <tr className="border-t border-border/40">
+                    <td colSpan={6} className="px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground bg-muted/30">
+                      AI day — bill last
+                    </td>
+                  </tr>
+                )}
+                {bottomLines.map(renderRow)}
+              </>
+            )}
           </tbody>
         </table>
       </div>
