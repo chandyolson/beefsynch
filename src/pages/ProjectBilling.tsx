@@ -1160,7 +1160,7 @@ const ProjectBilling = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {hasPack && packStatus !== "unpacked" && packStatus !== "cancelled" && (
+              {hasPack && packStatus === "packed" && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -1168,6 +1168,20 @@ const ProjectBilling = () => {
                   onClick={() => setUnpackDialogOpen(true)}
                 >
                   <Package className="h-4 w-4 mr-1.5" /> Unpack tank
+                </Button>
+              )}
+              {hasPack && (packStatus === "unpacked" || packStatus === "tank_returned") && (
+                <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-emerald-500/15 text-emerald-500 text-sm font-medium">
+                  <Package className="h-4 w-4" /> Tank unpacked
+                </span>
+              )}
+              {project?.status === "Work Complete" && currentStatus !== "invoiced_closed" && (
+                <Button
+                  size="sm"
+                  className="h-9 bg-purple-600 hover:bg-purple-600/90 text-white"
+                  onClick={markBillingInvoiced}
+                >
+                  Mark Invoiced
                 </Button>
               )}
               {hasPack && (
@@ -1197,9 +1211,6 @@ const ProjectBilling = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setEditProjectOpen(true)}>
                     <Settings className="h-4 w-4 mr-2" /> Edit project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handlePrint}>
-                    <Download className="h-4 w-4 mr-2" /> Export PDF
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -1259,7 +1270,7 @@ const ProjectBilling = () => {
             <BillingProductsSection billingId={billingId} orgId={orgId} />
             <BillingInvoices
               billingId={billingId}
-              onPrintWorksheet={handlePrintWorksheet}
+              onPrintBillSummary={handlePrint}
               onCloseOut={closeOutProject}
               currentStatus={currentStatus}
             />
@@ -1329,6 +1340,7 @@ const ProjectBilling = () => {
           fieldTankLabel={packTankLabel || null}
           organizationId={orgId}
           billingId={billingId}
+          projectId={projectId ?? null}
           projectName={project?.name ?? null}
           onUnpackComplete={() => loadData()}
         />

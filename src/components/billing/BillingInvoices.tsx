@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface BillingInvoicesProps {
   billingId: string;
-  onPrintWorksheet: () => void;
+  onPrintBillSummary: () => void;
   onCloseOut: () => void;
   currentStatus: string;
 }
@@ -31,7 +31,7 @@ const STATUS_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
-export default function BillingInvoices({ billingId, onPrintWorksheet, onCloseOut, currentStatus }: BillingInvoicesProps) {
+export default function BillingInvoices({ billingId, onPrintBillSummary, onCloseOut, currentStatus }: BillingInvoicesProps) {
   const queryClient = useQueryClient();
 
   const { data: billing } = useQuery({
@@ -166,8 +166,8 @@ export default function BillingInvoices({ billingId, onPrintWorksheet, onCloseOu
           <div className="text-2xl font-bold tabular-nums">{formatCurrency(grandTotal)}</div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9" onClick={onPrintWorksheet}>
-            <Printer className="h-4 w-4 mr-1.5" /> Worksheet
+          <Button variant="outline" size="sm" className="h-9" onClick={onPrintBillSummary}>
+            <Printer className="h-4 w-4 mr-1.5" /> Bill summary
           </Button>
           {currentStatus !== "invoiced_closed" ? (
             <Button variant="destructive" size="sm" className="h-9" onClick={onCloseOut}>
