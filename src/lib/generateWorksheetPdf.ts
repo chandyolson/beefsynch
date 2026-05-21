@@ -188,14 +188,8 @@ export function generateWorksheetPdf(
   });
   sessionHead.push({ content: "Ret'd", styles: { halign: "center" as const } });
 
-  const blownByBull = new Map<string, number>();
-  for (const sl of semenLines) {
-    if ((sl.units_blown ?? 0) > 0) blownByBull.set(sl.bull_name, sl.units_blown ?? 0);
-  }
-
-  // Map original session index → displayed slot when we trim to last 4.
-  const sessionOffset = Math.max(0, sortedSessions.length - maxSessions);
-
+  // Field crew writes in S1 end, S2+ values, Blown, Used, Ret'd by hand —
+  // leave those columns blank. Only Bull, Can, Packed, and S1 st are pre-filled.
   let sessionBody: any[][] = [];
   if (sessionDetails.length > 0) {
     sessionBody = sessionDetails.map((sd) => {
@@ -204,33 +198,14 @@ export function generateWorksheetPdf(
         { content: sd.canister || "", styles: { halign: "center" as const } },
         { content: nz(sd.packed), styles: { halign: "center" as const } },
       ];
-      let lastEnd: number | null = null;
-      for (let i = 0; i < maxSessions; i++) {
-        const sess = sd.sessions[sessionOffset + i];
-        row.push({ content: nz(sess?.start), styles: { halign: "center" as const } });
-        row.push({ content: nz(sess?.end), styles: { halign: "center" as const } });
-        if (sess?.end != null) lastEnd = sess.end;
+      const s1Start = sd.sessions[0]?.start ?? sd.packed;
+      row.push({ content: nz(s1Start), styles: { halign: "center" as const } });
+      for (let i = 0; i < maxSessions * 2 - 1; i++) {
+        row.push({ content: "", styles: { halign: "center" as const } });
       }
-      const blown = blownByBull.get(sd.bull_name) ?? 0;
-      const returned = sd.returned ?? lastEnd ?? 0;
-      const used = Math.max(0, sd.packed - returned - blown);
-      row.push({
-        content: nz(blown),
-        styles: {
-          halign: "center" as const,
-          textColor: blown > 0 ? ([180, 60, 60] as any) : 100,
-          fontStyle: "bold" as const,
-        },
-      });
-      row.push({
-        content: used > 0 ? String(used) : "",
-        styles: {
-          halign: "center" as const,
-          textColor: used > 0 ? ([30, 110, 170] as any) : 100,
-          fontStyle: "bold" as const,
-        },
-      });
-      row.push({ content: nz(sd.returned), styles: { halign: "center" as const } });
+      row.push({ content: "", styles: { halign: "center" as const } });
+      row.push({ content: "", styles: { halign: "center" as const } });
+      row.push({ content: "", styles: { halign: "center" as const } });
       return row;
     });
   } else if (packLines.length > 0) {
@@ -240,7 +215,8 @@ export function generateWorksheetPdf(
         { content: pl.canister, styles: { halign: "center" as const } },
         { content: nz(pl.packed), styles: { halign: "center" as const } },
       ];
-      for (let i = 0; i < maxSessions * 2; i++) {
+      row.push({ content: nz(pl.packed), styles: { halign: "center" as const } });
+      for (let i = 0; i < maxSessions * 2 - 1; i++) {
         row.push({ content: "", styles: { halign: "center" as const } });
       }
       row.push({ content: "", styles: { halign: "center" as const } });
