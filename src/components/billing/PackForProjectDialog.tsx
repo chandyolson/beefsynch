@@ -31,6 +31,7 @@ type InventoryRow = {
   canister: string | null;
   sub_canister: string | null;
   units: number;
+  customer_id: string | null;
   tanks: { tank_name: string | null; tank_number: string } | null;
 };
 
@@ -40,6 +41,7 @@ type PullRow = {
   sourceTankLabel: string;
   sourceCanister: string | null;
   available: number;
+  customerId: string | null;
 };
 
 type DestRow = {
@@ -71,22 +73,33 @@ const newDestId = () =>
     ? crypto.randomUUID()
     : `dst-${Math.random().toString(36).slice(2)}-${Date.now()}`);
 
-type ProjectOption = { id: string; name: string };
+type ProjectOption = { id: string; name: string; customer_id: string };
 
 const tankDisplay = (t: { tank_name: string | null; tank_number: string } | null) => {
   if (!t) return "—";
   return t.tank_name ? `${t.tank_name} (#${t.tank_number})` : `Tank #${t.tank_number}`;
 };
 
-async function loadInventoryForBull(orgId: string, bullCatalogId: string): Promise<InventoryRow[]> {
-  const { data, error } = await supabase
+async function loadInventoryForBull(
+  orgId: string,
+  bullCatalogId: string,
+  customerIds: string[],
+): Promise<InventoryRow[]> {
+  let query = supabase
     .from("tank_inventory")
-    .select("id, tank_id, canister, sub_canister, units, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
+    .select("id, tank_id, canister, sub_canister, units, customer_id, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
     .eq("organization_id", orgId)
     .eq("bull_catalog_id", bullCatalogId)
-    .is("customer_id", null)
-    .gt("units", 0)
-    .order("units", { ascending: false });
+    .gt("units", 0);
+
+  if (customerIds.length > 0) {
+    const filter = customerIds.map((id) => `customer_id.eq.${id}`).join(",");
+    query = query.or(`customer_id.is.null,${filter}`);
+  } else {
+    query = query.is("customer_id", null);
+  }
+
+  const { data, error } = await query.order("units", { ascending: false });
   if (error) {
     console.error("inventory load failed", error);
     return [];
@@ -101,6 +114,7 @@ const buildPulls = (inventory: InventoryRow[]): PullRow[] =>
     sourceTankLabel: tankDisplay(row.tanks),
     sourceCanister: row.canister,
     available: row.units,
+    customerId: row.customer_id,
   }));
 
 // Make one initial destination row covering the bull's planned need. The
@@ -159,7 +173,7 @@ export default function PackForProjectDialog({
     if (!open) return;
     let cancelled = false;
     (async () => {
-      const [tanksRes, projectsRes] = await Promise.all([
+      const [tanksRes, projectsRes, parentProjRes] = await Promise.all([
         supabase
           .from("tanks")
           .select("id, tank_name, tank_number, tank_type, nitrogen_status, location_status")
@@ -169,10 +183,15 @@ export default function PackForProjectDialog({
           .order("tank_number"),
         supabase
           .from("projects")
-          .select("id, name")
+          .select("id, name, customer_id")
           .eq("organization_id", organizationId)
           .in("status", ["Confirmed", "In Field"])
           .order("name"),
+        supabase
+          .from("projects")
+          .select("id, name, customer_id")
+          .eq("id", projectId)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
       if (tanksRes.error) toast({ title: "Could not load tanks", description: tanksRes.error.message, variant: "destructive" });
@@ -180,13 +199,25 @@ export default function PackForProjectDialog({
       // Make sure the parent project is always selectable even if its status
       // doesn't match the filter (e.g. already In Field with a prior pack).
       const projects = (projectsRes.data ?? []) as ProjectOption[];
-      if (!projects.some((p) => p.id === projectId) && projectName) {
-        projects.unshift({ id: projectId, name: projectName });
+      if (!projects.some((p) => p.id === projectId) && parentProjRes.data) {
+        projects.unshift(parentProjRes.data as ProjectOption);
       }
       setAvailableProjects(projects);
     })();
     return () => { cancelled = true; };
   }, [open, organizationId, projectId, projectName]);
+
+  // Customers tied to the currently selected projects. Customer-owned semen
+  // belonging to any of these customers is eligible to be packed (alongside
+  // CATL-owned inventory).
+  const selectedCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const id of selectedProjectIds) {
+      const p = availableProjects.find((x) => x.id === id);
+      if (p?.customer_id) ids.add(p.customer_id);
+    }
+    return Array.from(ids);
+  }, [selectedProjectIds, availableProjects]);
 
   // Reload bull sections whenever the selected-projects set changes.
   useEffect(() => {
@@ -250,7 +281,7 @@ export default function PackForProjectDialog({
       const sections: BullSection[] = [];
       let idx = 0;
       for (const [bullCatalogId, info] of byBull.entries()) {
-        const inventory = await loadInventoryForBull(organizationId, bullCatalogId);
+        const inventory = await loadInventoryForBull(organizationId, bullCatalogId, selectedCustomerIds);
         if (cancelled) return;
         const previous = prevFromPlanByBull.get(bullCatalogId);
         idx += 1;
@@ -278,7 +309,7 @@ export default function PackForProjectDialog({
       }
     })();
     return () => { cancelled = true; };
-  }, [open, selectedProjectIds, organizationId]);
+  }, [open, selectedProjectIds, organizationId, selectedCustomerIds]);
 
   const removeExtraSection = (key: string) =>
     setBullSections((prev) => prev.filter((s) => !(s.key === key && !s.fromPlan)));
@@ -340,7 +371,7 @@ export default function PackForProjectDialog({
     // Duplicate bulls ARE allowed — same bull can go into multiple field
     // canisters. The pack_tank RPC writes one tank_pack_lines row per pull
     // and there's no unique constraint on (pack_id, bull_catalog_id).
-    const inventory = await loadInventoryForBull(organizationId, catalogId);
+    const inventory = await loadInventoryForBull(organizationId, catalogId, selectedCustomerIds);
     const pulls = buildPulls(inventory);
     const { data: bullRow } = await supabase
       .from("bulls_catalog")
@@ -417,6 +448,7 @@ export default function PackForProjectDialog({
         source_canister: string | null;
         field_canister: string | null;
         units: number;
+        is_billable: boolean;
       }> = [];
 
       // Per-bull source allocation. Each destination row carries its own
@@ -452,6 +484,9 @@ export default function PackForProjectDialog({
               source_canister: p.sourceCanister,
               field_canister: d.fieldCanister.trim() || null,
               units: take,
+              // Customer-owned semen stored at CATL is not billable — we're
+              // just shipping the customer their own inventory back.
+              is_billable: p.customerId === null,
             });
             sourceRemaining.set(p.inventoryId, remaining - take);
             need -= take;
@@ -646,13 +681,21 @@ export default function PackForProjectDialog({
 
                     {/* Source inventory — display only. Allocation is FIFO at submit. */}
                     {s.pulls.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No company inventory available for this bull.</p>
+                      <p className="text-xs text-muted-foreground italic">No available inventory for this bull.</p>
                     ) : (
                       <div className="space-y-0.5 text-[11px] text-muted-foreground border-l-2 border-border/60 pl-2">
                         {s.pulls.map((p) => (
                           <div key={p.inventoryId} className="flex items-center gap-2">
                             <span className="font-medium text-foreground/80">{p.sourceTankLabel}</span>
                             {p.sourceCanister && <span> · can {p.sourceCanister}</span>}
+                            {p.customerId && (
+                              <Badge
+                                variant="outline"
+                                className="h-4 px-1 py-0 text-[9px] font-medium border-amber-500/40 text-amber-700 bg-amber-50"
+                              >
+                                Customer owned
+                              </Badge>
+                            )}
                             <span className="ml-auto text-emerald-600 tabular-nums">{p.available} avail</span>
                           </div>
                         ))}
@@ -709,7 +752,8 @@ export default function PackForProjectDialog({
                               >
                                 {s.pulls.map((p) => {
                                   const left = (remaining.get(p.inventoryId) ?? 0);
-                                  const label = `${p.sourceTankLabel}${p.sourceCanister ? ` · can ${p.sourceCanister}` : ""} — ${left} remaining`;
+                                  const ownerTag = p.customerId ? " · customer owned" : "";
+                                  const label = `${p.sourceTankLabel}${p.sourceCanister ? ` · can ${p.sourceCanister}` : ""}${ownerTag} — ${left} remaining`;
                                   return (
                                     <option
                                       key={p.inventoryId}
