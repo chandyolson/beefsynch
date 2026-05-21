@@ -76,7 +76,7 @@ const FulfillOrder = () => {
   const [fulfilledByBull, setFulfilledByBull] = useState<Map<string, number>>(new Map());
   const [history, setHistory] = useState<FulfilledHistory[]>([]);
 
-  const [customerTanks, setCustomerTanks] = useState<Array<{ id: string; tank_number: string | number; tank_name: string | null }>>([]);
+  const [customerTanks, setCustomerTanks] = useState<Array<{ id: string; tank_number: string | number; tank_name: string | null; tank_type: string; customer_id: string | null }>>([]);
   const [destTankCanisters, setDestTankCanisters] = useState<string[]>([]);
   const [destinationMode, setDestinationMode] = useState<"tank" | "pickup">("tank");
   const [destTankId, setDestTankId] = useState<string>("");
@@ -149,21 +149,37 @@ const FulfillOrder = () => {
     setFulfilledByBull(fb);
     setHistory(hist);
 
-    if (o.customer_id) {
-      const { data: tanks } = await supabase
-        .from("tanks")
-        .select("id, tank_number, tank_name")
-        .eq("customer_id", o.customer_id)
-        .order("tank_number");
-      const list = (tanks ?? []) as Array<{ id: string; tank_number: string | number; tank_name: string | null }>;
-      setCustomerTanks(list);
-      if (list.length > 0 && !destTankId) setDestTankId(list[0].id);
-    }
+    // Show ALL available destinations — rentals, customer tanks, inventory
+    // tanks, shippers. Anything here + wet. Customers renting a CATL tank
+    // (Jim Cantrell, etc.) don't own any tanks of their own; the rental is
+    // the destination.
+    const { data: tanks } = await supabase
+      .from("tanks")
+      .select("id, tank_number, tank_name, tank_type, customer_id")
+      .eq("organization_id", orgId!)
+      .eq("location_status", "here")
+      .eq("nitrogen_status", "wet")
+      .order("tank_number");
+
+    // Priority order: rental_tank → this customer's own tank → everything
+    // else. Stable within tank_number after that.
+    const list = ((tanks ?? []) as Array<{ id: string; tank_number: string | number; tank_name: string | null; tank_type: string; customer_id: string | null }>)
+      .slice()
+      .sort((a, b) => {
+        const rank = (t: { tank_type: string; customer_id: string | null }) => {
+          if (t.tank_type === "rental_tank") return 0;
+          if (t.tank_type === "customer_tank" && t.customer_id && t.customer_id === o.customer_id) return 1;
+          return 2;
+        };
+        return rank(a) - rank(b);
+      });
+    setCustomerTanks(list);
+    if (list.length > 0 && !destTankId) setDestTankId(list[0].id);
 
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { if (orgId) load(); }, [id, orgId]);
 
   // Look up company-stock locations for each ordered bull.
   useEffect(() => {
@@ -284,12 +300,24 @@ const FulfillOrder = () => {
   };
 
   const fulfill = async () => {
-    if (!order) return;
+    if (!order || !orgId) return;
     setSaving(true);
 
-    // Build the lines payload + receipt for the packing list.
-    const lines: any[] = [];
+    // Build receipt (for the printable packing list) once. The submit
+    // payload differs by destination mode, but the receipt is the same.
     const receipt: PackingListLine[] = [];
+    // Tank-mode payload (pack_tank lines).
+    const packLines: Array<{
+      source_tank_id: string;
+      source_canister: string | null;
+      bull_catalog_id: string;
+      bull_name: string;
+      bull_code: string | null;
+      field_canister: string | null;
+      units: number;
+    }> = [];
+    // Pickup-mode payload (legacy fulfill_order_lines shape).
+    const pickupLines: any[] = [];
 
     for (const it of items) {
       if (lineLocked(it) || !it.bull_catalog_id) continue;
@@ -302,13 +330,25 @@ const FulfillOrder = () => {
         const destCan = destinationMode === "tank"
           ? (destCanisters[it.id]?.trim() || "1")
           : null;
-        lines.push({
-          bull_catalog_id: it.bull_catalog_id,
-          source_tank_id: loc.tank_id,
-          source_canister: loc.canister || null,
-          pull_units: n,
-          dest_canister: destCan,
-        });
+        if (destinationMode === "tank") {
+          packLines.push({
+            source_tank_id: loc.tank_id,
+            source_canister: loc.canister || null,
+            bull_catalog_id: it.bull_catalog_id,
+            bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "",
+            bull_code: it.bulls_catalog?.naab_code || null,
+            field_canister: destCan,
+            units: n,
+          });
+        } else {
+          pickupLines.push({
+            bull_catalog_id: it.bull_catalog_id,
+            source_tank_id: loc.tank_id,
+            source_canister: loc.canister || null,
+            pull_units: n,
+            dest_canister: null,
+          });
+        }
         receipt.push({
           bull_name: it.bulls_catalog?.bull_name || it.custom_bull_name || "Unknown",
           bull_code: it.bulls_catalog?.naab_code || null,
@@ -321,27 +361,75 @@ const FulfillOrder = () => {
       }
     }
 
-    if (lines.length === 0) {
+    const lineCount = destinationMode === "tank" ? packLines.length : pickupLines.length;
+    if (lineCount === 0) {
       toast({ title: "Nothing to fulfill", description: "Enter pull amounts first." });
       setSaving(false);
       return;
     }
 
-    const { data, error } = await supabase.rpc("fulfill_order_lines" as any, {
-      _order_id: order.id,
-      _lines: lines as any,
-      _dest_tank_id: destinationMode === "tank" ? destTankId : null,
-      _is_pickup: destinationMode === "pickup",
-    });
+    if (destinationMode === "tank") {
+      if (!destTankId) {
+        toast({ title: "Pick a destination tank", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      // Look up packer name once for the pack record.
+      let packedBy: string | null = null;
+      const { data: userRes } = await supabase.auth.getUser();
+      const userId = userRes?.user?.id ?? null;
+      if (userId) {
+        const { data: member } = await supabase
+          .from("organization_members")
+          .select("display_name")
+          .eq("organization_id", orgId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        packedBy = member?.display_name ?? null;
+      }
 
-    if (error) {
-      toast({ title: "Fulfillment failed", description: error.message, variant: "destructive" });
-      setSaving(false);
-      return;
+      const payload = {
+        organization_id: orgId,
+        pack_type: "order",
+        field_tank_id: destTankId,
+        packed_at: new Date().toISOString(),
+        packed_by: packedBy,
+        project_ids: [] as string[],
+        order_ids: [order.id],
+        pickup_order_ids: [] as string[],
+        lines: packLines,
+      };
+
+      const { data, error } = await supabase.rpc("pack_tank", { _input: payload });
+      if (error) {
+        toast({ title: "Pack failed", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const result = data as { ok?: boolean; pack_id?: string } | null;
+      if (!result?.ok) {
+        toast({ title: "Pack failed", description: "Server returned an unexpected response.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      toast({ title: "Order packed", description: `${packLines.length} line(s) into the destination tank` });
+    } else {
+      // Customer pickup — leaves inventory, no field tank.
+      const { data, error } = await supabase.rpc("fulfill_order_lines" as any, {
+        _order_id: order.id,
+        _lines: pickupLines as any,
+        _dest_tank_id: null,
+        _is_pickup: true,
+      });
+      if (error) {
+        toast({ title: "Fulfillment failed", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const result = data as { lines_processed?: number } | null;
+      toast({ title: "Order fulfilled", description: `${result?.lines_processed ?? pickupLines.length} pull line(s) processed` });
     }
 
-    const result = data as { lines_processed?: number } | null;
-    toast({ title: "Order fulfilled", description: `${result?.lines_processed ?? lines.length} pull line(s) processed` });
     setLastReceipt(receipt);
     setPulls({});
     await load();
@@ -410,7 +498,7 @@ const FulfillOrder = () => {
               <label className="flex items-center gap-2 cursor-pointer">
                 <RadioGroupItem value="tank" id="dest-tank" />
                 <Package className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Pack into customer tank</span>
+                <span className="text-sm">Pack into tank</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <RadioGroupItem value="pickup" id="dest-pickup" />
@@ -424,17 +512,30 @@ const FulfillOrder = () => {
                 <Label className="text-xs">Destination tank</Label>
                 {customerTanks.length === 0 ? (
                   <p className="text-xs text-destructive">
-                    {customerName} has no tanks on file. Add one before packing.
+                    No available tanks — all tanks are currently out or dry.
                   </p>
                 ) : (
                   <Select value={destTankId} onValueChange={setDestTankId}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {customerTanks.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.tank_name ? `${t.tank_number} — ${t.tank_name}` : String(t.tank_number)}
-                        </SelectItem>
-                      ))}
+                      {customerTanks.map((t) => {
+                        const label = t.tank_name
+                          ? `${t.tank_name} (${t.tank_number})`
+                          : `Tank ${t.tank_number}`;
+                        const typeLabel = (() => {
+                          if (t.tank_type === "rental_tank") return "Rental";
+                          if (t.tank_type === "customer_tank") return "Customer";
+                          if (t.tank_type === "inventory_tank") return "Inventory";
+                          if (t.tank_type === "communal_tank") return "Communal";
+                          if (t.tank_type === "shipper") return "Shipper";
+                          return t.tank_type.replace(/_/g, " ");
+                        })();
+                        return (
+                          <SelectItem key={t.id} value={t.id}>
+                            {label} · {typeLabel}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 )}
