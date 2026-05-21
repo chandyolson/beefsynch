@@ -40,6 +40,7 @@ type InventoryRow = {
   tank_id: string;
   canister: string | null;
   units: number;
+  customer_id: string | null;
   tanks: { tank_name: string | null; tank_number: string } | null;
 };
 
@@ -53,6 +54,9 @@ export default function EditPackDialog({
 }: EditPackDialogProps) {
   const [loading, setLoading] = useState(false);
   const [lines, setLines] = useState<PackLine[]>([]);
+  // Customer IDs tied to projects on this pack. Customer-owned semen for any
+  // of these customers is eligible to be packed (alongside CATL-owned).
+  const [packCustomerIds, setPackCustomerIds] = useState<string[]>([]);
   // Per-line draft units while user is typing — committed on blur.
   const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
   const [savingLineId, setSavingLineId] = useState<string | null>(null);
@@ -90,6 +94,22 @@ export default function EditPackDialog({
     if (!open) return;
     fetchLines();
     setAddOpen(false);
+    (async () => {
+      const { data, error } = await supabase
+        .from("tank_pack_projects")
+        .select("projects:project_id(customer_id)")
+        .eq("tank_pack_id", packId);
+      if (error) {
+        console.error("could not load pack customers", error);
+        setPackCustomerIds([]);
+        return;
+      }
+      const ids = new Set<string>();
+      for (const row of (data ?? []) as Array<{ projects: { customer_id: string } | null }>) {
+        if (row.projects?.customer_id) ids.add(row.projects.customer_id);
+      }
+      setPackCustomerIds(Array.from(ids));
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, packId]);
 
@@ -160,14 +180,19 @@ export default function EditPackDialog({
     setAddBullCatalogId(catalogId);
     setAddBullName(name);
     setAddBullCode(naabCode ?? null);
-    const { data, error } = await supabase
+    let query = supabase
       .from("tank_inventory")
-      .select("id, tank_id, canister, units, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
+      .select("id, tank_id, canister, units, customer_id, tanks!tank_inventory_tank_id_fkey(tank_name, tank_number)")
       .eq("organization_id", organizationId)
       .eq("bull_catalog_id", catalogId)
-      .is("customer_id", null)
-      .gt("units", 0)
-      .order("units", { ascending: false });
+      .gt("units", 0);
+    if (packCustomerIds.length > 0) {
+      const filter = packCustomerIds.map((id) => `customer_id.eq.${id}`).join(",");
+      query = query.or(`customer_id.is.null,${filter}`);
+    } else {
+      query = query.is("customer_id", null);
+    }
+    const { data, error } = await query.order("units", { ascending: false });
     if (error) {
       toast({ title: "Inventory lookup failed", description: error.message, variant: "destructive" });
       return;
@@ -198,6 +223,9 @@ export default function EditPackDialog({
         source_canister: source.canister,
         field_canister: addFieldCanister.trim() || null,
         units,
+        // Customer-owned semen stored at CATL is not billable — the customer
+        // shouldn't be billed for their own inventory.
+        is_billable: source.customer_id === null,
       },
     });
     setAddSubmitting(false);
@@ -296,7 +324,7 @@ export default function EditPackDialog({
                         <Label className="text-xs text-muted-foreground">Source</Label>
                         {addInventory.length === 0 ? (
                           <p className="text-xs text-muted-foreground italic">
-                            No company inventory available for this bull.
+                            No available inventory for this bull.
                           </p>
                         ) : (
                           <select
@@ -308,7 +336,8 @@ export default function EditPackDialog({
                             {addInventory.map((row) => (
                               <option key={row.id} value={row.id}>
                                 {tankDisplay(row.tanks)}
-                                {row.canister ? ` · can ${row.canister}` : ""} — {row.units} avail
+                                {row.canister ? ` · can ${row.canister}` : ""}
+                                {row.customer_id ? " · customer owned" : ""} — {row.units} avail
                               </option>
                             ))}
                           </select>
