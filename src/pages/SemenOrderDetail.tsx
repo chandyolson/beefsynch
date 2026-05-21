@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer, MoreVertical, XCircle } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer, MoreVertical, XCircle, Check, CheckCircle2 } from "lucide-react";
 import { OrderPrintSheet } from "@/components/orders/OrderPrintSheet";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { FulfillOrderDialog } from "@/components/orders/FulfillOrderDialog";
@@ -203,6 +203,7 @@ const SemenOrderDetail = () => {
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [packDialogOpen, setPackDialogOpen] = useState(false);
+  const [markFulfilledOpen, setMarkFulfilledOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
   const [directSaleTxns, setDirectSaleTxns] = useState<any[]>([]);
@@ -671,6 +672,21 @@ const SemenOrderDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
+                {order.order_status === "not_ordered" && (
+                  <DropdownMenuItem onClick={() => advanceOrderStatus("ordered")}>
+                    <Check className="h-4 w-4 mr-2" /> Mark as Ordered
+                  </DropdownMenuItem>
+                )}
+                {order.order_status === "ordered" && (
+                  <DropdownMenuItem onClick={() => advanceOrderStatus("received")}>
+                    <Check className="h-4 w-4 mr-2" /> Mark as Received
+                  </DropdownMenuItem>
+                )}
+                {!["fulfilled", "invoiced", "cancelled"].includes(order.fulfillment_status) && (
+                  <DropdownMenuItem onClick={() => setMarkFulfilledOpen(true)}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Fulfilled
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleExportPdf}>
                   <FileDown className="h-4 w-4 mr-2" /> Export PDF
                 </DropdownMenuItem>
@@ -774,23 +790,13 @@ const SemenOrderDetail = () => {
                 </Badge>
               );
             })()}
-            {order.order_status === "not_ordered" && (
+            {order.order_type === "customer" && canFulfillOrder(order.fulfillment_status) && (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-amber-500 hover:bg-amber-500/90 text-white"
-                onClick={() => advanceOrderStatus("ordered")}
+                onClick={() => setPackDialogOpen(true)}
               >
-                Mark as Ordered
-              </Button>
-            )}
-            {order.order_status === "ordered" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                onClick={() => advanceOrderStatus("received")}
-              >
-                Mark as Received
+                <Package className="h-4 w-4 mr-2" />
+                Pack Order
               </Button>
             )}
           </div>
@@ -816,81 +822,6 @@ const SemenOrderDetail = () => {
             </p>
           )}
 
-          {order.order_type === "customer" && (() => {
-            // Compute fulfilled units per bull line from pack data
-            const fulfilledByBull = new Map<string, number>();
-            for (const link of packData || []) {
-              const pack = link.tank_packs;
-              if (!pack) continue;
-              const returnsByBull = unpackReturnsByBull(pack.tank_unpack_lines || []);
-              for (const pl of (pack.tank_pack_lines || [])) {
-                const k = pl.bull_catalog_id || pl.bull_name || "";
-                if (!k) continue;
-                const used = Math.max(0, (pl.units || 0) - (returnsByBull.get(k) || 0));
-                fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
-              }
-            }
-            // Also count direct sales and withdrawals as fulfilled
-            for (const txn of directSaleTxns) {
-              const k = txn.bull_catalog_id || txn.custom_bull_name || "";
-              const used = Math.abs(txn.units_change || 0);
-              fulfilledByBull.set(k, (fulfilledByBull.get(k) || 0) + used);
-            }
-            const directSaleLines = items.map((it) => {
-              const k = it.bull_catalog_id || it.bulls_catalog?.bull_name || it.custom_bull_name || "";
-              return {
-                bull_catalog_id: it.bull_catalog_id,
-                bull_name: getBullDisplayName(it),
-                bull_code: it.bulls_catalog?.naab_code || null,
-                ordered: it.units || 0,
-                fulfilled: fulfilledByBull.get(k) || 0,
-              };
-            });
-            const hasRemaining = directSaleLines.some((l) => l.ordered - l.fulfilled > 0);
-            const canDirectSale =
-              canFulfillOrder(order.fulfillment_status) &&
-              hasRemaining &&
-              !!orgId;
-            return (
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                {order.fulfillment_status === "partially_fulfilled" && (
-                  <MarkFulfilledModal
-                    orderId={order.id}
-                    customerName={customerName}
-                    unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
-                    unitsFilled={
-                      packData.reduce((s: number, link: any) => {
-                        const lines = link.tank_packs?.tank_pack_lines || [];
-                        return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-                      }, 0) +
-                      directSaleTxns.reduce((s: number, txn: any) => s + Math.abs(txn.units_change || 0), 0)
-                    }
-                    trigger={<Button size="sm" variant="outline">Mark Fulfilled</Button>}
-                    onSuccess={() => load()}
-                  />
-                )}
-                {canDirectSale && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/semen-orders/${order.id}/fulfill`)}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Fulfill Order
-                  </Button>
-                )}
-                {canFulfillOrder(order.fulfillment_status) && (
-                  <Button
-                    size="sm"
-                    onClick={() => setPackDialogOpen(true)}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Pack Order
-                  </Button>
-                )}
-              </div>
-            );
-          })()}
         </div>
 
         {/* Dates timeline */}
@@ -1448,6 +1379,23 @@ const SemenOrderDetail = () => {
           customerName={customerName}
           organizationId={orgId}
           onPackComplete={() => load()}
+        />
+      )}
+      {order && (
+        <MarkFulfilledModal
+          orderId={order.id}
+          customerName={customerName}
+          unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
+          unitsFilled={
+            packData.reduce((s: number, link: any) => {
+              const lines = link.tank_packs?.tank_pack_lines || [];
+              return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
+            }, 0) +
+            directSaleTxns.reduce((s: number, txn: any) => s + Math.abs(txn.units_change || 0), 0)
+          }
+          open={markFulfilledOpen}
+          onOpenChange={setMarkFulfilledOpen}
+          onSuccess={() => load()}
         />
       )}
       <AppFooter />

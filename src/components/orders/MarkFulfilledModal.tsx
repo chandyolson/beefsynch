@@ -21,7 +21,9 @@ interface MarkFulfilledModalProps {
   customerName: string;
   unitsOrdered: number;
   unitsFilled: number;
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
 }
 
@@ -31,10 +33,17 @@ export const MarkFulfilledModal = ({
   unitsOrdered,
   unitsFilled,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   onSuccess,
 }: MarkFulfilledModalProps) => {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    onOpenChange?.(next);
+    if (controlledOpen === undefined) setUncontrolledOpen(next);
+  };
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,7 +72,7 @@ export const MarkFulfilledModal = ({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Mark order as fulfilled</AlertDialogTitle>
