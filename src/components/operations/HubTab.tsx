@@ -6,7 +6,6 @@ import { format, parseISO, addDays, startOfDay } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
 import {
   CalendarDays, Package, AlertTriangle, DollarSign,
   Droplets, Truck, ChevronRight, Clock, CheckCircle2, XCircle, Printer,
@@ -879,20 +878,15 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                         </p>
                       )}
                     </div>
-                    {o.type === "order" ? (
-                      <InvoiceOrderModal
-                        orderId={o.id}
-                        customerName={o.customerName}
-                        trigger={<Button size="sm">Invoice</Button>}
-                        onSuccess={() =>
-                          setReadyToInvoice((prev) => prev.filter((x) => x.id !== o.id))
-                        }
-                      />
-                    ) : (
-                       <Button size="sm" onClick={() => navigate(`/project/${o.id}/billing`)}>
-                        Invoice
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        navigate(o.type === "project" ? `/project/${o.id}/billing` : `/semen-orders/${o.id}`)
+                      }
+                    >
+                      Open
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
                 ))}
               </div>

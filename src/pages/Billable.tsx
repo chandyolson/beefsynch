@@ -129,21 +129,6 @@ const Billable = () => {
     return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [orders]);
 
-  const markOrderInvoiced = async (orderId: string) => {
-    setSavingId(orderId);
-    const { error } = await supabase
-      .from("semen_orders")
-      .update({ invoiced_at: new Date().toISOString(), billing_status: "invoiced" })
-      .eq("id", orderId);
-    setSavingId(null);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    toast({ title: "Order marked invoiced" });
-  };
-
   const markProjectInvoiced = async (proj: BillableProject) => {
     setSavingId(proj.billing_id);
     const now = new Date().toISOString();
@@ -222,16 +207,9 @@ const Billable = () => {
                           </Button>
                           <Button
                             size="sm"
-                            disabled={savingId === o.id}
-                            onClick={() => markOrderInvoiced(o.id)}
+                            onClick={() => navigate(`/semen-orders/${o.id}`)}
                           >
-                            {savingId === o.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Invoiced
-                              </>
-                            )}
+                            Open <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
                         </div>
                       ))}
