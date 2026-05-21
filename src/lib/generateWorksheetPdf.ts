@@ -85,6 +85,8 @@ export function generateWorksheetPdf(
   extra?: {
     semenLines?: SemenSummary[];
     breedingSessions?: BreedingSession[];
+    scheduleSessions?: BreedingSession[];
+    billingNotes?: string | null;
     sessionDetails?: SessionDetail[];
     packLines?: PackLineRow[];
     laborEntries?: { description: string; labor_dates: string | null }[];
@@ -95,6 +97,8 @@ export function generateWorksheetPdf(
   void _events; // protocol schedule isn't on the field worksheet anymore
   const semenLines = extra?.semenLines ?? [];
   const breedingSessions = extra?.breedingSessions ?? [];
+  const scheduleSessions = extra?.scheduleSessions ?? [];
+  const billingNotes = extra?.billingNotes ?? null;
   const sessionDetails = extra?.sessionDetails ?? [];
   const packLines = extra?.packLines ?? [];
   const laborEntries = extra?.laborEntries ?? [];
@@ -143,6 +147,47 @@ export function generateWorksheetPdf(
   doc.line(m, 22, pw - m, 22);
 
   let y = 26;
+
+  /* ── Schedule bar ── */
+  if (scheduleSessions.length > 0) {
+    const scheduleText = scheduleSessions
+      .map((s) => {
+        if (!s.session_date) return s.session_label || "";
+        const d = parseISO(s.session_date);
+        const label = s.session_label || "Session";
+        return `${format(d, "M/d")} ${label} (${format(d, "EEE")})`;
+      })
+      .filter(Boolean)
+      .join("  ·  ");
+    if (scheduleText) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(80);
+      const labelText = "SCHEDULE";
+      const labelW = doc.getTextWidth(labelText);
+      const padX = 2;
+      const gap = 3;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      const textX = m + padX + labelW + gap;
+      const availW = pw - m - padX - textX;
+      const lines = doc.splitTextToSize(scheduleText, availW);
+      const lineH = 3.5;
+      const barH = Math.max(5, lines.length * lineH + 2);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(m, y - 3, pw - 2 * m, barH, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(80);
+      doc.text(labelText, m + padX, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(40);
+      doc.text(lines, textX, y);
+      doc.setTextColor(0);
+      y += barH;
+    }
+  }
 
   /* ── Session legend ── */
   const sortedSessions = [...breedingSessions].sort(
@@ -331,23 +376,30 @@ export function generateWorksheetPdf(
   doc.text("Notes", rightLeft, y);
 
   let noteY = y + 4;
-  if (project.notes) {
+  if (billingNotes) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     doc.setTextColor(110);
-    const lines = doc.splitTextToSize(project.notes, colWidth);
+    const lines = doc.splitTextToSize(billingNotes, colWidth);
     doc.text(lines, rightLeft, noteY);
     noteY += lines.length * 3.5 + 2;
     doc.setTextColor(0);
   }
-  // Ruled writing lines
+  // Ruled writing lines — always at least 4 lines below billing notes
   const footerY = ph - 10;
   const lineSpacing = 6.5;
+  const minLines = 4;
+  const maxLines = 6;
   doc.setDrawColor(140);
   doc.setLineWidth(0.2);
-  while (noteY + lineSpacing < footerY - 4 && noteY < (leftBottom > 0 ? Math.max(leftBottom, ph - 30) : ph - 30)) {
+  let drawn = 0;
+  while (
+    drawn < maxLines &&
+    (drawn < minLines || noteY + lineSpacing < footerY - 4)
+  ) {
     doc.line(rightLeft, noteY, pw - m, noteY);
     noteY += lineSpacing;
+    drawn++;
   }
 
   /* ── Footer: brand + pack checkboxes ── */

@@ -22,7 +22,7 @@ export async function printBreedingWorksheet(project: any) {
       .eq("project_id", project.id),
     supabase
       .from("project_billing")
-      .select("id")
+      .select("id, notes")
       .eq("project_id", project.id)
       .maybeSingle(),
   ]);
@@ -30,6 +30,7 @@ export async function printBreedingWorksheet(project: any) {
   const events = eventsRes.data ?? [];
   const bulls = bullsRes.data ?? [];
   const billingId = billingRes.data?.id ?? null;
+  const billingNotes = billingRes.data?.notes ?? null;
 
   // 2. Tank pack (via link table) + pack lines
   const { data: packLinks } = await supabase
@@ -101,6 +102,7 @@ export async function printBreedingWorksheet(project: any) {
   let products: any[] = [];
   let semenLines: { bull_name: string; bull_code: string | null; units_packed: number | null; units_blown: number | null; units_billable: number | null }[] = [];
   let breedOnly: { id: string; session_label: string | null; session_date: string; time_of_day: string | null; sort_order: number | null }[] = [];
+  let allSessions: { id: string; session_label: string | null; session_date: string; time_of_day: string | null; sort_order: number | null }[] = [];
   let inventory: any[] = [];
   let laborEntries: { description: string; labor_dates: string | null }[] = [];
 
@@ -143,6 +145,9 @@ export async function printBreedingWorksheet(project: any) {
       units_billable: sl.units_billable ?? null,
     }));
 
+    allSessions = (sessRes.data ?? [])
+      .slice()
+      .sort((a: any, b: any) => a.session_date.localeCompare(b.session_date));
     breedOnly = (sessRes.data ?? [])
       .filter((s: any) => {
         const label = (s.session_label || "").toLowerCase();
@@ -200,6 +205,8 @@ export async function printBreedingWorksheet(project: any) {
   generateWorksheetPdf(project, events, bulls, products, firstPack, {
     semenLines,
     breedingSessions: breedOnly,
+    scheduleSessions: allSessions,
+    billingNotes,
     sessionDetails: sessionDetailRows,
     packLines: packLineRows,
     laborEntries,
