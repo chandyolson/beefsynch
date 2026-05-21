@@ -18,6 +18,7 @@ export const BADGE_STYLES = {
     ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
     shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
     fulfilled: "bg-green-500/20 text-green-300 border-green-500/30",
+    invoiced: "bg-blue-500/20 text-blue-400 border-blue-500/40",
   },
   orderBilling: {
     unbilled: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
@@ -89,6 +90,7 @@ export const fulfillmentColors: Record<string, string> = {
   ordered: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   shipped: "bg-purple-500/20 text-purple-300 border-purple-500/30",
   fulfilled: "bg-green-500/20 text-green-300 border-green-500/30",
+  invoiced: "bg-blue-500/20 text-blue-400 border-blue-500/40",
 };
 
 export const billingColors: Record<string, string> = {
@@ -100,4 +102,40 @@ export const billingColors: Record<string, string> = {
 export function getBadgeClass(category: BadgeCategory, value: string): string {
   const styles = BADGE_STYLES[category] as Record<string, string>;
   return styles[value] ?? "bg-muted text-muted-foreground";
+}
+
+// One badge to rule them all. Collapses `order_status` + `fulfillment_status`
+// into a single display state representing the most advanced stage the order
+// has reached.
+export function getOrderDisplayStatus(order: {
+  order_status?: string | null;
+  fulfillment_status?: string | null;
+}): { label: string; className: string } {
+  const f = order.fulfillment_status ?? "";
+  const o = order.order_status ?? "";
+
+  if (f === "invoiced")
+    return { label: "Invoiced", className: "bg-blue-500/20 text-blue-400 border-blue-500/40" };
+  if (f === "fulfilled")
+    return { label: "Fulfilled", className: "bg-green-500/20 text-green-300 border-green-500/30" };
+  if (f === "partially_fulfilled")
+    return { label: "Partially Fulfilled", className: "bg-amber-500/20 text-amber-300 border-amber-500/40" };
+  if (f === "cancelled")
+    return { label: "Cancelled", className: "bg-destructive/20 text-destructive border-destructive/30" };
+  if (f === "delivered")
+    return { label: "Delivered", className: "bg-green-500/20 text-green-300 border-green-500/30" };
+  if (o === "received")
+    return { label: "Received", className: "bg-teal-500/20 text-teal-300 border-teal-500/40" };
+  if (o === "ordered")
+    return { label: "Ordered", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
+
+  return { label: "Not Ordered", className: "bg-destructive/20 text-destructive border-destructive/30" };
+}
+
+// True when the order still has work to fulfill (and should show a "Fulfill
+// Order" button). Already-fulfilled, invoiced, and cancelled orders return
+// false.
+export function canFulfillOrder(fulfillmentStatus: string | null | undefined): boolean {
+  const f = fulfillmentStatus ?? "";
+  return f === "pending" || f === "partially_fulfilled" || f === "delivered";
 }

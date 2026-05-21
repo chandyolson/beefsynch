@@ -10,6 +10,7 @@ import { generateOrderPdf } from "@/lib/generateOrderPdf";
 import { getBullDisplayName } from "@/lib/bullDisplay";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,8 +30,7 @@ import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
-import { fulfillmentColors, billingColors } from "@/lib/badgeStyles";
-import { InvoiceOrderModal } from "@/components/orders/InvoiceOrderModal";
+import { getOrderDisplayStatus, canFulfillOrder } from "@/lib/badgeStyles";
 import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
 import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import ReceiveDialog from "@/components/orders/ReceiveDialog";
@@ -114,6 +114,37 @@ function OrderDateField({
         </PopoverContent>
       </Popover>
     </div>
+  );
+}
+
+function InvoiceNumberInput({
+  initial,
+  onSave,
+}: {
+  initial: string | null;
+  onSave: (raw: string) => void | Promise<void>;
+}) {
+  const [value, setValue] = useState(initial ?? "");
+  useEffect(() => { setValue(initial ?? ""); }, [initial]);
+  const commit = () => {
+    if ((value.trim() || null) !== (initial ?? null)) {
+      onSave(value);
+    }
+  };
+  return (
+    <Input
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      placeholder="e.g., INV-1042"
+      className="h-8 w-48 text-sm"
+    />
   );
 }
 
@@ -381,17 +412,21 @@ const SemenOrderDetail = () => {
     }
   };
 
-  const markOrderInvoiced = async () => {
+  // Setting an invoice number flips fulfillment_status to "invoiced" and
+  // stamps invoiced_at via a DB trigger. Clearing it reverts both.
+  const saveInvoiceNumber = async (raw: string) => {
     if (!order) return;
+    const next = raw.trim() ? raw.trim() : null;
+    if ((next ?? null) === (order.invoice_number ?? null)) return;
     const { error } = await supabase
       .from("semen_orders")
-      .update({ invoiced_at: new Date().toISOString(), billing_status: "invoiced" })
+      .update({ invoice_number: next })
       .eq("id", order.id);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Could not save invoice #", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Order marked invoiced" });
+    toast({ title: next ? `Invoice saved (#${next})` : "Invoice number cleared" });
     load();
   };
 
@@ -428,21 +463,6 @@ const SemenOrderDetail = () => {
       return;
     }
     toast({ title: "Saved" });
-    load();
-  };
-
-  const revertOrderInvoiced = async () => {
-    if (!order) return;
-    if (!window.confirm("Are you sure? This will move the order back to the billable queue.")) return;
-    const { error } = await supabase
-      .from("semen_orders")
-      .update({ invoiced_at: null, billing_status: "unbilled" })
-      .eq("id", order.id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Reverted to unbilled" });
     load();
   };
 
@@ -744,21 +764,14 @@ const SemenOrderDetail = () => {
             Order Date: {order.order_date ? format(parseISO(order.order_date), "MMMM d, yyyy") : "—"}
           </p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-xs",
-                order.order_status === "received"
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                  : order.order_status === "ordered"
-                    ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                    : "bg-destructive/20 text-destructive border-destructive/30",
-              )}
-            >
-              {order.order_status === "not_ordered" ? "Not Ordered"
-                : order.order_status === "ordered" ? "Ordered"
-                : "Received"}
-            </Badge>
+            {(() => {
+              const status = getOrderDisplayStatus(order);
+              return (
+                <Badge variant="outline" className={cn("text-xs", status.className)}>
+                  {status.label}
+                </Badge>
+              );
+            })()}
             {order.order_status === "not_ordered" && (
               <Button
                 size="sm"
@@ -778,36 +791,28 @@ const SemenOrderDetail = () => {
                 Mark as Received
               </Button>
             )}
-            <Badge variant="outline" className={cn("capitalize text-xs", fulfillmentColors[order.fulfillment_status] || "")}>
-              {order.fulfillment_status.replace(/_/g, " ")}
-            </Badge>
-            {!isInventory && (
-              <Badge variant="outline" className={cn("capitalize text-xs", billingColors[order.billing_status] || "")}>
-                {order.billing_status}
-              </Badge>
-            )}
-            {!isInventory && order.invoice_number && (
-              <Badge variant="outline" className="text-xs">
-                #{order.invoice_number}
-              </Badge>
-            )}
-            {!isInventory && (order.invoiced_at ? (
-              <span className="inline-flex items-center gap-2 text-xs text-emerald-600">
-                <span>Invoiced {format(parseISO(order.invoiced_at), "MMM d, yyyy")}</span>
+          </div>
+          {!isInventory && order.invoice_number && (
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-2">
+              <span>
+                Invoice #{order.invoice_number}
+                {order.invoiced_at && <> · {format(parseISO(order.invoiced_at), "MMM d, yyyy")}</>}
+              </span>
+              {order.fulfillment_status === "invoiced" && (
                 <button
                   type="button"
-                  onClick={revertOrderInvoiced}
-                  className="text-muted-foreground hover:text-destructive underline"
+                  onClick={() => {
+                    if (window.confirm("Clear the invoice number? The order will revert to Fulfilled.")) {
+                      saveInvoiceNumber("");
+                    }
+                  }}
+                  className="text-xs text-muted-foreground hover:text-destructive underline"
                 >
                   Revert
                 </button>
-              </span>
-            ) : (
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={markOrderInvoiced}>
-                Mark Invoiced
-              </Button>
-            ))}
-          </div>
+              )}
+            </p>
+          )}
 
           {order.order_type === "customer" && (() => {
             // Compute fulfilled units per bull line from pack data
@@ -841,7 +846,7 @@ const SemenOrderDetail = () => {
             });
             const hasRemaining = directSaleLines.some((l) => l.ordered - l.fulfilled > 0);
             const canDirectSale =
-              !["fulfilled", "cancelled"].includes(order.fulfillment_status) &&
+              canFulfillOrder(order.fulfillment_status) &&
               hasRemaining &&
               !!orgId;
             return (
@@ -872,17 +877,6 @@ const SemenOrderDetail = () => {
                     Fulfill Order
                   </Button>
                 )}
-                {order.billing_status === "unbilled" &&
-                  ["partially_fulfilled", "fulfilled"].includes(
-                    order.fulfillment_status,
-                  ) && (
-                    <InvoiceOrderModal
-                      orderId={order.id}
-                      customerName={customerName}
-                      trigger={<Button size="sm">Invoice</Button>}
-                      onSuccess={() => load()}
-                    />
-                  )}
               </div>
             );
           })()}
@@ -977,12 +971,20 @@ const SemenOrderDetail = () => {
                 ) : "—"}
               </span>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-muted-foreground shrink-0">Invoice</span>
-              <span className="font-medium">
-                {order.invoice_number ? `#${order.invoice_number}` : "—"}
-              </span>
-            </div>
+            {!isInventory && (
+              <div className="flex items-baseline gap-2 sm:col-span-2">
+                <span className="text-muted-foreground shrink-0">Invoice #</span>
+                <InvoiceNumberInput
+                  initial={order.invoice_number}
+                  onSave={saveInvoiceNumber}
+                />
+                {order.invoiced_at && (
+                  <span className="text-xs text-emerald-600 shrink-0">
+                    Invoiced {format(parseISO(order.invoiced_at), "MMM d, yyyy")}
+                  </span>
+                )}
+              </div>
+            )}
             {order.notes && (
               <div className="sm:col-span-2 flex items-baseline gap-2">
                 <span className="text-muted-foreground shrink-0">Notes</span>
@@ -1266,7 +1268,7 @@ const SemenOrderDetail = () => {
                         {/* Billed */}
                         <div className="col-span-1 text-center">
                           <span className="sm:hidden text-xs text-muted-foreground mr-1">Billed:</span>
-                          {order.billing_status === "invoiced" ? (
+                          {order.fulfillment_status === "invoiced" || order.billing_status === "invoiced" ? (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓</span>
                           ) : order.invoice_number ? (
                             <span className="text-xs text-muted-foreground">#{order.invoice_number}</span>

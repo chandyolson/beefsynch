@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore, differenceInCalendarDays } from "date-fns";
 import {
-  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart, ClipboardList, ChevronDown, ChevronRight, Check,
+  Search, Plus, CalendarIcon, Package, DollarSign, Clock, ShoppingCart, ClipboardList, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 import StatCard from "@/components/StatCard";
@@ -18,19 +18,13 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getBadgeClass } from "@/lib/badgeStyles";
+import { getOrderDisplayStatus } from "@/lib/badgeStyles";
 import { getBullDisplayName, getBullDisplayLabel } from "@/lib/bullDisplay";
 import ReceivingTab from "@/components/inventory/ReceivingTab";
 
-type ChipFilter = "all" | "open" | "needs_invoice" | "done";
+type ChipFilter = "all" | "open" | "needs_invoice" | "invoiced" | "done";
 type OrderStatusFilter = "all" | "not_ordered" | "ordered" | "received";
-type Tier = "open" | "needs_invoice" | "done";
-
-const ORDER_STATUS_PILL: Record<string, { label: string; className: string }> = {
-  not_ordered: { label: "Not Ordered", className: "bg-destructive/20 text-destructive border-destructive/30" },
-  ordered: { label: "Ordered", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  received: { label: "Received", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-};
+type Tier = "open" | "needs_invoice" | "invoiced" | "done";
 
 const formatCompactDate = (iso: string | null | undefined) => {
   if (!iso) return null;
@@ -49,8 +43,11 @@ const classify = (o: any): Tier | "cancelled" | null => {
   const f = o.fulfillment_status;
   const b = o.billing_status;
   const isInventory = o.order_type === "inventory";
-  const isInvoiced = b === "invoiced" || b === "paid";
-  const isFulfilled = f === "fulfilled" || f === "ready_to_close";
+  // fulfillment_status === 'invoiced' is set automatically by a DB trigger
+  // when invoice_number is populated. billing_status checks are kept for
+  // backwards compat with rows that pre-date the trigger.
+  const isInvoiced = f === "invoiced" || b === "invoiced" || b === "paid";
+  const isFulfilled = f === "fulfilled" || f === "ready_to_close" || isInvoiced;
 
   if (f === "cancelled") return "cancelled";
 
@@ -58,11 +55,12 @@ const classify = (o: any): Tier | "cancelled" | null => {
   // done, full stop — they never enter the needs_invoice tier.
   if (isInventory) return isFulfilled ? "done" : "open";
 
-  // Done = fulfilled AND invoiced
-  if (isFulfilled && isInvoiced) return "done";
+  // Paid = done. Invoiced (but not yet paid) is its own tier.
+  if (b === "paid") return "done";
+  if (isInvoiced) return "invoiced";
 
   // Needs invoice = fulfilled but NOT invoiced
-  if (isFulfilled && !isInvoiced) return "needs_invoice";
+  if (isFulfilled) return "needs_invoice";
 
   // Everything else is open (pending, partially_fulfilled, ordered, shipped, etc)
   return "open";
@@ -280,12 +278,14 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const grouped = useMemo(() => {
     const tier1: any[] = []; // open orders
     const tier2: any[] = []; // needs invoice
-    const tier3: any[] = []; // done (fulfilled + invoiced)
+    const invoiced: any[] = []; // invoice number entered, not yet paid
+    const tier3: any[] = []; // done (paid / inventory fulfilled)
     const cancelled: any[] = [];
     for (const o of baseFiltered) {
       const t = classify(o);
       if (t === "open") tier1.push(o);
       else if (t === "needs_invoice") tier2.push(o);
+      else if (t === "invoiced") invoiced.push(o);
       else if (t === "done") tier3.push(o);
       else if (t === "cancelled") cancelled.push(o);
     }
@@ -298,7 +298,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
       sortReceived(tier1);
       sortReceived(tier2);
     }
-    return { tier1, tier2, tier3, cancelled };
+    return { tier1, tier2, invoiced, tier3, cancelled };
   }, [baseFiltered, subTab, receivedSet]);
 
   const totalOrders = scopedOrders.length;
@@ -333,9 +333,9 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
         : "—");
     const totalUnitsRow = getOrderUnits(order.semen_order_items);
     const items = order.semen_order_items || [];
-    const isUnfulfilled = !["fulfilled", "cancelled"].includes(order.fulfillment_status);
-    const orderStatus = (order.order_status || "not_ordered") as keyof typeof ORDER_STATUS_PILL;
-    const statusPill = ORDER_STATUS_PILL[orderStatus] ?? ORDER_STATUS_PILL.not_ordered;
+    const isUnfulfilled = !["fulfilled", "invoiced", "cancelled"].includes(order.fulfillment_status);
+    const orderStatus = order.order_status || "not_ordered";
+    const displayStatus = getOrderDisplayStatus(order);
     const neededByLabel = formatCompactDate(order.needed_by);
     const neededBySoon = isNeededBySoon(order.needed_by);
     const requestedLabel = formatCompactDate(order.customer_request_date) ?? formatCompactDate(order.created_at);
@@ -354,21 +354,13 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
               {order.semen_companies?.name && (
                 <span className="text-xs text-muted-foreground">{order.semen_companies.name}</span>
               )}
-              <Badge variant="outline" className={cn("text-[10px]", statusPill.className)}>
-                {statusPill.label}
+              <Badge variant="outline" className={cn("text-[10px]", displayStatus.className)}>
+                {displayStatus.label}
               </Badge>
-              <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderFulfillment', order.fulfillment_status))}>
-                {order.fulfillment_status?.replace(/_/g, " ")}
-              </Badge>
-              {order.order_type !== "inventory" && (
-                <Badge variant="outline" className={cn("capitalize text-[10px]", getBadgeClass('orderBilling', order.billing_status))}>
-                  {order.billing_status}
-                </Badge>
-              )}
-              {order.order_type === "inventory" && receivedSet.has(order.id) && (
-                <Badge variant="outline" className="bg-green-600/20 text-green-400 border-green-600/30 text-[10px] gap-0.5">
-                  <Check className="h-2.5 w-2.5" /> Received
-                </Badge>
+              {order.order_type !== "inventory" && order.invoice_number && (
+                <span className="text-[10px] text-muted-foreground">
+                  #{order.invoice_number}
+                </span>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-muted-foreground">
@@ -482,18 +474,19 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
   const flatList = useMemo(() => {
     if (chipFilter === "open") return grouped.tier1;
     if (chipFilter === "needs_invoice") return grouped.tier2;
+    if (chipFilter === "invoiced") return grouped.invoiced;
     if (chipFilter === "done") return [...grouped.tier3, ...grouped.cancelled];
     return [];
   }, [chipFilter, grouped]);
 
   const showTiers = chipFilter === "all";
-  // For "All": cancelled rolls into tier 3 per spec
+  // For "All": cancelled rolls into the done tier per spec
   const tier3Rows = chipFilter === "all"
     ? [...grouped.tier3, ...grouped.cancelled]
     : grouped.tier3;
 
   const noResults =
-    (showTiers && grouped.tier1.length === 0 && grouped.tier2.length === 0 && tier3Rows.length === 0)
+    (showTiers && grouped.tier1.length === 0 && grouped.tier2.length === 0 && grouped.invoiced.length === 0 && tier3Rows.length === 0)
     || (!showTiers && flatList.length === 0);
 
   return (
@@ -569,6 +562,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
               { key: "all", label: "All" },
               { key: "open", label: "Open" },
               { key: "needs_invoice", label: "Needs Invoice" },
+              { key: "invoiced", label: "Invoiced" },
               { key: "done", label: "Completed" },
             ] as { key: ChipFilter; label: string }[]).map(chip => (
               <button
@@ -663,6 +657,7 @@ const OrdersTab = ({ orgId }: { orgId: string }) => {
             <div className="space-y-4">
               <TierSection title="Open Orders" rows={grouped.tier1} defaultOpen collapsible={false} />
               <TierSection title="Needs Invoice" rows={grouped.tier2} defaultOpen collapsible={false} />
+              <TierSection title="Invoiced" rows={grouped.invoiced} defaultOpen collapsible={false} />
               <TierSection title="Completed" rows={tier3Rows} defaultOpen={false} collapsible />
             </div>
           ) : (
