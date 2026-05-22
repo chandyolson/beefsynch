@@ -134,7 +134,7 @@ export default function SemenSessions({ billingId, projectId, organizationId, is
     queryClient.invalidateQueries({ queryKey: ["billing_invoice_semen_v2", billingId] });
   };
 
-  const saveSessionField = async (id: string, field: "session_date" | "head_count", value: any) => {
+  const saveSessionField = async (id: string, field: "session_date", value: any) => {
     const { error } = await supabase
       .from("project_billing_sessions")
       .update({ [field]: value })
@@ -158,55 +158,34 @@ export default function SemenSessions({ billingId, projectId, organizationId, is
     }
     toast({ title: "Saved" });
 
-    // When end_units / blown_units change, recompute the session's head_count
-    // (1 unit semen = 1 head bred). Skip if the user has clearly overridden the
-    // count — we only overwrite when head_count is null/0 or matches the
-    // currently auto-calculated total (i.e. user hasn't touched it).
-    if (field === "end_units" || field === "blown_units") {
-      const row = inventory.find((r) => r.id === rowId);
-      const sessionId = row?.session_id;
-      if (sessionId) {
-        const { data: invRows } = await supabase
-          .from("project_billing_session_inventory")
-          .select("start_units, end_units, blown_units")
-          .eq("session_id", sessionId);
-        const totalUsed = (invRows || []).reduce((s: number, r: any) => {
-          if (r.start_units != null && r.end_units != null) {
-            return s + Math.max(0, r.start_units - r.end_units);
-          }
-          return s;
-        }, 0);
-        const totalBlown = (invRows || []).reduce(
-          (s: number, r: any) => s + (r.blown_units || 0),
-          0,
-        );
-        const nextHead = Math.max(0, totalUsed - totalBlown);
-        // Auto-fill only when head_count is null/0 OR equals the previous
-        // auto value derived from the prior inventory state. Compute the
-        // previous auto value by reverting this single field on this row.
-        const session = sessions.find((s) => s.id === sessionId);
-        const currentHead = session?.head_count ?? 0;
-        const prevAutoUsed = (invRows || []).reduce((s: number, r: any) => {
-          const start = r.start_units;
-          let end = r.end_units;
-          if (r.id === rowId && field === "end_units") end = (row as any).end_units;
-          if (start != null && end != null) return s + Math.max(0, start - end);
-          return s;
-        }, 0);
-        const prevAutoBlown = (invRows || []).reduce((s: number, r: any) => {
-          let blown = r.blown_units || 0;
-          if (r.id === rowId && field === "blown_units") blown = (row as any).blown_units || 0;
-          return s + blown;
-        }, 0);
-        const prevAuto = Math.max(0, prevAutoUsed - prevAutoBlown);
-        const looksUntouched = currentHead === 0 || currentHead === null || currentHead === prevAuto;
-        if (looksUntouched && nextHead !== currentHead) {
-          await supabase
-            .from("project_billing_sessions")
-            .update({ head_count: nextHead })
-            .eq("id", sessionId);
-          refetchSessions();
+    // Head is auto-derived now. Always overwrite project_billing_sessions
+    // .head_count with sum(start − end) − sum(blown) across the session's
+    // inventory rows; the field is no longer user-editable.
+    const row = inventory.find((r) => r.id === rowId);
+    const sessionId = row?.session_id;
+    if (sessionId) {
+      const { data: invRows } = await supabase
+        .from("project_billing_session_inventory")
+        .select("start_units, end_units, blown_units")
+        .eq("session_id", sessionId);
+      const totalUsed = (invRows || []).reduce((s: number, r: any) => {
+        if (r.start_units != null && r.end_units != null) {
+          return s + Math.max(0, r.start_units - r.end_units);
         }
+        return s;
+      }, 0);
+      const totalBlown = (invRows || []).reduce(
+        (s: number, r: any) => s + (r.blown_units || 0),
+        0,
+      );
+      const nextHead = Math.max(0, totalUsed - totalBlown);
+      const session = sessions.find((s) => s.id === sessionId);
+      if (nextHead !== (session?.head_count ?? 0)) {
+        await supabase
+          .from("project_billing_sessions")
+          .update({ head_count: nextHead })
+          .eq("id", sessionId);
+        refetchSessions();
       }
     }
 
@@ -383,7 +362,6 @@ export default function SemenSessions({ billingId, projectId, organizationId, is
                 sessionId={s.id}
                 index={i}
                 date={s.session_date}
-                headCount={s.head_count}
                 rows={(rowsBySession.get(s.id) ?? []).slice().sort((a, b) =>
                   a.bull_name.localeCompare(b.bull_name) || a.canister.localeCompare(b.canister, undefined, { numeric: true })
                 )}

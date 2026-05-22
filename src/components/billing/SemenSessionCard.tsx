@@ -17,17 +17,32 @@ interface SemenSessionCardProps {
   sessionId: string;
   index: number;
   date: string | null;
-  headCount: number | null;
   rows: InventoryRow[];
-  onSessionField: (id: string, field: "session_date" | "head_count", value: any) => void;
+  onSessionField: (id: string, field: "session_date", value: any) => void;
   onCellChange: (rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) => void;
   isEditing?: boolean;
 }
 
 export default function SemenSessionCard({
-  sessionId, index, date, headCount, rows,
+  sessionId, index, date, rows,
   onSessionField, onCellChange, isEditing = true,
 }: SemenSessionCardProps) {
+  // Head is derived from the inventory grid: sum(start - end) - sum(blown).
+  // The parent persists the same number to project_billing_sessions.head_count
+  // so reports / Arm Service can still read it from the row.
+  const headCount = (() => {
+    let used = 0;
+    let blown = 0;
+    for (const r of rows) {
+      if (r.start_units != null && r.end_units != null && r.start_units > r.end_units) {
+        used += r.start_units - r.end_units;
+      }
+      if (r.blown_units != null && r.blown_units > 0) {
+        blown += r.blown_units;
+      }
+    }
+    return Math.max(0, used - blown);
+  })();
   return (
     <div className="rounded-lg border border-border/60 overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-3 py-2 bg-muted/40 flex-wrap">
@@ -54,21 +69,15 @@ export default function SemenSessionCard({
             </span>
           )}
         </div>
-        <label className="text-xs text-muted-foreground inline-flex items-center gap-2">
+        <span
+          className="text-xs text-muted-foreground inline-flex items-center gap-2"
+          title="Auto-calculated: total used (start − end) minus blown"
+        >
           Head
-          <Input
-            inputMode="numeric"
-            disabled={!isEditing}
-            className="h-7 w-[64px] text-right text-xs"
-            defaultValue={headCount ?? ""}
-            placeholder="—"
-            onBlur={(e) => {
-              const v = e.target.value === "" ? null : Number(e.target.value);
-              if (v === headCount) return;
-              onSessionField(sessionId, "head_count", v);
-            }}
-          />
-        </label>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {headCount > 0 ? headCount : "—"}
+          </span>
+        </span>
       </div>
       <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
         <thead className="bg-muted/20 text-[11px] uppercase tracking-wide text-muted-foreground">
