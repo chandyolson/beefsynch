@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, Upload, X, Package, CalendarDays, Loader2, Check, AlertTriangle, Map as MapIcon, Printer } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateTankLabelPdf } from "@/lib/generateTankLabelPdf";
 import TankMapDialog from "@/components/inventory/TankMapDialog";
