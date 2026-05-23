@@ -770,15 +770,28 @@ const SemenOrderDetail = () => {
                 </Badge>
               );
             })()}
-            {order.order_type === "customer" && ((order as any).status ?? "open") === "open" && (
-              <Button
-                size="sm"
-                onClick={() => setPackDialogOpen(true)}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Pack Order
-              </Button>
-            )}
+            {order.order_type === "customer" && ((order as any).status ?? "open") === "open" && (() => {
+              const activePackId = packData?.find(
+                (link: any) => link.tank_packs?.status === "packed"
+              )?.tank_packs?.id;
+              return activePackId ? (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/pack/${activePackId}`)}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Add to Pack
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setPackDialogOpen(true)}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Pack Order
+                </Button>
+              );
+            })()}
           </div>
           {!isInventory && order.invoice_number && (
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-2">
