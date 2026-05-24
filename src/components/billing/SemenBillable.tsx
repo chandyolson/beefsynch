@@ -258,23 +258,51 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
     refetch();
   };
 
-  // Derived per-row display values
+  // Derived per-row display values. Billable is ALWAYS computed from the
+  // session-driven numbers per the business rule (Used − Blown), never read
+  // back from the stored column (which can go stale at row creation).
+  //   Used     = Packed − Returned
+  //   Billable = Used − Blown   (blown is a subset of used, not additive)
   const display = rows.map((r) => {
     const k = r.bull_catalog_id || r.bull_name;
     const packed = packedByBull.get(k) ?? r.units_packed ?? 0;
     const blown = blownByBull.get(k) ?? r.units_blown ?? 0;
     const returned = r.units_returned ?? 0;
     const used = Math.max(0, packed - returned);
-    return { row: r, packed, blown, returned, used };
+    const billable = Math.max(0, used - blown);
+    const lineTotal = Number((billable * (r.unit_price ?? 0)).toFixed(2));
+    return { row: r, packed, blown, returned, used, billable, lineTotal };
   });
 
-  // Subtotals by company
+  // Keep the stored units_billable / units_blown / line_total in sync with the
+  // computed values so downstream readers (invoicing section, PDFs, subtotals
+  // persisted elsewhere) stay correct. Only writes when a row has drifted, so
+  // it settles in one pass and doesn't loop.
+  useEffect(() => {
+    const drifted = display.filter(({ row: r, blown, billable, lineTotal }) =>
+      (r.units_billable ?? 0) !== billable ||
+      (r.units_blown ?? 0) !== blown ||
+      (r.line_total ?? 0) !== lineTotal,
+    );
+    if (drifted.length === 0) return;
+    Promise.all(
+      drifted.map(({ row: r, blown, billable, lineTotal }) =>
+        supabase
+          .from("project_billing_semen")
+          .update({ units_billable: billable, units_blown: blown, line_total: lineTotal })
+          .eq("id", r.id),
+      ),
+    ).then(() => refetch());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [display]);
+
+  // Subtotals by company — from the computed values.
   const subtotals = new Map<string, { billable: number; total: number }>();
   for (const d of display) {
     const company = d.row.semen_companies?.name || "Unknown";
     const cur = subtotals.get(company) || { billable: 0, total: 0 };
-    cur.billable += d.row.units_billable ?? 0;
-    cur.total += d.row.line_total ?? 0;
+    cur.billable += d.billable;
+    cur.total += d.lineTotal;
     subtotals.set(company, cur);
   }
 
@@ -300,7 +328,7 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
           <tbody>
             {display.length === 0 ? (
               <tr><td colSpan={10} className="px-3 py-4 text-center text-muted-foreground">No semen lines yet.</td></tr>
-            ) : display.map(({ row: r, packed, blown, returned, used }) => (
+            ) : display.map(({ row: r, packed, blown, returned, used, billable, lineTotal }) => (
               <tr key={r.id} className="border-t border-border/40">
                 <td className="px-3 py-2 font-medium truncate">{r.bull_name}</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{r.bull_code || "—"}</td>
@@ -336,19 +364,10 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
                     {blown || "—"}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <Input
-                    inputMode="numeric"
-                    disabled={!isEditing}
-                    className="h-7 w-[68px] text-right text-xs ml-auto text-emerald-600 font-semibold"
-                    defaultValue={r.units_billable ?? ""}
-                    placeholder="—"
-                    onBlur={(e) => {
-                      const v = e.target.value === "" ? null : Number(e.target.value);
-                      if (v === r.units_billable) return;
-                      saveField(r, { units_billable: v });
-                    }}
-                  />
+                <td className="px-3 py-2 text-right tabular-nums">
+                  <span className={billable > 0 ? "text-emerald-600 font-semibold text-[15px]" : "text-muted-foreground italic"}>
+                    {billable || "—"}
+                  </span>
                 </td>
                 <td className="px-3 py-2 text-right">
                   <Input
@@ -365,8 +384,8 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
                   />
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  <span className={(r.line_total ?? 0) > 0 ? "text-emerald-500 font-medium text-[15px]" : "text-muted-foreground"}>
-                    {formatCurrency(r.line_total)}
+                  <span className={lineTotal > 0 ? "text-emerald-500 font-medium text-[15px]" : "text-muted-foreground"}>
+                    {formatCurrency(lineTotal)}
                   </span>
                 </td>
                 <td className="px-3 py-2">{companyBadge(r.semen_companies?.name)}</td>
