@@ -1037,7 +1037,7 @@ const HubTab = ({ orgId, onSwitchTab }: HubTabProps) => {
                     <div className="flex justify-end">
                       <Button
                         size="sm"
-                        onClick={() => navigate(`/pack-tank?projectId=${p.project_id}`)}
+                        onClick={() => navigate(`/project/${p.project_id}/billing`)}
                       >
                         <Package className="h-3.5 w-3.5 mr-1.5" /> Pack tank
                       </Button>
