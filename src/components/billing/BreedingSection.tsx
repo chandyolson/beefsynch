@@ -115,7 +115,7 @@ export default function BreedingSection({
     return null;
   };
 
-  const { bullTotals, grandTotalUsed } = useMemo(() => {
+  const { bullTotals, grandTotalUsed, grandTotalBlown } = useMemo(() => {
     const bt = new Map<string, { packed: number; used: number; blown: number }>();
     for (const sl of semenLines) {
       bt.set(sl.bull_catalog_id || sl.bull_name, { packed: sl.units_packed ?? 0, used: 0, blown: 0 });
@@ -143,8 +143,9 @@ export default function BreedingSection({
       }
     }
     let grand = 0;
-    bt.forEach(v => grand += v.used);
-    return { bullTotals: bt, grandTotalUsed: grand };
+    let grandBlown = 0;
+    bt.forEach(v => { grand += v.used; grandBlown += v.blown; });
+    return { bullTotals: bt, grandTotalUsed: grand, grandTotalBlown: grandBlown };
   }, [sorted, bullCombos, invLookup, semenLines]);
 
   useEffect(() => {
@@ -218,7 +219,7 @@ export default function BreedingSection({
           {grandTotalUsed > 0 && (
             <div className="flex justify-between items-center pt-3 border-t mt-2 text-sm">
               <span className="text-muted-foreground">Total head bred</span>
-              <span className="font-semibold">{grandTotalUsed}</span>
+              <span className="font-semibold">{Math.max(0, grandTotalUsed - grandTotalBlown)}</span>
             </div>
           )}
         </CardContent>

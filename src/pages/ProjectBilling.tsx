@@ -951,11 +951,18 @@ const ProjectBilling = () => {
   // drifted from the computed values. The inner `if (changed)` checks
   // already prevent redundant writes.
   function handleTotalUsedChanged(totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) {
-    // Arm Service auto-doses
+    // Total head bred = total used minus total blown (1 straw = 1 head, but
+    // blown straws never made it into a cow). This is the same number the
+    // TOTAL HEAD KPI shows and what Arm Service should bill on.
+    let totalBlown = 0;
+    bullBlown.forEach((v) => { totalBlown += v; });
+    const totalHead = Math.max(0, totalUsed - totalBlown);
+
+    // Arm Service auto-doses — drives the head count we charge for.
     const serviceIdx = productLines.findIndex(p =>
       p.product_category === "service" || (p.product_name || "").toLowerCase().includes("service")
     );
-    if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalUsed) {
+    if (serviceIdx >= 0 && productLines[serviceIdx].doses !== totalHead) {
       const svc = productLines[serviceIdx];
       // Treat units_billed as a manual override when it diverges from the
       // previous auto-calculated doses. doses is the right anchor (the prior
@@ -963,9 +970,9 @@ const ProjectBilling = () => {
       const prevDoses = svc.doses ?? 0;
       const wasManual = svc.units_billed != null
         && Math.abs((svc.units_billed ?? 0) - prevDoses) > 0.001;
-      const updates: Partial<ProductLine> = { doses: totalUsed, units_calculated: totalUsed };
+      const updates: Partial<ProductLine> = { doses: totalHead, units_calculated: totalHead };
       if (!wasManual) {
-        updates.units_billed = totalUsed;
+        updates.units_billed = totalHead;
       }
       saveProductLine(serviceIdx, updates);
     }
