@@ -123,9 +123,9 @@ const Billable = () => {
     const { data: projRows } = await supabase
       .from("projects")
       .select(`
-        id, name, breeding_date, customer_id, customer_supplied_tank,
+        id, name, breeding_date, customer_id,
         customers!projects_customer_id_fkey(name),
-        project_billing(id, catl_invoice_status, select_sires_invoice_status)
+        project_billing(id, catl_invoice_status, select_sires_invoice_status, customer_supplied_tank)
       `)
       .eq("organization_id", orgId)
       .eq("status", "Ready to Bill");
@@ -147,7 +147,7 @@ const Billable = () => {
           customer_name: p.customers?.name || "Unknown",
           breeding_date: p.breeding_date,
           billing_id: billing.id,
-          customer_supplied_tank: !!p.customer_supplied_tank,
+          customer_supplied_tank: !!billing.customer_supplied_tank,
         } as BillableProject;
       })
       .filter((p): p is BillableProject => p !== null);

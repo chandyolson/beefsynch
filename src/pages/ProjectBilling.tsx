@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft, Printer, ClipboardList, Check, Package, Trash2, Plus, Pencil, MoreVertical, Settings, CheckCircle, Download, Edit, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import { Button } from "@/components/ui/button";
@@ -536,6 +537,21 @@ const ProjectBilling = () => {
       supabase.from("project_billing").update({ [field]: value }).eq("id", billingId)
     );
     setBillingRecord((prev: any) => ({ ...prev, [field]: value }));
+  }
+
+  // Customer-supplied tank is a billing decision, stored on project_billing.
+  async function saveCustomerSuppliedTank(value: boolean) {
+    if (!billingId) return;
+    setBillingRecord((prev: any) => ({ ...prev, customer_supplied_tank: value }));
+    const { error } = await supabase
+      .from("project_billing")
+      .update({ customer_supplied_tank: value })
+      .eq("id", billingId);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: value ? "Marked customer-supplied tank" : "Cleared customer-supplied tank" });
   }
 
   function saveProductLine(idx: number, updates: Partial<ProductLine>) {
@@ -1090,7 +1106,7 @@ const ProjectBilling = () => {
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[projectStatus] || "bg-muted text-muted-foreground"}`}>
                     {projectStatus}
                   </span>
-                  {project.customer_supplied_tank && (
+                  {billingRecord?.customer_supplied_tank && (
                     <Badge variant="outline" className="bg-teal-600/20 text-teal-400 border-teal-600/30 text-xs">
                       Customer Tank
                     </Badge>
@@ -1135,6 +1151,20 @@ const ProjectBilling = () => {
                     {project.notes}
                   </p>
                 )}
+                <label className="flex items-start gap-2 mt-2 cursor-pointer max-w-md">
+                  <Checkbox
+                    checked={!!billingRecord?.customer_supplied_tank}
+                    onCheckedChange={(v) => saveCustomerSuppliedTank(v === true)}
+                    disabled={readOnly}
+                    className="mt-0.5"
+                  />
+                  <span className="leading-tight">
+                    <span className="text-[13px] font-medium">Customer supplied tank</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      Customer provided their own tank — no tank rental, and no pack/ship/unpack required to mark Ready to Bill.
+                    </span>
+                  </span>
+                </label>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
