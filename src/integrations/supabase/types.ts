@@ -1263,6 +1263,7 @@ export type Database = {
           catl_invoice_number: string | null
           catl_invoice_status: string | null
           created_at: string | null
+          customer_supplied_tank: boolean
           detection_type: string | null
           id: string
           inventory_finalized_at: string | null
@@ -1285,6 +1286,7 @@ export type Database = {
           catl_invoice_number?: string | null
           catl_invoice_status?: string | null
           created_at?: string | null
+          customer_supplied_tank?: boolean
           detection_type?: string | null
           id?: string
           inventory_finalized_at?: string | null
@@ -1307,6 +1309,7 @@ export type Database = {
           catl_invoice_number?: string | null
           catl_invoice_status?: string | null
           created_at?: string | null
+          customer_supplied_tank?: boolean
           detection_type?: string | null
           id?: string
           inventory_finalized_at?: string | null
@@ -2120,7 +2123,7 @@ export type Database = {
           placed_by_user_id?: string | null
           project_id?: string | null
           semen_company_id?: string | null
-          status: string
+          status?: string
           supplier_invoice_number?: string | null
         }
         Update: {
