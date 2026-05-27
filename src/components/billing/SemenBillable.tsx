@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,7 @@ type PackLineRow = {
   bull_code: string | null;
   units: number;
   invoicing_company_id: string | null;
+  is_billable: boolean;
 };
 
 const formatCurrency = (n: number | null | undefined) =>
@@ -60,7 +62,7 @@ function companyBadge(name: string | null | undefined) {
 export default function SemenBillable({ billingId, projectId, isEditing, onToggleEdit, locked }: SemenBillableProps) {
   const queryClient = useQueryClient();
 
-  const { data: rows = [] } = useQuery({
+  const { data: rows = [], isLoading: rowsLoading } = useQuery({
     queryKey: ["semen_billable_v2", billingId],
     enabled: !!billingId,
     queryFn: async () => {
@@ -76,7 +78,7 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
 
   // Pull pack lines (for packed totals + auto-create) and session inventory
   // (for blown totals).
-  const { data: packLines = [] } = useQuery({
+  const { data: packLines = [], isLoading: packLoading } = useQuery({
     queryKey: ["semen_billable_pack_v2", projectId],
     enabled: !!projectId,
     queryFn: async () => {
@@ -88,7 +90,7 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
       if (ids.length === 0) return [];
       const { data, error } = await supabase
         .from("tank_pack_lines")
-        .select("bull_catalog_id, bull_name, bull_code, units, invoicing_company_id")
+        .select("bull_catalog_id, bull_name, bull_code, units, invoicing_company_id, is_billable")
         .in("tank_pack_id", ids);
       if (error) throw error;
       return (data ?? []) as PackLineRow[];
@@ -204,11 +206,24 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, suggestedReturnedByBull, packedByBull, blownByBull]);
 
-  // Auto-create semen rows once when pack lines exist but no semen rows do.
+  // Auto-add a billing row for any BILLABLE pack-line bull that doesn't have a
+  // project_billing_semen row yet. Runs once per mount, after both queries have
+  // loaded, so a line added to a pack AFTER billing was generated still shows
+  // up. This ONLY adds missing rows — it never updates or deletes existing ones,
+  // so prices and returned/blown counts the user already set are preserved.
+  const autoAddDone = useRef(false);
   useEffect(() => {
-    if (rows.length > 0 || packLines.length === 0) return;
+    if (autoAddDone.current) return;
+    if (rowsLoading || packLoading) return;
+    // Both queries have finished their initial load: `rows` and `packLines`
+    // now reflect real DB state, so this comparison is safe to run exactly once.
+    autoAddDone.current = true;
+    if (packLines.length === 0) return;
+
+    // Group billable pack lines by bull (catalog id for catalog bulls, else name).
     const byBull = new Map<string, { bull_name: string; bull_code: string | null; bull_catalog_id: string | null; units: number; invoicing_company_id: string | null; mixed: boolean }>();
     for (const pl of packLines) {
+      if (pl.is_billable === false) continue;
       const k = pl.bull_catalog_id || pl.bull_name;
       const entry = byBull.get(k);
       if (entry) {
@@ -225,7 +240,15 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
         });
       }
     }
-    const inserts = Array.from(byBull.values()).map((b, i) => ({
+
+    const existingKeys = new Set(rows.map((r) => r.bull_catalog_id || r.bull_name));
+    const missing = Array.from(byBull.values()).filter(
+      (b) => !existingKeys.has(b.bull_catalog_id || b.bull_name),
+    );
+    if (missing.length === 0) return;
+
+    const baseSort = rows.length;
+    const inserts = missing.map((b, i) => ({
       billing_id: billingId,
       bull_catalog_id: b.bull_catalog_id,
       bull_name: b.bull_name,
@@ -236,12 +259,31 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
       units_billable: b.units,
       unit_price: 0,
       line_total: 0,
-      sort_order: i,
+      sort_order: baseSort + i,
       invoicing_company_id: b.mixed ? null : b.invoicing_company_id,
     }));
-    if (inserts.length === 0) return;
-    supabase.from("project_billing_semen").insert(inserts).then(() => refetch());
-  }, [rows.length, packLines, billingId]);
+
+    supabase
+      .from("project_billing_semen")
+      .insert(inserts)
+      .then(({ error }) => {
+        if (error) {
+          autoAddDone.current = false; // allow a retry on next mount
+          toast({ title: "Could not add billing line", description: error.message, variant: "destructive" });
+          return;
+        }
+        const names = missing.map((b) => b.bull_name).join(", ");
+        toast({
+          title:
+            missing.length === 1
+              ? `Added ${names} to billing — verify units and pricing`
+              : `Added ${missing.length} bulls to billing — verify units and pricing`,
+          description: missing.length > 1 ? names : undefined,
+        });
+        refetch();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsLoading, packLoading, rows, packLines, billingId]);
 
   const computeLineTotal = (billable: number | null, price: number | null) =>
     Number((Number(billable ?? 0) * Number(price ?? 0)).toFixed(2));
@@ -275,7 +317,12 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
     const used = Math.max(0, packed - returned);
     const billable = Math.max(0, used - blown);
     const lineTotal = Number((billable * (r.unit_price ?? 0)).toFixed(2));
-    return { row: r, packed, blown, returned, used, billable, lineTotal };
+    // The stored units_packed can fall behind if more units were packed for
+    // this bull after the row was created. Flag the drift; let the user decide
+    // whether to reconcile it (we never silently overwrite it).
+    const storedPacked = r.units_packed ?? 0;
+    const packedDrift = packedByBull.has(k) && packed !== storedPacked;
+    return { row: r, packed, storedPacked, packedDrift, blown, returned, used, billable, lineTotal };
   });
 
   // Keep the stored units_billable / units_blown / line_total in sync with the
@@ -332,11 +379,34 @@ export default function SemenBillable({ billingId, projectId, isEditing, onToggl
           <tbody>
             {display.length === 0 ? (
               <tr><td colSpan={10} className="px-3 py-4 text-center text-muted-foreground">No semen lines yet.</td></tr>
-            ) : display.map(({ row: r, packed, blown, returned, used, billable, lineTotal }) => (
+            ) : display.map(({ row: r, packed, storedPacked, packedDrift, blown, returned, used, billable, lineTotal }) => (
               <tr key={r.id} className="border-t border-border/40">
                 <td className="px-3 py-2 font-medium truncate">{r.bull_name}</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{r.bull_code || "—"}</td>
-                <td className="px-3 py-2 text-right italic text-muted-foreground tabular-nums">{packed}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {packedDrift &&
+                      (isEditing ? (
+                        <button
+                          type="button"
+                          aria-label="Update packed units"
+                          title={`Pack shows ${packed} units, billing shows ${storedPacked} — click to update`}
+                          onClick={() => saveField(r, { units_packed: packed })}
+                          className="text-yellow-500 hover:text-yellow-400"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <span
+                          title={`Pack shows ${packed} units, billing shows ${storedPacked}`}
+                          className="text-yellow-500"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        </span>
+                      ))}
+                    <span className="italic text-muted-foreground">{packed}</span>
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-right">
                   {(() => {
                     const k = r.bull_catalog_id || r.bull_name;

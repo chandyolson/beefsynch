@@ -519,61 +519,17 @@ const ProjectBilling = () => {
     ));
   }
 
-  /* ── Auto-sync units_packed on semen lines from pack data ── */
-  const packedSyncDone = useRef(false);
-  useEffect(() => {
-    if (!projectPacks.length || !semenLines.length || packedSyncDone.current) return;
-    packedSyncDone.current = true;
-    syncPackedFromPacks();
-  }, [projectPacks, semenLines]);
+  // units_packed on semen lines is intentionally NOT auto-synced from pack
+  // data. When a pack grows after billing was generated, the Billable Summary
+  // surfaces a drift warning and lets the user reconcile it — silently
+  // overwriting units_packed (and recomputing billable from it) would wipe out
+  // prices and returned/blown counts the user already set.
 
   // Arm Service doses + semen line aggregates are driven by
   // `handleTotalUsedChanged` (sourced from session-inventory totals) — the
   // previous head_count-based effect that lived here used `session.head_count`,
   // which only reflected the *first* session inventory line a user edited and
   // got stuck mid-session, leading to doses=103 when 393 was correct.
-
-  async function syncPackedFromPacks() {
-    const packIds = projectPacks.map((p) => p.id);
-    const { data: packLines } = await supabase
-      .from("tank_pack_lines").select("bull_catalog_id, bull_name, units")
-      .in("tank_pack_id", packIds);
-    if (!packLines?.length) return;
-
-    const packedByBull: Record<string, number> = {};
-    for (const pl of packLines) {
-      const key = (pl.bull_catalog_id as string) || pl.bull_name;
-      packedByBull[key] = (packedByBull[key] || 0) + pl.units;
-    }
-
-    const dbUpdates: Array<{ id: string; units_packed: number; units_billable: number; line_total: number }> = [];
-    const updated = semenLines.map((sl) => {
-      const key = sl.bull_catalog_id || sl.bull_name;
-      const packed = packedByBull[key] ?? 0;
-      if (packed > 0 && sl.units_packed !== packed && sl.id) {
-        // Only touch units_packed and recompute the billable/total from it.
-        // units_returned is owned by the unpack flow (or manual edits) —
-        // never recalculate it from packed minus used or we wipe out the
-        // real returned count.
-        const returned = sl.units_returned ?? 0;
-        const billable = Math.max(0, packed - returned - (sl.units_blown ?? 0));
-        const line_total = billable * (sl.unit_price ?? 0);
-        dbUpdates.push({ id: sl.id, units_packed: packed, units_billable: billable, line_total });
-        return { ...sl, units_packed: packed, units_billable: billable, line_total };
-      }
-      return sl;
-    });
-
-    if (dbUpdates.length === 0) return;
-    setSemenLines(updated);
-    await Promise.all(dbUpdates.map((u) =>
-      supabase.from("project_billing_semen").update({
-        units_packed: u.units_packed,
-        units_billable: u.units_billable,
-        line_total: u.line_total,
-      }).eq("id", u.id)
-    ));
-  }
 
   /* ════════════════════ SAVE HELPERS ════════════════════ */
 
