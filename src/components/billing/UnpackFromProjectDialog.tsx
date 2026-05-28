@@ -80,11 +80,17 @@ export default function UnpackFromProjectDialog({
     const load = async () => {
       setLoading(true);
 
-      const [linesRes, tanksRes, usedRes] = await Promise.all([
-        supabase
-          .from("tank_pack_lines")
-          .select("id, bull_catalog_id, bull_name, bull_code, source_tank_id, source_canister, field_canister, units, bulls_catalog(bull_name, naab_code), tanks!tank_pack_lines_source_tank_id_fkey(tank_name, tank_number)")
-          .eq("tank_pack_id", packId),
+      // v_pack_line_remaining is the single source of truth for leftover units
+      // per pack line — computed at canister granularity from the latest
+      // session's end_units in SQL. No client-side remaining math.
+      let remainingQuery = supabase
+        .from("v_pack_line_remaining")
+        .select("pack_line_id, bull_catalog_id, bull_name, bull_code, field_canister, source_tank_id, source_canister, units_packed, units_remaining, line_status")
+        .eq("tank_pack_id", packId);
+      if (billingId) remainingQuery = remainingQuery.eq("billing_id", billingId);
+
+      const [remainingRes, tanksRes] = await Promise.all([
+        remainingQuery,
         supabase
           .from("tanks")
           .select("id, tank_name, tank_number")
@@ -92,24 +98,46 @@ export default function UnpackFromProjectDialog({
           .eq("location_status", "here")
           .eq("nitrogen_status", "wet")
           .order("tank_number"),
-        billingId
-          ? supabase
-              .from("project_billing_session_inventory")
-              .select("bull_catalog_id, canister, start_units, end_units, session_id, project_billing_sessions!inner(sort_order, session_date)")
-              .eq("billing_id", billingId)
-          : Promise.resolve({ data: [] as any[], error: null }),
       ]);
 
       if (cancelled) return;
 
-      const lines = (linesRes.data ?? []) as PackLineRow[];
-      const destTanks = (tanksRes.data ?? []) as TankOption[];
+      const remainingRows = (remainingRes.data ?? []) as Array<{
+        pack_line_id: string;
+        bull_catalog_id: string | null;
+        bull_name: string | null;
+        bull_code: string | null;
+        field_canister: string | null;
+        source_tank_id: string;
+        source_canister: string | null;
+        units_packed: number;
+        units_remaining: number;
+        line_status: string;
+      }>;
 
-      // Include any source tanks that aren't already in the wet/here list,
-      // so the user can always return to the origin.
+      // The view returns the pack line's raw bull_name/code and source tank id.
+      // Pull catalog display names + source tank labels for the rows shown.
+      const lineIds = remainingRows.map((r) => r.pack_line_id);
+      const enrichRes = lineIds.length > 0
+        ? await supabase
+            .from("tank_pack_lines")
+            .select("id, bulls_catalog(bull_name, naab_code), tanks!tank_pack_lines_source_tank_id_fkey(tank_name, tank_number)")
+            .in("id", lineIds)
+        : { data: [] as any[] };
+      const enrichmentById = new Map<string, {
+        bulls_catalog: { bull_name: string; naab_code: string | null } | null;
+        tanks: { tank_name: string | null; tank_number: string } | null;
+      }>();
+      for (const e of (enrichRes.data ?? []) as any[]) {
+        enrichmentById.set(e.id, { bulls_catalog: e.bulls_catalog, tanks: e.tanks });
+      }
+
+      // Destination tank list, augmented with any source tanks not currently
+      // wet/here so the user can always return to origin.
+      const destTanks = (tanksRes.data ?? []) as TankOption[];
       const haveIds = new Set(destTanks.map((t) => t.id));
       const missingSourceTankIds = Array.from(
-        new Set(lines.map((l) => l.source_tank_id).filter((id) => !haveIds.has(id))),
+        new Set(remainingRows.map((r) => r.source_tank_id).filter((id) => !haveIds.has(id))),
       );
       let augmented = destTanks;
       if (missingSourceTankIds.length > 0) {
@@ -120,60 +148,41 @@ export default function UnpackFromProjectDialog({
         if (extras) augmented = [...destTanks, ...(extras as TankOption[])];
       }
 
-      // Build a per-(bull, canister) end-of-latest-session map. A bull packed
-      // across multiple field canisters has one End value per canister, so we
-      // can't roll up by bull alone. Match each pack line to its own canister's
-      // session row directly — the remaining for that pack line is that row's
-      // End. (The old per-bull rollup discarded all but the first canister's
-      // End, reporting 0 remaining when leftover units lived in another can.)
-      const usedRows = (usedRes.data ?? []) as Array<{
-        bull_catalog_id: string | null;
-        canister: string | null;
-        end_units: number | null;
-        project_billing_sessions?: { sort_order: number | null; session_date: string | null } | null;
-      }>;
-      const canisterKey = (bullId: string | null, canister: string | null) =>
-        `${bullId ?? ""}::${canister ?? ""}`;
-      const lastEndByCanister = new Map<string, number>();
-      const sorted = usedRows
-        .filter((r) => r.bull_catalog_id && r.end_units != null)
-        .slice()
-        .sort((a, b) => {
-          const aOrd = a.project_billing_sessions?.sort_order ?? 0;
-          const bOrd = b.project_billing_sessions?.sort_order ?? 0;
-          if (aOrd !== bOrd) return bOrd - aOrd;
-          const aDate = a.project_billing_sessions?.session_date ?? "";
-          const bDate = b.project_billing_sessions?.session_date ?? "";
-          return bDate.localeCompare(aDate);
-        });
-      for (const r of sorted) {
-        const key = canisterKey(r.bull_catalog_id, r.canister);
-        if (!lastEndByCanister.has(key)) {
-          lastEndByCanister.set(key, r.end_units ?? 0);
-        }
-      }
-
-      const rows: ReturnRow[] = lines.map((l) => {
-        const key = canisterKey(l.bull_catalog_id, l.field_canister);
-        const lastEnd = lastEndByCanister.get(key);
-        // If no session has reported End yet for this canister, all packed
-        // units are still here.
-        const remaining = lastEnd == null ? (l.units ?? 0) : lastEnd;
+      const rows: ReturnRow[] = remainingRows.map((r) => {
+        const enrich = enrichmentById.get(r.pack_line_id);
         return {
-          packLineId: l.id,
-          bullCatalogId: l.bull_catalog_id,
-          bullName: l.bulls_catalog?.bull_name ?? l.bull_name ?? "(unknown)",
-          bullCode: l.bulls_catalog?.naab_code ?? l.bull_code ?? null,
-          fieldCanister: l.field_canister,
-          unitsPacked: l.units ?? 0,
-          unitsRemaining: remaining,
-          destinationTankId: l.source_tank_id,
-          destinationCanister: l.source_canister ?? "",
-          unitsReturning: String(remaining),
+          packLineId: r.pack_line_id,
+          bullCatalogId: r.bull_catalog_id,
+          bullName: enrich?.bulls_catalog?.bull_name ?? r.bull_name ?? "(unknown)",
+          bullCode: enrich?.bulls_catalog?.naab_code ?? r.bull_code ?? null,
+          fieldCanister: r.field_canister,
+          unitsPacked: r.units_packed,
+          unitsRemaining: r.units_remaining,
+          destinationTankId: r.source_tank_id,
+          destinationCanister: r.source_canister ?? "",
+          unitsReturning: String(r.units_remaining),
         };
       });
 
-      setPackLines(lines);
+      // Minimal pack-line records for the per-row source display
+      // ("from Tank X · can Y").
+      const minimalPackLines: PackLineRow[] = remainingRows.map((r) => {
+        const enrich = enrichmentById.get(r.pack_line_id);
+        return {
+          id: r.pack_line_id,
+          bull_catalog_id: r.bull_catalog_id,
+          bull_name: r.bull_name,
+          bull_code: r.bull_code,
+          source_tank_id: r.source_tank_id,
+          source_canister: r.source_canister,
+          field_canister: r.field_canister,
+          units: r.units_packed,
+          bulls_catalog: enrich?.bulls_catalog ?? null,
+          tanks: enrich?.tanks ?? null,
+        };
+      });
+
+      setPackLines(minimalPackLines);
       setDestinationTanks(augmented);
       setReturnRows(rows);
       setLoading(false);
