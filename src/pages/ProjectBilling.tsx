@@ -794,6 +794,37 @@ const ProjectBilling = () => {
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
   }
 
+  async function saveMiscToCatalog(lineId: string, newProduct: BillingProduct) {
+    // 1. Link the current project_billing_products row to the new catalog entry
+    const updates: Partial<ProductLine> = {
+      billing_product_id: newProduct.id,
+      product_name: newProduct.product_name,
+      product_category: newProduct.product_category,
+      doses_per_unit: newProduct.doses_per_unit,
+      unit_label: newProduct.unit_label,
+      unit_price: newProduct.default_price ?? 0,
+    };
+    const { error } = await supabase
+      .from("project_billing_products")
+      .update(updates)
+      .eq("id", lineId);
+    if (error) {
+      toast({ title: "Couldn't link row to catalog", description: error.message, variant: "destructive" });
+      return;
+    }
+    // 2. Update local state — the misc row now looks like a regular catalog row
+    setProductLines(prev =>
+      prev.map(p => p.id === lineId ? { ...p, ...updates } : p)
+    );
+    // 3. Add the new catalog entry to billingProducts so the dropdown picks it up
+    setBillingProducts(prev =>
+      [...prev, newProduct].sort((a, b) =>
+        (a.product_category || "").localeCompare(b.product_category || "") ||
+        (a.sort_order ?? 0) - (b.sort_order ?? 0),
+      ),
+    );
+  }
+
   async function removeProductLine(idx: number) {
     const line = productLines[idx];
     if (line.id) await supabase.from("project_billing_products").delete().eq("id", line.id);

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import BreedingSection from "./BreedingSection";
+import SaveProductToCatalogDialog from "./SaveProductToCatalogDialog";
 import {
   ProductLine, SessionLine, SessionInventoryLine, SemenLine, BillingProduct,
   formatCurrency, isBreedingSession, toggleSetItem,
@@ -20,6 +21,7 @@ interface SessionsTabProps {
   sessionInventory: SessionInventoryLine[];
   semenLines: SemenLine[];
   billingProducts: BillingProduct[];
+  organizationId: string;
   readOnly: boolean;
   onSaveSession: (idx: number, updates: Partial<SessionLine>) => void;
   onSaveProduct: (idx: number, updates: Partial<ProductLine>) => void;
@@ -35,18 +37,30 @@ interface SessionsTabProps {
   onSaveWorksheetCell: (rowId: string, field: "start_units" | "end_units" | "blown_units", value: number | null) => void;
   onSetSessionInventory: React.Dispatch<React.SetStateAction<SessionInventoryLine[]>>;
   onTotalUsedChanged: (totalUsed: number, bullUsed: Map<string, number>, bullBlown: Map<string, number>) => void;
+  onSaveMiscToCatalog: (lineId: string, catalogProduct: BillingProduct) => void;
 }
 
 export default function SessionsTab({
-  sessions, productLines, sessionInventory, semenLines, billingProducts, readOnly,
+  sessions, productLines, sessionInventory, semenLines, billingProducts, organizationId, readOnly,
   onSaveSession, onSaveProduct, onSwapProduct, onToggleProductInvoiced,
   onAddBreedingSession, onCreateCustomerPickup, onRemoveSession,
   onRemoveProduct, onAddProductToSession, onAddProductToSessionWithProduct,
   onAddMiscProduct,
   onSaveWorksheetCell, onSetSessionInventory, onTotalUsedChanged,
+  onSaveMiscToCatalog,
 }: SessionsTabProps) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [editingSessions, setEditingSessions] = useState<Set<string>>(new Set());
+  const [saveCatalogState, setSaveCatalogState] = useState<{
+    open: boolean;
+    lineId: string | null;
+    initialName: string;
+    initialPrice: number | null;
+  } | null>(null);
+  const existingCategories = useMemo(
+    () => Array.from(new Set(billingProducts.map(p => p.product_category).filter(Boolean))),
+    [billingProducts],
+  );
 
   const toggleExpand = (id: string) => setExpandedSessions(p => toggleSetItem(p, id));
   const toggleEdit = (id: string) => setEditingSessions(p => toggleSetItem(p, id));
@@ -205,9 +219,30 @@ export default function SessionsTab({
                     <TableRow key={line.id || idx} className={isInvoicedLine ? "opacity-50 bg-muted/30" : ""}>
                       <TableCell className="text-sm">
                         {isMisc && !isInvoicedLine ? (
-                          <Input className="h-8 text-xs" value={line.product_name === "Miscellaneous" ? "" : line.product_name}
-                            placeholder="What is this item?"
-                            onChange={(e) => onSaveProduct(idx, { product_name: e.target.value || "Miscellaneous" })} />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-8 text-xs flex-1 min-w-0"
+                              value={line.product_name === "Miscellaneous" ? "" : line.product_name}
+                              placeholder="What is this item?"
+                              onChange={(e) => onSaveProduct(idx, { product_name: e.target.value || "Miscellaneous" })}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs shrink-0"
+                              disabled={!line.product_name || line.product_name === "Miscellaneous"}
+                              onClick={() => setSaveCatalogState({
+                                open: true,
+                                lineId: line.id ?? null,
+                                initialName: line.product_name,
+                                initialPrice: line.unit_price ?? null,
+                              })}
+                              title="Save this product to the catalog so it appears in future dropdowns"
+                            >
+                              Save to Catalog
+                            </Button>
+                          </div>
                         ) : showSwap && !isInvoicedLine ? (
                           <Select value={line.billing_product_id || ""} onValueChange={(v) => onSwapProduct(idx, v)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue>{line.product_name}</SelectValue></SelectTrigger>
@@ -548,6 +583,22 @@ export default function SessionsTab({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {saveCatalogState?.open && (
+        <SaveProductToCatalogDialog
+          open={saveCatalogState.open}
+          onOpenChange={(o) => setSaveCatalogState(o ? saveCatalogState : null)}
+          initialProductName={saveCatalogState.initialName}
+          initialPrice={saveCatalogState.initialPrice}
+          existingCategories={existingCategories}
+          organizationId={organizationId}
+          onSaved={(newProduct) => {
+            if (saveCatalogState.lineId) {
+              onSaveMiscToCatalog(saveCatalogState.lineId, newProduct);
+            }
+          }}
+        />
       )}
     </div>
   );
