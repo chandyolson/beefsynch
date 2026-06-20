@@ -1385,6 +1385,13 @@ export type Database = {
             referencedRelation: "project_billing"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "project_billing_labor_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "v_pack_line_remaining"
+            referencedColumns: ["billing_id"]
+          },
         ]
       }
       project_billing_products: {
@@ -1466,6 +1473,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "project_billing_products_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "v_pack_line_remaining"
+            referencedColumns: ["billing_id"]
+          },
+          {
             foreignKeyName: "project_billing_products_billing_product_id_fkey"
             columns: ["billing_product_id"]
             isOneToOne: false
@@ -1543,6 +1557,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project_billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_semen_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "v_pack_line_remaining"
+            referencedColumns: ["billing_id"]
           },
           {
             foreignKeyName: "project_billing_semen_bull_catalog_id_fkey"
@@ -1625,6 +1646,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "project_billing_session_inventory_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "v_pack_line_remaining"
+            referencedColumns: ["billing_id"]
+          },
+          {
             foreignKeyName: "project_billing_session_inventory_bull_catalog_id_fkey"
             columns: ["bull_catalog_id"]
             isOneToOne: false
@@ -1700,6 +1728,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project_billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_billing_sessions_billing_id_fkey"
+            columns: ["billing_id"]
+            isOneToOne: false
+            referencedRelation: "v_pack_line_remaining"
+            referencedColumns: ["billing_id"]
           },
         ]
       }
@@ -3180,6 +3215,63 @@ export type Database = {
           },
         ]
       }
+      v_pack_line_remaining: {
+        Row: {
+          billing_id: string | null
+          bull_catalog_id: string | null
+          bull_code: string | null
+          bull_name: string | null
+          field_canister: string | null
+          last_session_date: string | null
+          line_status: string | null
+          pack_line_id: string | null
+          project_id: string | null
+          source_canister: string | null
+          source_tank_id: string | null
+          tank_pack_id: string | null
+          units_blown: number | null
+          units_packed: number | null
+          units_remaining: number | null
+          units_used: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tank_pack_lines_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "bulls_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_lines_bull_catalog_id_fkey"
+            columns: ["bull_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "view_bull_planning"
+            referencedColumns: ["bull_catalog_id"]
+          },
+          {
+            foreignKeyName: "tank_pack_lines_source_tank_id_fkey"
+            columns: ["source_tank_id"]
+            isOneToOne: false
+            referencedRelation: "tanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_lines_tank_pack_id_fkey"
+            columns: ["tank_pack_id"]
+            isOneToOne: false
+            referencedRelation: "tank_packs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tank_pack_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       view_bull_planning: {
         Row: {
           active_projects: number | null
@@ -3225,6 +3317,7 @@ export type Database = {
         Args: { _input: Json }
         Returns: Json
       }
+      close_order_manual: { Args: { _input: Json }; Returns: Json }
       close_out_tank_pack: {
         Args: {
           _close_notes?: string
@@ -3338,6 +3431,7 @@ export type Database = {
       }
       receive_shipment_v2: { Args: { _input: Json }; Returns: Json }
       record_direct_sale: { Args: { _input: Json }; Returns: Json }
+      reopen_order_manual: { Args: { _input: Json }; Returns: Json }
       run_all_beefsynch_tests: {
         Args: never
         Returns: {

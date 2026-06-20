@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer, MoreVertical, XCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, Loader2, Package, Printer, MoreVertical, XCircle } from "lucide-react";
 import { OrderPrintSheet } from "@/components/orders/OrderPrintSheet";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { FulfillOrderDialog } from "@/components/orders/FulfillOrderDialog";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import AppFooter from "@/components/AppFooter";
 import ClickableRegNumber from "@/components/ClickableRegNumber";
-import { MarkFulfilledModal } from "@/components/orders/MarkFulfilledModal";
+import { CloseOrderDialog } from "@/components/orders/CloseOrderDialog";
 import QuickBullEditDialog from "@/components/bulls/QuickBullEditDialog";
 import ReceiveDialog from "@/components/orders/ReceiveDialog";
 import ProductOrderItemsSection from "@/components/orders/ProductOrderItemsSection";
@@ -41,6 +41,7 @@ interface OrderRow {
   customer_id: string | null;
   order_date: string | null;
   order_status: "not_ordered" | "ordered" | "received";
+  status: string | null;
   fulfillment_status: string;
   billing_status: string;
   project_id: string | null;
@@ -198,14 +199,12 @@ const SemenOrderDetail = () => {
   const [editBullId, setEditBullId] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const [closingOrder, setClosingOrder] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
-  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [packDialogOpen, setPackDialogOpen] = useState(false);
-  const [markFulfilledOpen, setMarkFulfilledOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [packData, setPackData] = useState<any[]>([]);
-  const [directSaleTxns, setDirectSaleTxns] = useState<any[]>([]);
   const [supplyItems, setSupplyItems] = useState<any[]>([]);
   const [receiveLines, setReceiveLines] = useState<any[]>([]);
   const [billableByBull, setBillableByBull] = useState<Map<string, number>>(new Map());
@@ -274,14 +273,6 @@ const SemenOrderDetail = () => {
         `)
         .eq("semen_order_id", id);
       setPackData(packLinks || []);
-
-      // Fetch direct sale / withdrawal transactions linked to this order
-      const { data: directTxns } = await supabase
-        .from("inventory_transactions")
-        .select("bull_catalog_id, custom_bull_name, units_change, transaction_type")
-        .eq("order_id", id)
-        .in("transaction_type", ["direct_sale", "withdrawal"]);
-      setDirectSaleTxns(directTxns || []);
 
       // Fetch product/supply items for this order (new product_order_items table)
       const { data: supplyData } = await supabase
@@ -545,6 +536,19 @@ const SemenOrderDetail = () => {
     (i) => i.item_status === "pending" || i.item_status === "partially_received",
   );
 
+  // Close/Reopen gating. An order is locked once invoiced; once manually closed
+  // it can be reopened (the undo). These never block on packed/received counts.
+  const orderStatus = order?.status ?? "open";
+  const isInvoiced =
+    !!order?.invoice_number || orderStatus === "invoiced" || order?.fulfillment_status === "invoiced";
+  const isManuallyClosed = !!order?.manually_closed_at;
+
+  // "Completed" units feeding the informational warning in the close dialog:
+  // received units for inventory orders, billable/packed units for customer orders.
+  const completedUnits = isInventory
+    ? items.reduce((s, i) => s + (i.units_received || 0), 0)
+    : Array.from(billableByBull.values()).reduce((s, n) => s + n, 0);
+
   // Group received transactions by bull so the Order Items table can show
   // "Where it went" inline per line. Key by catalog id when present, otherwise
   // by lowercased bull name, matching the OrderShipmentReconciliation logic
@@ -558,36 +562,20 @@ const SemenOrderDetail = () => {
     receivesByBull.get(k)!.push(r);
   }
 
-  const handleCloseOrder = async () => {
+  const handleReopen = async () => {
     if (!order) return;
-    setClosingOrder(true);
+    setReopening(true);
     try {
-      const openIds = items
-        .filter((i) => i.item_status === "pending" || i.item_status === "partially_received")
-        .map((i) => i.id);
-      if (openIds.length > 0) {
-        const { error: itemErr } = await supabase
-          .from("semen_order_items")
-          .update({ item_status: "cancelled" })
-          .in("id", openIds);
-        if (itemErr) throw itemErr;
-      }
-      const { data: userData } = await supabase.auth.getUser();
-      const { error: orderErr } = await supabase
-        .from("semen_orders")
-        .update({
-          manually_closed_at: new Date().toISOString(),
-          manually_closed_by: userData.user?.id ?? null,
-          manually_closed_reason: "Closed from order detail",
-        })
-        .eq("id", order.id);
-      if (orderErr) throw orderErr;
-      toast({ title: "Order closed" });
+      const { error } = await supabase.rpc("reopen_order_manual", {
+        _input: { order_id: order.id },
+      });
+      if (error) throw error;
+      toast({ title: "Order reopened" });
       load();
     } catch (err: any) {
-      toast({ title: "Close failed", description: err.message ?? String(err), variant: "destructive" });
+      toast({ title: "Could not reopen order", description: err.message ?? String(err), variant: "destructive" });
     } finally {
-      setClosingOrder(false);
+      setReopening(false);
     }
   };
 
@@ -643,11 +631,21 @@ const SemenOrderDetail = () => {
                 <Package className="h-4 w-4 mr-1" /> Receive Shipment
               </Button>
             )}
-            {["fulfilled", "cancelled"].includes(order.fulfillment_status) && (
+            {isInvoiced ? (
               <span className="text-xs text-muted-foreground italic self-center">
-                {order.fulfillment_status === "fulfilled" ? "Fulfilled — locked" : "Cancelled — locked"}
+                Invoiced — locked
               </span>
-            )}
+            ) : isManuallyClosed ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReopen}
+                disabled={reopening}
+              >
+                {reopening && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Reopen Order
+              </Button>
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">
@@ -655,9 +653,9 @@ const SemenOrderDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                {((order as any).status ?? "open") === "open" && (
-                  <DropdownMenuItem onClick={() => setMarkFulfilledOpen(true)}>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Fulfilled
+                {!isInvoiced && !isManuallyClosed && (
+                  <DropdownMenuItem onClick={() => setCloseDialogOpen(true)}>
+                    <XCircle className="h-4 w-4 mr-2" /> Close Order
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={handleExportPdf}>
@@ -666,14 +664,6 @@ const SemenOrderDetail = () => {
                 <DropdownMenuItem onClick={() => window.print()}>
                   <Printer className="h-4 w-4 mr-2" /> Print Bill
                 </DropdownMenuItem>
-                {isInventory && hasOpenItems && ((order as any).status ?? "open") === "open" && (
-                  <DropdownMenuItem
-                    onClick={() => setCloseConfirmOpen(true)}
-                    disabled={closingOrder}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" /> Close Order
-                  </DropdownMenuItem>
-                )}
                 {((order as any).status ?? "open") === "open" && (
                   <>
                     <DropdownMenuItem onClick={openEdit}>
@@ -691,32 +681,6 @@ const SemenOrderDetail = () => {
             </DropdownMenu>
           </div>
         </div>
-
-        {/* Close Order confirmation */}
-        <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Close this order?</AlertDialogTitle>
-              <AlertDialogDescription>
-                All remaining pending or partially received lines will be cancelled.
-                Units already received will not be affected.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  await handleCloseOrder();
-                  setCloseConfirmOpen(false);
-                }}
-                disabled={closingOrder}
-              >
-                {closingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Close Order
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Delete Order confirmation */}
         <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
@@ -793,6 +757,11 @@ const SemenOrderDetail = () => {
               );
             })()}
           </div>
+          {isManuallyClosed && order.manually_closed_reason && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Closed reason: {order.manually_closed_reason}
+            </p>
+          )}
           {!isInventory && order.invoice_number && (
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-2">
               <span>
@@ -1376,19 +1345,13 @@ const SemenOrderDetail = () => {
         />
       )}
       {order && (
-        <MarkFulfilledModal
+        <CloseOrderDialog
           orderId={order.id}
-          customerName={customerName}
-          unitsOrdered={items.reduce((s, i) => s + (i.units || 0), 0)}
-          unitsFilled={
-            packData.reduce((s: number, link: any) => {
-              const lines = link.tank_packs?.tank_pack_lines || [];
-              return s + lines.reduce((s2: number, l: any) => s2 + (l.units || 0), 0);
-            }, 0) +
-            directSaleTxns.reduce((s: number, txn: any) => s + Math.abs(txn.units_change || 0), 0)
-          }
-          open={markFulfilledOpen}
-          onOpenChange={setMarkFulfilledOpen}
+          orderType={order.order_type}
+          orderedUnits={totalUnits}
+          completedUnits={completedUnits}
+          open={closeDialogOpen}
+          onOpenChange={setCloseDialogOpen}
           onSuccess={() => load()}
         />
       )}
