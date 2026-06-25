@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import BullCombobox from "@/components/BullCombobox";
 
 export interface BullRow {
   bull_name: string;
   bull_catalog_id: string | null;
   units?: number;
+  /** The invoicing company (biller) for this line — semen_order_items.invoicing_company_id. */
+  invoicing_company_id?: string | null;
 }
 
 export interface BullsRowManagerProps {
@@ -25,6 +30,12 @@ export interface BullsRowManagerProps {
   showInventory?: boolean;
   /** Required when showInventory is true — used to scope the inventory lookup. */
   orgId?: string | null;
+  /** When true, shows a required "Bills as" (invoicing company) picker per line. */
+  showBiller?: boolean;
+  /** The valid billers (companies that can own inventory). Required when showBiller. */
+  billers?: { id: string; name: string }[];
+  /** Called when a line's biller changes. Required when showBiller. */
+  onUpdateBiller?: (index: number, companyId: string | null) => void;
 }
 
 const BullsRowManager = ({
@@ -37,6 +48,9 @@ const BullsRowManager = ({
   emptyMessage = "No bulls added yet. Click \"Add Bull\" to assign semen.",
   showInventory = false,
   orgId,
+  showBiller = false,
+  billers,
+  onUpdateBiller,
 }: BullsRowManagerProps) => {
   // Fetch aggregate inventory for the org, keyed by bull_catalog_id AND by lowercase name.
   // Paginated because tank_inventory can exceed the 1000-row PostgREST cap.
@@ -115,7 +129,8 @@ const BullsRowManager = ({
         const onHand = getOnHand(bull);
         const hasSelection = !!(bull.bull_name || bull.bull_catalog_id);
         return (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="space-y-1.5">
+            <div className="flex items-center gap-2">
             <BullCombobox
               value={bull.bull_name}
               catalogId={bull.bull_catalog_id}
@@ -159,6 +174,30 @@ const BullsRowManager = ({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
+            </div>
+            {showBiller && hasSelection && (
+              <div className="flex items-center gap-2 pl-1">
+                <span className="text-xs text-muted-foreground shrink-0">Bills as</span>
+                <Select
+                  value={bull.invoicing_company_id ?? ""}
+                  onValueChange={(v) => onUpdateBiller?.(i, v || null)}
+                >
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Choose biller…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(billers ?? []).map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!bull.invoicing_company_id && (
+                  <span className="text-xs text-destructive">
+                    Choose who bills this bull (Select or CATL).
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
