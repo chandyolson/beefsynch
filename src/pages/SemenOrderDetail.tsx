@@ -465,6 +465,7 @@ const SemenOrderDetail = () => {
         catalogId: i.bull_catalog_id,
         naabCode: i.bulls_catalog?.naab_code ?? null,
         units: i.units,
+        invoicingCompanyId: i.invoicing_company_id ?? null,
       })),
     };
   };

@@ -32,6 +32,8 @@ interface BullRow {
   catalogId: string | null;
   naabCode: string | null;
   units: number | "";
+  /** Biller for this line (semen_order_items.invoicing_company_id). Required on customer orders. */
+  invoicingCompanyId: string | null;
 }
 
 export interface EditOrderData {
@@ -80,7 +82,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
   const [notes, setNotes] = useState("");
   const [placedBy, setPlacedBy] = useState("");
   const [orderType, setOrderType] = useState<"customer" | "inventory">(initialOrderType ?? "customer");
-  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "" }]);
+  const [bulls, setBulls] = useState<BullRow[]>([{ name: "", catalogId: null, naabCode: null, units: "", invoicingCompanyId: null }]);
   const [dateOpen, setDateOpen] = useState(false);
   const [showFulfillmentOverride, setShowFulfillmentOverride] = useState(false);
 
@@ -91,6 +93,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
   // Semen company state
   const [semenCompanyId, setSemenCompanyId] = useState("none");
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  // The only valid billers: companies flagged can_own_inventory (Select, CATL).
+  // Loaded dynamically so this stays correct if the set ever changes.
+  const [billers, setBillers] = useState<{ id: string; name: string }[]>([]);
   const [addingCompany, setAddingCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
 
@@ -103,6 +108,13 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       .eq("active", true)
       .order("name")
       .then(({ data }: any) => setCompanies(data ?? []));
+    supabase
+      .from("semen_companies")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .eq("can_own_inventory", true)
+      .order("name")
+      .then(({ data }: any) => setBillers(data ?? []));
     supabase
       .from("billing_products")
       .select("id, product_name, product_category, default_price, unit_label")
@@ -129,7 +141,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       setNotes(editData.notes ?? "");
       setPlacedBy(editData.placed_by ?? "");
       setOrderType((editData.order_type as "customer" | "inventory") ?? "customer");
-      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      setBulls(editData.bulls.length > 0 ? editData.bulls : [{ name: "", catalogId: null, naabCode: null, units: "", invoicingCompanyId: null }]);
       // Fetch existing supply lines for edit
       if (editData.id) {
         supabase
@@ -162,7 +174,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
       setNotes("");
       setPlacedBy("");
       setOrderType(initialOrderType ?? "customer");
-      setBulls([{ name: "", catalogId: null, naabCode: null, units: "" }]);
+      setBulls([{ name: "", catalogId: null, naabCode: null, units: "", invoicingCompanyId: null }]);
       setSupplyLines([]);
       setAddingCompany(false);
       setNewCompanyName("");
@@ -170,12 +182,20 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
     setShowFulfillmentOverride(false);
   }, [open, editData, initialCustomerId]);
 
-  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "" }]);
+  const addBullRow = () => setBulls((prev) => [...prev, { name: "", catalogId: null, naabCode: null, units: "", invoicingCompanyId: null }]);
   const removeBullRow = (i: number) => setBulls((prev) => prev.filter((_, idx) => idx !== i));
   const updateBull = (i: number, name: string, catalogId: string | null, naabCode?: string | null) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, name, catalogId, naabCode: naabCode ?? null } : b)));
   const updateUnits = (i: number, val: string) =>
     setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, units: val === "" ? "" : parseInt(val) || 0 } : b)));
+  const updateBiller = (i: number, companyId: string | null) =>
+    setBulls((prev) => prev.map((b, idx) => (idx === i ? { ...b, invoicingCompanyId: companyId } : b)));
+
+  // Customer orders must carry a per-line biller (Select or CATL). Inventory
+  // orders derive the biller from the order-level Owner toggle.
+  const billerMissing =
+    orderType === "customer" &&
+    bulls.some((b) => b.name.trim().length > 0 && !b.invoicingCompanyId);
 
   const handleSave = async () => {
     if (!orgId) {
@@ -217,6 +237,17 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
           unlinkedBulls.length === 1
             ? `${names} isn't linked to your catalog. Click that bull row, then either pick from the dropdown or use "Add custom bull" to create it.`
             : `${unlinkedBulls.length} bull rows aren't linked: ${names}. Click each one and either pick from the dropdown or use "Add custom bull" to create it.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Customer orders require an explicit biller on every line — no silent
+    // CATL default. The DB trigger leaves custom-bull lines NULL on purpose.
+    if (billerMissing) {
+      toast({
+        title: "Biller required",
+        description: "Choose who bills each bull (Select or CATL) before saving.",
         variant: "destructive",
       });
       return;
@@ -278,8 +309,10 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
           bull_catalog_id: b.catalogId,
           custom_bull_name: b.catalogId ? null : b.name.trim(),
           units: typeof b.units === "number" ? b.units : parseInt(String(b.units)) || 0,
+          // Customer orders carry the operator's per-line biller choice.
+          // Inventory orders bill through the order's owner (Select/CATL).
           invoicing_company_id: orderType === "customer"
-            ? null
+            ? b.invoicingCompanyId
             : semenCompanyId === "630b12de-74bc-407a-8ee5-1ea17df18881"
               ? "630b12de-74bc-407a-8ee5-1ea17df18881"
               : "0c0df8b2-4f66-419f-8e3b-0970e3facad4",
@@ -650,6 +683,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
                 bull_name: b.name,
                 bull_catalog_id: b.catalogId,
                 units: typeof b.units === "number" ? b.units : 0,
+                invoicing_company_id: b.invoicingCompanyId,
               }))}
               onAdd={addBullRow}
               onRemove={removeBullRow}
@@ -661,6 +695,9 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
               emptyMessage="No bulls added yet. Click 'Add Bull' to add semen."
               showInventory={true}
               orgId={orgId}
+              showBiller={orderType === "customer"}
+              billers={billers}
+              onUpdateBiller={updateBiller}
             />
           </div>
 
@@ -774,7 +811,7 @@ const NewOrderDialog = ({ open, onOpenChange, editData, initialOrderType, initia
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving || billerMissing}>
               {saving ? "Saving..." : isEditing ? "Update Order" : "Save Order"}
             </Button>
           </div>
